@@ -1,0 +1,56 @@
+#!/bin/bash
+# usage: count.txt ; writes counts.csv
+# term|flags|regex
+TERMS=(
+"runtime|-i|\bruntimes?\b"
+"dispatch|-i|\bdispatch(es|ed|ing|er)?\b"
+"mission|-i|\bmissions?\b"
+"mission type|-i|\bmission[ _-]types?\b"
+"work package|-i|\bwork[ _-]?packages?\b"
+"invocation|-i|\binvocations?\b"
+"Op|  |\bOps?\b"
+"pack|-i|\bpacks?\b"
+"orchestrator|-i|\borchestrators?\b"
+"orchestration|-i|\borchestration\b"
+"coordination|-i|\bcoordination\b"
+"control plane|-i|\bcontrol[ _-]plane\b"
+"harness|-i|\bharness(es)?\b"
+"tool|-i|\btools?\b"
+"agent|-i|\bagents?\b"
+"profile|-i|\bprofiles?\b"
+"runner|-i|\brunners?\b"
+"assignment|-i|\bassignments?\b"
+"attempt|-i|\battempts?\b"
+"session|-i|\bsessions?\b"
+"lane|-i|\blanes?\b"
+"projection|-i|\bprojections?\b"
+"snapshot|-i|\bsnapshots?\b"
+"materialize|-i|\bmateriali[sz](e|es|ed|ing|ation)\b"
+"ledger|-i|\bledgers?\b"
+"event|-i|\bevents?\b"
+"bus|-i|\bbus(es)?\b"
+"seam|-i|\bseams?\b"
+"adapter|-i|\badapters?\b"
+"contract|-i|\bcontracts?\b"
+"charter|-i|\bcharters?\b"
+"doctrine|-i|\bdoctrines?\b"
+"offering|-i|\bofferings?\b"
+"activation|-i|\bactivations?\b"
+"service|-i|\bservices?\b"
+"daemon|-i|\bdaemons?\b"
+"modulith/monolith|-i|\b(modulith|monolith)(ic|s)?\b"
+"Build Kitty|-i|\bbuild[ -]kitty\b"
+"Brain Kitty|-i|\bbrain[ -]kitty\b"
+"Team Kitty|-i|\bteam[ -]kitty\b"
+"DocKitty|-i|\bdoc[ -]?kitty\b"
+"SkyKitty|-i|\bsky[ -]?kitty\b"
+)
+REPOS=("spec-kitty:5c4fc5a79de1c1c299ab221ca26e5555c68ef533" "spec-kitty-charter:06cdfbe94856e8d24eca350c63d2a7b47bb9f13a" "spec-kitty-events:646e330b896b96d7a11f53b34aa3d0c0baa69a05" "spec-kitty-open-packs:f9a557510dc7ff04597a0b8aba87f736e25f785e" "doc-kitty:1acc49fbe209436d3c1666a86e8b3960ee19e5ac")
+echo "term,repo,revision,lines_all_tracked,lines_code,lines_docs_context_or_glossary"
+for t in "${TERMS[@]}"; do IFS='|' read -r name fl re <<< "$t"; fl=$(echo $fl)
+ for r in "${REPOS[@]}"; do repo=${r%%:*}; rev=${r##*:}; cd /home/user/$repo
+  a=$(git grep -I -P $fl -e "$re" $rev -- . ':!*.lock' ':!package-lock.json' ':!uv.lock' 2>/dev/null | wc -l)
+  c=$(git grep -I -P $fl -e "$re" $rev -- '*.py' '*.java' '*.ts' '*.tsx' '*.mjs' '*.js' ':!package-lock.json' 2>/dev/null | wc -l)
+  g=$(git grep -I -P $fl -e "$re" $rev -- 'docs/context/**' 'docs/glossary/**' 'packs/*/glossaries/**' '.kittify/glossaries/**' 2>/dev/null | wc -l)
+  echo "\"$name\",$repo,$rev,$a,$c,$g"
+ done; done

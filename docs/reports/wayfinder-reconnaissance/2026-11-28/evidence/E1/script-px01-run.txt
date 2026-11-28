@@ -1,0 +1,12 @@
+#!/bin/bash
+# usage: run <cmd...>  -- logs command, output and exit code
+LOG=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/px01-command-log.txt
+export HOME=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home
+export XDG_CONFIG_HOME=$HOME/.config XDG_CACHE_HOME=$HOME/.cache XDG_STATE_HOME=$HOME/.local/state XDG_DATA_HOME=$HOME/.local/share
+export GIT_AUTHOR_NAME=px01 GIT_AUTHOR_EMAIL=px01-placeholder GIT_COMMITTER_NAME=px01 GIT_COMMITTER_EMAIL=px01-placeholder
+export NO_COLOR=1 TERM=dumb COLUMNS=200
+n=$(( $(grep -c '^### CMD ' "$LOG" 2>/dev/null || echo 0) + 1 ))
+{ echo "### CMD $n [$(date -u +%FT%TZ)] cwd=$(pwd)"; echo "\$ $*"; } >> "$LOG"
+out=$("$@" 2>&1); rc=$?
+{ echo "$out"; echo "### EXIT $rc"; echo; } >> "$LOG"
+echo "$out"; echo "[exit $rc]"

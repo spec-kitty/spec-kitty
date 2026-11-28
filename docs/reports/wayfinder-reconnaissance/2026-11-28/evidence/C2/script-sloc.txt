@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Source lines (.py under src/) per component at fixed revisions, and convergence-merge diff by component."""
+import subprocess, sys, json, collections, csv
+REPO = sys.argv[1]; OUTDIR = sys.argv[2]
+src = open(sys.argv[3]).read().split("# ---------------- classifier")[0]
+src = src.replace('REPO = sys.argv[1]', f'REPO = {REPO!r}').replace('OUT = sys.argv[2]', 'OUT=None')
+g = {}; exec(src, g)
+component = g['component']
+def git(*a): return subprocess.run(["git", "-C", REPO, *a], check=True, capture_output=True).stdout
+REVS = [l.split() for l in open(sys.argv[4]) if l.strip()]
+rows = []
+for label, rev in REVS:
+    ls = git("ls-tree", "-r", rev, "src").decode().splitlines()
+    ents = [(l.split()[2], l.split("\t", 1)[1]) for l in ls if l.endswith(".py") and l.split()[1] == "blob"]
+    p = subprocess.run(["git", "-C", REPO, "cat-file", "--batch"], input=("\n".join(o for o, _ in ents) + "\n").encode(), capture_output=True, check=True).stdout
+    i = 0; counts = collections.Counter(); files = collections.Counter()
+    for oid, path in ents:
+        hdr_end = p.index(b"\n", i); size = int(p[i:hdr_end].split()[2]); body = p[hdr_end + 1: hdr_end + 1 + size]; i = hdr_end + 1 + size + 1
+        c = component(path); counts[c] += body.count(b"\n"); files[c] += 1
+    tot = sum(counts.values())
+    rows.append([label, rev, "TOTAL", tot, sum(files.values())])
+    for c, v in counts.most_common(): rows.append([label, rev, c, v, files[c]])
+with open(f"{OUTDIR}/source-lines-at-revisions.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["label", "revision", "component", "py_lines_under_src", "py_files"]); w.writerows(rows)
+# convergence merge
+M = "2554bd13adc289d3457681308645fe52619bca0e"
+mrows = []
+for pl in ("^1", "^2"):
+    out = git("diff", "--numstat", "-M", M + pl, M, "--", "src").decode().splitlines()
+    agg = collections.defaultdict(lambda: [0, 0, 0])
+    for l in out:
+        a, d, path = l.split("\t", 2)
+        if "=>" in path:
+            # numstat rename notation {a => b}
+            import re
+            path = re.sub(r"\{[^{}]*=> ([^{}]*)\}", r"\1", path).replace("//", "/")
+            if " => " in path: path = path.split(" => ")[1]
+        c = component(path)
+        agg[c][0] += 1; agg[c][1] += 0 if a == "-" else int(a); agg[c][2] += 0 if d == "-" else int(d)
+    for c, (n, a, d) in sorted(agg.items(), key=lambda t: -(t[1][1] + t[1][2])):
+        mrows.append(["parent1-public" if pl == "^1" else "parent2-experimental", c, n, a, d])
+with open(f"{OUTDIR}/convergence-merge-diff-by-component.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["relative_to", "component", "files_changed", "lines_added", "lines_deleted"]); w.writerows(mrows)
+print(len(rows), len(mrows))

@@ -1,0 +1,32 @@
+"""Call the gate's own collector and matcher functions from tests/architectural/test_layer_rules.py
+directly (no pytest session, no pytestarch graph). Run inside the disposable clone at head."""
+import json, sys
+sys.path.insert(0, "tests/architectural")
+import test_layer_rules as t
+out = {}
+for name, root, ledger in (("mission_runtime", t._MISSION_RUNTIME_ROOT, t._MISSION_RUNTIME_ALLOWED_SPECIFY_CLI), ("runtime", t._RUNTIME_ROOT, t._RUNTIME_ALLOWED_SPECIFY_CLI)):
+    imps = t._collect_specify_cli_imports(root)
+    live = {t._specify_cli_subpackage(m) for _, m in imps}
+    out[name] = {
+        "collector_import_entries": len(imps),
+        "importing_files": len({r for r, _ in imps}),
+        "ledger_entries": len(ledger),
+        "out_of_ledger": t._out_of_ledger_specify_cli_imports(imps, ledger),
+        "stale_ledger_entries": sorted(ledger - live),
+        "live_subpackages": sorted(live),
+    }
+rt = t._collect_specify_cli_imports(t._RUNTIME_ROOT)
+out["runtime"]["forbidden_cli_or_next"] = [f"{r} imports {m}" for r, m in rt if any(m == p or m.startswith(p + ".") for p in ("specify_cli.cli", "specify_cli.next"))]
+sites = t._collect_specify_cli_import_sites(t._MERGE_ROOT)
+importers = {s.rel for s in sites if s.module == "specify_cli.cli.console"}
+out["consolidation"] = {
+    "cli_boundary_offenders": t._merge_cli_boundary_offenders(sites),
+    "console_importers": len(importers),
+    "console_ledger_entries": len(t._MERGE_CLI_CONSOLE_IMPORTERS),
+    "unlisted_console_importers": sorted(importers - t._MERGE_CLI_CONSOLE_IMPORTERS),
+    "stale_console_ledger_entries": sorted(t._MERGE_CLI_CONSOLE_IMPORTERS - importers),
+}
+out["excluded_from_layer_enforcement"] = sorted(t._EXCLUDED_FROM_LAYER_ENFORCEMENT)
+out["defined_layers"] = sorted(t._DEFINED_LAYERS)
+out["src_packages"] = sorted(p.name for p in t._SRC.iterdir() if p.is_dir() and not p.name.startswith("_") and (p / "__init__.py").exists())
+print(json.dumps(out, indent=1))

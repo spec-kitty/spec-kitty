@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""C2 extractor: commits of core reachable from head since 2025-12-31 with paths, numstat, line tags,
+components, class. Writes commits.jsonl."""
+import json, re, subprocess, sys, os
+from collections import defaultdict
+
+REPO = sys.argv[1]
+OUT = sys.argv[2]
+HEAD = "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+CONV = "2554bd13adc289d3457681308645fe52619bca0e"
+SINCE = "2025-12-31"
+
+def git(*a, text=True):
+    return subprocess.run(["git", "-C", REPO, *a], check=True, capture_output=True, text=text).stdout
+
+P1 = git("rev-parse", CONV + "^1").strip()
+P2 = git("rev-parse", CONV + "^2").strip()
+MB = git("merge-base", P1, P2).strip()
+EXP = set(git("rev-list", f"{MB}..{P2}").split())
+PUBF = set(git("rev-list", f"{MB}..{P1}").split())
+POST = set(git("rev-list", f"{CONV}..{HEAD}").split())
+
+def line_of(sha):
+    if sha == CONV: return "convergence-merge"
+    if sha in EXP: return "experimental"
+    if sha in PUBF: return "public"
+    if sha in POST: return "main-post"
+    return "public"  # pre-fork shared history = public line
+
+# ---------------- component map ----------------
+head_files = set(git("ls-tree", "-r", "--name-only", HEAD, "src").split("\n"))
+head_sc = set(l.split("/")[2] for l in head_files if l.startswith("src/specify_cli/") and l.count("/") >= 3)
+head_ch = set(l.split("/")[2] for l in head_files if l.startswith("src/charter/") and l.count("/") >= 3)
+act_basenames = set(os.path.basename(l) for l in head_files if l.startswith("src/charter/activation/"))
+charter_root = set(os.path.basename(l) for l in head_files if l.startswith("src/charter/") and l.count("/") == 2)
+
+SC_MAP = {"merge": "specify_cli/consolidation", "next": "runtime", "glossary": "glossary",
+          "doctrine": "specify_cli/charter_packs", "constitution": "specify_cli/charter[retired]",
+          "charter": "specify_cli/charter[retired]", "charter_lint": "specify_cli/charter_runtime",
+          "doctrine_synthesizer": "specify_cli/charter_pack_synthesizer"}
+CH_MAP = {k: "charter/activation" for k in ["synthesizer", "context_renderers", "neutrality", "evidence", "corpus", "packs"]}
+
+def component(path):
+    if not path.startswith("src/"): return None
+    parts = path.split("/")
+    if len(parts) < 3:
+        top = parts[1]
+        if top.startswith("doctrine"): return "charter/offering"
+        return "src(root)"
+    top = parts[1]
+    if top in ("doctrine",): return "charter/offering"
+    if top == "constitution":
+        if len(parts) == 3: return "charter/(root)"
+        sub = parts[2]
+        return f"charter/{sub}" if sub in head_ch else "charter/(root)"
+    if top in ("kernel", "glossary", "runtime", "mission_runtime"): return top
+    if top == "specify_cli":
+        if len(parts) == 3: return "specify_cli/(root)"
+        sub = parts[2]
+        if sub in SC_MAP: return SC_MAP[sub]
+        if sub in head_sc: return f"specify_cli/{sub}"
+        return f"specify_cli/{sub}[retired]"
+    if top == "charter":
+        if len(parts) == 3:
+            b = parts[2]
+            if b not in charter_root and b in act_basenames: return "charter/activation"
+            return "charter/(root)"
+        sub = parts[2]
+        if sub in CH_MAP: return CH_MAP[sub]
+        if sub in head_ch: return f"charter/{sub}"
+        return f"charter/{sub}[retired]"
+    return f"{top}[other]"
+
+def top_component(c):
+    if c is None: return None
+    return c.split("/")[0].replace("[retired]", "")
+
+# ---------------- classifier (implements classification-rules.txt) ----------------
+PFX = re.compile(r"^([A-Za-z_-]+)(\(([^)]*)\))?!?:\s*(.*)$")
+def W(p): return re.compile(p, re.I)
+R1C = W(r"\b(convergence|converge|converged|converging)\b")
+R1P = W(r"\bport(ed|s)?\b.*\b(from|of)\b.*\b(public|experimental|pre-fork|upstream)\b")
+COMPAT = W(r"\b(migrat\w*|shim\w*|unshim\w*|legacy|back-?compat\w*|backwards?[- ]compat\w*|compat|compatibility|upgrade\w*|deprecat\w*|backfill\w*|restamp\w*)\b")
+CORR1 = W(r"^(fix|fixes|fixed|repair|correct|resolve)\b")
+CORR2 = W(r"\b(bug|bugfix|regression|hotfix|broken|crash\w*)\b")
+CORR3 = W(r"\bfix(es|ed)?\b")
+RESTR = W(r"\b(refactor\w*|extract\w*|split\w*|decompos\w*|relocat\w*|rename\w*|move[sd]?|moving|dedup\w*|collapse\w*|inline\w*|retire\w*|remove[sd]?|delete[sd]?|drop(s|ped)?|reorgani[sz]\w*|restructur\w*|modulari[sz]\w*)\b")
+CAP = W(r"^(add|adds|added|implement\w*|introduc\w*|support\w*|enable\w*|expose\w*|wire\w*|new)\b")
+
+def classify(sha, subject, body, paths):
+    m = PFX.match(subject)
+    if m:
+        prefix, scope, desc = m.group(1).lower(), (m.group(3) or "").lower(), m.group(4)
+    else:
+        prefix, scope, desc = "<none>", "", re.sub(r"^\[#\d+\]\s*", "", subject)
+    src = [p for p in paths if p.startswith("src/")]
+    # R1
+    if sha == CONV or "cherry picked from commit" in body: return "convergence-activity", "R1"
+    if re.search(r"convergence|converge|^port$", scope) or R1C.search(desc) or R1P.search(subject):
+        return "convergence-activity", "R1"
+    compat_kw = bool(COMPAT.search(desc))
+    compat_path_any = any(p.startswith("src/specify_cli/upgrade/migrations/") for p in paths)
+    compat_path_all = bool(src) and all(p.startswith("src/specify_cli/upgrade/") for p in src)
+    # R2
+    if prefix in {"fix", "hotfix", "bugfix", "revert", "fixup", "fold"} or subject.startswith("Revert ") \
+            or subject.lower().startswith("landing fold") or subject.lower().startswith("fold:"):
+        return "corrective-maintenance", "R2"
+    # R3
+    if prefix in {"refactor", "style"}:
+        if compat_kw or compat_path_all: return "compatibility-work", "R3>R5"
+        return "restructuring", "R3"
+    # R4
+    if prefix == "feat":
+        if compat_kw or compat_path_all: return "compatibility-work", "R4>R5"
+        return "capability-growth", "R4"
+    # R5
+    if compat_kw or compat_path_any: return "compatibility-work", "R5"
+    # R6
+    if CORR1.search(desc) or CORR2.search(desc) or CORR3.search(desc): return "corrective-maintenance", "R6"
+    # R7
+    if RESTR.search(desc): return "restructuring", "R7"
+    # R8
+    if prefix in {"<none>", "chore", "op", "build", "perf"} and CAP.search(desc) and src:
+        return "capability-growth", "R8"
+    return "other", "R9"
+
+# ---------------- extraction ----------------
+SEP = "\x1e"
+fmt = f"{SEP}%H%x1f%P%x1f%ct%x1f%cI%x1f%an%x1f%s%x1f%B%x1f"
+raw = git("log", "--since=" + SINCE, "-M", "--numstat", "-z", "--format=" + fmt, HEAD)
+records = raw.split(SEP)[1:]
+out = open(OUT, "w")
+n = 0
+for rec in records:
+    head, _, rest = rec.partition("\x1f")
+    sha = head
+    fields = rest.split("\x1f", 6)
+    parents, ct, cI, an, subj, tail = fields[0], fields[1], fields[2], fields[3], fields[4], fields[5:]
+    body_and_num = "\x1f".join(tail)
+    body, _, numpart = body_and_num.rpartition("\x1f")
+    # parse numstat -z: entries "a\td\tpath\0" or "a\td\t\0src\0dst\0"
+    toks = numpart.lstrip("\n").split("\0")
+    files = []
+    i = 0
+    while i < len(toks):
+        t = toks[i].lstrip("\n")
+        if not t: i += 1; continue
+        parts = t.split("\t")
+        if len(parts) == 3 and parts[2] == "":
+            a, d = parts[0], parts[1]
+            srcp, dst = toks[i + 1], toks[i + 2]
+            files.append((a, d, dst, srcp)); i += 3
+        elif len(parts) == 3:
+            files.append((parts[0], parts[1], parts[2], None)); i += 1
+        else:
+            i += 1
+    plist = parents.split()
+    is_merge = len(plist) > 1
+    paths = [f[2] for f in files] + [f[3] for f in files if f[3]]
+    comps = sorted(set(c for c in (component(p) for p in paths) if c))
+    def num(x): return 0 if x == "-" else int(x)
+    added = sum(num(f[0]) for f in files); deleted = sum(num(f[1]) for f in files)
+    src_added = sum(num(f[0]) for f in files if f[2].startswith("src/") or (f[3] or "").startswith("src/"))
+    src_deleted = sum(num(f[1]) for f in files if f[2].startswith("src/") or (f[3] or "").startswith("src/"))
+    py_changed = sum(num(f[0]) + num(f[1]) for f in files if f[2].startswith("src/") and f[2].endswith(".py"))
+    import datetime
+    dt = datetime.datetime.fromtimestamp(int(ct), datetime.timezone.utc)
+    cls, rule = classify(sha, subj, body, paths)
+    nonsrc_only_cat = None
+    if not any(p.startswith("src/") for p in paths):
+        if paths and all(p.startswith(("docs/", "kitty-specs/", ".kittify/")) for p in paths): nonsrc_only_cat = "docs-specs-kittify-only"
+        elif paths and all(p.startswith(("tests/",)) for p in paths): nonsrc_only_cat = "tests-only"
+        elif paths and all(p.startswith(("docs/", "kitty-specs/", ".kittify/", "tests/")) for p in paths): nonsrc_only_cat = "docs-specs-kittify-tests-only"
+        elif not paths: nonsrc_only_cat = "no-paths"
+        else: nonsrc_only_cat = "other-non-src"
+    rec = dict(sha=sha, parents=plist, merge=is_merge, ct=int(ct), utc=dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+               month=dt.strftime("%Y-%m"), author=an, subject=subj,
+               cherry=("cherry picked from commit" in body), line=line_of(sha),
+               nfiles=len(files), added=added, deleted=deleted, src_added=src_added, src_deleted=src_deleted,
+               py_changed=py_changed, components=comps,
+               top_components=sorted(set(top_component(c) for c in comps)),
+               code=any(p.startswith("src/") for p in paths), nonsrc_cat=nonsrc_only_cat,
+               bulk=len(files) > 500, cls=cls, rule=rule,
+               src_paths=[p for p in paths if p.startswith("src/")][:400],
+               pin_paths=[p for p in paths if re.match(r"^(packs/[^/]+\.source\.yaml|pins/|uv\.lock$|pyproject\.toml$)", p)],
+               contract_paths=[p for p in paths if p.startswith("contracts/") or "/contracts/" in p or p.endswith("upstream_contract.json")][:50])
+    out.write(json.dumps(rec) + "\n"); n += 1
+print(n, "commits; MB", MB, "P1", P1, "P2", P2)

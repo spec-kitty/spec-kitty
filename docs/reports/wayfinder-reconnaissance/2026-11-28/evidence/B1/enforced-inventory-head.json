@@ -1,0 +1,29 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "pyproject_wheel_packages": [
+  "src/kernel",
+  "src/glossary",
+  "src/mission_runtime",
+  "src/runtime",
+  "src/specify_cli",
+  "src/charter"
+ ],
+ "src_top_level_packages_with___init__": [
+  "charter",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ],
+ "other_entries_under_src": [],
+ "landscape_layers": [
+  "kernel",
+  "charter",
+  "glossary",
+  "runtime",
+  "mission_runtime",
+  "specify_cli"
+ ],
+ "sets_equal": true
+}

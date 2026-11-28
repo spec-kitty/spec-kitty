@@ -1,0 +1,54 @@
+finding_id: F-A1-022
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "charter terminology"
+  repository: "spec-kitty/spec-kitty; spec-kitty/spec-kitty-charter"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533; 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "Core's architecture README says the terminology canon lives in core's glossary context pages (README.md:47-49); charter ADR-0029 (Accepted 2026-10-26) says the charter repository owns the charter glossary and core's copy of those terms is to be cleaned up later (:45-60). Both copies exist at head."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/README.md:45-50 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/README.md | sed -n '45,50p'"
+    sha256: "3cc1892dace7d452bfea342bfbef36f65c74277e42d4e394a348ff670a9c865e"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty-charter:docs/adr/0029-charter-glossary-is-owned-here.md:40-62 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+    method: "git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0029-charter-glossary-is-owned-here.md | sed -n '40,62p'"
+    sha256: "ffc4339ed55dc849c66f04738b61112342c5cd33be5f1f0e20c43567b041555f"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "two records"
+  not_covered: "term-by-term comparison"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "checked core docs/context/charter.md and product-lines.md for a pointer to the charter repo glossary"
+  result: "none found"
+relations: []
+confidence: medium
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

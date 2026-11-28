@@ -1,0 +1,411 @@
+Purposive change chains (tag: purposive). Listing of every non-merge, non-bulk code commit touching the file in the window, in committer-date order.
+No cause is asserted: the listing shows sequence and class only. Columns: date | line | class | short sha | subject
+
+=== [T1] src/runtime/next/runtime_bridge.py  window 2026-05-25..2026-06-06: 20 code commits, 16 corrective; file first added: 2026-06-01 6be974fe46 Extract next runtime package boundary
+  2026-06-01 | public | restructuring | 6be974fe46 | Extract next runtime package boundary
+  2026-06-02 | public | capability-growth | e4f57d2d64 | feat(WP14): wire OperationalContext at runtime entry points
+  2026-06-02 | public | corrective-maintenance | ba61dd9488 | fix: address slash-command PR review blockers
+  2026-06-02 | public | corrective-maintenance | 3ac0e89573 | fix(WP03): write DecisionGitLog to coord worktree path and fix worktree_root (#1617); fix runtime_bridge featu
+  2026-06-02 | public | restructuring | 2da614de37 | refactor: extract mid8_from_slug() utility and fix isupper() edge case
+  2026-06-02 | public | corrective-maintenance | 9e07f37d18 | fix: close coord topology review gaps
+  2026-06-02 | public | corrective-maintenance | 0ca3898148 | fix: fail closed on coord topology gaps
+  2026-06-03 | public | corrective-maintenance | 879b4e487d | fix: reduce actionable sonar findings
+  2026-06-03 | public | corrective-maintenance | 071c36bbe1 | fix: restore runtime tasks heading parser parity
+  2026-06-03 | public | corrective-maintenance | c45045fc35 | fix: harden runtime bridge tasks parsing
+  2026-06-03 | public | corrective-maintenance | a9518184df | Fix 3.2 CLI UX rough edges (#1665)
+  2026-06-03 | public | capability-growth | 0b6e2d7d99 | feat(kitty/mission-execution-state-domain-remediation-01KT6HVH): squash merge of mission
+  2026-06-03 | public | corrective-maintenance | d72f6e309a | fix(mission-review): address 6 non-blocking findings from exec-state mission review
+  2026-06-03 | public | corrective-maintenance | 49c3b958ba | Revert "fix(mission-review): address 6 non-blocking findings from exec-state mission review"
+  2026-06-04 | public | corrective-maintenance | cdc2580026 | fix(mission-review): address 6 non-blocking findings from exec-state domain remediation review (#1682)
+  2026-06-04 | public | corrective-maintenance | 365f1bb255 | fix(execution-context): route raw mission spec paths (#1681)
+  2026-06-05 | public | corrective-maintenance | 4c1841ef9b | fix(sonar): address runtime parser and transaction findings
+  2026-06-05 | public | corrective-maintenance | 73db11ff72 | fix(runtime): support bullet requirement refs in fallback parser
+  2026-06-06 | public | corrective-maintenance | 1538c43991 | fix(sonar): address runtime bridge findings
+  2026-06-06 | public | corrective-maintenance | bf2cc6095a | fix(sonar): strengthen runtime bridge parsing helpers
+
+=== [T1] src/specify_cli/cli/commands/merge.py  window 2026-05-15..2026-06-25: 56 code commits, 36 corrective; file first added: 2025-11-11 a9e334e1d7 feat: Complete WP06-WP07 CLI commands and GitHub client extraction
+  2026-05-15 | public | other | b134bac599 | Quality & DevEx Hardening 3.2 — epic #822 (mission 117) (#1051)
+  2026-05-16 | public | other | 498cf69a6f | Persist local canonical lifecycle events immediately (#1078)
+  2026-05-19 | public | other | fce7c33e50 | Clarify accept, merge, and retrospective workflow (#1136)
+  2026-05-22 | public | corrective-maintenance | 6a9ad427ed | fix: record baseline merge commit metadata (#1290)
+  2026-05-28 | public | other | 0d32942daf | WP07: two-stage merge + finalize-tasks canonical target
+  2026-05-28 | public | corrective-maintenance | 57b463ef19 | fix(#1361): reroll coordination commit blockers
+  2026-05-28 | public | corrective-maintenance | 85316a7ac8 | fix(#1361): address adversarial reroll blockers
+  2026-05-29 | public | corrective-maintenance | 5d7c47f564 | fix: surface safe_commit recovery failures
+  2026-05-29 | public | corrective-maintenance | 2299d90c5b | Fix idempotent squash merge retry
+  2026-05-29 | public | corrective-maintenance | 27823f1b0b | fix: address upgrade contract and Sonar regressions (#1375)
+  2026-05-30 | public | corrective-maintenance | 26ad9b3a35 | Fix lane workflow tail rough edges (#1353) (#1396)
+  2026-06-01 | public | corrective-maintenance | f89df153d6 | fix: address SonarCloud and security findings (#1560)
+  2026-06-01 | public | corrective-maintenance | 9f800f63b1 | fix: route status emits through bookkeeping transactions
+  2026-06-02 | public | corrective-maintenance | 3076ec2738 | Fix review independence fallback surfaces
+  2026-06-04 | public | corrective-maintenance | 365f1bb255 | fix(execution-context): route raw mission spec paths (#1681)
+  2026-06-05 | public | capability-growth | 76d4df2905 | feat(WP02): gate push-safety check, clean preflight.py domain layer, add push_requested
+  2026-06-05 | public | corrective-maintenance | 9cecbef2b8 | fix(review): address mission-review findings — marker convention and dead symbols
+  2026-06-05 | public | corrective-maintenance | 95c6228fec | fix(merge): preserve push intent when resuming
+  2026-06-05 | public | corrective-maintenance | 5f06042fe7 | fix(merge): block stale push states before mutation
+  2026-06-06 | public | corrective-maintenance | 726c82aa7d | [codex] fix(merge): diagnose malformed review artifacts (#1722)
+  2026-06-06 | public | other | 64b17dc49e | test: tighten planning research closeout qa
+  2026-06-06 | public | corrective-maintenance | fb6e9dc6a7 | fix(merge): support planning artifact research closeout
+  2026-06-06 | public | corrective-maintenance | 58dd4f18ca | fix(merge): read raw porcelain in post-merge invariant so first divergent path is not silently skipped
+  2026-06-06 | public | corrective-maintenance | 15bebd4387 | fix(merge): include planning-only mission_number meta.json in post-merge expected_paths
+  2026-06-06 | public | restructuring | 0f634d8a8d | refactor(lanes): single planning-lane classifier seam (charter-derivable per #1666)
+  2026-06-06 | public | capability-growth | a5f30616ee | feat(merge-done-surface-resolver): fix coord-branch write/read surface divergence (#1732)
+  2026-06-06 | public | corrective-maintenance | ab30d6c46b | fix(merge): tolerate legacy status surfaces
+  2026-06-08 | public | capability-growth | c5a10ce564 | feat(execution-state): canonical mission_runtime surface + status-facade strangle + #1772 coord-topology harde
+  2026-06-08 | public | corrective-maintenance | 4e43893f85 | Fix merge status fallback for rc41 release
+  2026-06-09 | public | corrective-maintenance | d27965e908 | fix: address SonarCloud security and nightly quality findings (#1807)
+  2026-06-11 | public | other | 9c8bff06fa | Release 3.2.0rc42
+  2026-06-12 | public | compatibility-work | 8544012fa3 | Tooling stability: guard coherence + execution-context unification (missions 01KTPKST + 01KTRC04) + CI remedia
+  2026-06-12 | public | corrective-maintenance | 3f2af08f0c | Coordination & Merge stabilization for 3.2.0 (mission 131): fix #1826, #1861-P1, husk fall-through, finalize r
+  2026-06-13 | public | capability-growth | 991162c0a1 | feat(kitty/mission-coordination-topology-stabilization-01KTZVQ2): squash merge of mission
+  2026-06-13 | public | restructuring | a5ad096edc | refactor(#1908): consolidate ref/path-shape helpers onto _git.ref_exists + is_under_worktrees_segment (behavio
+  2026-06-14 | public | corrective-maintenance | aa9ec6392e | fix: stage merge bookkeeping from target checkout
+  2026-06-15 | public | corrective-maintenance | 78024bd487 | fix(merge): persist target bookkeeping
+  2026-06-15 | public | corrective-maintenance | fcf9be5955 | fix(mission-identity): canonical naming seam + #1908 panel hardening (01KV6510) (#2001)
+  2026-06-16 | public | corrective-maintenance | a1d9d13409 | fix: address sonarcloud and dependency security findings
+  2026-06-16 | public | corrective-maintenance | 87bf6c3dd0 | fix: address nightly sonar and dependency alerts (#2006)
+  2026-06-16 | public | other | 9ddb91c815 | docs: consolidate learnings & prepare for the next iterations (3.2.x alignment) (#2004)
+  2026-06-17 | public | corrective-maintenance | a35eb86a08 | fix: guard merge bookkeeping mission slug paths (#2019)
+  2026-06-17 | public | corrective-maintenance | 77c8697129 | fix: re-harden merge bookkeeping rollback paths (#2018)
+  2026-06-18 | public | restructuring | ff282dd6b4 | refactor(merge): delegate validator + collapse containment helpers to ensure_within_any (FR-002/FR-003/FR-006)
+  2026-06-18 | public | compatibility-work | 76aa368039 | refactor(WP05): extract baseline_merge_commit cluster to merge/baseline.py with back-compat aliases (#2027, ep
+  2026-06-19 | public | corrective-maintenance | 401086efbb | fix: harden sonar security paths
+  2026-06-20 | public | corrective-maintenance | bbe416e59e | test(merge): repair stale final-bookkeeping rollback tests + drop dead branch
+  2026-06-20 | public | corrective-maintenance | fa42af2fb1 | fix: cherry-pick relevant #2029 hardening (topology-match + workspace seam)
+  2026-06-20 | public | corrective-maintenance | 5aaa7efefc | fix: resolve sonar security findings
+  2026-06-21 | public | capability-growth | 1065310955 | feat: canonical mission-surface resolver — write-side authority + read-side adoption
+  2026-06-21 | public | restructuring | 67a443c784 | chore(code-health): tag merge.py(#2057) + doctor.py(#2059) god-modules with decomposition pointers
+  2026-06-21 | public | corrective-maintenance | 5d2f3382d6 | fix(merge): resolve target branch from primary meta via one shared resolver
+  2026-06-21 | public | corrective-maintenance | 499c17151e | fix: harden Sonar security write paths
+  2026-06-23 | public | capability-growth | 7c5f681252 | feat(coordination): single-authority topology cleanup & dedup (#2070)
+  2026-06-25 | public | corrective-maintenance | 53ebd8b593 | fix: tighten sonar path remediations and validation
+  2026-06-25 | public | restructuring | 25e1a6715b | refactor(2057): decompose cli/commands/merge.py god-module into seams + CI-gate remediation
+
+=== [T1] src/specify_cli/acceptance/__init__.py  window 2026-05-12..2026-06-27: 46 code commits, 27 corrective; file first added: 2026-04-28 556c34e86e refactor(quality): promote doc_analysis and acceptance orphan modules
+  2026-05-19 | public | corrective-maintenance | 5b935978e2 | fix: chip away at Sonar acceptance and review debt (#1126)
+  2026-05-19 | public | other | fce7c33e50 | Clarify accept, merge, and retrospective workflow (#1136)
+  2026-05-20 | public | corrective-maintenance | 58e541eb90 | fix(acceptance): match canonical clarification markers (#1204)
+  2026-05-21 | public | other | c8c5a34ee4 | Close autonomous runtime safety follow-ups (#1269)
+  2026-05-21 | public | corrective-maintenance | 742b7abcf4 | Fix ceremony commit and workflow evidence gates (#1273)
+  2026-05-22 | public | corrective-maintenance | 43305c12ca | fix(ci): restore merge status commit and acceptance marker scan (#1275)
+  2026-05-22 | public | corrective-maintenance | 4e82dfc823 | fix: harden workflow evidence run-id detection (#1274)
+  2026-05-23 | public | corrective-maintenance | 0a2dbf4bb4 | fix: address overnight sonar findings
+  2026-05-26 | public | corrective-maintenance | bd1ef88d40 | fix: address Sonar follow-up cleanups
+  2026-05-27 | public | corrective-maintenance | 552ab1e196 | fix: keep acceptance separate from merge completion (#1321)
+  2026-05-30 | public | corrective-maintenance | 4de2a56784 | Fix accept commit metadata persistence
+  2026-05-30 | public | capability-growth | 9bc60211c5 | Add accept diagnostic cascade reporting
+  2026-05-30 | public | corrective-maintenance | 26ad9b3a35 | Fix lane workflow tail rough edges (#1353) (#1396)
+  2026-05-31 | public | other | 4ea02e3dd6 | Fail closed on corrupt lane acceptance manifests (#1489)
+  2026-05-31 | public | corrective-maintenance | 009fdbff16 | Fix acceptance bootstrap diagnostics for missing status events (#1508)
+  2026-05-31 | public | other | 32005abbd8 | Report acceptance blockers for review lanes (#1542)
+  2026-06-01 | public | corrective-maintenance | 8ad6bb4008 | fix: sync lane state after coordination commits
+  2026-06-02 | public | restructuring | 2da614de37 | refactor: extract mid8_from_slug() utility and fix isupper() edge case
+  2026-06-03 | public | corrective-maintenance | b01defb783 | fix(accept): check required artifacts in coordination worktree
+  2026-06-03 | public | corrective-maintenance | 59e44951cf | fix(accept): read coord planning checks consistently
+  2026-06-04 | public | corrective-maintenance | 12a00d1281 | Fix 3.1.10 acceptance and move-task regressions (#1683)
+  2026-06-04 | public | corrective-maintenance | 365f1bb255 | fix(execution-context): route raw mission spec paths (#1681)
+  2026-06-06 | public | corrective-maintenance | fb6e9dc6a7 | fix(merge): support planning artifact research closeout
+  2026-06-06 | public | restructuring | 0f634d8a8d | refactor(lanes): single planning-lane classifier seam (charter-derivable per #1666)
+  2026-06-08 | public | capability-growth | c5a10ce564 | feat(execution-state): canonical mission_runtime surface + status-facade strangle + #1772 coord-topology harde
+  2026-06-12 | public | compatibility-work | 8544012fa3 | Tooling stability: guard coherence + execution-context unification (missions 01KTPKST + 01KTRC04) + CI remedia
+  2026-06-13 | public | capability-growth | 991162c0a1 | feat(kitty/mission-coordination-topology-stabilization-01KTZVQ2): squash merge of mission
+  2026-06-13 | public | corrective-maintenance | 6221027cfe | fix(coordination-topology): close review blockers
+  2026-06-13 | public | corrective-maintenance | 65a2b5a66d | fix(#1908 review): drop duplicate accept-owned filter (C-003); record mutate_matrix override via CLI no_commit
+  2026-06-13 | public | corrective-maintenance | cbab5b6cf0 | fix(#1883/boy-scout): accept gate is no-op-stable on its own config.yaml write; un-xfail no_commit idempotency
+  2026-06-13 | public | capability-growth | 3a267447a9 | feat(01KTYGTE): name-vs-authority remediation — residual after #1910 reconcile
+  2026-06-13 | public | corrective-maintenance | 9a873a217b | fix(accept): honor --lenient for mission path conventions (#1892)
+  2026-06-15 | public | corrective-maintenance | a75548e3d1 | fix: reduce nightly sonar literal duplication
+  2026-06-15 | public | corrective-maintenance | fcf9be5955 | fix(mission-identity): canonical naming seam + #1908 panel hardening (01KV6510) (#2001)
+  2026-06-21 | public | capability-growth | 1065310955 | feat: canonical mission-surface resolver — write-side authority + read-side adoption
+  2026-06-21 | public | capability-growth | a79789055d | feat(WP04): accept + acceptance materialize-then-retry via commit_for_mission; rewrite L2
+  2026-06-21 | public | convergence-activity | 490f5a43d7 | feat(surface-resolver): finish the #2040 strangler — converge the 3 mission-surface resolution legs
+  2026-06-23 | public | corrective-maintenance | ebeca90d13 | fix: resolve pre-merge squad blockers + finalize issue-matrix verdicts
+  2026-06-23 | public | capability-growth | 7c5f681252 | feat(coordination): single-authority topology cleanup & dedup (#2070)
+  2026-06-24 | public | capability-growth | 661d4c328c | feat: kind-aware write-surface placement — planning artifacts to primary (#2090)
+  2026-06-24 | public | other | 8ae2027e4e | Gate-command read+write surface completion (#1716; closes #2107/#2085/#2102) (#2113)
+  2026-06-25 | public | corrective-maintenance | 1a8f17c7a6 | fix(accept): collect_feature_summary resolves mid8/ULID handles for primary reads
+  2026-06-26 | public | corrective-maintenance | 618a3fbc60 | fix(accept): resolve mission-artifact path conventions on the primary surface, not repo root
+  2026-06-26 | public | capability-growth | 5510442141 | feat(#2173 Phase 1): Single-Authority Resolution Gates (#2181)
+  2026-06-27 | public | corrective-maintenance | 7694162f41 | fix(1057): hard-reject pre-3.0 layout at the acceptance/verify/merge surface
+  2026-06-27 | public | capability-growth | 5dd201543e | feat(1057): retire pre-3.0 status/task readers from active runtime
+
+=== [T2] src/specify_cli/zeitgeist_client/credentials.py  window 2026-08-01..2026-08-29: 27 code commits, 17 corrective; file first added: 2026-08-21 657b06e891 feat(Z1-T1): credentials.py — local checkout/auth storage, filelock-guarded TOML
+  2026-08-21 | experimental | capability-growth | 657b06e891 | feat(Z1-T1): credentials.py — local checkout/auth storage, filelock-guarded TOML
+  2026-08-21 | experimental | corrective-maintenance | 0cfa461835 | fix(Z1-T1): zero ruff/mypy issues; wire tests/zeitgeist_client into CI topology
+  2026-08-21 | experimental | other | 41274ca714 | docs(Z1-T1): commit WP01 remaining-scope artifact; retarget handoff cross-refs
+  2026-08-21 | experimental | other | 983134b7f2 | docs(Z6-C): record repo_identity.py landing; retarget WP01-remaining cross-refs
+  2026-08-22 | experimental | corrective-maintenance | ce1ce80073 | fix(M2-INTEGRATION): route reviewed M1 candidates through spec-kitty's architectural single doors
+  2026-08-23 | experimental | corrective-maintenance | 95ce9c51cc | fix(FIX-M2-15): thread a second, independent capability_credential through the zeitgeist client
+  2026-08-25 | experimental | capability-growth | 00d463da9c | feat(E3-9): zeitgeist credential resolution — capability mint, negative answers
+  2026-08-25 | experimental | corrective-maintenance | cebfa091d0 | fix(E3-9): controller-qa majors — clock-door import, naive-stamp TypeError, owner-only credential store
+  2026-08-26 | experimental | corrective-maintenance | 0830ffc42b | fix(status): strip force from wire attrs; scope credential cache hits to (host, repo_slug)
+  2026-08-26 | experimental | corrective-maintenance | 94d24842f8 | fix(zeitgeist): key credential store by (host, owner/repo), not bare repo name
+  2026-08-26 | experimental | corrective-maintenance | ef62a1b208 | fix(zeitgeist): key zeitgeist read commands by the checkout-derived credential-store key (#137)
+  2026-08-26 | experimental | capability-growth | 9b82acd681 | feat(cli): spec-kitty routes shows the admitted team and relay
+  2026-08-26 | experimental | other | f6d299a753 | docs(cli): regenerate the zeitgeist help boxes for the optional host/owner/repo key
+  2026-08-26 | experimental | corrective-maintenance | b4ff7ae033 | fix(zeitgeist): resolve merge conflicts for #149, restore main's untrusted-frame security path
+  2026-08-26 | experimental | corrective-maintenance | e935cc5997 | fix(zeitgeist): key zeitgeist read commands by the checkout-derived credential-store key (#137)
+  2026-08-26 | experimental | other | 2903461ec8 | docs(cli): regenerate the zeitgeist help boxes for the optional host/owner/repo key
+  2026-08-26 | experimental | corrective-maintenance | 749156e50d | fix(zeitgeist): drop duplicate test, apply ruff format after rebase merge
+  2026-08-26 | experimental | capability-growth | c4fe049c01 | feat(zeitgeist): publish presence/focus frames beside every status moment
+  2026-08-27 | experimental | other | a0deb6b05e | Tighten credential-store permissions on read, not just write
+  2026-08-27 | experimental | corrective-maintenance | 7dcb80129d | Fix stale present-tense comment on StoredCredential host/repo_slug
+  2026-08-27 | experimental | corrective-maintenance | 541fed65c3 | fix(zeitgeist_client): drop stale focus lease when main credential scope changes
+  2026-08-27 | experimental | corrective-maintenance | b5069ac51f | fix(zeitgeist): preserve team on missing admission slug
+  2026-08-27 | experimental | corrective-maintenance | a852264afc | fix(zeitgeist): normalize team before scope checks
+  2026-08-27 | experimental | corrective-maintenance | bc41b1ad5f | fix(zeitgeist_client): drop stale focus lease when main credential scope changes
+  2026-08-27 | experimental | other | f40207c674 | test(zeitgeist): cover every credential scope field
+  2026-08-29 | experimental | corrective-maintenance | b02873f55f | fix: restore credentials formatting
+  2026-08-29 | experimental | corrective-maintenance | 8042cab1ab | fix(zeitgeist): satisfy whole-repo formatter gate
+
+=== [T2] src/specify_cli/gitignore_manager.py  window 2026-08-15..2026-09-01: 25 code commits, 15 corrective; file first added: 2025-11-10 6dbfa41b20 Complete WP01: Create GitignoreManager module
+  2026-08-22 | public | corrective-maintenance | eb9919d67d | fix: consolidate reviewed community PRs (#3630–#3646) (#3659)
+  2026-08-24 | public | corrective-maintenance | a82b7b6311 | fix(init,upgrade): gitignore the .worktrees/ execution-worktrees root (#3689) (#3710)
+  2026-08-28 | experimental | corrective-maintenance | b348ba3774 | fix(#663): route remaining migration detect() reads through symlink-safe gitignore helper
+  2026-08-30 | experimental | corrective-maintenance | bad9f2e521 | fix(#582): close the .gitignore read-path TOCTOU squad pass 2 found
+  2026-08-30 | experimental | corrective-maintenance | ae80750184 | fix(#582): respect umask for a brand-new .gitignore's mode
+  2026-08-30 | experimental | corrective-maintenance | 472c4920bc | fix(#582): guard gitignore_manager against writing/reading through a symlinked .gitignore
+  2026-08-30 | experimental | compatibility-work | d7b947d52a | Route migration detect() gitignore/claudeignore reads through a symlink-safe helper
+  2026-08-30 | experimental | restructuring | 589795235d | Rename IgnoreFilePathError to GitignorePathError; rebuild read_ignore_file_text on O_NOFOLLOW
+  2026-08-31 | experimental | convergence-activity | 328cd12f39 | fix(gitignore): narrow blanket .cursor/ entry to Spec Kitty-generated paths (#2498)
+  2026-08-31 | experimental | convergence-activity | 09dc62b739 | fix: close PR 3659 review gaps
+  2026-08-31 | experimental | convergence-activity | 8b554f8e8f | fix(review): fold adversarial review findings across the consolidated community PRs
+  2026-08-31 | experimental | convergence-activity | e10862229b | fix: complete rc3 convergence carry
+  2026-08-31 | experimental | convergence-activity | fb9f8d628e | fix: harden convergence carry isolation
+  2026-08-31 | experimental | corrective-maintenance | d421f21a16 | fix(#814): address squad-majors from pass-2 merge resolution
+  2026-09-01 | experimental | convergence-activity | 8d9183c140 | chore(convergence): remove unused import
+  2026-09-01 | experimental | convergence-activity | 2bf3159c08 | fix(convergence): repair moved surfaces and test seams
+  2026-09-01 | experimental | corrective-maintenance | 0603725358 | fix(init,upgrade): harden worktrees ignore safety
+  2026-09-01 | experimental | corrective-maintenance | d215addd33 | fix: wire no-follow write helper (#699)
+  2026-09-01 | experimental | capability-growth | f3be772a2e | feat: share no-follow file access helper (#699)
+  2026-09-01 | experimental | corrective-maintenance | 7b2bde910f | Fix CI-red: revert unrequested hardening from this PR's own earlier repair commit
+  2026-09-01 | experimental | corrective-maintenance | e42a2cc2b4 | Fix gitignore no-follow helper collision
+  2026-09-01 | experimental | corrective-maintenance | ace4f8adbf | fix: reconcile batch C with current main
+  2026-09-01 | experimental | corrective-maintenance | 503667b37f | fix: use shared no-follow opener
+  2026-09-01 | experimental | corrective-maintenance | 9801203661 | fix(gitignore): use shared no-follow opener
+  2026-09-01 | experimental | corrective-maintenance | b91ae3a89c | fix(#836): use shared no-follow opener
+
+=== [T2] src/specify_cli/orchestrator_api/commands.py  window 2026-08-19..2026-09-05: 51 code commits, 29 corrective; file first added: 2026-02-18 fe9dabd1a1 feat(orchestrator-api): add JSON contract API for external orchestrators
+  2026-08-19 | public | corrective-maintenance | 6ded6d538e | fix(ci): satisfy repo-wide gates for worktree-root-resolution
+  2026-08-19 | public | corrective-maintenance | 3bacb5b987 | fix(status): unify review-verdict CLI path and harden audit round-trip
+  2026-08-21 | public | corrective-maintenance | 4dab528545 | fix(implement): honor explicit --base in lane allocation; fail loud (#3571)
+  2026-08-22 | public | corrective-maintenance | fbb78c1f38 | fix(orchestrator-api): _fail preserves the human message alongside structured data (#3548)
+  2026-08-26 | experimental | convergence-activity | 7fd312f547 | fix(implement): honor explicit --base in lane allocation; fail loud (#3571)
+  2026-08-27 | public | capability-growth | 3a8dc2828d | feat(kitty/mission-p0-reliability-triad-01M0YW93): squash merge of mission
+  2026-08-27 | experimental | restructuring | 6874512a2c | Retire unreachable gate coverage source
+  2026-08-28 | experimental | corrective-maintenance | 34fc42c5a3 | fix(#677): remove dead fire_dossier_sync fan-out seam
+  2026-08-28 | public | corrective-maintenance | ab79a7651f | fix(cli): survive typer 0.27.2 dropping Abort/Exit from _click.exceptions
+  2026-08-28 | public | corrective-maintenance | 27ab1ee2ca | fix(deps): thread cancellation provenance through next-preview and orchestrator-api claim gates (#3775)
+  2026-08-29 | experimental | corrective-maintenance | ce8b20e7e7 | fix(orchestrator_api): typer/click exception shim survives typer 0.27+ (#713)
+  2026-08-31 | experimental | capability-growth | d631bf2f53 | feat(lanes): port 3.2.6 P0 reliability triad
+  2026-08-31 | experimental | convergence-activity | bb54ec5870 | fix(orchestrator-api): _fail preserves the human message alongside structured data (#3548)
+  2026-08-31 | experimental | convergence-activity | aca3adcaad | fix(deps): thread cancellation provenance through next-preview and orchestrator-api claim gates (#3775)
+  2026-08-31 | experimental | other | 580a71850e | wip: salvaged at implementer exit (sk-impl-spec-kitty-899)
+  2026-09-01 | experimental | corrective-maintenance | 81eea066de | fix(ci): satisfy repo-wide gates for worktree-root-resolution
+  2026-09-01 | experimental | corrective-maintenance | 1de8c16df2 | fix(status): unify review-verdict CLI path and harden audit round-trip
+  2026-09-02 | public | corrective-maintenance | 87d851382f | fix(merge-retention): fold pre-merge squad findings (#3131)
+  2026-09-02 | public | corrective-maintenance | 836451fd3f | fix(merge-retention): honor retention fail-closed across success+abort (#3131)
+  2026-09-03 | public | corrective-maintenance | 2b662fa7c5 | fix(orchestrator-api): include the mission identity block in record-analysis output
+  2026-09-03 | public | corrective-maintenance | 0374913d1a | fix(orchestrator-api): envelope a corrupted decisions index in design-status
+  2026-09-03 | public | corrective-maintenance | af89f802c6 | fix(orchestrator-api): guarantee mission_slug on the specify success envelope
+  2026-09-03 | public | restructuring | dadf13fc5d | refactor(orchestrator-api): consolidate the design-verb result enum onto one source
+  2026-09-03 | public | restructuring | 680dfde302 | refactor(orchestrator-api): let the lifecycle seam own the issuance step-kind predicate
+  2026-09-03 | public | corrective-maintenance | 6d46dd2de7 | fix(orchestrator-api): scrub forbidden-token dict keys/substrings, drop drifting citations
+  2026-09-03 | public | corrective-maintenance | ab319c6fad | fix(orchestrator-api): fix 6 pre-merge review findings on design-phase verbs
+  2026-09-03 | public | corrective-maintenance | 7c52777746 | fix(orchestrator-api): reject invalid --result on answer-decision (WP08-001)
+  2026-09-03 | public | capability-growth | 2d28bd65d0 | feat(orchestrator-api): add answer-decision verb with full lifecycle parity (WP08/T037-T041)
+  2026-09-03 | public | corrective-maintenance | be9ea0aab4 | fix(orchestrator-api): close design-status's clean-truncation snapshot gap
+  2026-09-03 | public | capability-growth | 6fded3f1ad | feat(orchestrator-api): add design-status read-only query verb (WP06/T029-T031)
+  2026-09-03 | public | corrective-maintenance | d6e0837791 | fix(orchestrator-api): reject empty/whitespace --rationale on defer/cancel-decision
+  2026-09-03 | public | capability-growth | e20647f247 | feat(orchestrator-api): add decision-ledger verbs open/resolve/defer/cancel (WP05/T023-T026)
+  2026-09-03 | public | capability-growth | d42fe9ea02 | feat(orchestrator-api): add check-prerequisites/record-analysis verbs (WP04/T016-T021)
+  2026-09-03 | public | capability-growth | d5a6133d92 | feat(orchestrator-api): add specify/plan/tasks verbs (WP03/T010-T012)
+  2026-09-04 | experimental | convergence-activity | a817b24189 | feat(orchestrator-api): add specify/plan/tasks verbs (WP03/T010-T012)
+  2026-09-04 | experimental | convergence-activity | e954b48c8d | fix(orchestrator-api): guarantee mission_slug on the specify success envelope
+  2026-09-05 | experimental | corrective-maintenance | f7c74f17d1 | fix(merge-retention): honor retention fail-closed across success+abort (#3131)
+  2026-09-05 | experimental | corrective-maintenance | a53b916d81 | fix(merge-retention): fold pre-merge squad findings (#3131)
+  2026-09-05 | experimental | capability-growth | 637027c1fb | feat(orchestrator-api): add decision-ledger verbs open/resolve/defer/cancel (WP05/T023-T026)
+  2026-09-05 | experimental | capability-growth | b0601c354c | feat(orchestrator-api): add check-prerequisites/record-analysis verbs (WP04/T016-T021)
+  2026-09-05 | experimental | corrective-maintenance | e6abd45550 | fix(orchestrator-api): close design-status's clean-truncation snapshot gap
+  2026-09-05 | experimental | capability-growth | d79b28e1a9 | feat(orchestrator-api): add design-status read-only query verb (WP06/T029-T031)
+  2026-09-05 | experimental | corrective-maintenance | c0c1b1dff7 | fix(orchestrator-api): reject empty/whitespace --rationale on defer/cancel-decision
+  2026-09-05 | experimental | corrective-maintenance | 4e4ddfc964 | fix(orchestrator-api): reject invalid --result on answer-decision (WP08-001)
+  2026-09-05 | experimental | capability-growth | 7e1b8fcbd4 | feat(orchestrator-api): add answer-decision verb with full lifecycle parity (WP08/T037-T041)
+  2026-09-05 | experimental | corrective-maintenance | f92b0082da | fix(orchestrator-api): include the mission identity block in record-analysis output
+  2026-09-05 | experimental | corrective-maintenance | 681702055a | fix(orchestrator-api): envelope a corrupted decisions index in design-status
+  2026-09-05 | experimental | restructuring | 5f76b02259 | refactor(orchestrator-api): consolidate the design-verb result enum onto one source
+  2026-09-05 | experimental | restructuring | 722428cad0 | refactor(orchestrator-api): let the lifecycle seam own the issuance step-kind predicate
+  2026-09-05 | experimental | corrective-maintenance | c787ff64f6 | fix(orchestrator-api): scrub forbidden-token dict keys/substrings, drop drifting citations
+  2026-09-05 | experimental | corrective-maintenance | 0a9e29f734 | fix(orchestrator-api): fix 6 pre-merge review findings on design-phase verbs
+
+=== [T3] src/specify_cli/consolidation/executor.py  window 2026-09-20..2026-10-15: 60 code commits, 42 corrective; file first added: 2026-09-28 f5c15f9f88 feat(consolidate): rename lane-consolidation `merge`→`consolidate` (#3080)
+  2026-09-27 | main-post | capability-growth | f5c15f9f88 | feat(consolidate): rename lane-consolidation `merge`→`consolidate` (#3080)
+  2026-09-28 | main-post | corrective-maintenance | 547fa5aa6d | fix(landing): a failed record clear never masks the real consolidate exit (#5111)
+  2026-09-28 | main-post | corrective-maintenance | c74a35d44e | fix(landing): create the fresh consolidation record with its executed strategy (#5111)
+  2026-09-28 | main-post | corrective-maintenance | bb32cd8971 | fix(landing): close the last two #5111 transaction-record gaps (pre-PR lens 3a, 3c)
+  2026-09-28 | main-post | corrective-maintenance | 5b07cb8889 | fix(consolidate): clear the transaction record state-first, through one owner (#5111 review fold)
+  2026-09-28 | main-post | corrective-maintenance | 233064b43b | fix(consolidate): a fresh run that fails before mutation no longer wedges the re-run (#5111)
+  2026-09-28 | main-post | restructuring | 5a25210a60 | test: retire development-assist tests and mission-process labels (exit-zero-data-intact-01M3KDAS)
+  2026-09-28 | main-post | corrective-maintenance | 2f8a558e6c | fix: fold pre-PR review findings (#4919, #4964, #4900, #4933, #4940)
+  2026-09-28 | main-post | corrective-maintenance | a4770f3f56 | fix(consolidate): user-owned meta.json edits block consolidation instead of being overwritten (#4933)
+  2026-09-28 | main-post | corrective-maintenance | d7b6450ce4 | fix(consolidate): record and verify the announced mission_number on the target (#4900)
+  2026-09-29 | main-post | corrective-maintenance | 5ae9a41887 | fix(consolidation): attribute mixed lanes per WP so canceled content cannot ship (#5046)
+  2026-09-29 | main-post | restructuring | 8f87b0347c | test(consolidation): split resume/fresh tolerance tests and tidy review nits (#5353)
+  2026-09-29 | main-post | other | 9d42c87367 | docs(consolidate): rollback-helper docstring names its tests, not a line number (#5353)
+  2026-09-29 | main-post | corrective-maintenance | 006c00fa10 | fix(consolidate): stale-finding grade labels survive Rich markup (#5353)
+  2026-09-29 | main-post | corrective-maintenance | ce92247aae | fix(landing): type the recorded attestation ids so mypy matches main
+  2026-09-29 | main-post | corrective-maintenance | 7a36e8bf61 | fix(landing): a snapshot seeded when an older record was resumed is not called pre-consolidation
+  2026-09-29 | main-post | corrective-maintenance | fe4f5dd94a | fix(landing): one global consolidation lock-id constant for the executor and --abort
+  2026-09-29 | main-post | corrective-maintenance | 5fb3f5931a | fix(landing): claim-time refusal names the operator attestations this run recorded
+  2026-09-29 | main-post | corrective-maintenance | f62dad76d4 | fix(landing): lanes are report-only and a phase records only the branches it moved
+  2026-09-29 | main-post | corrective-maintenance | 367931b999 | fix(landing): never report an advanced, unrecorded branch as untouched; RefResyncError is our own move
+  2026-09-29 | main-post | corrective-maintenance | 13487a90ab | fix(consolidate): refuse at claim time and restore every snapshotted branch on gate/projection refusal (#5338,
+  2026-09-30 | main-post | corrective-maintenance | 6d003334db | fix(landing): consolidate names the mission branch when run from any other checkout (#5100)
+  2026-09-30 | main-post | corrective-maintenance | b04364bf7a | fix(landing): clear meta.mission_branch after landing even when the branch is kept (#5100)
+  2026-09-30 | main-post | convergence-activity | def57a5092 | fix(consolidation): project birth-cutover seeds onto the post-merge primary log (#4787)
+  2026-09-30 | main-post | corrective-maintenance | 188823592a | fix(consolidate): gate the single_branch switch-back on stored topology + meta.mission_branch (#5100)
+  2026-09-30 | main-post | corrective-maintenance | 7b48886e26 | fix(consolidate): truthful single_branch messaging and dry-run; keep landed flag across clear (#5100)
+  2026-09-30 | main-post | corrective-maintenance | cca8197db9 | fix(consolidate): clear meta.mission_branch after protected single_branch landing (#5100)
+  2026-09-30 | main-post | capability-growth | 9e73b3cf0e | feat(single-branch): protected targets get a minted mission branch; --commit-to-target opt-out (#5100, WP08)
+  2026-09-30 | main-post | capability-growth | 3d3aedb99c | feat(lanes): persist the lane work tip; refuse a destroyed lane naming its SHA (#5115, WP07)
+  2026-09-30 | main-post | capability-growth | 8482d32bf3 | feat(single-branch): readers resolve a repo-root lane; write-checkout refusals (#5100, #4828, WP04)
+  2026-09-30 | main-post | restructuring | 6180dd01b3 | refactor(dead-code): sweep domain C dead symbols and sync-transport residue
+  2026-10-01 | main-post | restructuring | 1a8ace4104 | refactor(git-paths): consolidation, coordination and lanes list paths through kernel.git
+  2026-10-01 | main-post | corrective-maintenance | 30746436fe | fix(consolidate): roll back every post-mutation exit through one authority and refuse protected targets up fro
+  2026-10-03 | main-post | corrective-maintenance | 94b864d453 | fix(landing): keep the coordination home intact through review follow-ups
+  2026-10-03 | main-post | capability-growth | 5b5699e500 | feat: give coordination artifacts one durable home
+  2026-10-03 | main-post | corrective-maintenance | 2daa5a55e3 | fix(landing): correct the landing recovery advice and warnings
+  2026-10-03 | main-post | restructuring | a89c06be01 | refactor(landing): document why delete_branch_ref keeps its own update-ref
+  2026-10-03 | main-post | corrective-maintenance | ec8ac36ec4 | fix(landing): refuse a resumed teardown that cannot build its late window
+  2026-10-03 | main-post | corrective-maintenance | c3116ab6ad | fix(landing): carry the verified-landing anchor only over this run's own commit (#5570)
+  2026-10-03 | main-post | corrective-maintenance | ff9c5240d4 | fix(landing): explain a refused strand heal on resume (#5572)
+  2026-10-03 | main-post | corrective-maintenance | 39d7ff5c03 | fix(landing): name the mission branch in the moved-tip refusal for non-coordination missions (#5570)
+  2026-10-03 | main-post | corrective-maintenance | 1a24895e58 | fix(landing): make the #5570 teardown recovery advice work and pin it (#5570)
+  2026-10-03 | main-post | corrective-maintenance | b71badc6e1 | fix(coordination): heal reverts only the strand commits the marker recorded (#5572)
+  2026-10-03 | main-post | corrective-maintenance | d49ae0d684 | fix(consolidation): delete the coordination branch only at the gated tip (#5570)
+  2026-10-03 | main-post | corrective-maintenance | 710f2559fd | fix(consolidation): resume refreshes a coordination worktree that only lags its HEAD (#5571)
+  2026-10-04 | main-post | corrective-maintenance | 4fe08c47fa | fix(consolidate): give a coordination branch that moved after landing a stable code and exit code (#5613)
+  2026-10-04 | main-post | corrective-maintenance | b5b8301340 | fix(consolidate): --resume recovers a mission or lane worktree that only lags its own HEAD (#5613)
+  2026-10-04 | main-post | restructuring | ea62109a96 | refactor(consolidation): split executor.py along its phase boundaries (#2026)
+  2026-10-05 | main-post | capability-growth | 40c680c3eb | feat(consolidation): let the operator attest an approval that recorded no lane head
+  2026-10-05 | main-post | capability-growth | bcdb39ecf4 | feat(consolidation): anchor every rollback and --abort on the persisted record (#5686, #5666, #5687)
+  2026-10-07 | main-post | capability-growth | c1d20424b6 | feat(landing): cheaper origin contact and a no-contact off mode (#5780)
+  2026-10-07 | main-post | restructuring | 9df8b29a01 | refactor(consolidation): origin_gate no longer prints; shrink the console ledger
+  2026-10-07 | main-post | corrective-maintenance | 5f4c66720c | fix(orchestrator-api): planning-only consolidate-mission gates origin once
+  2026-10-07 | main-post | corrective-maintenance | 73682930e7 | fix(consolidate): refuse when origin has status evidence or lanes this clone lacks (#5780)
+  2026-10-11 | main-post | corrective-maintenance | 73cbd8f235 | fix(consolidation): route status imports through package aggregator
+  2026-10-11 | main-post | corrective-maintenance | bca5659e23 | fix(consolidation): make the #5863 status.json-drift gate a warning, not a refusal
+  2026-10-11 | main-post | corrective-maintenance | 4f6fc50729 | fix(consolidation): scope #5863 drift gate to a present, content-drifted snapshot
+  2026-10-11 | main-post | capability-growth | 1ab8cd9ec9 | feat(consolidation): refuse to land a Mission whose status.json drifts from its event log (#5863)
+  2026-10-13 | main-post | corrective-maintenance | 9e2ab79464 | fix(consolidation): preserve cleanup choices on resume
+  2026-10-15 | main-post | corrective-maintenance | b843b11257 | docs(consolidation): correct the wrong "Lamport" reducer docstrings (#6213)
+
+=== [T3] src/specify_cli/upgrade/runner.py  window 2026-09-20..2026-11-07: 42 code commits, 29 corrective; file first added: 2025-12-14 d0ba5618dc feat: Add spec-kitty upgrade command for project migrations
+  2026-09-25 | main-post | corrective-maintenance | 8e81712ecd | fix(upgrade): share one fallback timestamp across sibling worktrees when main is unstamped (#4972)
+  2026-09-25 | main-post | corrective-maintenance | 44ba42542c | fix(upgrade): align bookkeeping-only worktree stamp to main, not a fresh now_utc() (#4972)
+  2026-09-28 | main-post | corrective-maintenance | 4780247fa3 | fix(landing): fail the upgrade closed on an unreadable charter.yaml
+  2026-10-05 | main-post | corrective-maintenance | 4477c560fb | fix(upgrade): write project-global state once; skip integrating worktrees (#5457)
+  2026-10-06 | main-post | corrective-maintenance | 98956a6fcf | fix(upgrade): restore the recorded version when an upgrade fails (#4275)
+  2026-10-07 | main-post | corrective-maintenance | e6a2e64d02 | fix(upgrade): commit only on success, never ignored paths, name held files
+  2026-10-08 | main-post | corrective-maintenance | 079d2bd8cd | docs(landing): correct the metadata, runner and safe-commit comments
+  2026-10-08 | main-post | corrective-maintenance | 0b26408412 | fix(5229): metadata writers keep every key and stamp the canonical capability map
+  2026-10-09 | main-post | compatibility-work | 6d3d4dd336 | feat(charter)!: rename the doctrine pack vocabulary to charter across src, with the cutover upgrade migration
+  2026-10-18 | main-post | corrective-maintenance | 53a3d11c79 | fix(landing): signal a new migration record from the ledger write, not the reloaded metadata list
+  2026-10-18 | main-post | compatibility-work | ef23380b7a | feat(upgrade): explicit migration ledger replaces metadata applied-state (#2933, #5230)
+  2026-10-20 | main-post | convergence-activity | f20249993b | fix(upgrade): skip a migration whose detect() raises NotInsideRepositoryError (#6437)
+  2026-10-20 | main-post | convergence-activity | bd7fdb7f36 | fix(upgrade): skip migrations that need a git repo when the project has none (#6437)
+  2026-10-20 | main-post | corrective-maintenance | 946f0c9970 | fix(landing): the verbose upgrade preview says it would fail when the repository probe cannot run
+  2026-10-20 | main-post | corrective-maintenance | bd7dc78f70 | fix(landing): a repository probe that cannot run in detect, can_apply or apply is a recorded failure
+  2026-10-20 | main-post | corrective-maintenance | 420f2bbda7 | fix(upgrade): a repository probe that cannot run is a recorded failure, not a crash (#6539)
+  2026-10-20 | main-post | corrective-maintenance | b092c0be22 | fix(upgrade): one shared predicate for the repository gate, probed lazily in the preview (#6539)
+  2026-10-20 | main-post | corrective-maintenance | 252a07c7f8 | fix(upgrade): declare and gate migrations that need a git repository (#6539)
+  2026-10-21 | main-post | compatibility-work | afff50d447 | feat(upgrade): migrate activation keys into the ledger and persist deactivation through the CLI (#6496)
+  2026-10-22 | main-post | other | e0df3c1148 | docs(landing): say the schema stamp deliberately leaves formatting alone
+  2026-10-22 | main-post | corrective-maintenance | 4baef15637 | fix(upgrade): make the first upgrade after init commit nothing (#6416)
+  2026-10-25 | main-post | other | 5a69024a59 | docs(landing): say why the worktree timestamp return is cast
+  2026-10-25 | main-post | other | 4315368665 | chore(upgrade): type _aligned_worktree_timestamp return for mypy --strict
+  2026-10-25 | main-post | corrective-maintenance | 85398964d9 | fix(upgrade): fail the run when a worktree migration cannot be detected or applied
+  2026-10-25 | main-post | corrective-maintenance | 2aa7da3028 | fix(landing): count the shipped promotion's own skip as ran (#6629)
+  2026-10-26 | main-post | corrective-maintenance | dbc6715b30 | fix(landing): record a worktree git failure as a retryable failed migration
+  2026-10-26 | main-post | corrective-maintenance | 90db6fbd12 | fix(upgrade): name the notice-collapse base notice_root, not an owned-root alias (#6669)
+  2026-10-26 | main-post | corrective-maintenance | 5ee210c8d7 | fix(upgrade): probe residue once before the shipped walk and record git failures (#6669)
+  2026-10-26 | main-post | capability-growth | bd6324dec4 | feat(kitty/mission-residue-safe-migration-sweep-01M5SS0F): squash merge of mission
+  2026-11-01 | main-post | corrective-maintenance | 7c7dc87d29 | fix(landing): the runner skip gate asks the selection view by migration object
+  2026-11-01 | main-post | compatibility-work | 50c17f8a6a | refactor(landing): keep successor settlement in one predicate, not a second reselection hook
+  2026-11-01 | main-post | other | 9f99ac98b3 | test(landing): pin that a [failed, success] successor history is never downgraded to skipped
+  2026-11-01 | main-post | corrective-maintenance | 40bfa8eea2 | fix(upgrade): a residue-safe successor is settled by its predecessor's outcome (#6688)
+  2026-11-01 | main-post | corrective-maintenance | dae780692b | fix(landing): declare the repoint predecessor outside the shipped migration module
+  2026-11-01 | main-post | corrective-maintenance | 53a034ad5c | fix(upgrade): make the predicted dry-run verdict visible and its declaration auditable (#6552)
+  2026-11-01 | main-post | corrective-maintenance | d73542d763 | fix(upgrade): the dry run decides on the run's sequenced view, not the pre-run tree (#6552)
+  2026-11-02 | main-post | corrective-maintenance | 5ffc238c1f | fix(upgrade): the dry run heads its migration list with what it would apply (#6234)
+  2026-11-05 | main-post | restructuring | cf92b81f77 | refactor(landing): drop the unread WOULD_UPGRADE worktree outcome (#7173)
+  2026-11-05 | main-post | restructuring | 58f657aef8 | refactor(landing): restore the _commit_worktree_churn name and drop its test wrapper (#7173)
+  2026-11-05 | main-post | corrective-maintenance | f9b823acd6 | fix(landing): name the no-commit reason when a worktree's changes were already uncommitted (#7173)
+  2026-11-05 | main-post | corrective-maintenance | bcc0746cba | fix(upgrade): leave non-Mission worktrees alone unless named (#7173)
+  2026-11-07 | main-post | corrective-maintenance | e299dc3fc5 | fix(7217): retire the stale issue-matrix.md merge-driver row
+
+=== [T3] src/specify_cli/consolidation/reconciliation.py  window 2026-09-20..2026-11-13: 64 code commits, 47 corrective; file first added: 2026-09-28 f5c15f9f88 feat(consolidate): rename lane-consolidation `merge`→`consolidate` (#3080)
+  2026-09-27 | main-post | capability-growth | f5c15f9f88 | feat(consolidate): rename lane-consolidation `merge`→`consolidate` (#3080)
+  2026-09-28 | main-post | corrective-maintenance | 5b07cb8889 | fix(consolidate): clear the transaction record state-first, through one owner (#5111 review fold)
+  2026-09-28 | main-post | corrective-maintenance | 233064b43b | fix(consolidate): a fresh run that fails before mutation no longer wedges the re-run (#5111)
+  2026-09-28 | main-post | restructuring | 5a25210a60 | test: retire development-assist tests and mission-process labels (exit-zero-data-intact-01M3KDAS)
+  2026-09-28 | main-post | corrective-maintenance | 2f8a558e6c | fix: fold pre-PR review findings (#4919, #4964, #4900, #4933, #4940)
+  2026-09-29 | main-post | other | fdfec4f917 | docs(landing): record the canceled-axis-is-sole-squash-backstop invariant (#5046)
+  2026-09-29 | main-post | corrective-maintenance | 5ae9a41887 | fix(consolidation): attribute mixed lanes per WP so canceled content cannot ship (#5046)
+  2026-09-29 | main-post | corrective-maintenance | 1ca06fca6a | fix(consolidate): truthful gate guidance and one claim-integrity predicate (#5318, #5296)
+  2026-09-29 | main-post | corrective-maintenance | 13487a90ab | fix(consolidate): refuse at claim time and restore every snapshotted branch on gate/projection refusal (#5338,
+  2026-09-30 | main-post | capability-growth | 9e73b3cf0e | feat(single-branch): protected targets get a minted mission branch; --commit-to-target opt-out (#5100, WP08)
+  2026-09-30 | main-post | other | 6683a83337 | test(terminus): fold the six #5046 repro files into purpose-named mixed-lane suites
+  2026-10-03 | main-post | corrective-maintenance | 2daa5a55e3 | fix(landing): correct the landing recovery advice and warnings
+  2026-10-03 | main-post | restructuring | 30fd0254bd | refactor(landing): require the canceled-lane safety parameters
+  2026-10-03 | main-post | corrective-maintenance | e4e8174105 | fix(landing): record multi-lane contributions at an authored commit
+  2026-10-03 | main-post | corrective-maintenance | 52682ac991 | fix(landing): refuse when a canceled dependency lane's tip is unreadable
+  2026-10-03 | main-post | corrective-maintenance | 94d7fb24f0 | fix(landing): never advise attestation for a refusal it cannot lift (#5569)
+  2026-10-03 | main-post | corrective-maintenance | ac89bfdaeb | fix(consolidation): a fully-canceled lane's commits never count as approved authorship (#5569)
+  2026-10-04 | main-post | corrective-maintenance | c57242e15c | fix(landing): catch a dependent lane's dropped change in the presence check (#5613)
+  2026-10-04 | main-post | restructuring | 97e1403b67 | refactor(consolidate): unexport verifier internals (#5613)
+  2026-10-04 | main-post | corrective-maintenance | 872e85c468 | fix(consolidate): name, narrow and make attestable the canceled-dependency refusal (#5613)
+  2026-10-04 | main-post | corrective-maintenance | a8b768426f | fix(consolidate): refuse when an approved WP's content is missing from the target (#5613)
+  2026-10-05 | main-post | corrective-maintenance | d6467aa1e2 | fix(landing): refuse the approval bound when its claim base cannot be resolved
+  2026-10-05 | main-post | corrective-maintenance | 91e21460dd | fix(landing): never use a live branch as an anchor of the approval bound
+  2026-10-05 | main-post | corrective-maintenance | c1fdfc035d | fix(consolidation): canceled work is never exempt from the approval-stamp bound; one message names every claim
+  2026-10-05 | main-post | other | 53d38537c7 | docs(consolidation): name the canceled-superseded attestation as a residual
+  2026-10-05 | main-post | corrective-maintenance | f44c7dd31b | docs(consolidation): correct the claim docstrings and name three more residuals in the ADR
+  2026-10-05 | main-post | corrective-maintenance | 059992fae8 | fix(consolidation): print refusals an operator can act on
+  2026-10-05 | main-post | corrective-maintenance | 8993963ffa | fix(consolidation): fail closed when the claim base of the lane check does not resolve
+  2026-10-05 | main-post | corrective-maintenance | 54f45762ff | fix(consolidation): bound a lane by its approval stamp, not by the live mission branch
+  2026-10-05 | main-post | corrective-maintenance | 664938b4f6 | fix(consolidation): refuse a lane with content beyond its approval before any branch moves (#5668)
+  2026-10-05 | main-post | capability-growth | 124e39d101 | feat(consolidation): land a bare-slug coordination Mission via a directory alias (#5651, #5611)
+  2026-10-05 | main-post | corrective-maintenance | bf27663685 | fix(landing): refuse the presence axis when the mission-branch range is unreadable (#5788)
+  2026-10-05 | main-post | corrective-maintenance | b0fb4e5a43 | fix(consolidation): measure approved-content presence from the pre-mutation tip (#5788)
+  2026-10-11 | main-post | corrective-maintenance | 3bde34db17 | fix(consolidation): bound #5968 authorship only for dependency-declaring lanes
+  2026-10-11 | main-post | corrective-maintenance | 2db04ded1f | fix(consolidation): bound squash authorship to each lane's own base (#5968)
+  2026-10-15 | main-post | corrective-maintenance | b843b11257 | docs(consolidation): correct the wrong "Lamport" reducer docstrings (#6213)
+  2026-10-16 | main-post | corrective-maintenance | 978dd0296c | fix(consolidation): accept a canceled dependency lane that never started (#5937)
+  2026-10-17 | main-post | corrective-maintenance | 02b0c1ba70 | fix(consolidation): content-level supersession of canceled content (#5932)
+  2026-10-17 | main-post | corrective-maintenance | 63160d9433 | fix(consolidate): build single_branch refusal text without a lane-compose join (#5939 arch gate)
+  2026-10-17 | main-post | corrective-maintenance | 6af1d49bf9 | fix(consolidate): strict single_branch independence + fail-closed on uncomputable window (#5939 review)
+  2026-10-17 | main-post | corrective-maintenance | f449e1a754 | fix(consolidate): fail-closed single_branch implementation-evidence + independence net (#5939)
+  2026-10-17 | main-post | restructuring | efb63477c1 | refactor(consolidate): fold #6324 review nits — dedup single_branch meta read, document residuals (#5939)
+  2026-10-22 | main-post | corrective-maintenance | f073e1246f | fix(consolidation): judge canceled content line by line, not by an all-lines subset (#6309)
+  2026-10-28 | main-post | corrective-maintenance | 6a3e5cde11 | fix(landing): type the two reconciliation call sites mypy read as Any
+  2026-10-28 | main-post | corrective-maintenance | 45c62ad48a | fix(consolidation): refuse an unreadable carrier spine in the dependency axis (#6313)
+  2026-10-29 | main-post | corrective-maintenance | 2f249123d9 | fix(status): route the continuity seed check through is_migration_actor; cite events PR #102 (#6271)
+  2026-10-29 | main-post | corrective-maintenance | 8c5703e48f | fix: refuse hollow or self-approved work packages on every topology (#6715)
+  2026-11-01 | main-post | corrective-maintenance | 0f4bf7f60f | fix(landing): derive the Mission stem from the lane id, not a hand-rolled lane-name split
+  2026-11-01 | main-post | other | 5e431c2548 | docs(landing): name the git merge, not a lane~merge, in the dependency-ref spine docstring
+  2026-11-01 | main-post | corrective-maintenance | b58a872277 | fix(landing): a declared dependency ref is refused when it lies on the first-parent history of any recorded Mi
+  2026-11-01 | main-post | corrective-maintenance | f0f8513a3b | fix(landing): a declared dependency ref fails closed against any Mission authorship, is pinned at claim, and c
+  2026-11-01 | main-post | capability-growth | 72297adad3 | feat(consolidate): attribute a verified external dependency ref as inherited history
+  2026-11-06 | main-post | corrective-maintenance | 912a393dbf | fix(landing): keep scanning lanes in the squash forecast
+  2026-11-06 | main-post | corrective-maintenance | 073a05b5fd | fix(consolidate): drop Divergence from reconciliation __all__ (#7244)
+  2026-11-06 | main-post | corrective-maintenance | a5c8f2f66d | fix(consolidate): forecast the squash content check under squash (#7244)
+  2026-11-07 | main-post | corrective-maintenance | eb8cdb03ab | fix(consolidation): attribute a lane's reviewed dependency merges (#7307)
+  2026-11-08 | main-post | corrective-maintenance | 5885a3cdb4 | fix(acceptance): acceptance, review and ownership path fixes (QW10)
+  2026-11-10 | main-post | other | 17d313cbfa | docs(landing): point the ADRs at the tests that remain after the trim
+  2026-11-10 | main-post | other | ab0852df59 | test(consolidation): pin the reconciliation family's import direction by rank
+  2026-11-10 | main-post | capability-growth | 09108fb3b2 | feat(consolidation): judge each work package against its recorded window (#7403)
+  2026-11-13 | main-post | restructuring | 8ec8d079c2 | refactor(landing): print the Mission-base note through one helper (#7560)
+  2026-11-13 | main-post | corrective-maintenance | 37a81cffd5 | fix(consolidation): bound the dependency-ref guard and the claim at the Mission base (#7560)
+  2026-11-13 | main-post | restructuring | 2d624293ef | refactor(landing): route commit-tree through kernel.git, scope the merge fold cache, drop the alias (#7626)
+  2026-11-13 | main-post | corrective-maintenance | 6a80a075da | fix(consolidation): attribute reviewed merges of approved work under squash (#7626)

@@ -1,0 +1,56 @@
+phrase,repo,revision,lines_all_tracked,lines_docs_adr_context
+"status event log",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,878,15
+"status event log",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,62,0
+"status event log",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,28,1
+"status event log",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,34,0
+"status event log",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,43,0
+"status events? log",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,881,15
+"status events? log",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,62,0
+"status events? log",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,28,1
+"status events? log",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,34,0
+"status events? log",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,43,0
+"event log",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,6291,189
+"event log",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,186,1
+"event log",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,202,23
+"event log",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,94,0
+"event log",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,125,2
+"event ledger",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,53,24
+"event ledger",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,10,10
+"event ledger",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,12,6
+"event ledger",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"event ledger",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"status ledger",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,5,0
+"status ledger",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"status ledger",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0,0
+"status ledger",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"status ledger",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"mission ledger",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,20,1
+"mission ledger",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"mission ledger",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,3,0
+"mission ledger",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"mission ledger",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"\bdiary\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,231,18
+"\bdiary\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"\bdiary\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,749,49
+"\bdiary\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"\bdiary\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"status diary",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0,0
+"status diary",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"status diary",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,18,2
+"status diary",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"status diary",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"native journal",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0,0
+"native journal",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"native journal",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0,0
+"native journal",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"native journal",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"durable journal",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0,0
+"durable journal",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"durable journal",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,21,7
+"durable journal",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0,0
+"durable journal",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0
+"event journal",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,65,1
+"event journal",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0
+"event journal",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0,0
+"event journal",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1,0
+"event journal",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0

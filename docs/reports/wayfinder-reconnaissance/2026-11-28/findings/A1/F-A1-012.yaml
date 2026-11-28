@@ -1,0 +1,63 @@
+finding_id: F-A1-012
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "owner of activation logic"
+  repository: "spec-kitty/spec-kitty-open-packs; spec-kitty/spec-kitty; spec-kitty/spec-kitty-charter"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "spec-kitty-open-packs' charter records an operator ruling of 2026-11-16 that the canonical owner of 'the pack schemas, validation, resolution, the DRG, activation' is the charter repository and that packs are no longer a concern of core (charter.md:15-20); core's charter states charter.activation stays in core (charter.md:429-430), and charter ADR-0010 decision 2 states 'Activation's own state logic stays in core'."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty-open-packs:.kittify/charter/charter.md:15-20 @ f9a557510dc7ff04597a0b8aba87f736e25f785e"
+    method: "git -C /home/user/spec-kitty-open-packs show f9a557510dc7ff04597a0b8aba87f736e25f785e:.kittify/charter/charter.md | sed -n '15,20p'"
+    sha256: "c9e7571c51e2baf7d2936ebd273295d4cb60cb60cc8bb6f7da33e01ee05bf847"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:425-433 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '425,433p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty-charter:docs/adr/0010-cutover-scope-and-seam-boundary.md:73-90 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+    method: "git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0010-cutover-scope-and-seam-boundary.md | sed -n '73,90p'"
+    sha256: "7be99dae8499514d35d058bad389da0322fc960947e56bad25a29be1229a0054"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "three charters/ADRs"
+  not_covered: "any record of the 2026-11-16 ruling in core or charter repos"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "searched core and charter ADR trees and charters for '2026-11-16' and for an amendment moving activation logic ownership"
+  result: "open-packs ADR 2026-11-19-3 records the 2026-11-16 ownership ruling; no core or charter-repo record of it found"
+relations:
+  - {type: supports, target: F-A1-038}
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

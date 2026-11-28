@@ -1,0 +1,3 @@
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -q -n0 -p no:cacheprovider
+exit_code=137
+[ 2218.902433] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/process_api/01a22158-cd24-72f9-ad99-a90c21aeacb8/claude-code-bash,task_memcg=/process_api/01a22158-cd24-72f9-ad99-a90c21aeacb8/claude-code-bash,task=python,pid=24649,uid=0

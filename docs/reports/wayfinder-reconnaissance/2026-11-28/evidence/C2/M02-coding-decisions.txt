@@ -1,0 +1,60 @@
+A00|traced|charter-generation-drops-scoped-references-01M3M1KF|pre-main-unstated|same PR; landing fold, red-first; mechanism not named
+A01|traced|-|c-reviewer-pre-main|"Also from the review"; issue #7271 opened same day
+A02|untraceable|-|c-report|top blame 0.27 share across PRs; issue #4921 (human, reliability)
+A03|untraceable|-|c-report|top blame is a move refactor (#5119); issue #5460 from:qa catfooding
+A04|traced|charter-resynth-project-directive-layer-split-01M690W8|c-reviewer-pre-main|"Re-review of the #6923 landing fixes"
+A05|traced|decisions-lock-log-anchor-01M67JK0|pre-main-unstated|same PR landing fold
+A06|traced-weak|-|pre-main-unstated|same PR; no body
+A07|traced|-|pre-main-unstated|same PR; PR touches unrelated legacy Mission dirs, no owning Mission identified
+A08|traced-weak|typed-context-diagnostics-01M5ZA6Q|unstated-post-main|cross-PR; blame share 0.44
+A09|traced|single-branch-topology-honesty-01M3M22V|a-automated-pre-main|"CI's architectural battery flagged"
+A10|untraceable|-|c-report|blame share 0.21 across EXPERIMENTAL PR; issue #4614 human
+A11|traced|-|c-report|issue #7793 catfooding human
+A12|traced-weak|settled-placement-surface-01M78GR4|a-automated-pre-main|"heavy architectural battery flagged"
+A13|untraceable|-|unstated-post-main|no body; blame share 0.15 through a merge commit
+A14|untraceable|-|c-report|top blame is a split refactor (#5627); issue #5448 from:qa
+A15|untraceable|-|unstated-post-main|top blame is a god-module decomposition (#2135)
+A16|traced-weak|upgrade-project-global-state-01M44538|c-report|issue #7173 catfooding human (P0)
+A17|traced-weak|lane-code-verification-01M76AC0|pre-main-unstated|same PR landing fold
+A18|untraceable|-|unstated-post-main|0 blamed lines (pure addition); pattern widening
+A19|traced-weak|next-lifecycle-integrity-01M77BWP|pre-main-unstated|same PR; import-door fix (gate-shaped) but mechanism not named
+A20|untraceable|-|not-a-defect|test rename only (no src line changed)
+A21|traced-weak|exit-zero-data-intact-01M3KDAS|c-reviewer-pre-main|"fold pre-PR review findings"
+A22|traced|-|pre-main-unstated|same PR, no body
+A23|traced|cli-owns-its-commits-01M75NTA|c-reviewer-deferred|issue #7612 "Deferred from PR #7562"
+A24|untraceable|-|c-report|blame share 0.24; issue #4933 from:qa
+A25|untraceable|-|c-report|environmental (corrupt .pyc); issue #4124 observed in a training session
+A26|traced|installed-runtime-domain-01KW0NR6|c-report|issue #6468 human (unregistered docs domain)
+A27|traced-weak|mission-coordination-branch-atomic-event-log-01KSPTVW|c-report|issue #4753 human P0
+A28|traced|consolidate-rerun-fresh-baseline-01M67HZD|c-reviewer-pre-main|"Aggregate correctness review found"
+A29|traced-weak|single-rollback-authority-01M3RCP4|c-report|issue #6464 taken-by-human
+B00|traced|charter-governance-resolution-01M57Z77|a-automated-pre-main|mypy --strict
+B01|traced|orchestrator-two-planning-01M4AB7R|a-automated-pre-main|mypy
+B02|traced-weak|-|c-reviewer-pre-main|"address #7814 review"
+B03|traced|destructive-residue-context-01M4KBPS|c-report|issue #7540 dogfooding
+B04|traced|-|pre-main-unstated|same PR landing fold
+B05|traced|charter-governance-resolution-01M57Z77|pre-main-unstated|same PR landing fold
+B06|traced|-|pre-main-unstated|same PR, no body
+B07|traced|write-side-seam-matrix-tracer-01KYP3MH|c-report|pre-PR squad of a later Mission surfaced it; issue #4959 from:qa
+B08|traced|-|c-report|issue #6579 human (encoding validation run)
+B09|traced|agent-profile-projection-plugin-production-01KV3NGS|unstated-post-main|no body
+B10|traced-weak|-|c-reviewer-pre-main|"Aggregate-review finding"
+B11|traced|-|pre-main-unstated|same PR landing fold
+B12|traced|stability-and-hygiene-hardening-2026-04-01KQ4ARB|c-report|issue #4739 human
+B13|traced|doctor-ops-sweep-linked-worktrees-01M66YNF|a-automated-pre-main|dead-code gate; the #470 match in enrichment is a wrong-tracker hit, ignored
+B14|traced|analysis-report-transaction-01M38YDX|pre-main-unstated|same PR landing fold (rename residue)
+B15|traced|resynthesis-after-activation-01M5ZD62|pre-main-unstated|same PR
+B16|traced|bound-failed-staging-retention-01M66YPB|pre-main-unstated|same PR landing fold, red-first
+B17|traced|-|pre-main-unstated|same PR landing fold
+B18|traced|write-side-seam-matrix-tracer-01KYP3MH|c-report|issue #4868 from:qa
+B19|traced|pack-level-declared-in-pack-yaml-01M4NVEN|pre-main-unstated|same PR landing fold
+B20|traced|-|a-automated-pre-main|"CI execution_context shard"
+B21|traced|-|pre-main-unstated|same PR landing fold
+B22|traced|-|b-automated-post-main|architectural battery refused older code (introduced via PR #5124) on the fix PR head
+B23|traced|terminus-safety-invariant-01M2XFT7|c-report|issue #5111 human
+B24|traced|finalize-tasks-failed-run-restores-status-surface-01M43AHQ|pre-main-unstated|same PR landing fold
+B25|traced|-|pre-main-unstated|same PR landing fold
+B26|traced|single-branch-topology-honesty-01M3M22V|pre-main-unstated|same PR
+B27|traced|requirement-id-grammar-01M3NRCA|a-automated-pre-main|mypy override / lint test gaps
+B28|untraceable|-|unstated-post-main|top blame is a split refactor (#2026); terminology wording
+B29|traced|-|pre-main-unstated|same PR, no body

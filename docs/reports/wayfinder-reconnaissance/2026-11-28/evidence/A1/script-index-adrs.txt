@@ -129,6 +129,9 @@ def amendments(text):
     heads = re.findall(r"^#{1,6}\s*(?:\d+\.\s*)?Amendment[^\n]*", text, re.M | re.I)
     bold = re.findall(r"\*\*Amendment[^*\n]*\*\*", text, re.I)
     dates = set(re.findall(r"Amendment[s]?[^\n]{0,20}?(\d{4}-\d{2}-\d{2})", text))
+    # "Amended 2026-11-05" / "**Amended 2026-11-02:**" markers (events, doc-kitty style)
+    dates |= set(re.findall(r"\bAmended:?\**\s*\(?(\d{4}-\d{2}-\d{2})", text))
+    bold = bold + re.findall(r"\*\*Amended[^*\n]*\*\*", text)
     return heads, bold, sorted(dates)
 
 def components(title, desc):

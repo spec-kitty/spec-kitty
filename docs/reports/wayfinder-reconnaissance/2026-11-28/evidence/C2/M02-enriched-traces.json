@@ -1,0 +1,2529 @@
+[
+{
+"id": "A00",
+"sha": "b5405f031f6287edf9c564b16eee090f970e1a5b",
+"date": "2026-09-30",
+"subject": "fix(landing): give every unresolved-reference cause a readable detail (#5257)",
+"components": [
+"charter/activation"
+],
+"fix_pr": [
+5429,
+"2026-09-30T17:35:26Z",
+"[#5257] Keep scoped references through charter generation and report unresolved ones"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "ab116dfa98405fb821ed3a84fd6f39150b19aa00",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-09-30|fix(charter): keep scope-filtered activated references in the compiled catalog (#5257)",
+"pr": [
+5429,
+"2026-09-30T17:35:26Z",
+"[#5257] Keep scoped references through charter generation and report unresolved ones"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"charter-generation-drops-scoped-references-01M3M1KF"
+],
+"acceptance": {
+"charter-generation-drops-scoped-references-01M3M1KF": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5257,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-28",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"priority:P2"
+],
+"title": "[bug] Charter generation drops configured scoped references from compiled catalog"
+}
+},
+{
+"id": "A01",
+"sha": "2cd5bfe61f1901c46a2a5fb81b39b566c65fdd85",
+"date": "2026-11-06",
+"subject": "fix(landing): prove the late window in the composed directory too",
+"components": [
+"specify_cli/cli",
+"specify_cli/consolidation"
+],
+"fix_pr": [
+7274,
+"2026-11-06T15:22:22Z",
+"[#7198] consolidate: one pass over the late teardown window (prove every change, approve the proven "
+],
+"blame_lines": 67,
+"intro": {
+"sha": "8cc3f231f61838bffc13793a5ddbf2a9b9aaeafb",
+"share_of_blamed_lines": 0.55,
+"subject": "2026-11-06|fix(consolidate): never approve a late window the proof did not judge (#7271)",
+"pr": [
+7274,
+"2026-11-06T15:22:22Z",
+"[#7198] consolidate: one pass over the late teardown window (prove every change, approve the proven "
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7271,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-06",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P3",
+"domain:consolidation",
+"type:bug"
+],
+"title": "consolidate: the late-window proof does not judge the composed coordination directory (<slug>-<mid8>)"
+}
+},
+{
+"id": "A02",
+"sha": "2426e9c91c116dadd67407b9cc4e4b648572fe00",
+"date": "2026-09-23",
+"subject": "fix(#4921): enforce the mission-brief overwrite invariant in the write_mission_brief chokepoint via a shared g",
+"components": [
+"specify_cli/(root)",
+"specify_cli/asset_preservation",
+"specify_cli/cli"
+],
+"fix_pr": [
+4953,
+"2026-09-23T06:56:41Z",
+"fix(preservation): stop init/research/intake silently destroying operator-authored files (#4931 #492"
+],
+"blame_lines": 48,
+"intro": {
+"sha": "b1998f838e3bedb1d4d6caed524d27a8b7857a0d",
+"share_of_blamed_lines": 0.27,
+"subject": "2026-08-15|feat(intake): optional v1 handoff packet overlay for structured briefs",
+"pr": [
+3379,
+"2026-08-15T07:38:17Z",
+"feat(intake): optional v1 handoff packet overlay for structured briefs"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4921,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-22",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P2",
+"domain:cli",
+"domain:onboarding"
+],
+"title": "[bug] mission-brief overwrite invariant lives only in the CLI adapter, not the write_mission_brief chokepoint"
+}
+},
+{
+"id": "A03",
+"sha": "046e9e28ea750f94524c93a755fb31048c37476a",
+"date": "2026-10-07",
+"subject": "fix(consolidation): meta.json merge driver honours the merge base (#5460)",
+"components": [
+"specify_cli/cli",
+"specify_cli/consolidation",
+"specify_cli/lanes"
+],
+"fix_pr": [
+5837,
+"2026-10-07T05:55:22Z",
+"[#5460] meta.json merge driver honours the merge base so a teammate's git pull keeps a mission disca"
+],
+"blame_lines": 44,
+"intro": {
+"sha": "8fc8a9d2b1533532e260f7328f7505552126d4f9",
+"share_of_blamed_lines": 0.52,
+"subject": "2026-09-27|refactor(merge): move merge-driver bodies into the merge domain behind a merge->CLI layer rule (#5119)",
+"pr": [
+5245,
+"2026-09-27T20:55:16Z",
+"Merge-seam relocation, test-isolation sweep & model-slot verdict (#5119 #5118 #5117)"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"merge-seam-test-isolation-campsite-01M3F61E"
+],
+"acceptance": {
+"merge-seam-test-isolation-campsite-01M3F61E": "accepted_at=2026-09-27T05:30:08.117367+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5460,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-30",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P0",
+"catfooding",
+"from:qa",
+"domain:consolidation"
+],
+"title": "[bug] git pull after mission close --discard silently reverts the discard \u2014 meta.json merge driver ignores the"
+}
+},
+{
+"id": "A04",
+"sha": "f188c091454264c70a37c0da43c9e965b1e960d5",
+"date": "2026-11-06",
+"subject": "fix(landing): protect every unowned project directive and no-op before the pipeline",
+"components": [
+"charter/activation",
+"specify_cli/cli"
+],
+"fix_pr": [
+6923,
+"2026-11-06T09:19:01Z",
+"[#6768] charter resynthesize reports a hand-written directive as nothing to regenerate, and synthesi"
+],
+"blame_lines": 32,
+"intro": {
+"sha": "2cb8ff22d630e604bf664ff810ce0d766c2892ea",
+"share_of_blamed_lines": 0.78,
+"subject": "2026-11-06|fix(landing): keep refusing writes over artifacts synthesis did not create",
+"pr": [
+6923,
+"2026-11-06T09:19:01Z",
+"[#6768] charter resynthesize reports a hand-written directive as nothing to regenerate, and synthesi"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"charter-resynth-project-directive-layer-split-01M690W8"
+],
+"acceptance": {
+"charter-resynth-project-directive-layer-split-01M690W8": "accepted_at=2026-10-31T14:39:43.262622+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": [
+6923
+]
+}
+},
+{
+"id": "A05",
+"sha": "9e9152e6e384cfc4ac30cd77265605132b57a608",
+"date": "2026-11-01",
+"subject": "fix(landing): take the decision anchor lock through event_log_lock so a nested same-log take is re-entrant",
+"components": [
+"kernel",
+"specify_cli/decisions"
+],
+"fix_pr": [
+6872,
+"2026-11-01T06:23:19Z",
+"[#6765] Serialize decision writes on the event log, not the ledger directory"
+],
+"blame_lines": 12,
+"intro": {
+"sha": "86a5d423450f4e4d4a5412577533e68bcb395841",
+"share_of_blamed_lines": 0.83,
+"subject": "2026-11-01|fix(decisions): key the decision write lock on the event log (#6765)",
+"pr": [
+6872,
+"2026-11-01T06:23:19Z",
+"[#6765] Serialize decision writes on the event log, not the ledger directory"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"decisions-lock-log-anchor-01M67JK0"
+],
+"acceptance": {
+"decisions-lock-log-anchor-01M67JK0": "accepted_at=2026-10-31T04:36:24.458472+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A06",
+"sha": "9b313f74006226b8033254630c0781a40f6b209f",
+"date": "2026-09-28",
+"subject": "fix: keep task parse errors behind status facade",
+"components": [
+"runtime",
+"specify_cli/status"
+],
+"fix_pr": [
+5259,
+"2026-09-28T08:09:53Z",
+"[#5255] Resolve WP prompts from canonical task placement"
+],
+"blame_lines": 5,
+"intro": {
+"sha": "26e15f7d476b279eb7f64e23721a50682c93efcc",
+"share_of_blamed_lines": 0.4,
+"subject": "2026-09-28|fix: resolve WP prompts from canonical task placement",
+"pr": [
+5259,
+"2026-09-28T08:09:53Z",
+"[#5255] Resolve WP prompts from canonical task placement"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A07",
+"sha": "8eb22aa5137b8e29ec759b55a4ddb907c613a7b1",
+"date": "2026-10-04",
+"subject": "fix(migrate): report a failed status.json refresh as a warning, not a Mission error (#5579)",
+"components": [
+"specify_cli/cli",
+"specify_cli/migration"
+],
+"fix_pr": [
+5616,
+"2026-10-04T07:07:44Z",
+"feat(migrate): backfill missing WP status events so snapshots match WP files (#5579)"
+],
+"blame_lines": 8,
+"intro": {
+"sha": "1126db3ec7b6f91acab36dd51857a4a9a56ef188",
+"share_of_blamed_lines": 0.75,
+"subject": "2026-10-04|feat(migrate): seed missing WP lane events with `spec-kitty migrate backfill-wp-status` (#5579)",
+"pr": [
+5616,
+"2026-10-04T07:07:44Z",
+"feat(migrate): backfill missing WP status events so snapshots match WP files (#5579)"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"005-refactor-mission-system",
+"055-agent-skills-pack",
+"057-doctrine-stack-init-and-profile-integration",
+"062-fix-doctrine-migration-test-failures"
+],
+"acceptance": {
+"005-refactor-mission-system": "accepted_at=2025-11-16T15:23:25Z",
+"055-agent-skills-pack": "not-accepted-at-head",
+"057-doctrine-stack-init-and-profile-integration": "not-accepted-at-head",
+"062-fix-doctrine-migration-test-failures": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5579,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-02",
+"author_is_bot": false,
+"labels": [
+"domain:status-api",
+"priority:P2",
+"domain:status"
+],
+"title": "Mission status: drain the snapshot-versus-files work-package disagreement (reality-check ratchet)"
+}
+},
+{
+"id": "A08",
+"sha": "d1466fc683f73f934d987f2c1226ee3a3d83e602",
+"date": "2026-11-10",
+"subject": "fix(landing): compact a catalog default per kind, not for the whole block",
+"components": [
+"charter/activation",
+"runtime"
+],
+"fix_pr": [
+7515,
+"2026-11-10T18:54:47Z",
+"[#7511] next prompts name the built-in catalog default instead of listing it"
+],
+"blame_lines": 18,
+"intro": {
+"sha": "049ae07e2815fcb164f35de4fdad10d77a1993ee",
+"share_of_blamed_lines": 0.44,
+"subject": "2026-10-28|feat(charter): type governance diagnostics as {code, message} (#6460)",
+"pr": [
+6730,
+"2026-10-28T05:18:00Z",
+"[#6460] Type charter context JSON diagnostics as {code, message}"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"typed-context-diagnostics-01M5ZA6Q"
+],
+"acceptance": {
+"typed-context-diagnostics-01M5ZA6Q": "accepted_at=2026-10-27T20:16:46.168636+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A09",
+"sha": "15ce3ec7e43015ef98a2910e3cdd4f547245b5b6",
+"date": "2026-09-30",
+"subject": "fix(landing): doctor coordination --fix re-stamps through the backfill seam with runtime_reading (#5100)",
+"components": [
+"specify_cli/cli",
+"specify_cli/migration"
+],
+"fix_pr": [
+5398,
+"2026-09-30T04:20:05Z",
+"[#5100] single_branch runs in the repository root checkout; deleted lanes no longer lose work"
+],
+"blame_lines": 37,
+"intro": {
+"sha": "e8a717e9bd60c9bccd4181efb2bb7a1216da0199",
+"share_of_blamed_lines": 0.81,
+"subject": "2026-09-30|fix(landing): doctor coordination --fix no longer opts a flattened mission into single_branch (#5100)",
+"pr": [
+5398,
+"2026-09-30T04:20:05Z",
+"[#5100] single_branch runs in the repository root checkout; deleted lanes no longer lose work"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"single-branch-topology-honesty-01M3M22V"
+],
+"acceptance": {
+"single-branch-topology-honesty-01M3M22V": "accepted_at=2026-09-29T13:45:54.655071+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5100,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-26",
+"author_is_bot": false,
+"labels": [
+"workflow",
+"reliability",
+"domain:git",
+"priority:P0",
+"catfooding",
+"from:squad"
+],
+"title": "single_branch topology is ignored: implement allocates lane worktrees, guards demand lane-planning branches, c"
+}
+},
+{
+"id": "A10",
+"sha": "5a06ceb15ad0e8c6232e3057f31bd0fe5382557e",
+"date": "2026-09-29",
+"subject": "fix(charter): generate --from-interview re-derives languages from the current answers (#4614)",
+"components": [
+"charter/activation",
+"specify_cli/cli"
+],
+"fix_pr": [
+5383,
+"2026-09-29T16:48:01Z",
+"[#5283] Tech-agnostic fallback: non-Python projects get an honest review and neutral charter context"
+],
+"blame_lines": 28,
+"intro": {
+"sha": "e4bb708b6f8dc1dd8c64d41a0ccd5afb93200aa4",
+"share_of_blamed_lines": 0.21,
+"subject": "2026-09-01|fix(charter,doctrine): deliver loaded doctrine to the dispatched agent (M4)",
+"pr": [
+"EXP#995",
+"2026-09-02T07:35:51Z",
+"[#821] Port remaining convergence batch C"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4614,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-16",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"priority:P2"
+],
+"title": "catalog.languages is read back as authoritative, so a wrong inference survives every regeneration"
+}
+},
+{
+"id": "A11",
+"sha": "8dd5077beec2f3b5725513cd166c65f46deaa2e3",
+"date": "2026-11-23",
+"subject": "fix(single-branch): name live pin remedies, close the doctor pin gaps, amend the ADR",
+"components": [
+"specify_cli/cli",
+"specify_cli/migration"
+],
+"fix_pr": [
+7817,
+"2026-11-23T07:52:10Z",
+"[#7793] Keep the single_branch planning pin on the planning commit across a rebase"
+],
+"blame_lines": 22,
+"intro": {
+"sha": "03aeb9279ff4e734e6e9b93f4871e50aba53291b",
+"share_of_blamed_lines": 0.59,
+"subject": "2026-11-06|fix(doctor): rebuild lanes.json with the derived planning commit (#7210)",
+"pr": [
+7255,
+"2026-11-06T12:46:21Z",
+"[#7210] finalize-tasks derives a planning commit for a pin-less in-flight Mission"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7793,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-20",
+"author_is_bot": false,
+"labels": [
+"priority:P2",
+"catfooding",
+"domain:cli",
+"domain:status"
+],
+"title": "single_branch: --refresh-planning-commit --allow-orphaned after a rebase empties the implementation evidence w"
+}
+},
+{
+"id": "A12",
+"sha": "2446a12cd9c84a9a3b04dbe8b4078ba09a3e2e8f",
+"date": "2026-11-13",
+"subject": "fix(ci): import read_dir_for from the mission_runtime root; resolve loops through the kernel (#7546)",
+"components": [
+"mission_runtime",
+"specify_cli/core"
+],
+"fix_pr": [
+7615,
+"2026-11-13T07:59:57Z",
+"[#7546] One placement surface after topology settlement"
+],
+"blame_lines": 7,
+"intro": {
+"sha": "9ef6b8b6c05409ea619fa31110b40095ee8c9992",
+"share_of_blamed_lines": 0.43,
+"subject": "2026-11-13|fix(mission_runtime): the placement seam names the checkout that holds a Mission write (#7546)",
+"pr": [
+7615,
+"2026-11-13T07:59:57Z",
+"[#7546] One placement surface after topology settlement"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"settled-placement-surface-01M78GR4"
+],
+"acceptance": {
+"settled-placement-surface-01M78GR4": "accepted_at=2026-11-12T22:02:25.791860+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7546,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-11",
+"author_is_bot": false,
+"labels": [
+"epic",
+"reliability",
+"domain:git",
+"priority:P1",
+"domain:mission-runtime",
+"domain:status"
+],
+"title": "Sub-epic C: One placement surface after topology settlement"
+}
+},
+{
+"id": "A13",
+"sha": "f2a6e8db0f29ebb8eabda2f9067b2df317491eb1",
+"date": "2026-11-02",
+"subject": "fix: require project authority before global migrations",
+"components": [
+"kernel",
+"specify_cli/cli",
+"specify_cli/core",
+"specify_cli/policy"
+],
+"fix_pr": [
+6846,
+"2026-11-02T13:35:51Z",
+"[#6845] Preserve owned Mission authority through startup, context and transitions"
+],
+"blame_lines": 13,
+"intro": {
+"sha": "bcfcddc2f1a713c4afa3e83b88b29d5faac4c07a",
+"share_of_blamed_lines": 0.15,
+"subject": "2026-08-27|Fall back to install-agnostic spec-kitty entrypoint when pinned hook interpreter is gone",
+"pr": [
+"EXP#308",
+"2026-08-27T07:09:29Z",
+"[#254] Fall back to install-agnostic entrypoint when pinned pre-commit hook interpreter is gone"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A14",
+"sha": "c0db42da8534961f39a48f47d6f6977dbf8302e9",
+"date": "2026-10-16",
+"subject": "fix(finalize): keep WP-file dependencies that wps.yaml leaves out (#5448)",
+"components": [
+"specify_cli/cli",
+"specify_cli/core"
+],
+"fix_pr": [
+6279,
+"2026-10-16T08:38:46Z",
+"fix(finalize): keep WP-file dependencies that wps.yaml leaves out (#5448)"
+],
+"blame_lines": 18,
+"intro": {
+"sha": "6e6abba1a6764cbdf492107efb27d0bf40e52e7d",
+"share_of_blamed_lines": 0.56,
+"subject": "2026-10-04|refactor(finalize): split mission_finalize into phase modules (#5627)",
+"pr": [
+5679,
+"2026-10-04T18:01:54Z",
+"[#5627] Split mission_finalize.py into finalize-tasks phase modules"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"mission-finalize-degod-01M43EW2"
+],
+"acceptance": {
+"mission-finalize-degod-01M43EW2": "accepted_at=2026-10-04T13:34:57.071376+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5448,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-30",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P1",
+"catfooding",
+"from:qa",
+"domain:cli",
+"domain:status"
+],
+"title": "[bug] finalize-tasks overwrites WP frontmatter dependencies with [] when wps.yaml omits them \u2014 dependent WP ca"
+}
+},
+{
+"id": "A15",
+"sha": "4c83784e9d499a257101aea92ba0061a4667009f",
+"date": "2026-11-02",
+"subject": "fix(6273): report failed repairs and keep the bundle-probe cause",
+"components": [
+"specify_cli/cli",
+"specify_cli/tool_surface"
+],
+"fix_pr": [
+7043,
+"2026-11-02T18:12:25Z",
+"[#6273] Stage plugin bundles with their target-native renderings and report failed repairs"
+],
+"blame_lines": 12,
+"intro": {
+"sha": "307993957f6d487cd00acf31ef53abe6f6fef6ff",
+"share_of_blamed_lines": 0.5,
+"subject": "2026-06-25|refactor(2059): decompose cli/commands/doctor.py god-module (#2135)",
+"pr": [
+2135,
+"2026-06-25T13:58:42Z",
+"refactor(2059): decompose cli/commands/doctor.py god-module"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"decompose-doctor-god-module-01KVXHFB"
+],
+"acceptance": {
+"decompose-doctor-god-module-01KVXHFB": "accepted_at=2026-06-24T23:21:12.501000+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A16",
+"sha": "bcc0746cba2fd693d807d2d3a578e30de56bb1a5",
+"date": "2026-11-05",
+"subject": "fix(upgrade): leave non-Mission worktrees alone unless named (#7173)",
+"components": [
+"specify_cli/.contextive",
+"specify_cli/cli",
+"specify_cli/upgrade"
+],
+"fix_pr": [
+7196,
+"2026-11-05T15:58:03Z",
+"[#7173] Report and prune landed worktrees; upgrade stops committing into non-Mission worktrees"
+],
+"blame_lines": 100,
+"intro": {
+"sha": "4477c560fb64e098cf58411168a6cf252d31da08",
+"share_of_blamed_lines": 0.42,
+"subject": "2026-10-05|fix(upgrade): write project-global state once; skip integrating worktrees (#5457)",
+"pr": [
+5717,
+"2026-10-05T10:15:08Z",
+"[#5457] Upgrade writes project-global state once; missions upgraded mid-flight land"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"upgrade-project-global-state-01M44538"
+],
+"acceptance": {
+"upgrade-project-global-state-01M44538": "accepted_at=2026-10-04T22:26:10.066829+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7173,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-04",
+"author_is_bot": false,
+"labels": [
+"workflow",
+"reliability",
+"domain:git",
+"priority:P0",
+"catfooding",
+"domain:upgrade"
+],
+"title": "Landed worktrees and branches are never cleaned up, and upgrade commits into all of them"
+}
+},
+{
+"id": "A17",
+"sha": "687ec5d2ca5d3ebdd244a6850538892c9e317393",
+"date": "2026-11-12",
+"subject": "fix(landing): run the gate fallback in the interpreter the lane probe checked",
+"components": [
+"specify_cli/lanes",
+"specify_cli/review"
+],
+"fix_pr": [
+7585,
+"2026-11-12T14:29:37Z",
+"[#7554] Lane worktrees run and verify the lane's own code"
+],
+"blame_lines": 13,
+"intro": {
+"sha": "5f586d4e5bd07889885ad26553d2e83b5e6c4021",
+"share_of_blamed_lines": 0.23,
+"subject": "2026-11-12|feat(lanes): lane test invocation, import probe and evidence tree",
+"pr": [
+7585,
+"2026-11-12T14:29:37Z",
+"[#7554] Lane worktrees run and verify the lane's own code"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"lane-code-verification-01M76AC0"
+],
+"acceptance": {
+"lane-code-verification-01M76AC0": "accepted_at=2026-11-12T08:53:32.672036+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A18",
+"sha": "e54712c66b3e90edaa6cc616a8590062fa72f73f",
+"date": "2026-10-03",
+"subject": "fix(landing): widen the e-mail leak pattern and add secret and token patterns (#5558)",
+"components": [],
+"fix_pr": [
+5594,
+"2026-10-03T10:05:49Z",
+"feat(contracts): mission status contract content and hygiene checks (3/6)"
+],
+"blame_lines": 0,
+"intro": null,
+"issue": {
+"n": 5558,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-01",
+"author_is_bot": false,
+"labels": [
+"domain:status-api",
+"priority:P2",
+"domain:ci"
+],
+"title": "Mission Status contract v1: contracts/mission-status/openapi.yaml (split layout, Node-free tooling, CI)"
+}
+},
+{
+"id": "A19",
+"sha": "126dd7e1666d16a2b3f2e58edadf00ff9a712e51",
+"date": "2026-11-12",
+"subject": "fix(landing): import MERGE_ACTOR through the specify_cli.status package door",
+"components": [
+"runtime",
+"specify_cli/consolidation",
+"specify_cli/status"
+],
+"fix_pr": [
+7591,
+"2026-11-12T18:25:39Z",
+"[#7553] next never rewinds a finalized board; rollback subtask reset is recorded and narrowable (#75"
+],
+"blame_lines": 5,
+"intro": {
+"sha": "6c239fc2a4a4aee76966fb6eef8defcc32ae3d0a",
+"share_of_blamed_lines": 0.4,
+"subject": "2026-11-12|fix(landing): ignore consolidation's done bookkeeping in the acceptance freshness check",
+"pr": [
+7591,
+"2026-11-12T18:25:39Z",
+"[#7553] next never rewinds a finalized board; rollback subtask reset is recorded and narrowable (#75"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"next-lifecycle-integrity-01M77BWP"
+],
+"acceptance": {
+"next-lifecycle-integrity-01M77BWP": "accepted_at=2026-11-12T12:58:54.314640+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A20",
+"sha": "ca3c7ae22415adfc00cdebf51609ef55056385f9",
+"date": "2026-10-31",
+"subject": "test(6770): name the regression after the contract it guards, not the issue",
+"components": [],
+"fix_pr": [
+6867,
+"2026-10-31T12:51:03Z",
+"[#6770] consolidate re-run re-baselines the record instead of inheriting a failed attempt's target t"
+],
+"blame_lines": 0,
+"intro": null,
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A21",
+"sha": "2f8a558e6c51f091a22e3b55179e0c7038477e48",
+"date": "2026-09-28",
+"subject": "fix: fold pre-PR review findings (#4919, #4964, #4900, #4933, #4940)",
+"components": [
+"charter/(root)",
+"specify_cli/cli",
+"specify_cli/consolidation",
+"specify_cli/decisions"
+],
+"fix_pr": [
+5305,
+"2026-09-28T19:25:12Z",
+"[#4919 #4900 #4933 #4940 #4998 #4964] Six commands no longer exit 0 while losing or mis-recording yo"
+],
+"blame_lines": 125,
+"intro": {
+"sha": "d7b6450ce4e46e4b25c19aaeaff92bbe46d4cd80",
+"share_of_blamed_lines": 0.26,
+"subject": "2026-09-28|fix(consolidate): record and verify the announced mission_number on the target (#4900)",
+"pr": [
+5305,
+"2026-09-28T19:25:12Z",
+"[#4919 #4900 #4933 #4940 #4998 #4964] Six commands no longer exit 0 while losing or mis-recording yo"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"exit-zero-data-intact-01M3KDAS"
+],
+"acceptance": {
+"exit-zero-data-intact-01M3KDAS": "accepted_at=2026-09-28T14:52:21.186945+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4919,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-22",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P0",
+"catfooding",
+"from:qa",
+"domain:cli",
+"domain:status"
+],
+"title": "[bug] documented defer\u2192resolve Decision Moment writes two DecisionPointResolved events \u2014 the canonical fold re"
+}
+},
+{
+"id": "A22",
+"sha": "598ce642c3cd6232ec3ff75f5315871aab42d3ee",
+"date": "2026-11-07",
+"subject": "fix(landing): keep negative metadata evidence within Git discovery semantics",
+"components": [
+"kernel",
+"specify_cli/(root)"
+],
+"fix_pr": [
+7273,
+"2026-11-07T11:38:25Z",
+"[#7056] One ceiling-aware ancestor walk for the root walks; the test harness's temp root inside the "
+],
+"blame_lines": 26,
+"intro": {
+"sha": "205d8ab1a627b8d48eb336d9e58f91bb7ffb41a5",
+"share_of_blamed_lines": 0.62,
+"subject": "2026-11-07|fix(landing): stop unresolved walks at aliased ceilings",
+"pr": [
+7273,
+"2026-11-07T11:38:25Z",
+"[#7056] One ceiling-aware ancestor walk for the root walks; the test harness's temp root inside the "
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "A23",
+"sha": "f4b05017f8388655dfaeadcb344e9227f38dc969",
+"date": "2026-11-18",
+"subject": "fix(init): make the root commit on an unborn branch (#7612)",
+"components": [
+"specify_cli/cli",
+"specify_cli/git",
+"specify_cli/upgrade"
+],
+"fix_pr": [
+7708,
+"2026-11-18T15:10:45Z",
+"[#7612] init makes the root commit on an unborn branch; run tests/init per PR (#7235)"
+],
+"blame_lines": 29,
+"intro": {
+"sha": "82812ea5109cac16e5c9bdc605e21d11a0946248",
+"share_of_blamed_lines": 0.52,
+"subject": "2026-11-12|fix(init): commit the files init writes inside a git repository (WP05, #7555)",
+"pr": [
+7562,
+"2026-11-12T07:12:28Z",
+"[#7545] The CLI commits its own writes; dirty-tree gates count only the Mission's paths"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"cli-owns-its-commits-01M75NTA"
+],
+"acceptance": {
+"cli-owns-its-commits-01M75NTA": "accepted_at=2026-11-11T18:29:10.974907+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7612,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-12",
+"author_is_bot": false,
+"labels": [
+"domain:git",
+"priority:P2",
+"status:ready",
+"domain:onboarding"
+],
+"title": "[bug] spec-kitty init does not commit its writes on an unborn branch (repository with no commits yet)"
+}
+},
+{
+"id": "A24",
+"sha": "a4770f3f5692dea9ed7284668a71c62a793ef62d",
+"date": "2026-09-28",
+"subject": "fix(consolidate): user-owned meta.json edits block consolidation instead of being overwritten (#4933)",
+"components": [
+"specify_cli/consolidation",
+"specify_cli/coordination"
+],
+"fix_pr": [
+5305,
+"2026-09-28T19:25:12Z",
+"[#4919 #4900 #4933 #4940 #4998 #4964] Six commands no longer exit 0 while losing or mis-recording yo"
+],
+"blame_lines": 41,
+"intro": {
+"sha": "8f82b037b8a1a8cc8c463473940c1d676e218d6f",
+"share_of_blamed_lines": 0.24,
+"subject": "2026-07-25|feat(gates): lifecycle gate execution context + tool-artifact owner",
+"pr": [
+2906,
+"2026-07-25T04:55:03Z",
+"Lifecycle gate execution context + tool-artifact owner (retire 11 gate exemptions onto one owner)"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"lifecycle-gate-execution-context-01KY72GQ"
+],
+"acceptance": {
+"lifecycle-gate-execution-context-01KY72GQ": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4933,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-22",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P1",
+"catfooding",
+"from:qa",
+"domain:cli"
+],
+"title": "[bug] merge silently discards uncommitted edits to any tracked file named meta.json (primary checkout and lane"
+}
+},
+{
+"id": "A25",
+"sha": "a6a8abcdf65b979f60ceaa63525c58bd67bc13f4",
+"date": "2026-09-09",
+"subject": "[#4124] Self-heal corrupt .pyc bytecode at CLI startup instead of crashing (#4129)",
+"components": [
+"specify_cli/(root)",
+"specify_cli/cli",
+"specify_cli/compat",
+"specify_cli/upgrade"
+],
+"fix_pr": [
+4129,
+"2026-09-09T21:29:36Z",
+"[#4124] Self-heal corrupt .pyc bytecode at CLI startup instead of crashing"
+],
+"blame_lines": 33,
+"intro": {
+"sha": "abcd730cfa288156ec95cc88087679e5ad863814",
+"share_of_blamed_lines": 0.24,
+"subject": "2026-04-27|CLI Upgrade Nag and Lazy Project Migration (mission #103) (#820)",
+"pr": [
+820,
+"2026-04-27T13:12:30Z",
+"CLI Upgrade Nag and Lazy Project Migration (mission #103)"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
+],
+"acceptance": {
+"cli-upgrade-nag-lazy-project-migrations-01KQ6YDN": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4124,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-09",
+"author_is_bot": true,
+"labels": [
+"windows",
+"reliability",
+"usability"
+],
+"title": "[bug] corrupt .pyc in upgrade/migrations crashes every CLI command at startup (no self-heal, raw traceback)"
+}
+},
+{
+"id": "A26",
+"sha": "a6bf715923d4cb615c9c7581ff9510606b321b48",
+"date": "2026-10-22",
+"subject": "fix(compat): point upgrade guidance at the owned docs site (#6468)",
+"components": [
+"specify_cli/(root)",
+"specify_cli/compat"
+],
+"fix_pr": [
+6587,
+"2026-10-22T06:43:52Z",
+"[#6468] Move first-party links and schema $ids off the unregistered spec-kitty.dev"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "00e9abc8bcd787938cc897a3a3d568cc1290686d",
+"share_of_blamed_lines": 0.5,
+"subject": "2026-06-30|feat(1358): centralize installed CLI runtime domain + remediation planner",
+"pr": [
+2177,
+"2026-06-30T05:23:46Z",
+"Centralize installed CLI runtime domain + remediation planner (#1358)"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"installed-runtime-domain-01KW0NR6"
+],
+"acceptance": {
+"installed-runtime-domain-01KW0NR6": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6468,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-19",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"priority:P1",
+"triage:needs-revision",
+"domain:cli",
+"domain:skills",
+"domain:upgrade"
+],
+"title": "CLI prints links to unregistered domain spec-kitty.dev (upgrade-failure messages + 14 schema $ids) \u2014 takeover "
+}
+},
+{
+"id": "A27",
+"sha": "e95b0faf1d1dea116a3fbe0d522fd4af0ffb2500",
+"date": "2026-09-20",
+"subject": "fix(merge): route coord + orchestrator worktree destroys through the guard (#4753)",
+"components": [
+"specify_cli/coordination",
+"specify_cli/orchestrator_api"
+],
+"fix_pr": [
+4788,
+"2026-09-20T04:46:07Z",
+"fix(merge): guard destructive git ops in merge/abort lifecycle (#4752 #4753 #4754)"
+],
+"blame_lines": 15,
+"intro": {
+"sha": "8caf64565a2e9e1837ca96255a95b34d5a0431eb",
+"share_of_blamed_lines": 0.4,
+"subject": "2026-05-28|WP04: CoordinationWorkspace + lane sparse-checkout + doctor checks",
+"pr": [
+1361,
+"2026-05-28T16:29:09Z",
+"fix(#1348): coordination branch + atomic event log + dangling-write rollback"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"mission-coordination-branch-atomic-event-log-01KSPTVW",
+"shared-package-boundary-cutover-01KQ22DS"
+],
+"acceptance": {
+"mission-coordination-branch-atomic-event-log-01KSPTVW": "not-accepted-at-head",
+"shared-package-boundary-cutover-01KQ22DS": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4753,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-19",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P0",
+"status:triage",
+"domain:consolidation"
+],
+"title": "merge cleanup runs `git worktree remove --force` on lane worktrees with no dirty check \u2014 uncommitted implement"
+}
+},
+{
+"id": "A28",
+"sha": "83de9bd8b6a06fd86d796185eaefb2c6e76f38bb",
+"date": "2026-10-31",
+"subject": "fix(6770): re-baseline the target snapshot too, and keep only anchors that stay accurate",
+"components": [
+"specify_cli/cli",
+"specify_cli/consolidation"
+],
+"fix_pr": [
+6867,
+"2026-10-31T12:51:03Z",
+"[#6770] consolidate re-run re-baselines the record instead of inheriting a failed attempt's target t"
+],
+"blame_lines": 43,
+"intro": {
+"sha": "f537a0f4ccd3c33416a0ad39e8eab25ebf6b7079",
+"share_of_blamed_lines": 0.77,
+"subject": "2026-10-31|fix(6770): drop the attempt's transaction geometry, keep the claim's anchors",
+"pr": [
+6867,
+"2026-10-31T12:51:03Z",
+"[#6770] consolidate re-run re-baselines the record instead of inheriting a failed attempt's target t"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"consolidate-rerun-fresh-baseline-01M67HZD"
+],
+"acceptance": {
+"consolidate-rerun-fresh-baseline-01M67HZD": "accepted_at=2026-10-31T02:01:52.210308+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5001,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-23",
+"author_is_bot": false,
+"labels": [
+"epic",
+"reliability",
+"domain:git",
+"priority:P1",
+"catfooding",
+"domain:consolidation"
+],
+"title": "Epic: Merge/coord integrity \u2014 a terminus command must never exit 0 while destroying committed work or landing "
+}
+},
+{
+"id": "A29",
+"sha": "4310b89b5dffc3396e76c2647cd6aea5274fbbd1",
+"date": "2026-11-02",
+"subject": "fix(consolidate): refuse a --target override onto a protected branch (#6464)",
+"components": [
+"specify_cli/consolidation",
+"specify_cli/orchestrator_api"
+],
+"fix_pr": [
+6895,
+"2026-11-02T23:20:35Z",
+"[#6464] consolidate refuses a --target override onto a protected branch"
+],
+"blame_lines": 8,
+"intro": {
+"sha": "30746436fe2bf4961e69e498a7298d2f710e1488",
+"share_of_blamed_lines": 0.38,
+"subject": "2026-10-01|fix(consolidate): roll back every post-mutation exit through one authority and refuse protected targets up front (#5385)",
+"pr": [
+5444,
+"2026-10-01T13:57:20Z",
+"[#5385] Roll back every post-mutation consolidate exit through one authority; refuse protected targe"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"single-rollback-authority-01M3RCP4"
+],
+"acceptance": {
+"single-rollback-authority-01M3RCP4": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6464,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-19",
+"author_is_bot": false,
+"labels": [
+"workflow",
+"priority:P2",
+"usability",
+"status:claimed",
+"taken-by-human",
+"domain:cli"
+],
+"title": "merge --target main commits directly to protected branches with no PR gate"
+}
+},
+{
+"id": "B00",
+"sha": "24acbcce6e23402ee812dd786ce861bbb195d3bd",
+"date": "2026-10-19",
+"subject": "fix(landing): type edge_owner returns for mypy --strict (#6404)",
+"components": [
+"charter/activation"
+],
+"fix_pr": [
+6440,
+"2026-10-19T08:18:49Z",
+"[#6404] Charter governance resolution: synthesized tactics, declared ids, org selections, narrow act"
+],
+"blame_lines": 2,
+"intro": {
+"sha": "47097815ffd481c8ac72b5b6a309e093cf0e17ea",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-19|fix(charter): deliver synthesized how-we-apply tactics through their directive (#6404)",
+"pr": [
+6440,
+"2026-10-19T08:18:49Z",
+"[#6404] Charter governance resolution: synthesized tactics, declared ids, org selections, narrow act"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"charter-governance-resolution-01M57Z77"
+],
+"acceptance": {
+"charter-governance-resolution-01M57Z77": "accepted_at=2026-10-19T03:09:53.669253+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6404,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-18",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"reliability",
+"priority:P2",
+"status:claimed",
+"taken-by-human",
+"from:dev"
+],
+"title": "charter synthesize: project \"how-we-apply\" tactics are linked by an `applies` edge that no context or cascade "
+}
+},
+{
+"id": "B01",
+"sha": "89804c30c5d17c1ac7f1ba5bf6e0cef4e19db2fe",
+"date": "2026-10-07",
+"subject": "fix(landing): narrow the next payload before it enters the envelope (#5846)",
+"components": [
+"specify_cli/orchestrator_api"
+],
+"fix_pr": [
+5851,
+"2026-10-07T18:46:34Z",
+"[#5846] Complete governed mission planning through orchestrator-api"
+],
+"blame_lines": 1,
+"intro": {
+"sha": "2397b71d38bfd65cb8b44ed88c1b30a38b3d5e98",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-07|feat: complete governed planning through the Python orchestrator API",
+"pr": [
+5851,
+"2026-10-07T18:46:34Z",
+"[#5846] Complete governed mission planning through orchestrator-api"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"orchestrator-two-planning-01M4AB7R"
+],
+"acceptance": {
+"orchestrator-two-planning-01M4AB7R": "accepted_at=2026-10-07T06:26:55.801772+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5846,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-07",
+"author_is_bot": false,
+"labels": [
+"priority:P2",
+"domain:orchestrator"
+],
+"title": "Orchestrator 2: complete Mission and planning API, reconciled with mainline"
+}
+},
+{
+"id": "B02",
+"sha": "5f5b523d8a31ffa536b95a415b2f1c8561235e80",
+"date": "2026-11-23",
+"subject": "fix(finalize): address #7814 review: restore lost tests, tighten the refusal, resolve spellings (#7792)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+7814,
+"2026-11-23T07:42:13Z",
+"fix(finalize): commit finalize-tasks' own writes in the coordination worktree (#7792)"
+],
+"blame_lines": 46,
+"intro": {
+"sha": "ec47b91fc0dbdd1d6e4a2796158cc1e4610d1e3c",
+"share_of_blamed_lines": 0.41,
+"subject": "2026-11-23|fix(finalize): commit finalize-tasks' own writes in the coordination worktree (#7792)",
+"pr": [
+7814,
+"2026-11-23T07:42:13Z",
+"fix(finalize): commit finalize-tasks' own writes in the coordination worktree (#7792)"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7792,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-20",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P1",
+"from:qa",
+"domain:cli",
+"domain:status"
+],
+"title": "Bug: finalize-tasks on a coordination-topology mission never commits lanes.json, tasks.md or WP prompts, and r"
+}
+},
+{
+"id": "B03",
+"sha": "5113e33a18f35b1ea9a096a08f18fa700efb12ad",
+"date": "2026-11-12",
+"subject": "fix(#7540): residue context reads the stored topology where the Mission's meta.json lives",
+"components": [
+"specify_cli/coordination"
+],
+"fix_pr": [
+7567,
+"2026-11-12T07:51:46Z",
+"[#7544] Coordination-topology closeout recovers from its own commits"
+],
+"blame_lines": 5,
+"intro": {
+"sha": "115500fa7d5a934aa79a6440482f96ac8db50fe7",
+"share_of_blamed_lines": 0.6,
+"subject": "2026-10-11|fix(guard): name the tool-owned tree bound tool_root and validate the Mission slug before the topology read (#5965 #5966)",
+"pr": [
+6020,
+"2026-10-11T06:34:04Z",
+"fix(consolidate): destructive ops never delete the only copy (#5965, #5966)"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"destructive-residue-context-01M4KBPS"
+],
+"acceptance": {
+"destructive-residue-context-01M4KBPS": "accepted_at=2026-10-10T20:19:24.133496+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7540,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-11",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P1",
+"catfooding",
+"domain:consolidation",
+"domain:acceptance"
+],
+"title": "lanes_with_coord closeout: accept crashes at its meta commit, consolidate rollback loops on its own coordinati"
+}
+},
+{
+"id": "B04",
+"sha": "b27097ea0631959429949700cb628f16c30a51ab",
+"date": "2026-10-13",
+"subject": "fix(landing): warn when a later rule still ignores pack.yaml",
+"components": [
+"specify_cli/upgrade"
+],
+"fix_pr": [
+6110,
+"2026-10-13T07:12:34Z",
+"fix(upgrade): track charter-pack pack.yaml across the cutover (#6076)"
+],
+"blame_lines": 6,
+"intro": {
+"sha": "0442dc119ef87d633eb69f6e2a46ba8b106d9877",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-13|fix(upgrade): track charter-pack pack.yaml across the cutover (#6076)",
+"pr": [
+6110,
+"2026-10-13T07:12:34Z",
+"fix(upgrade): track charter-pack pack.yaml across the cutover (#6076)"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B05",
+"sha": "09abf4a909c86b6400e750514cda54bc38ba30c7",
+"date": "2026-10-19",
+"subject": "fix(landing): compare narrowed interview selections by stem (#6408)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+6440,
+"2026-10-19T08:18:49Z",
+"[#6404] Charter governance resolution: synthesized tactics, declared ids, org selections, narrow act"
+],
+"blame_lines": 2,
+"intro": {
+"sha": "29cadd76a4e11477fd6b3ede5a7e9d81c65c0ed7",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-19|feat(charter): opt-in narrow activation with activate --only and interview --narrow-activation (#6408)",
+"pr": [
+6440,
+"2026-10-19T08:18:49Z",
+"[#6404] Charter governance resolution: synthesized tactics, declared ids, org selections, narrow act"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"charter-governance-resolution-01M57Z77"
+],
+"acceptance": {
+"charter-governance-resolution-01M57Z77": "accepted_at=2026-10-19T03:09:53.669253+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6408,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-18",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"priority:P2",
+"usability",
+"status:claimed",
+"taken-by-human",
+"from:dev"
+],
+"title": "charter interview and first charter activate write the entire doctrine catalog into activated_* lists, contrad"
+}
+},
+{
+"id": "B06",
+"sha": "3cff41692d5d354f64fe4e859dc9578871797e81",
+"date": "2026-09-28",
+"subject": "fix: ignore only untracked coord legacy event logs",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+5306,
+"2026-09-28T20:16:24Z",
+"fix: allow untracked legacy event log during coord WP claim"
+],
+"blame_lines": 5,
+"intro": {
+"sha": "85d11ef26e08596626321ef9de2074e11f132648",
+"share_of_blamed_lines": 0.6,
+"subject": "2026-09-28|fix: preserve coord legacy mission event log on claim",
+"pr": [
+5306,
+"2026-09-28T20:16:24Z",
+"fix: allow untracked legacy event log during coord WP claim"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B07",
+"sha": "4c15bba2e219813df447c43a7cfc1e77ac24ec5a",
+"date": "2026-09-25",
+"subject": "fix(cli): tracer-append CLI returns a structured refusal on a corrupt traces file (#4959, pre-PR squad fold)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+5019,
+"2026-09-25T05:02:05Z",
+"fix: coord reads fail closed \u2014 an unmaterialised coordination worktree no longer clobbers or hides r"
+],
+"blame_lines": 1,
+"intro": {
+"sha": "b04da00e13da00bd4f5917db6f9597bae6507b02",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-07-30|Write-side placement seam: deterministic matrix/tracer writers + row-aware merge driver (#3076)",
+"pr": [
+3076,
+"2026-07-30T05:01:34Z",
+"Write-side placement seam: deterministic matrix/tracer writers + row-aware merge driver"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"decompose-mission-god-module-01KVXHF8",
+"write-side-seam-matrix-tracer-01KYP3MH"
+],
+"acceptance": {
+"decompose-mission-god-module-01KVXHF8": "not-accepted-at-head",
+"write-side-seam-matrix-tracer-01KYP3MH": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4959,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-23",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P0",
+"catfooding",
+"from:qa",
+"domain:cli"
+],
+"title": "[bug] agent tracer-append replaces the whole traces/<cat>.md with header + new entry (all earlier findings del"
+}
+},
+{
+"id": "B08",
+"sha": "9cf7088465bef6fd82ea1c42760335acac018bfd",
+"date": "2026-11-01",
+"subject": "fix(decisions): decision records render an ASCII change-log separator (#6579)",
+"components": [
+"specify_cli/decisions"
+],
+"fix_pr": [
+6878,
+"2026-11-01T10:15:25Z",
+"[#6579] decision records render an ASCII change log so validate-encoding passes"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "e07e9439d2c0a284e180f54bd5867eaa26b22da9",
+"share_of_blamed_lines": 0.75,
+"subject": "2026-04-24|feat: Decision Moment V1 CLI \u2014 ledger, widen mode, charter/specify/plan integration",
+"pr": [
+null,
+null,
+null
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6579,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-21",
+"author_is_bot": false,
+"labels": [
+"workflow",
+"priority:P2",
+"status:claimed",
+"taken-by-human",
+"domain:decisions"
+],
+"title": "fix(decisions): decision records are written with a literal U+2014 em dash, so validate-encoding refuses any m"
+}
+},
+{
+"id": "B09",
+"sha": "9d78799b94f3c4df0f2e68d4ca8dda4ef3661801",
+"date": "2026-09-07",
+"subject": "fix(WP08): consume configured plans and validate Claude catalog",
+"components": [
+"specify_cli/tool_surface"
+],
+"fix_pr": [
+3923,
+"2026-09-07T18:31:37Z",
+"fix: upgrade preview safety and mission-state recovery (#3900\u2013#3903, #3920)"
+],
+"blame_lines": 11,
+"intro": {
+"sha": "97f86b80cf005c53a40fd05a5547cb454dab7df6",
+"share_of_blamed_lines": 0.55,
+"subject": "2026-06-15|Mission #136: Agent Profile Projection & Plugin Production Pipeline (Claude + Codex plugins, drift policy, Roo deprecation) (#197",
+"pr": [
+1975,
+"2026-06-15T08:36:26Z",
+"Mission #136: Agent Profile Projection & Plugin Production Pipeline (Claude + Codex plugins, drift p"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"agent-profile-projection-plugin-production-01KV3NGS"
+],
+"acceptance": {
+"agent-profile-projection-plugin-production-01KV3NGS": "accepted_at=2026-06-15T05:04:10.802065+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B10",
+"sha": "6d4a25b0c984dd028fdbe942e5a37bba41c5ac0e",
+"date": "2026-11-07",
+"subject": "fix(decisions): scope each lock-timeout refusal to the seam's own code (#6763)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+7272,
+"2026-11-07T10:51:49Z",
+"[#6763] One owner for the decisions lock: a busy lock is the same retryable refusal everywhere; doct"
+],
+"blame_lines": 8,
+"intro": {
+"sha": "28788dbb568e71a41fd97ec1804b3f16338619eb",
+"share_of_blamed_lines": 0.38,
+"subject": "2026-11-07|fix(decisions): doctor --repair refuses a busy decisions lock (#6763)",
+"pr": [
+7272,
+"2026-11-07T10:51:49Z",
+"[#6763] One owner for the decisions lock: a busy lock is the same retryable refusal everywhere; doct"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6763,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-29",
+"author_is_bot": false,
+"labels": [
+"status:claimed",
+"taken-by-human",
+"domain:decisions"
+],
+"title": "Decisions lock timeouts in doctor --repair, next and decision repair-runtime-lock escape as a raw LockAcquireT"
+}
+},
+{
+"id": "B11",
+"sha": "8215c5db27dc2cb7753c14c8e96ec994e79392d0",
+"date": "2026-11-02",
+"subject": "fix(landing): a looping project path is a refusal, not a traceback",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+6846,
+"2026-11-02T13:35:51Z",
+"[#6845] Preserve owned Mission authority through startup, context and transitions"
+],
+"blame_lines": 5,
+"intro": {
+"sha": "f2a6e8db0f29ebb8eabda2f9067b2df317491eb1",
+"share_of_blamed_lines": 0.8,
+"subject": "2026-11-02|fix: require project authority before global migrations",
+"pr": [
+6846,
+"2026-11-02T13:35:51Z",
+"[#6845] Preserve owned Mission authority through startup, context and transitions"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B12",
+"sha": "5e5e846e8ed9491fe2d2446fbc6d232b105eddf7",
+"date": "2026-09-19",
+"subject": "fix(WP05): guard intake - non-UTF-8 stdin at the text-stream read for file-path parity (#4739)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+4774,
+"2026-09-19T17:57:52Z",
+"Canonical guarded-read + CLI error-presentation seam \u2014 close the uncaught-error-surface class (umbre"
+],
+"blame_lines": 1,
+"intro": {
+"sha": "2beaf0612e1b8db231c6507d3da24d1b0e0a9b31",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-04-26|fix(intake): wire size cap into CLI; distinguish missing vs corrupt at reader layer",
+"pr": [
+803,
+"2026-04-26T12:28:43Z",
+"Stability & hygiene hardening (April 2026): merge / lane / intake / runtime / packages / sync / gove"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"stability-and-hygiene-hardening-2026-04-01KQ4ARB"
+],
+"acceptance": {
+"stability-and-hygiene-hardening-2026-04-01KQ4ARB": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4739,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-18",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P3",
+"domain:cli"
+],
+"title": "intake - (stdin) crashes with uncaught UnicodeDecodeError on non-UTF-8 input; file path handles it gracefully"
+}
+},
+{
+"id": "B13",
+"sha": "603441f4fa03fc328fed5225ee700079550c6243",
+"date": "2026-11-03",
+"subject": "fix(6661): drop the uncalled repository-wide listing wrapper (dead-code gate #470)",
+"components": [
+"specify_cli/doctor"
+],
+"fix_pr": [
+6821,
+"2026-11-03T02:14:58Z",
+"[#6661] doctor ops sweeps Op records in every checkout, not only the root"
+],
+"blame_lines": 22,
+"intro": {
+"sha": "c34f237386cfc84b3049b6f623ba69958c9c7aae",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-11-03|fix(6661): sweep Op records in every checkout, not only the root",
+"pr": [
+6821,
+"2026-11-03T02:14:58Z",
+"[#6661] doctor ops sweeps Op records in every checkout, not only the root"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"doctor-ops-sweep-linked-worktrees-01M66YNF"
+],
+"acceptance": {
+"doctor-ops-sweep-linked-worktrees-01M66YNF": "accepted_at=2026-10-30T18:52:34.977575+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 470,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-04-07",
+"author_is_bot": false,
+"labels": [],
+"title": "[Phase 0] WP0.1 \u2014 Define DRG schema (graph.yaml) and Pydantic model"
+}
+},
+{
+"id": "B14",
+"sha": "e2dc8c762c02e2f5464d4a274ea34af905851f35",
+"date": "2026-09-26",
+"subject": "fix(landing): name the canonical charter key in the analysis-input error",
+"components": [
+"specify_cli/(root)"
+],
+"fix_pr": [
+5017,
+"2026-09-26T16:54:48Z",
+"feat(analysis): preserve unrelated work in report-only analysis transactions"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "45ee988d0f52e9cdf6bb7c82a0d405d91c054eb0",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-09-26|feat(analysis): preserve unrelated work in report-only analysis transactions",
+"pr": [
+5017,
+"2026-09-26T16:54:48Z",
+"feat(analysis): preserve unrelated work in report-only analysis transactions"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"analysis-report-transaction-01M38YDX"
+],
+"acceptance": {
+"analysis-report-transaction-01M38YDX": "accepted_at=2026-09-24T07:17:52.964870+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B15",
+"sha": "d3c9029def15e4efa19308df3338f08ad7cf9722",
+"date": "2026-10-29",
+"subject": "fix(charter): report an unreadable project directive scan instead of masking the refusal (#6510)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+6778,
+"2026-10-29T19:28:10Z",
+"[#6510] Re-synthesis after activation no longer collides with the project's own directive"
+],
+"blame_lines": 3,
+"intro": {
+"sha": "2d2bbd75a5d1ab706a9ace6d96bc094ba52fe095",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-29|fix(charter): origin-aware synthesis collision refusal (#6510)",
+"pr": [
+6778,
+"2026-10-29T19:28:10Z",
+"[#6510] Re-synthesis after activation no longer collides with the project's own directive"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"resynthesis-after-activation-01M5ZD62"
+],
+"acceptance": {
+"resynthesis-after-activation-01M5ZD62": "accepted_at=2026-10-29T07:49:36.456483+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6510,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-19",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"reliability",
+"priority:P2",
+"triage:maybe-duplicate",
+"status:claimed",
+"from:dev"
+],
+"title": "charter synthesize refuses with colliding_urn directive:PROJECT_001 after activating a directive"
+}
+},
+{
+"id": "B16",
+"sha": "70c9d53958738474fd7a91b46614e0386c722f58",
+"date": "2026-11-08",
+"subject": "fix(landing): never count or follow a symlinked *.failed staging entry",
+"components": [
+"charter/activation"
+],
+"fix_pr": [
+7379,
+"2026-11-08T09:05:10Z",
+"[#6723] Bound failed charter-synthesize staging dirs to the newest 3"
+],
+"blame_lines": 3,
+"intro": {
+"sha": "6ed5a363d73ab98cacdde53a28a9235a3bc37df6",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-11-08|fix(charter): bound preserved failed staging dirs to the newest 3 (#6723)",
+"pr": [
+7379,
+"2026-11-08T09:05:10Z",
+"[#6723] Bound failed charter-synthesize staging dirs to the newest 3"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"bound-failed-staging-retention-01M66YPB"
+],
+"acceptance": {
+"bound-failed-staging-retention-01M66YPB": "accepted_at=2026-10-30T19:31:20.344915+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B17",
+"sha": "c50f9831825da9268632a9e6f376fad7dedd1fda",
+"date": "2026-10-22",
+"subject": "fix(landing): refuse a binary path only blame could judge (#6309)",
+"components": [
+"specify_cli/consolidation"
+],
+"fix_pr": [
+6591,
+"2026-10-22T11:25:07Z",
+"[#6309] Judge canceled content line by line so a partial rework no longer ships rejected work"
+],
+"blame_lines": 3,
+"intro": {
+"sha": "f073e1246fafdb887adf26d068aa273c8e24d6db",
+"share_of_blamed_lines": 0.67,
+"subject": "2026-10-22|fix(consolidation): judge canceled content line by line, not by an all-lines subset (#6309)",
+"pr": [
+6591,
+"2026-10-22T11:25:07Z",
+"[#6309] Judge canceled content line by line so a partial rework no longer ships rejected work"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6309,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-16",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P1",
+"domain:consolidation"
+],
+"title": "Terminus: canceled-content supersession is line-subset, not line-attribution \u2014 partial-removal fail-open"
+}
+},
+{
+"id": "B18",
+"sha": "9c74b9367328df660cc8486e278573365c9a006a",
+"date": "2026-11-08",
+"subject": "fix(landing): report why issue-matrix migrate skipped a mission",
+"components": [
+"specify_cli/tasks"
+],
+"fix_pr": [
+7421,
+"2026-11-08T17:03:58Z",
+"fix(doctors): fail loudly on corrupt input (QW8)"
+],
+"blame_lines": 13,
+"intro": {
+"sha": "b04da00e13da00bd4f5917db6f9597bae6507b02",
+"share_of_blamed_lines": 0.69,
+"subject": "2026-07-30|Write-side placement seam: deterministic matrix/tracer writers + row-aware merge driver (#3076)",
+"pr": [
+3076,
+"2026-07-30T05:01:34Z",
+"Write-side placement seam: deterministic matrix/tracer writers + row-aware merge driver"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"decompose-mission-god-module-01KVXHF8",
+"write-side-seam-matrix-tracer-01KYP3MH"
+],
+"acceptance": {
+"decompose-mission-god-module-01KVXHF8": "not-accepted-at-head",
+"write-side-seam-matrix-tracer-01KYP3MH": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 4868,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-21",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P1",
+"from:qa",
+"status:triage",
+"domain:cli",
+"domain:status"
+],
+"title": "[bug] issue-verdict skips coord-resident legacy matrix migration and commits JSON that hides existing verdicts"
+}
+},
+{
+"id": "B19",
+"sha": "573c000d79f3bb837af33ecf713092772e3abdd7",
+"date": "2026-10-12",
+"subject": "fix(landing): pack_level backfill writes pack.yaml atomically",
+"components": [
+"specify_cli/upgrade"
+],
+"fix_pr": [
+6060,
+"2026-10-12T01:12:55Z",
+"feat(charter): declare pack_level in pack.yaml + core vendoring tooling (#6048, #6046)"
+],
+"blame_lines": 31,
+"intro": {
+"sha": "c3fc8aa34937fc32f67d8f1c4af53d64e129b66b",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-10-12|feat(charter): declare pack_level in pack.yaml, requires_core, and core vendoring tooling (#6048, #6046)",
+"pr": [
+6060,
+"2026-10-12T01:12:55Z",
+"feat(charter): declare pack_level in pack.yaml + core vendoring tooling (#6048, #6046)"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"pack-level-declared-in-pack-yaml-01M4NVEN"
+],
+"acceptance": {
+"pack-level-declared-in-pack-yaml-01M4NVEN": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B20",
+"sha": "18353e35c1b5462e7a428e2a27f817ae059d2909",
+"date": "2026-11-18",
+"subject": "fix(status): keep the claim warning out of --json runs; re-export the new move-task seams (#7712)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+7715,
+"2026-11-18T15:38:19Z",
+"[#7712] A forced or foreign claim never replaces the implementer of record; an explicit re-submissio"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "c275b7023e981e011f7c52ad8211e44feb2def3d",
+"share_of_blamed_lines": 0.5,
+"subject": "2026-11-18|fix(status): a forced claim refines the implementer of record, a re-submission out of review completes it (#7712)",
+"pr": [
+7715,
+"2026-11-18T15:38:19Z",
+"[#7712] A forced or foreign claim never replaces the implementer of record; an explicit re-submissio"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7712,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-18",
+"author_is_bot": false,
+"labels": [
+"priority:P2",
+"status:ready",
+"domain:status",
+"domain:review",
+"type:bug"
+],
+"title": "Review independence: an implementer claimed without a profile cannot be told apart from a reviewer, and the re"
+}
+},
+{
+"id": "B21",
+"sha": "4f92c5d72c7e1f97660ee0ced2caaea49bc7f17c",
+"date": "2026-10-29",
+"subject": "fix(landing): a saved receipt with a corrupt budget is recaptured, not wedged",
+"components": [
+"specify_cli/review"
+],
+"fix_pr": [
+6747,
+"2026-10-29T06:29:17Z",
+"[#6746] Bound complete baseline and candidate review tests with project budgets"
+],
+"blame_lines": 4,
+"intro": {
+"sha": "129527bfa4f228e1905ae4935bc1d8d2f9c8a4b5",
+"share_of_blamed_lines": 0.5,
+"subject": "2026-10-29|fix(review): use bounded project budgets across owned baseline and candidate (#6746)",
+"pr": [
+6747,
+"2026-10-29T06:29:17Z",
+"[#6746] Bound complete baseline and candidate review tests with project budgets"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B22",
+"sha": "6222080fa7a56b6a41322eb94e24def73d8419bd",
+"date": "2026-11-13",
+"subject": "fix(consolidation): read merge-tree and first-parent paths through kernel.git (#7626)",
+"components": [
+"specify_cli/consolidation"
+],
+"fix_pr": [
+7630,
+"2026-11-13T12:41:44Z",
+"[#7626] consolidate: squash gate accepts reviewed merges of approved work (N lanes, lane + target)"
+],
+"blame_lines": 76,
+"intro": {
+"sha": "d21f70fb356a8de14e94b8fb7b894b46eb696f25",
+"share_of_blamed_lines": 0.62,
+"subject": "2026-09-26|feat(WP01): merge-resolution-aware Seam A attribution (#5051-adjacent clean 3-way)",
+"pr": [
+5124,
+"2026-09-26T18:59:20Z",
+"fix(merge): merge-resolution-aware squash attribution for clean disjoint-hunk product paths (#5051-a"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 7626,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-11-13",
+"author_is_bot": false,
+"labels": [],
+"title": "consolidate: squash reconciliation refuses reviewed merge resolutions of paths touched by 3+ lanes (or a lane "
+}
+},
+{
+"id": "B23",
+"sha": "233064b43b003e1ab32f30f8e4ea5eb20877ffbf",
+"date": "2026-09-28",
+"subject": "fix(consolidate): a fresh run that fails before mutation no longer wedges the re-run (#5111)",
+"components": [
+"specify_cli/consolidation"
+],
+"fix_pr": [
+5285,
+"2026-09-28T16:20:54Z",
+"[#5111] consolidate: a failed gate no longer wedges the re-run; --dry-run fails closed; nightly inte"
+],
+"blame_lines": 70,
+"intro": {
+"sha": "b8878872a93cc85f522107566f4503a50b275e08",
+"share_of_blamed_lines": 0.53,
+"subject": "2026-09-20|feat(terminus-safety): gate-then-mutate-with-rollback across merge/accept/close (#4764 #4765 #4474 #2745)",
+"pr": [
+4789,
+"2026-09-20T07:14:57Z",
+"fix(terminus-safety): gate-then-mutate-with-rollback across merge/accept/close (#4764 #4765 #4474 #2"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"terminus-safety-invariant-01M2XFT7"
+],
+"acceptance": {
+"terminus-safety-invariant-01M2XFT7": "not-accepted-at-head"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5111,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-26",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"priority:P1",
+"domain:consolidation",
+"domain:status"
+],
+"title": "Fresh merge that fails before reconciliation wedges the next run as 'pre-fix' (marker/state write-ordering)"
+}
+},
+{
+"id": "B24",
+"sha": "1af298ed79fe8654f2f3260e37a7e7df33a97aa6",
+"date": "2026-10-04",
+"subject": "fix(landing): name the repair when a kept branch leaves the status files modified",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+5662,
+"2026-10-04T15:40:56Z",
+"[#5641] finalize-tasks: a failed run leaves the status surface as it found it"
+],
+"blame_lines": 25,
+"intro": {
+"sha": "cfc1f32c90f1e5df00ef4a68ce67e92ac4e122f8",
+"share_of_blamed_lines": 0.72,
+"subject": "2026-10-04|fix(finalize-tasks): a failed run restores the status surface on every topology",
+"pr": [
+5662,
+"2026-10-04T15:40:56Z",
+"[#5641] finalize-tasks: a failed run leaves the status surface as it found it"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"finalize-tasks-failed-run-restores-status-surface-01M43AHQ"
+],
+"acceptance": {
+"finalize-tasks-failed-run-restores-status-surface-01M43AHQ": "accepted_at=2026-10-04T12:06:52.085121+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B25",
+"sha": "2872ffdccd7a9a9b4bfeba31204ed8c0e1e2fc3a",
+"date": "2026-10-27",
+"subject": "fix(landing): flag an unreadable org required floor in charter list (#6417)",
+"components": [
+"specify_cli/cli"
+],
+"fix_pr": [
+6698,
+"2026-10-27T06:55:23Z",
+"[#6417] charter list shows org-required ids in force under an absent allow list"
+],
+"blame_lines": 20,
+"intro": {
+"sha": "1e4223ec0fc8e4ff8e3daee7bb872ff303c36b3d",
+"share_of_blamed_lines": 0.75,
+"subject": "2026-10-27|fix(charter): charter list names org-required ids in force under an absent allow list (#6417)",
+"pr": [
+6698,
+"2026-10-27T06:55:23Z",
+"[#6417] charter list shows org-required ids in force under an absent allow list"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 6417,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-18",
+"author_is_bot": false,
+"labels": [
+"domain:charter",
+"priority:P1",
+"from:ci",
+"triage:needs-investigation"
+],
+"title": "charter list does not show an org pack's required directive as in force (doctor charter-packs does)"
+}
+},
+{
+"id": "B26",
+"sha": "f48990a4a8ecf2825683304be0935b6bc83d2c8a",
+"date": "2026-09-30",
+"subject": "fix(lanes): read meta fail-closed in the allocator's single_branch topology guard (#5100)",
+"components": [
+"specify_cli/lanes"
+],
+"fix_pr": [
+5398,
+"2026-09-30T04:20:05Z",
+"[#5100] single_branch runs in the repository root checkout; deleted lanes no longer lose work"
+],
+"blame_lines": 3,
+"intro": {
+"sha": "6c95cbb6a88ef37521f079d8238e6996594ec517",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-09-30|feat(lanes): single_branch finalize writes one repo-root lane-planning manifest (#5100, WP05)",
+"pr": [
+5398,
+"2026-09-30T04:20:05Z",
+"[#5100] single_branch runs in the repository root checkout; deleted lanes no longer lose work"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"single-branch-topology-honesty-01M3M22V"
+],
+"acceptance": {
+"single-branch-topology-honesty-01M3M22V": "accepted_at=2026-09-29T13:45:54.655071+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5100,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-09-26",
+"author_is_bot": false,
+"labels": [
+"workflow",
+"reliability",
+"domain:git",
+"priority:P0",
+"catfooding",
+"from:squad"
+],
+"title": "single_branch topology is ignored: implement allocates lane worktrees, guards demand lane-planning branches, c"
+}
+},
+{
+"id": "B27",
+"sha": "97e9f28de05ddd52f7a67c283799c39df72c30c9",
+"date": "2026-09-29",
+"subject": "fix(requirements): trim mypy override and close setup-plan lint test gaps",
+"components": [
+"specify_cli/requirement_mapping"
+],
+"fix_pr": [
+5391,
+"2026-09-29T18:17:00Z",
+"[#2991] One requirement-ID grammar: authored refs kept, every rejected ref explained (#3519, #2066)"
+],
+"blame_lines": 2,
+"intro": {
+"sha": "3e9f5fd4e4550d64c66c70ab4955349abff23e69",
+"share_of_blamed_lines": 1.0,
+"subject": "2026-09-29|feat(requirements): one requirement-ID grammar across finalize, map-requirements, runtime and setup-plan",
+"pr": [
+5391,
+"2026-09-29T18:17:00Z",
+"[#2991] One requirement-ID grammar: authored refs kept, every rejected ref explained (#3519, #2066)"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [
+"requirement-id-grammar-01M3NRCA"
+],
+"acceptance": {
+"requirement-id-grammar-01M3NRCA": "accepted_at=2026-09-29T13:49:27.409758+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+},
+{
+"id": "B28",
+"sha": "2f4c0b70627c680e4e94195b06f6b359110d4c7e",
+"date": "2026-11-17",
+"subject": "fix(landing): say consolidating, not merging, in the two meta.json probe errors",
+"components": [
+"specify_cli/consolidation"
+],
+"fix_pr": [
+7688,
+"2026-11-17T06:59:02Z",
+"[#5783] Refuse a consolidate --target retarget whose recorded target cannot be written"
+],
+"blame_lines": 2,
+"intro": {
+"sha": "ea62109a960c35fe7b6b087a50270ab1f97228f7",
+"share_of_blamed_lines": 0.5,
+"subject": "2026-10-04|refactor(consolidation): split executor.py along its phase boundaries (#2026)",
+"pr": [
+5650,
+"2026-10-04T12:35:38Z",
+"[#2026] Decompose the consolidation executor along its phases; bake cluster to mission_number; Conso"
+],
+"same_pr_as_fix": false,
+"mission_slugs_in_pr": [
+"consolidation-god-module-decomposition-01M42Z57"
+],
+"acceptance": {
+"consolidation-god-module-decomposition-01M42Z57": "accepted_at=2026-10-04T09:34:08.428277+00:00"
+},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": 5783,
+"tracker": "spec-kitty/spec-kitty",
+"created": "2026-10-05",
+"author_is_bot": false,
+"labels": [
+"reliability",
+"domain:git",
+"priority:P1",
+"catfooding",
+"from:qa",
+"domain:consolidation"
+],
+"title": "[bug] consolidate --target <other> still writes its done/flatten/retrospective bookkeeping to the meta.json ta"
+}
+},
+{
+"id": "B29",
+"sha": "030ac096bb8e288ec1041c470f925c35aa7233bc",
+"date": "2026-10-22",
+"subject": "fix(landing): treat a workspace outside any git repository as holding no tracked lock",
+"components": [
+"specify_cli/review"
+],
+"fix_pr": [
+6576,
+"2026-10-22T05:55:56Z",
+"[#6386] Refuse a committed or unreadable review lock before the review claim"
+],
+"blame_lines": 3,
+"intro": {
+"sha": "2d4dd87b33a02cd9e6bd934f90ba1d0c6664e488",
+"share_of_blamed_lines": 0.67,
+"subject": "2026-10-22|fix(review): refuse an unreadable review lock before the claim (#6386)",
+"pr": [
+6576,
+"2026-10-22T05:55:56Z",
+"[#6386] Refuse a committed or unreadable review lock before the review claim"
+],
+"same_pr_as_fix": true,
+"mission_slugs_in_pr": [],
+"acceptance": {},
+"ancestor_of_fix_parent": true
+},
+"issue": {
+"n": null,
+"refs": []
+}
+}
+]

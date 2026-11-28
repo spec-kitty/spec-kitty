@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Sensitivity variant: first-parent change units (a merge counts as one unit = diff vs first parent)."""
+import subprocess, sys, json, collections, statistics, csv, datetime
+REPO = sys.argv[1]; OUT = sys.argv[2]
+src = open(sys.argv[3]).read().split("# ---------------- extraction")[0]
+src = src.replace('REPO = sys.argv[1]', f'REPO = {REPO!r}').replace('OUT = sys.argv[2]', 'OUT=None')
+g = {}; exec(src, g); component = g['component']
+def git(*a): return subprocess.run(["git", "-C", REPO, *a], check=True, capture_output=True, text=True).stdout
+MB = "38090b6493dd9fdf77826200348a82a22c5f61c4"; P1 = "614c52cb382d6bbd4ae8d4daab060320502fc14c"; P2 = "f57b06dd875a33864432bcda8ee87b9686e0b5fe"
+M = "2554bd13adc289d3457681308645fe52619bca0e"; H = "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+specs = [("public", [P1, "--since=2025-12-31"]), ("experimental", [f"{MB}..{P2}"]), ("main-post", [f"{M}..{H}"])]
+units = []
+for line, rng in specs:
+    out = git("log", "--first-parent", "-m", "--no-renames", "--name-only", "--format=\x1e%H %P %ct", *rng)
+    for rec in out.split("\x1e")[1:]:
+        lines = [l for l in rec.split("\n") if l.strip()]
+        hdr = lines[0].split(); sha, parents, ct = hdr[0], hdr[1:-1], int(hdr[-1])
+        paths = lines[1:]
+        if len(paths) > 500 or not any(p.startswith("src/") for p in paths): continue
+        comps = sorted(set(c for c in (component(p) for p in paths) if c))
+        d = datetime.datetime.fromtimestamp(ct, datetime.timezone.utc).strftime("%Y-%m-%d")
+        if line == "main-post": per = "T3"
+        elif "2026-04-01" <= d <= "2026-06-30": per = "T1"
+        elif "2026-07-01" <= d <= "2026-09-05": per = "T2"
+        else: per = None
+        units.append(dict(sha=sha, line=line, merge=len(parents) > 1, period=per, month=d[:7], n=len(comps)))
+def st(v):
+    s = sorted(v); k = (len(s) - 1) * 0.9; f = int(k); c = min(f + 1, len(s) - 1)
+    return [len(v), statistics.median(v), round(s[f] + (s[c] - s[f]) * (k - f), 2), round(sum(v) / len(v), 3), round(sum(1 for a in v if a >= 2) / len(v), 4)]
+rows = []
+for per in ("T1", "T2", "T3"):
+    for ln in ("public", "experimental", "main-post", "all"):
+        v = [u["n"] for u in units if u["period"] == per and (ln == "all" or u["line"] == ln)]
+        if v: rows.append(["period", per, ln, *st(v), sum(1 for u in units if u["period"] == per and (ln == "all" or u["line"] == ln) and u["merge"])])
+for m in sorted(set(u["month"] for u in units)):
+    for ln in ("public", "experimental", "main-post"):
+        v = [u["n"] for u in units if u["month"] == m and u["line"] == ln]
+        if v: rows.append(["month", m, ln, *st(v), sum(1 for u in units if u["month"] == m and u["line"] == ln and u["merge"])])
+with open(f"{OUT}/M01c-M01d-first-parent-units-sensitivity.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["scope", "key", "line", "n_code_units", "median_components", "p90", "mean", "share_ge2", "of_which_merge_units"]); w.writerows(rows)
+for r in rows:
+    if r[0] == "period": print(r)

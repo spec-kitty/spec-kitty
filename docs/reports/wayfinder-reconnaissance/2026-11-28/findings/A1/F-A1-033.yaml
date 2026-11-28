@@ -1,0 +1,46 @@
+finding_id: F-A1-033
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: approved-plan
+prereg:
+  measure: "M5 approved plans"
+  deviation: null
+subject:
+  component: "approved future changes"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "13 recorded, approved future changes of ownership, location or contract were found (evidence/A1/approved-plans-vs-proposals.csv, view approved-plan): in core, the one-switch cutover of all offering reads to the charter service (operator 2026-10-19), the activation switch to the charter surface as a 4.0 deliverable (operator 2026-10-20), compile as first migrated write, the Java write service as sole event writer (2026-10-22), the write-service and charter-service pins (2026-10-29, pending); in the charter repo, service-first sequencing (2026-11-03) and service-side pack registration/distribution (2026-10-18); in open-packs, charter-release pinning and charter ownership of pack logic (2026-11-16/18) and the built-in split (2026-11-11); in doc-kitty, the mission-status reader (2026-11-23); in events, the Lamport ordering target and the retirement of the 3.0.0 envelope. Every approver recorded is the operator or a maintainer; two plans are superseded and one is deferred."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/approved-plans-vs-proposals.csv"
+    method: "hand-compiled from deep-read records"
+    sha256: "97f1bb6e922d138188fa493b29de04c586da61c8521468a91131563fb9303d1d"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "ADRs and charters of the five repos and planning"
+  not_covered: "tracker milestones and epics"
+  population: "18 rows not marked proposed"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "checked each approved plan for a later record cancelling it"
+  result: "two superseded plans (read API own repo; charter own repository) listed separately"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

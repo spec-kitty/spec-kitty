@@ -1,0 +1,70 @@
+finding_id: F-A1-015
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "built-in pack / core CLI compatibility"
+  repository: "spec-kitty/spec-kitty-open-packs; spec-kitty/spec-kitty"
+  revision: "f9a557510dc7ff04597a0b8aba87f736e25f785e; 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "open-packs ADR 2026-11-04-1 (Accepted) ends compatibility of the packs with the as-is CLI (checked at 4.0.0rc8) after tag pre-charter-cutover (f85cf23), and open-packs' charter says a core release is never a gate for pack work (charter.md:27); core's charter says built-in content is fetched from open-packs and stays present byte-identical in every consumer install (charter.md:468-477), and core's pin file declares requires_core '>=4.0.0rc7,<5' (packs/built-in.source.yaml:12)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty-open-packs:docs/architecture/adr/2026-11-04-1-strict-pack-composition-and-the-end-of-cli-compatibility.md:26-58 @ f9a557510dc7ff04597a0b8aba87f736e25f785e"
+    method: "git -C /home/user/spec-kitty-open-packs show f9a557510dc7ff04597a0b8aba87f736e25f785e:docs/architecture/adr/2026-11-04-1-strict-pack-composition-and-the-end-of-cli-compatibility.md | sed -n '26,58p'"
+    sha256: "1111f3cc65a81355c834bccce2a9afa1674b86decf7784bae7488e965b5836eb"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty-open-packs:.kittify/charter/charter.md:22-27 @ f9a557510dc7ff04597a0b8aba87f736e25f785e"
+    method: "git -C /home/user/spec-kitty-open-packs show f9a557510dc7ff04597a0b8aba87f736e25f785e:.kittify/charter/charter.md | sed -n '22,27p'"
+    sha256: "c9e7571c51e2baf7d2936ebd273295d4cb60cb60cc8bb6f7da33e01ee05bf847"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:468-480 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '468,480p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "document-claim"
+    reference: "spec-kitty:packs/built-in.source.yaml:1-13 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:packs/built-in.source.yaml | sed -n '1,13p'"
+    sha256: "01993a4728ea7938a87fe50327567846918feb25a2932727a80edd1a5ca7e6e2"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "open-packs ADR and charter, core charter and pin file"
+  not_covered: "whether the pinned commit a79c363 precedes f85cf23 (history, workstream D)"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "searched core ADRs and charter for any reference to pre-charter-cutover or the end of CLI compatibility"
+  result: "none found"
+relations: []
+confidence: medium
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: ["Is core's pinned open-packs commit a79c36318b7a before or after tag pre-charter-cutover (f85cf23)?"]

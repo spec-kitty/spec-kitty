@@ -1,0 +1,61 @@
+finding_id: F-A2-020
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: vocabulary ownership
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 22 drift rows, 9 lie on the core/charter boundary (mission type, artifact kind set, DRG name, DRG relations,
+  doctrine, event ledger, Brain Kitty, Role/Profile, project layer) and 5 involve events (status log name, event
+  ordering, Build Kitty, Team Kitty, Zeitgeist). Each side states a precedence rule that points at the other: charter
+  domain.md says core''s glossary wins except for terms charter owns since ADR-0015/ADR-0029; open-packs docs/glossary/index.md
+  says it follows the charter on pack shape and core otherwise. No glossary read settles which repository owns ''mission
+  type'', ''DRG/CRG'' or ''doctrine''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: count rows by repo pair
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Drift rows D01-D22.
+  not_covered: Recorded rulings outside the glossaries (ADRs not read exhaustively).
+  population: null
+  sample: null
+  seed: null
+interpretation: Terminology authority is split by repository precedence statements rather than one owner per term;
+  this is where drift concentrates.
+derived_from:
+- F-A2-007
+- F-A2-008
+- F-A2-009
+- F-A2-011
+- F-A2-012
+- F-A2-006
+- F-A2-010
+- F-A2-014
+counterevidence: []
+disconfirmation:
+  search: Looked for a single cross-repo ownership table for these terms.
+  result: Only per-repo precedence statements.
+relations: []
+confidence: medium
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

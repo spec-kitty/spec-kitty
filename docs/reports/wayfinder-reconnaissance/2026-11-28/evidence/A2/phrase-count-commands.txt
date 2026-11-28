@@ -1,0 +1,10 @@
+# Commands that produced status-log-names.csv, drg-tier-names.csv, outside-counts.csv (bash loops in the A2 session)
+# For each phrase p and each repo@head revision rev:
+#   lines_all_tracked = git grep -I -i -P -e "$p" $rev -- . ':!*.lock' [':!package-lock.json'] | wc -l
+#   lines_docs_adr_context (status-log-names only) = git grep -I -i -P -e "$p" $rev -- 'docs/adr/**' 'docs/context/**' 'docs/architecture/**' 'docs/glossary/**' | wc -l
+# outside-counts.csv additionally covers supplementary repos spec-kitty-planning@89f52a45, spec-kitty-container@1ff99fea,
+# fleet-kitty@e3b39b80, spec-kitty-orchestrator@8be32b14, and drops lines whose path contains docs/reports/wayfinder-reconnaissance/.
+# Revisions: spec-kitty 5c4fc5a79de1c1c299ab221ca26e5555c68ef533; spec-kitty-charter 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a;
+# spec-kitty-events 646e330b896b96d7a11f53b34aa3d0c0baa69a05; spec-kitty-open-packs f9a557510dc7ff04597a0b8aba87f736e25f785e;
+# doc-kitty 1acc49fbe209436d3c1666a86e8b3960ee19e5ac. Core was read at its head commit via git grep <rev> and a git archive
+# (the core working tree is checked out at a different commit, 43888002, and was not used).

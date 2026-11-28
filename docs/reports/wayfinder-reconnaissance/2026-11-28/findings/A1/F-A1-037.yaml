@@ -1,0 +1,39 @@
+finding_id: F-A1-037
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: interpretation
+view: recorded-intent
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "decision record status semantics"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "At head, a reader cannot determine which decision is in force from an ADR's status field and title alone; the amendment sections, later records in other repositories and the charters must be read together."
+evidence:
+  []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "Derived from: Accepted records reversed elsewhere without status change (F-A1-017); prevailing in-place amendments that change meaning under unchanged titles (F-A1-018); Proposed records that are executed or partly superseded and a merge-acceptance convention (F-A1-019); the same design Accepted in one repository and Proposed in another (F-A1-020)."
+derived_from: ["F-A1-017", "F-A1-018", "F-A1-019", "F-A1-020"]
+counterevidence: []
+disconfirmation:
+  search: "looked for a record defining how status, amendments and cross-repository supersession combine (ADR index READMEs of core, charter, events, doc-kitty, open-packs)"
+  result: "core ADR README describes era folders and the index bot only; charter ADR-0010 states supersede-not-edit, contradicted in the same record"
+relations: []
+confidence: medium
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

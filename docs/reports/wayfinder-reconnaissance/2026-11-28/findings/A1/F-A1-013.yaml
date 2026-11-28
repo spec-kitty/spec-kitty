@@ -1,0 +1,71 @@
+finding_id: F-A1-013
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "authority over the active charter after cutover"
+  repository: "spec-kitty/spec-kitty; spec-kitty/spec-kitty-charter"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533; 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "Core ADR 2026-10-16-1 Amendment 2026-10-20 (:205-209) and core charter.md:430-433 (updated 2026-11-25) state that after the 1.0.0 remote cutover the charter service is authoritative for activation and core's activation ledger is its mapped local copy; charter ADR-0033 (Accepted 2026-10-26) states the local activation.yaml is the source of truth, the service holds a written-through copy, local wins visibly, and it supersedes ADR-0020 decision 5 ('the service wins') (:36-41, :56-60)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:201-216 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md | sed -n '201,216p'"
+    sha256: "9369f6906baf382a10ed6f537102aaae3eb79e22e7374b3eaabe996a7deec0e0"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:425-440 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '425,440p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty-charter:docs/adr/0033-local-active-charter-is-source-of-truth.md:24-70 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+    method: "git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0033-local-active-charter-is-source-of-truth.md | sed -n '24,70p'"
+    sha256: "4b7913a8de55bc70d95e8668caec347d5fdf1c3b39ed53002ab3a378d383c64a"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "document-claim"
+    reference: "evidence/A1/supersession-chains.csv"
+    method: "chain CH3"
+    sha256: "c13a43c28056ced63884290e29a47a7db009826a3cb308f745909672428311d7"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "core ADR, core charter, charter ADRs 0013/0020/0033"
+  not_covered: "charter repo plans/open-questions"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "searched core 4.x ADRs and charter for any citation of charter ADR-0033 or an amendment adopting it"
+  result: "no core record cites ADR-0033; core's wording matches the superseded ADR-0020 position"
+relations:
+  - {type: supports, target: F-A1-038}
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,105 @@
+finding_id: F-H06b-004
+workstream: H06b - Checking documentation answers against code
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: H06b per-question check (correct against code; contradicting source)
+  deviation: The brief gives the 20 answers but not the question texts, and the files that hold them are outside
+    the permitted inputs. Each question was inferred from its answer. The check therefore tests the answer's claims,
+    not whether the answer addresses the question asked.
+subject:
+  component: source and pinning of the built-in pack
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Question 4 (run 1), on source and pinning of the built-in pack: the documentation-only answer is ''correct''
+  against code at head and a contradicting documentation source was ''found''. Code: Tracked at head under packs/:
+  README.md, built-in.source.yaml, internal.source.yaml only; pin names open-packs commit a79c3631 with clean-tree-sha256
+  digest; `make sync-packs` runs scripts/sync_packs.py; `charter pack vendor` registered at src/specify_cli/cli/commands/charter/_app.py:83
+  (evidence/H06b/code-checks-log.txt Q4); wheel built at head carries packs/built-in only (evidence/H06b/wheel-listing.txt).
+  Sources that disagree: spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:52-57 (doc_status
+  active, Accepted with amendments to 2026-11-07: ''core carries packs/built-in''; ''Core treats built-in as a committed,
+  pinned, drift-gated tree''); spec-kitty-charter/docs/context/system-context.md:80-81 (''re-vendored into core
+  at release ... the re-vendor pipeline core #3504 is in progress'') versus spec-kitty/docs/adr/3.x/2026-08-16-2-...md:99-104
+  (trees no longer tracked; fetched from the pin). Cited source authoritative under the repositories'' own rule:
+  yes (spec-kitty/docs/architecture/README.md:32-50 (docs/architecture + docs/adr authoritative; reader-facing docs
+  lose; module boundaries owned by code, the enforced pair)). Run 2 (gained qualifying sources): ''correct'' against
+  code, contradicting source ''found''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/H06b/code-checks-log.txt
+  method: bash evidence/H06b/script-code-checks.txt <dir holding `git archive 5c4fc5a79d` of spec-kitty> > code-checks-log.txt
+  sha256: 903bf91a4bf36adf41d93d13c573242c3b236977bfda2fb2634f09fefacc501f
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable);
+    spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/H06b/contradiction-searches-log.txt
+  method: 'bash evidence/H06b/script-contradiction-searches.txt <same dir> > contradiction-searches-log.txt (frame:
+    1365 markdown files in docs/ trees, root READMEs and charters of the five primary repositories at head)'
+  sha256: 32a44a0a65ef8830962436f681daf84dccead76a1b9ccb44662db7c8bc5ee211
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable);
+    spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/H06b/checks.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: 838e697f9d33e7d5d73c0b994b12cae0be7611f3e6b4b07cf3edae47aea6fd62
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable);
+    spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E4
+  kind: executed
+  reference: evidence/H06b/wheel-listing.txt
+  method: (cd <core export> && uv build --wheel --out-dir ../dist); python3 evidence/H06b/script-wheel-listing.txt
+    dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+  sha256: 3c4099523167ce9e563b0aa5a9eadf3250fc2a758b89f732bc96795c6cbc4bb3
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable);
+    spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E5
+  kind: static-derived
+  reference: evidence/H06b/checks-run2.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: bb875fb6d58fabeeef7f977f107520ab8f5c93e3dc39b0b542d1b98586b2991c
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable);
+    spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+scope:
+  covered: Run-1 answer 4 of 20 and, where it changed, run-2 answer 4; code and build of spec-kitty at head and
+    the cited revisions of sibling repositories at their heads.
+  not_covered: Clauses of the answer that state a plan (not checkable against code); documentation outside the search
+    frame (changelogs, reports, investigations, kitty-specs).
+  population: 20 run-1 answers
+  sample: 1 answer (all 20 were checked; this record carries one)
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'For the code column: looked for the code path that would make the answer fully right (gate allowlists,
+    callers, build output) before reading the answer''s reasoning. For the contradiction column: grep patterns listed
+    under ''Q4'' in contradiction-searches-log.txt over 1365 markdown files, then read each cited line and its status
+    frontmatter.'
+  result: No clause of the answer was found wrong against code. Each contradicting passage was read at its line;
+    none carries a superseded marker at the cited lines unless stated.
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

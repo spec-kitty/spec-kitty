@@ -1,0 +1,37 @@
+===== run-2 additions: code checks (core export at 5c4fc5a79d) =====
+-- Q19 rollback authority, cleanup marker, in_progress resume
+1352:def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_branch: str) -> RollbackReport:
+src/specify_cli/consolidation/phase_teardown.py:1233:def _mark_cleanup_started(run: _MergeRunState) -> None:
+src/specify_cli/consolidation/phase_teardown.py:1235:    if not run.state.cleanup_started:
+src/specify_cli/consolidation/phase_teardown.py:1236:        run.state.cleanup_started = True
+894:        report = rollback.rollback_to_snapshot(run.main_repo, run.state, target_branch=run.lanes_manifest.target_branch)
+-- Q17 routing modules
+src/charter/offering/model_task_routing/evaluator.py
+src/specify_cli/invocation/router.py
+-- Q18 TID251 rule and suppressions for it under src
+pyproject.toml:2294:    "TID251", # flake8-tidy-imports: banned-api (not TID252 which enforces absolute imports codebase-wide)
+pyproject.toml:2323:# TID251 (banned-api) is ENFORCED across the ENTIRE tests/ tree — see ADR
+pyproject.toml:2327:# There are intentionally NO whole-directory TID251 exemptions for tests/. A directory
+noqa TID251 occurrences in src: 76
+-- Q13 pyproject shape gate and packaging guard
+tests/architectural/test_pyproject_shape.py
+tests/cross_cutting/packaging/test_packaging_safety.py
+-- Q7 AGENTS.md:284 tail
+(The `specify_cli → charter` import move onto the seam is done, #6188; #645 is closed.)
+-- Q8 AGENTS.md:683 pending items
+Still pending: the write-service pin (it waits for a spec-kitty-events release carrying `command-cli`), the charter-service pin, and binding the EventBridge to the launcher (#6195). Java work goes to `spec-kitty-events`.
+-- Q1/Q11 AGENTS.md authority lines
+For action-scoped detail, load the doctrine context via `spec-kitty charter context --action <name>` rather than improvising. If the charter and this file ever disagree, the charter wins — flag the drift instead of pic
+### Modularity SSOT (canonical)
+
+The **single source of truth for the module set and its import direction is the enforced pair**,
+not any prose map:
+
+- **Inventory** — `pyproject.toml` `[tool.hatch.build.targets.wheel].packages` (enforced by
+  `tests/architectural/test_pyproject_shape.py`).
+-- Q10 consolidation assigns mission_number
+68:def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path) -> int:
+147:def _already_baked(merge_state: ConsolidationState | None) -> bool:
+157:def _mark_mission_number_baked(
+| `mission_number` | Mission | **Display-only** numeric prefix (`int \| None`). `null` pre-merge, assigned at merge time via `max(existing)+1` inside the merge-state lock. Never used for identity, routing, or locking. | Assigned once at merge time | Was canoni
+| `mission_number` | **Display-only** numeric prefix. `null` pre-merge, assigned at merge time. Never used for identity. |

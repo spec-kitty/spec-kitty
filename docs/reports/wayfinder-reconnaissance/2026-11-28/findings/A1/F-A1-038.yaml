@@ -1,0 +1,39 @@
+finding_id: F-A1-038
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: interpretation
+view: recorded-intent
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "charter activation"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "Charter activation has three mutually incompatible recorded authority statements at head (core: service authoritative after cutover, ledger a mapped copy; charter repo: local file is source of truth; open-packs: charter repo owns activation logic) plus an unresolved timing statement inside core, so the recorded intent for this capability is not single-valued."
+evidence:
+  []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "Derived from F-A1-011 (timing), F-A1-012 (ownership of logic) and F-A1-013 (authority after cutover)."
+derived_from: ["F-A1-011", "F-A1-012", "F-A1-013"]
+counterevidence: []
+disconfirmation:
+  search: "searched all three repositories for a record that reconciles the three statements"
+  result: "none found"
+relations: []
+confidence: medium
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

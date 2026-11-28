@@ -1,0 +1,16 @@
+repo_running_the_check,other_side,check,workflow_reference,trigger,standing
+spec-kitty,events package (PyPI range + lock),scripts/release/check_shared_package_drift.py,.github/workflows/check-spec-kitty-events-alignment.yml:4-22,"pull_request and push to main touching pyproject.toml, uv.lock, the compatibility manifest, scripts/release/** or the workflow; daily 02:11 UTC; manual",per-PR reported; not required
+spec-kitty,events package at the locked version,consumer tests (reducer_lock group),.github/workflows/ci-router.yml:1919-1942,pull_request when the reducer_lock path group changed,per-PR required when selected (router gate)
+spec-kitty,"events package, newest version allowed by the range",job events-latest,.github/workflows/ci-nightly.yml:2323,schedule,nightly
+spec-kitty,events read service binary pinned in pins/read-service.source.yaml,job mission-status-corpus,.github/workflows/ci-nightly.yml:2442,schedule,nightly
+spec-kitty,open-packs trees pinned in packs/*.source.yaml,sync_packs --check; pack regen and DRG checks,.github/workflows/packs.yml:243-287,pull_request and push when pack groups changed,per-PR reported (packs gate is not a required check)
+spec-kitty,doc-kitty toolkit,docs site build,.github/workflows/ci-router.yml:2096; .github/workflows/docs-site-build.yml,pull_request when the docs_site group changed,per-PR required when selected
+spec-kitty,charter service,none found: no charter pin file and no workflow step reads the charter repository at core head,"grep of .github/workflows for ""spec-kitty-charter"" -> see static search note",n/a,n/a
+spec-kitty-events,core checkout at service/core-pin.json (512567ee),"lock-interop, write-core-parity",.github/workflows/service.yml:487-645,pull_request when service paths changed,per-PR required when selected (service-gate)
+spec-kitty-events,core checkout at service/core-pin.json,nightly-corpus,.github/workflows/service.yml:649-715,schedule,nightly
+spec-kitty-events,end-to-end testing repository at 193f5c0e + spec-kitty-cli==3.2.0rc22 from PyPI,identity-boundary unit tests,.github/workflows/cross-repo-harness-tests.yml:39-108,pull_request to main and push to main; skipped on fork PRs (reported as success),per-PR required
+spec-kitty-events,"spec-kitty-planning default branch (unpinned clone), bin/ci-run.sh",job suite,.github/workflows/ci.yml:118-129,"pull_request, push, manual",per-PR reported; not required
+spec-kitty-charter,open-packs at gradle.properties openPacksRef (1692a3b1),verifyAll with syncPacks; whole-pack round trip,.github/workflows/service.yml:89-127; .github/workflows/whole-pack.yml:59,pull_request when service or wholepack groups changed,per-PR required when selected (gate)
+spec-kitty-open-packs,"charter release pinned in charter.lock.yaml (cb9b1542, service-v0.1.0-rc.3)","pack schemas, charter service composes every pack, pack-check",.github/workflows/validate-packs.yml:67-230,"pull_request, push",per-PR required
+spec-kitty-open-packs,newer charter releases / charter main,charter-track,.github/workflows/charter-track.yml:60-219,schedule; manual; pull_request with a label,nightly
+doc-kitty,open-packs at src/tests/fixtures/packs-corpus/open-packs.pin.json (0be738ac),packs corpus reader test,.github/workflows/ci.yml:113-118,pull_request when the code group changed,per-PR required when selected (ci-ok)

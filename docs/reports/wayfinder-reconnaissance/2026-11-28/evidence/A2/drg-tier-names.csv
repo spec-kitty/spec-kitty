@@ -1,0 +1,71 @@
+phrase,repo,revision,lines_all_tracked
+"doctrine reference graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,85
+"doctrine reference graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,8
+"doctrine reference graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"doctrine reference graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,3
+"doctrine reference graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"doctrine relationship graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,14
+"doctrine relationship graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"doctrine relationship graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"doctrine relationship graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,5
+"doctrine relationship graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"doctrine requirements? graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"doctrine requirements? graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"doctrine requirements? graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"doctrine requirements? graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"doctrine requirements? graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"doctrine relations? graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,2
+"doctrine relations? graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"doctrine relations? graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1
+"doctrine relations? graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1
+"doctrine relations? graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1
+"directive relationship graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,7
+"directive relationship graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"directive relationship graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"directive relationship graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"directive relationship graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"charter reference graph",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"charter reference graph",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,23
+"charter reference graph",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"charter reference graph",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"charter reference graph",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"\bCRG\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"\bCRG\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,275
+"\bCRG\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"\bCRG\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"\bCRG\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"\bDRG\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,15357
+"\bDRG\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1671
+"\bDRG\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,9
+"\bDRG\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,684
+"\bDRG\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,18
+"pack tiers?",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,153
+"pack tiers?",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,5
+"pack tiers?",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,3
+"pack tiers?",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,12
+"pack tiers?",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2
+"pack levels?",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,93
+"pack levels?",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,75
+"pack levels?",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"pack levels?",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,27
+"pack levels?",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,3
+"organi[sz]ation tier",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,50
+"organi[sz]ation tier",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,3
+"organi[sz]ation tier",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"organi[sz]ation tier",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,2
+"organi[sz]ation tier",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"project tier",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,88
+"project tier",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,5
+"project tier",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"project tier",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,28
+"project tier",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1
+"project layer",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,525
+"project layer",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,25
+"project layer",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1
+"project layer",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,15
+"project layer",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2
+"project pack",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,260
+"project pack",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,279
+"project pack",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,4
+"project pack",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,14
+"project pack",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,6

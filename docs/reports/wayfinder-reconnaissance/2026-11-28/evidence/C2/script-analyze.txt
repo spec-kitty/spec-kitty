@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""C2 analysis: per-month/line/period/class measures M01c, M01d, co-change, volume, recurrence."""
+import json, statistics, csv, collections, itertools, datetime, sys, os
+IN = sys.argv[1]; OUT = sys.argv[2]
+os.makedirs(OUT, exist_ok=True)
+rs = [json.loads(l) for l in open(IN)]
+CLASSES = ['capability-growth', 'corrective-maintenance', 'restructuring', 'compatibility-work', 'convergence-activity', 'other']
+
+def period(x):
+    if x['line'] == 'main-post': return 'T3'
+    if x['line'] == 'convergence-merge': return None
+    d = x['utc'][:10]
+    if '2026-04-01' <= d <= '2026-06-30': return 'T1'
+    if '2026-07-01' <= d <= '2026-09-05': return 'T2'
+    if '2026-09-06' <= d: return 'T3'  # none expected
+    return None
+
+for x in rs:
+    x['period'] = period(x)
+    x['ncomp'] = len(x['components'])
+    x['ntop'] = len(x['top_components'])
+    x['line2'] = 'main' if x['line'] in ('main-post',) else x['line']
+
+def pct(v, p):
+    if not v: return None
+    s = sorted(v); k = (len(s) - 1) * p; f = int(k); c = min(f + 1, len(s) - 1)
+    return round(s[f] + (s[c] - s[f]) * (k - f), 2)
+
+def stats(v):
+    if not v: return dict(n=0, median=None, p90=None, mean=None, share2=None)
+    return dict(n=len(v), median=statistics.median(v), p90=pct(v, 0.9), mean=round(sum(v) / len(v), 3),
+                share2=round(sum(1 for a in v if a >= 2) / len(v), 4))
+
+nonmerge = [x for x in rs if not x['merge']]
+bulk = [x for x in nonmerge if x['bulk']]
+base = [x for x in nonmerge if not x['bulk']]
+code = [x for x in base if x['code']]
+
+# bulk list
+with open(f'{OUT}/bulk-commits.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['sha', 'utc', 'line', 'nfiles', 'code', 'class', 'subject'])
+    for x in sorted(bulk, key=lambda x: x['utc']): w.writerow([x['sha'], x['utc'], x['line'], x['nfiles'], x['code'], x['cls'], x['subject'][:120]])
+
+# merges
+with open(f'{OUT}/merge-commits-by-month-line.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['month', 'line', 'merge_commits'])
+    c = collections.Counter((x['month'], x['line']) for x in rs if x['merge'])
+    for k in sorted(c): w.writerow([*k, c[k]])
+
+# M01c / M01d rows
+rows = []
+def emit(scope, key, sub, comp_field='ncomp'):
+    for cls in ['ALL'] + CLASSES:
+        v = [x[comp_field] for x in sub if cls == 'ALL' or x['cls'] == cls]
+        s = stats(v)
+        rows.append([scope, *key, comp_field, cls, s['n'], s['median'], s['p90'], s['mean'], s['share2']])
+months = sorted(set(x['month'] for x in code))
+for field in ('ncomp', 'ntop'):
+    for m in months:
+        for ln in ('public', 'experimental', 'main-post'):
+            sub = [x for x in code if x['month'] == m and x['line'] == ln]
+            if sub: emit('month-line', (m, ln), sub, field)
+    for p in ('T1', 'T2', 'T3'):
+        sub = [x for x in code if x['period'] == p]
+        emit('period', (p, 'all-lines'), sub, field)
+        if p == 'T2':
+            for ln in ('public', 'experimental'):
+                emit('period', (p, ln), [x for x in sub if x['line'] == ln], field)
+            emit('period', ('T2-fork-window', 'public'), [x for x in sub if x['line'] == 'public' and x['utc'][:10] >= '2026-08-19'], field)
+            emit('period', ('T2-prefork', 'public'), [x for x in sub if x['line'] == 'public' and x['utc'][:10] < '2026-08-19'], field)
+    emit('overall', ('2026-01..2026-11', 'all-lines'), code, field)
+with open(f'{OUT}/M01c-M01d-components-per-code-commit.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['scope', 'key', 'line', 'component_granularity', 'class', 'n_code_commits', 'median', 'p90', 'mean', 'share_ge2'])
+    w.writerows(rows)
+
+# Volume denominators
+vol = []
+def vrow(scope, key, ln, sub_all, sub_merge):
+    sub_nb = [x for x in sub_all if not x['bulk']]
+    codec = [x for x in sub_nb if x['code']]
+    nonsrc = collections.Counter(x['nonsrc_cat'] for x in sub_nb if not x['code'])
+    for cls in ['ALL'] + CLASSES:
+        f = (lambda x: True) if cls == 'ALL' else (lambda x, c=cls: x['cls'] == c)
+        a = [x for x in sub_nb if f(x)]; cc = [x for x in codec if f(x)]
+        vol.append([scope, key, ln, cls, len(a), len(cc), sum(x['added'] + x['deleted'] for x in a),
+                    sum(x['src_added'] + x['src_deleted'] for x in cc), sum(x['py_changed'] for x in cc),
+                    len([x for x in sub_all if x['bulk'] and f(x)]) if True else 0,
+                    len(sub_merge) if cls == 'ALL' else '',
+                    nonsrc.get('docs-specs-kittify-only', 0) if cls == 'ALL' else '',
+                    nonsrc.get('tests-only', 0) if cls == 'ALL' else '',
+                    nonsrc.get('docs-specs-kittify-tests-only', 0) if cls == 'ALL' else '',
+                    nonsrc.get('other-non-src', 0) + nonsrc.get('no-paths', 0) if cls == 'ALL' else ''])
+for m in months:
+    for ln in ('public', 'experimental', 'main-post'):
+        sa = [x for x in nonmerge if x['month'] == m and x['line'] == ln]
+        sm = [x for x in rs if x['merge'] and x['month'] == m and x['line'] == ln]
+        if sa: vrow('month-line', m, ln, sa, sm)
+for p in ('T1', 'T2', 'T3'):
+    sa = [x for x in nonmerge if x['period'] == p]; sm = [x for x in rs if x['merge'] and x['period'] == p]
+    vrow('period', p, 'all-lines', sa, sm)
+    if p == 'T2':
+        for ln in ('public', 'experimental'):
+            vrow('period', p, ln, [x for x in sa if x['line'] == ln], [x for x in sm if x['line'] == ln])
+vrow('overall', '2026-01..2026-11', 'all-lines', nonmerge, [x for x in rs if x['merge']])
+with open(f'{OUT}/volume-denominators.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['scope', 'key', 'line', 'class', 'nonmerge_nonbulk_commits', 'code_commits', 'changed_lines_all_paths', 'changed_lines_src', 'changed_lines_src_py', 'bulk_commits_excluded', 'merge_commits', 'docs_specs_kittify_only', 'tests_only', 'docs_specs_kittify_tests_only', 'other_non_src'])
+    w.writerows(vol)
+
+# Co-change matrix per period (fine components)
+cc_rows = []; top_rows = []
+for p, ln in [('T1', 'all-lines'), ('T2', 'all-lines'), ('T2', 'public'), ('T2', 'experimental'), ('T3', 'all-lines')]:
+    sub = [x for x in code if x['period'] == p and (ln == 'all-lines' or x['line'] == ln)]
+    N = len(sub)
+    single = collections.Counter(c for x in sub for c in x['components'])
+    pair = collections.Counter(pr for x in sub for pr in itertools.combinations(sorted(x['components']), 2))
+    for (a, b), n in pair.most_common():
+        row = [p, ln, a, b, n, N, round(n / N, 5), round(n / single[a], 4), round(n / single[b], 4), single[a], single[b]]
+        if n >= 3: cc_rows.append(row)
+    for (a, b), n in pair.most_common(15): top_rows.append([p, ln, a, b, n, N, round(n / N, 5), round(n / single[a], 4), round(n / single[b], 4)])
+with open(f'{OUT}/cochange-pairs-ge3.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['period', 'line', 'comp_a', 'comp_b', 'commits_both', 'code_commits_in_period', 'support', 'confidence_a_to_b', 'confidence_b_to_a', 'commits_a', 'commits_b'])
+    w.writerows(cc_rows)
+with open(f'{OUT}/cochange-top15-per-period.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['period', 'line', 'comp_a', 'comp_b', 'commits_both', 'code_commits_in_period', 'support', 'confidence_a_to_b', 'confidence_b_to_a'])
+    w.writerows(top_rows)
+
+# Component touch counts per period (for context)
+with open(f'{OUT}/component-touch-counts-per-period.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['period', 'line', 'component', 'code_commits_touching', 'code_commits_in_period', 'share'])
+    for p, ln in [('T1', 'all-lines'), ('T2', 'public'), ('T2', 'experimental'), ('T3', 'all-lines')]:
+        sub = [x for x in code if x['period'] == p and (ln == 'all-lines' or x['line'] == ln)]
+        c = collections.Counter(cpt for x in sub for cpt in x['components'])
+        for k, v in c.most_common(): w.writerow([p, ln, k, v, len(sub), round(v / len(sub), 4)])
+
+# Recurrence
+corr = [x for x in code if x['cls'] == 'corrective-maintenance']
+file_months = collections.defaultdict(set); comp_months = collections.defaultdict(set)
+for x in corr:
+    for pth in x['src_paths']: file_months[pth].add(x['month'])
+    for c in x['components']: comp_months[c].add(x['month'])
+with open(f'{OUT}/recurrence-files-ge3-months.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['path', 'distinct_months_with_corrective_commits', 'months'])
+    rec = sorted(((p, m) for p, m in file_months.items() if len(m) >= 3), key=lambda t: (-len(t[1]), t[0]))
+    for p, m in rec: w.writerow([p, len(m), ' '.join(sorted(m))])
+nfiles_corr = len(file_months); nfiles_rec = len([1 for m in file_months.values() if len(m) >= 3])
+with open(f'{OUT}/recurrence-components-ge3-months.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['component', 'distinct_months_with_corrective_commits', 'months'])
+    for c, m in sorted(comp_months.items(), key=lambda t: (-len(t[1]), t[0])): w.writerow([c, len(m), ' '.join(sorted(m))])
+# fix-of-fix chains within 14 days
+fixsubj = [x for x in corr if x['rule'] in ('R2', 'R6')]
+fixsubj.sort(key=lambda x: x['ct'])
+chains = []
+by_file = collections.defaultdict(list)
+for x in fixsubj:
+    for pth in set(x['src_paths']): by_file[pth].append(x)
+chain_rows = []
+summary = collections.Counter(); denom = collections.Counter(); strict = collections.Counter()
+for x in fixsubj:
+    denom[x['period']] += 1
+    xs = set(x['src_paths'])
+    later = {}
+    for pth in xs:
+        for y in by_file[pth]:
+            if y['ct'] > x['ct'] and y['ct'] - x['ct'] <= 14 * 86400 and y['sha'] != x['sha']:
+                later[y['sha']] = y
+    if later:
+        summary[x['period']] += 1
+        first = min(later.values(), key=lambda y: y['ct'])
+        ov = xs & set(first['src_paths'])
+        st = any(len(xs & set(y['src_paths'])) / max(1, len(xs)) >= 0.5 for y in later.values())
+        if st: strict[x['period']] += 1
+        chain_rows.append([x['sha'], x['utc'], x['line'], x['period'], x['subject'][:90], first['sha'], first['utc'], first['subject'][:90], len(later), len(ov), int(st)])
+with open(f'{OUT}/fix-refixed-within-14d.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['fix_sha', 'fix_utc', 'line', 'period', 'fix_subject', 'first_refix_sha', 'first_refix_utc', 'first_refix_subject', 'n_refixes_14d', 'shared_src_files_with_first', 'strict_ge50pct_overlap'])
+    w.writerows(chain_rows)
+rec_summary = dict(corrective_code_commits=len(corr), fix_subject_corrective=len(fixsubj),
+                   files_with_corrective=nfiles_corr, files_corrective_ge3_months=nfiles_rec,
+                   components_with_corrective=len(comp_months), components_corrective_ge3_months=len([1 for m in comp_months.values() if len(m) >= 3]),
+                   refixed_within_14d_by_period={p: [summary[p], strict[p], denom[p]] for p in ('T1', 'T2', 'T3', None)})
+# per-period file recurrence (>=3 months within the period window is weak for T2 (2+ months); report file count with >=2 corrective commits in period too)
+perp = {}
+for p in ('T1', 'T2', 'T3'):
+    fm = collections.defaultdict(set); fc = collections.Counter()
+    for x in corr:
+        if x['period'] != p: continue
+        for pth in set(x['src_paths']): fm[pth].add(x['month']); fc[pth] += 1
+    perp[p] = dict(files_with_corrective=len(fm), files_ge3_months=sum(1 for v in fm.values() if len(v) >= 3), files_ge3_corrective_commits=sum(1 for v in fc.values() if v >= 3))
+rec_summary['per_period'] = perp
+json.dump(rec_summary, open(f'{OUT}/recurrence-summary.json', 'w'), indent=1, default=str)
+
+# overall summary
+summ = dict(total_commits_since_2025_12_31=len(rs), merges=sum(1 for x in rs if x['merge']), nonmerge=len(nonmerge), bulk=len(bulk),
+            nonmerge_nonbulk=len(base), code_commits=len(code),
+            by_line=collections.Counter(x['line'] for x in code), by_class=collections.Counter(x['cls'] for x in code),
+            by_period=collections.Counter(x['period'] for x in code),
+            class_by_period={p: collections.Counter(x['cls'] for x in code if x['period'] == p) for p in ('T1', 'T2', 'T3')},
+            rule_fired=collections.Counter(x['rule'] for x in code))
+json.dump(summ, open(f'{OUT}/summary.json', 'w'), indent=1, default=str)
+print(json.dumps(summ, indent=1, default=str)); print(json.dumps(rec_summary, indent=1, default=str))

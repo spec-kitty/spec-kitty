@@ -1,0 +1,79 @@
+$ .venv/bin/python gate_helpers.py   (cwd: clone at 5c4fc5a; calls the helper functions of tests/architectural/test_layer_rules.py)
+{
+ "mission_runtime": {
+  "collector_import_entries": 90,
+  "importing_files": 7,
+  "ledger_entries": 10,
+  "out_of_ledger": [],
+  "stale_ledger_entries": [],
+  "live_subpackages": [
+   "coordination",
+   "core",
+   "migration",
+   "mission",
+   "mission_metadata",
+   "missions",
+   "retrospective",
+   "status",
+   "task_utils",
+   "workspace"
+  ]
+ },
+ "runtime": {
+  "collector_import_entries": 139,
+  "importing_files": 20,
+  "ledger_entries": 22,
+  "out_of_ledger": [],
+  "stale_ledger_entries": [],
+  "live_subpackages": [
+   "bulk_edit",
+   "coordination",
+   "core",
+   "events",
+   "invocation",
+   "lanes",
+   "migration",
+   "mission",
+   "mission_loader",
+   "mission_metadata",
+   "mission_step_contracts",
+   "mission_v1",
+   "missions",
+   "requirement_mapping",
+   "retrospective",
+   "review",
+   "runtime",
+   "shims",
+   "status",
+   "status_lanes",
+   "task_utils",
+   "workspace"
+  ],
+  "forbidden_cli_or_next": []
+ },
+ "consolidation": {
+  "cli_boundary_offenders": [],
+  "console_importers": 16,
+  "console_ledger_entries": 16,
+  "unlisted_console_importers": [],
+  "stale_console_ledger_entries": []
+ },
+ "excluded_from_layer_enforcement": [],
+ "defined_layers": [
+  "charter",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ],
+ "src_packages": [
+  "charter",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ]
+}
+exit_code=0

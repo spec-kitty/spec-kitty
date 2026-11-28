@@ -1,0 +1,61 @@
+finding_id: F-A2-007
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: DRG expansion
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The abbreviation DRG is expanded inconsistently: core docs/context uses ''Doctrine Reference Graph'' (charter-overview.md:111,
+  testing-taxonomy.md:124) and ''Doctrine Relationship Graph'' (charter.md:521) — two expansions inside one glossary;
+  core repo-wide lines: doctrine reference graph 85, doctrine relationship graph 14, directive relationship graph
+  7. open-packs uses both ''Doctrine Relationship Graph'' (docs/glossary/index.md:32) and ''doctrine reference graph''
+  (foundation glossary :198). The charter repository renames it ''Charter Reference Graph (CRG)'' (275 lines ''CRG'',
+  0 in other repos) while ''DRG'' still has 15,357 lines in core.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drg-tier-names.csv
+  method: see phrase-count-commands.txt
+  sha256: c1325c041051517e950dac2aa98405ba9889329ab20109a932d5333b47ba89b4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: section V6
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: All five repos at head.
+  not_covered: Code identifiers (drg/ package names are abbreviation only).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched each glossary for one declared expansion of DRG.
+  result: None of core, open-packs declares a single expansion; charter declares CRG.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

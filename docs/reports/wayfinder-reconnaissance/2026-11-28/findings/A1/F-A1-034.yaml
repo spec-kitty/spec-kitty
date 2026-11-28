@@ -1,0 +1,54 @@
+finding_id: F-A1-034
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: proposed
+prereg:
+  measure: "M5 proposals"
+  deviation: null
+subject:
+  component: "proposals without approval"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "Proposals without recorded approval at head include 26 core ADRs with status Proposed (among them the 2026-11-06 coordination set, 2026-11-07-1, 2026-11-08-1 and 2026-10-15-1 QA ledger), one Proposed amendment inside an Accepted core ADR (2026-10-22-1, 2026-11-06), 2 charter-repo ADRs (0040, 0043), 3 open-packs docsite ADRs pending HiC ratification, 1 doc-kitty ADR (0084), 3 planning ADR-* records whose header says Proposed, and the 56 Kitty Shared Architecture v0.11 records (52 Proposed in the docsite, all non-binding until ratified)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/approved-plans-vs-proposals.csv"
+    method: "hand-compiled"
+    sha256: "97f1bb6e922d138188fa493b29de04c586da61c8521468a91131563fb9303d1d"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "evidence/A1/decision-timeline.csv"
+    method: "python3 evidence/A1/script-index-adrs.txt <scratch> <out> (indexes every ADR/decision file of the five repos + planning at head)"
+    sha256: "98f525172cec2f99837a443c6f233bc680ac510fb5ea73a59e63b0adcdc105f7"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "status fields"
+  not_covered: "proposals in plans/ folders and issue trackers"
+  population: "521 indexed records"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "for each Proposed record searched for an acceptance amendment"
+  result: "the 2026-10-31-1 docsite ADR is Proposed but executed (F-A1-019)"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

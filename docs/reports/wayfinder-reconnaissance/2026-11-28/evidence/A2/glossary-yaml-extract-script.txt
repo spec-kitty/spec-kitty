@@ -1,0 +1,8 @@
+import sys,yaml
+f=sys.argv[1]; want=[w.lower() for w in sys.argv[2:]]
+d=yaml.safe_load(open(f))
+terms=d.get('terms') or d
+for t in terms:
+    key=(t.get('id') or t.get('surface') or '').lower(); nm=(t.get('name') or t.get('surface') or '')
+    if not want or key in want or nm.lower() in want:
+        print(f"* {key} [{t.get('status') or t.get('confidence')}] :: {str(t.get('definition'))[:500]}")

@@ -1,0 +1,70 @@
+finding_id: F-A1-021
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "event ledger writers and readers map"
+  repository: "spec-kitty/spec-kitty; spec-kitty/spec-kitty-events"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533; 646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "Core's charter says docs/architecture/event-ledger-writers-and-readers.md 'stays frozen in core; corrections to it are made in spec-kitty-events' (charter.md:418-419); the core copy is doc_status active (updated 2026-10-28) with no frozen banner, and the events copy (updated 2026-11-13) differs: 295 vs 326 lines, 88 lines of diff output after stripping frontmatter."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:416-420 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '416,420p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/event-ledger-writers-and-readers.md:1-30 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/event-ledger-writers-and-readers.md | sed -n '1,30p'"
+    sha256: "9e5465a52c88967e4380244fe2b0265ca96dc8e574f6df00808f888adba8ac12"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty-events:docs/architecture/services/event-ledger-writers-and-readers.md:1-15 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+    method: "git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:docs/architecture/services/event-ledger-writers-and-readers.md | sed -n '1,15p'"
+    sha256: "1e5fd5c4d0865cf2074af4499a82f0705c6aa3688ecb37c7c813d07e90e11501"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "executed"
+    reference: "evidence/A1/event-ledger-doc-diff.txt"
+    method: "diff of the two copies after stripping 20 frontmatter lines (command in file header); diff exits 1 when the files differ"
+    sha256: "daa48d3b71d35558e31af020fea81dc8f4ce3f047eaf41f3503c5c53dacf5b1d"
+    exit_code: 1
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "both copies"
+  not_covered: "which differences are corrections"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -n -i 'frozen' in the core copy"
+  result: "no frozen marker in the core copy"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

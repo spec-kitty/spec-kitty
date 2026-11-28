@@ -1,0 +1,12 @@
+repo,ruleset,required_context,produced_by,policy
+spec-kitty,main-2,Clean install verification,.github/workflows/ci-quality.yml:76 (job clean-install-verification),strict: false
+spec-kitty,main-2,router gate,".github/workflows/ci-router.yml:2107 (job router-gate; needs 21 jobs incl. ruff, uv-lock, regen-check, terminology, docs-lint, agent-skills, layer-rules, archive-freeze, architectural-fast, architectural-heavy and the path-routed test jobs)",strict: false
+spec-kitty,main-2,CI Modules gate,.github/workflows/ci-modules.yml (job modules-gate over the module shards a diff selects),strict: false
+spec-kitty-charter,Protect main,gate,".github/workflows/ci.yml:123 (job gate; needs changes, service, docs, wholepack; each of the three runs only when its path group changed)",strict: false; require_code_owner_review: true
+spec-kitty-events,main,acceptance,.github/workflows/acceptance.yml:66,strict: false
+spec-kitty-events,main,service-gate,".github/workflows/service.yml:730 (needs detect, contract-bundle, gradle, native, native-command-cli, lock-interop, write-core-parity, nightly-corpus)",strict: false
+spec-kitty-events,main,cross-repo-harness-tests,.github/workflows/cross-repo-harness-tests.yml:39 (also the one context of the classic branch protection on main),strict: false
+spec-kitty-events,main,docs-build,.github/workflows/docs-site.yml:39,strict: false
+spec-kitty-open-packs,main,Validate packs gate,".github/workflows/validate-packs.yml:234 (needs validate, charter-service)",strict: false
+spec-kitty-open-packs,main,Charter service validation,.github/workflows/validate-packs.yml:145,strict: false
+doc-kitty,m2,ci-ok,".github/workflows/ci.yml:527 (needs detect-changes, code-quality, doc-sanity, build-example, a11y, plantuml-allowlist)",strict: true; ruleset m1 adds a merge queue (REBASE)

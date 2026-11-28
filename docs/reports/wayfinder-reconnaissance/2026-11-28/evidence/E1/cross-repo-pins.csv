@@ -1,0 +1,9 @@
+consumer_check,pinned_repository,pin,pin_commit_date,commits_between_pin_and_head_2026_11_28
+events service.yml lock-interop / write-core-parity / nightly-corpus (service/core-pin.json),spec-kitty,512567eee71e31bb39f580c4f7acf8b865e9d1b2,2026-10-30,4369
+events cross-repo-harness-tests.yml:72,experimental-spec-kitty-end-to-end-testing,193f5c0eb07c8fdb6943d91d205ab892b98d6dfc,2026-05-21,599
+doc-kitty ci.yml packs corpus (src/tests/fixtures/packs-corpus/open-packs.pin.json),spec-kitty-open-packs,0be738ac07bc4d7dbaba54011bdb250c806728df,2026-11-22,53
+open-packs validate-packs.yml (charter.lock.yaml; release service-v0.1.0-rc.3),spec-kitty-charter,cb9b15426d17c402b06204185a17ebfbc65f22ff,2026-11-20,178
+core packs.yml built-in pin (packs/built-in.source.yaml),spec-kitty-open-packs,a79c36318b7a506ca2ab26d74705c5e3e406004f,2026-10-31,665
+core packs.yml internal pin (packs/internal.source.yaml),spec-kitty-open-packs,ecda7b00c789006bedcec4e2a8aadf75aa5b03f8,2026-10-21,646
+charter service.yml / whole-pack.yml (gradle.properties openPacksRef),spec-kitty-open-packs,1692a3b1dde022c871f09dab34637d2f9d6723f3,2026-11-12,344
+core ci-nightly mission-status-corpus (pins/read-service.source.yaml; service-v0.1.0-rc.1),spec-kitty-events,2f5e03948b5262185d15e45019fe14fbc473b9b5,2026-10-31,114

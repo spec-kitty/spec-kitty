@@ -1,0 +1,69 @@
+finding_id: F-A2-014
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: hosted vocabulary (Zeitgeist, session, attempt)
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: '''Zeitgeist'' is deprecated/removed in core (team-kitty.md) and in the open-packs internal glossary (:689,
+  ''deprecated''), but is a present-tense canonical entry in the events glossary (''Zeitgeist relay: the volatile
+  transport'', :82). The events WorkObservation family defines session, attempt (FactoryAttemptRef: ''one attempt
+  may span sessions'') and durable-journal vocabulary; core src at head imports none of WorkObservation, FactoryAttemptRef,
+  SessionIdentity, HarnessObservation or OpsInvocation (0 files each) and zeitgeist_attrs in 1 file.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/code-identifiers.txt
+  method: git grep -l -w <name> at core head src
+  sha256: dadd3af209601126abe5edf0149b24e9f648d469e18876c6c3f7eb18a124787e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: section V7
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: row D18
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossary status of Zeitgeist; core src importers of events families.
+  not_covered: Other consumers of these events families (removed hosted code in event-router).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched core src for any import of the five family names.
+  result: Only zeitgeist_attrs in one file.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

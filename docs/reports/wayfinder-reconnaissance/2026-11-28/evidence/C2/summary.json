@@ -1,0 +1,66 @@
+{
+ "total_commits_since_2025_12_31": 20963,
+ "merges": 1156,
+ "nonmerge": 19807,
+ "bulk": 22,
+ "nonmerge_nonbulk": 19785,
+ "code_commits": 6345,
+ "by_line": {
+  "main-post": 3026,
+  "experimental": 703,
+  "public": 2616
+ },
+ "by_class": {
+  "corrective-maintenance": 3611,
+  "other": 624,
+  "restructuring": 609,
+  "capability-growth": 924,
+  "convergence-activity": 368,
+  "compatibility-work": 209
+ },
+ "by_period": {
+  "T3": 3026,
+  "T2": 1809,
+  "T1": 947,
+  "null": 563
+ },
+ "class_by_period": {
+  "T1": {
+   "corrective-maintenance": 541,
+   "capability-growth": 189,
+   "compatibility-work": 55,
+   "other": 120,
+   "restructuring": 41,
+   "convergence-activity": 1
+  },
+  "T2": {
+   "convergence-activity": 247,
+   "corrective-maintenance": 956,
+   "other": 135,
+   "capability-growth": 282,
+   "restructuring": 137,
+   "compatibility-work": 52
+  },
+  "T3": {
+   "corrective-maintenance": 1880,
+   "other": 317,
+   "restructuring": 416,
+   "capability-growth": 232,
+   "convergence-activity": 112,
+   "compatibility-work": 69
+  }
+ },
+ "rule_fired": {
+  "R2": 3425,
+  "R6": 186,
+  "R9": 624,
+  "R3": 489,
+  "R4": 903,
+  "R1": 368,
+  "R5": 114,
+  "R7": 120,
+  "R4>R5": 62,
+  "R3>R5": 33,
+  "R8": 21
+ }
+}

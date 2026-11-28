@@ -1,0 +1,46 @@
+finding_id: F-A1-028
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core ADR identifiers"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "6 date-sequence identifiers are each used by more than one core ADR file (13 files): 2026-04-14-1 (1.x and 3.x), 2026-08-12-1, 2026-08-13-1, 2026-09-20-1 (2 each), 2026-09-29-1 (3 files), 2026-10-31-1 (2 files, one Accepted, one Proposed). Citations in other records use the id alone (for example 'ADR 2026-09-29-1')."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/decision-timeline.csv"
+    method: "python3 evidence/A1/script-index-adrs.txt <scratch> <out> (indexes every ADR/decision file of the five repos + planning at head); Counter of the leading YYYY-MM-DD-N of core ids"
+    sha256: "98f525172cec2f99837a443c6f233bc680ac510fb5ea73a59e63b0adcdc105f7"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "all core ADR filenames"
+  not_covered: "citation sites"
+  population: "239 core ADRs"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "checked the ADR index README for a rule allowing duplicate ids"
+  result: "none found; the index bot keys rows by file"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,12 @@
+import sys,re,glob,os
+root=sys.argv[1]; pats=[p.lower() for p in sys.argv[2:]]
+for f in sorted(glob.glob(root+'/**/*.md',recursive=True)):
+    L=open(f,encoding='utf-8',errors='replace').read().split('\n')
+    for i,l in enumerate(L):
+        m=re.match(r'^(#{2,4}) (.*)',l)
+        if m and any(p==m.group(2).strip().lower() or (p.endswith('*') and m.group(2).strip().lower().startswith(p[:-1])) for p in pats):
+            lvl=len(m.group(1)); out=[]
+            for j in range(i,len(L)):
+                if j>i and re.match(r'^#{1,%d} '%lvl,L[j]): break
+                if L[j].strip() and L[j].strip()!='---' and not L[j].startswith('|---') and not L[j].startswith('| |'): out.append(f"{j+1}: {L[j][:600]}")
+            print('=== '+os.path.relpath(f,root)); print('\n'.join(out[:25]))

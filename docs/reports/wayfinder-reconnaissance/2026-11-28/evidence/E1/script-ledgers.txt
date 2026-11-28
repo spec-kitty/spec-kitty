@@ -1,0 +1,316 @@
+"""M05 ledger census. Usage: python3 ledgers.py <scratch> <outdir>
+Reads five shared clones src-<repo> at head. Pure git plumbing (git show / git log / git grep); no code is executed."""
+import subprocess,sys,re,json,csv,os,io,statistics,datetime,hashlib
+import yaml
+try: import tomllib
+except ImportError: tomllib=None
+S=sys.argv[1]; OUT=sys.argv[2]
+HEADS={'spec-kitty':'5c4fc5a79de1c1c299ab221ca26e5555c68ef533','spec-kitty-charter':'06cdfbe94856e8d24eca350c63d2a7b47bb9f13a','spec-kitty-events':'646e330b896b96d7a11f53b34aa3d0c0baa69a05','spec-kitty-open-packs':'f9a557510dc7ff04597a0b8aba87f736e25f785e','doc-kitty':'1acc49fbe209436d3c1666a86e8b3960ee19e5ac'}
+START='2026-09-07T00:00:00+00:00'; END='2026-11-28T23:59:59+00:00'
+def git(repo,*a,check=False):
+    r=subprocess.run(['git','-C',f'{S}/src-{repo}',*a],capture_output=True)
+    return r.stdout.decode('utf-8','replace') if (r.returncode==0 or not check) else None
+def show(repo,rev,path):
+    r=subprocess.run(['git','-C',f'{S}/src-{repo}','show',f'{rev}:{path}'],capture_output=True)
+    return r.stdout.decode('utf-8','replace') if r.returncode==0 else None
+def commits(repo,path):
+    out=git(repo,'log','--first-parent','--format=%H %cI',HEADS[repo],'--',path)
+    return [tuple(l.split(' ',1)) for l in out.splitlines()][::-1]
+def start_rev(repo):
+    return git(repo,'rev-list','-1','--first-parent','--before='+START,HEADS[repo]).strip() or None
+def J(x): return json.dumps(x,sort_keys=True,ensure_ascii=False,default=str)
+# ---------- extractors: text -> {key: blob}
+def ylist(pathexpr,idf,ctx=None):
+    def f(t):
+        try: d=yaml.safe_load(t)
+        except Exception: return None
+        cur=d
+        for k in pathexpr:
+            if not isinstance(cur,dict) or k not in cur: return {}
+            cur=cur[k]
+        out={}
+        for e in (cur or []):
+            if isinstance(e,dict):
+                key=J({k:e.get(k) for k in idf}) if idf else J(e)
+                blob=J(e)+(' || '+ctx(d,e) if ctx else '')
+            else: key=J(e); blob=J(e)
+            out[key]=blob
+        return out
+    return f
+def ykeys(pathexpr=()):
+    def f(t):
+        try: d=yaml.safe_load(t)
+        except Exception: return None
+        cur=d
+        for k in pathexpr:
+            if not isinstance(cur,dict) or k not in cur: return {}
+            cur=cur[k]
+        return {str(k):J(v) for k,v in (cur or {}).items()}
+    return f
+def txtlines(t):
+    out={}; block=[]
+    for l in t.splitlines():
+        s=l.strip()
+        if not s: block=[]; continue
+        if s.startswith('#'): block.append(s); continue
+        out[s]=' '.join(block[-12:])+' || '+s
+    return out
+def pydict_lines(symbol):
+    def f(t):
+        m=re.search(r'^%s[^\n]*=[^\n]*[{(]\s*$'%re.escape(symbol),t,re.M)
+        if not m: return {}
+        out={}; block=[]
+        for l in t[m.end():].splitlines():
+            s=l.strip()
+            if s.startswith('}') or s.startswith(')'): break
+            if s.startswith('#'): block.append(s); continue
+            mm=re.match(r'''["']([^"']+)["']\s*(?::\s*["']([^"']+)["'])?''',s)
+            if mm: out[mm.group(1)]=' '.join(block)+' || '+s; 
+            if not s.startswith('#') and mm: block=[]
+        return out
+    return f
+def toml_table(section_re):
+    def f(t):
+        m=re.search(section_re,t,re.M)
+        if not m: return {}
+        out={}; block=[]
+        for l in t[m.end():].splitlines():
+            s=l.strip()
+            if s.startswith('['): break
+            if s.startswith('#'): block.append(s); continue
+            mm=re.match(r'''["']([^"']+)["']\s*=\s*(.*)''',s)
+            if mm: out[mm.group(1)]=' '.join(block[-4:])+' || '+s
+            if not s: block=[]
+        return out
+    return f
+def toml_array(start_re):
+    def f(t):
+        m=re.search(start_re,t,re.M)
+        if not m: return {}
+        out={}; block=[]
+        for l in t[m.end():].splitlines():
+            s=l.strip()
+            if s.startswith(']'): break
+            if s.startswith('#'): block.append(s); continue
+            for q in re.findall(r'''["']([^"']+)["']''',s.split('#')[0]): out[q]=' '.join(block[-4:])+' || '+s
+        return out
+    return f
+def baselines_leaves(t):
+    out={}; sec=None; block=[]
+    for l in t.splitlines():
+        if not l.strip(): continue
+        if l.strip().startswith('#'): block.append(l.strip()); continue
+        m=re.match(r'^(\w+):\s*$',l)
+        if m: sec=m.group(1); continue
+        m=re.match(r'^\s+(\w+):\s*(\d+)\s*(#.*)?$',l)
+        if m and sec: out[f'{sec}.{m.group(1)}']=(int(m.group(2)),' '.join(block[-8:])+' '+(m.group(3) or '')); block=[]
+    return out
+def json_path(pathexpr,idf=None):
+    def f(t):
+        try: d=json.loads(t)
+        except Exception: return None
+        cur=d
+        for k in pathexpr:
+            if not isinstance(cur,dict) or k not in cur: return {}
+            cur=cur[k]
+        if isinstance(cur,dict): return {str(k):J(v) for k,v in cur.items()}
+        return {(J({k:e.get(k) for k in idf}) if idf and isinstance(e,dict) else J(e)):J(e) for e in (cur or [])}
+    return f
+def xml_suppress(t): return {m:m for m in re.findall(r'<suppress\s[^>]*>',t)}
+def ds_ctx(d,e):
+    c=(d.get('categories') or {}).get(e.get('category'),{})
+    return 'category: '+J(c)
+def regline(path_re):
+    def f(t):
+        out={}
+        for l in t.splitlines():
+            if re.search(path_re,l): out[l.strip()]=l.strip()
+        return out
+    return f
+A='tests/architectural/'
+def oom_dirs(t):
+    try: d=yaml.safe_load(t)
+    except Exception: return None
+    out={}
+    for r in (d or {}).get('out_of_matrix_test_dirs',[]) or []:
+        if r.get('per_pr_home'): continue
+        for x in r.get('dirs',[]): out[x]=str(r.get('reason',''))
+    return out
+HEAD_PREFIX=('#','//','<!--','schema_version','description','_comment','{')
+def header_text(repo,path,symbol=None):
+    t=show(repo,HEADS[repo],path) or ''
+    hs=[]
+    for l in t.splitlines():
+        s=l.strip()
+        if (not s) or s.startswith(HEAD_PREFIX) or s.startswith(chr(34)): hs.append(s)
+        else: break
+        if len(hs)>80: break
+    if symbol:
+        i=t.find(symbol+':')
+        if i<0: i=t.find(symbol)
+        hs+=[l.strip() for l in t[:i].splitlines()[-45:] if l.strip().startswith('#')]
+    return ' '.join(hs)
+FILE_LEDGERS=[
+ # repo, id, path, extractor, class, reader/gate
+ ('spec-kitty','dead-symbol-allowlist',A+'dead_symbol_allowlist.yaml',ylist(['entries'],['module','name'],ds_ctx),'allowlist','test_no_dead_symbols.py'),
+ ('spec-kitty','dead-symbol-widened-grandfathered-470',A+'dead_symbol_allowlist.yaml',ylist(['widened_grandfathered_470','entries'],None,lambda d,e:J({k:v for k,v in d['widened_grandfathered_470'].items() if k!='entries'})),'allowlist','test_no_dead_symbols.py'),
+ ('spec-kitty','charter-activation-boundary-baseline',A+'charter_activation_boundary_baseline.yaml',ylist([],['file','module']),'baseline','test_runtime_charter_activation_boundary.py'),
+ ('spec-kitty','charter-path-literal-allowlist',A+'charter_path_literal_allowlist.yaml',ylist(['charter_path_literals'],['file','qualname','literal','token']),'allowlist','test_charter_path_literal_authority.py'),
+ ('spec-kitty','activation-ledger-path-literals',A+'charter_path_literal_allowlist.yaml',ylist(['activation_ledger_path_literals'],None),'allowlist','test_charter_path_literal_authority.py'),
+ ('spec-kitty','charter-pack-path-allowlist',A+'charter_pack_path_allowlist.yaml',ylist(['charter_pack_path_literals'],None),'allowlist','test_charter_pack_path_authority.py'),
+ ('spec-kitty','inline-meta-read-allowlist',A+'inline_meta_read_allowlist.yaml',ylist(['inline_meta_read'],['file','qualname','token']),'allowlist','test_inline_meta_read_gate.py'),
+ ('spec-kitty','mission-type-reader-exemptions',A+'mission_type_reader_allowlist.yaml',ylist(['exemptions'],['path','kinds']),'allowlist','test_mission_type_reader_invariants.py'),
+ ('spec-kitty','requirement-id-pattern-allowlist',A+'requirement_id_pattern_allowlist.yaml',ylist(['requirement_id_pattern_literals'],None),'allowlist','test_requirement_id_grammar_single_source.py'),
+ ('spec-kitty','inert-slots-baseline',A+'_inert_slots_baseline.yaml',ylist(['entries'],['name','declared_at']),'baseline','test_no_inert_schema_slots.py'),
+ ('spec-kitty','builtin-pack-provenance-baseline',A+'_builtin_pack_provenance_baseline.yaml',ykeys(),'baseline','test_builtin_pack_provenance_ratchet.py'),
+ ('spec-kitty','home-pin-anchor-census',A+'census/spec_kitty_home_pin_anchor.yaml',ylist(['rows'],['key']),'census','test_spec_kitty_home_pin_census.py'),
+ ('spec-kitty','home-pin-R1a-census',A+'census/spec_kitty_home_pin_R1a.yaml',ylist(['rows'],None),'census','test_spec_kitty_home_pin_census.py'),
+ ('spec-kitty','ci-topology-census-worklist',A+'ci_topology_census.json',json_path(['worklist'],['dir']),'census','test_ci_quality_path_filters.py'),
+ ('spec-kitty','p1-census-surfaces',A+'p1_census/census.json',json_path(['surfaces'],['surface']),'census','test_p1_census_oracle.py'),
+ ('spec-kitty','superseded-migrations','src/specify_cli/upgrade/supersession.py',pydict_lines('SUPERSEDED_MIGRATIONS'),'superseded-migrations','registry.py / test_migration_order_manifest.py'),
+ ('spec-kitty','shim-registry','docs/migrations/shim-registry.yaml',ylist(['shims'],None),'shim-registry','test_shim_registry_schema.py / test_unregistered_shim_scanner.py'),
+ ('spec-kitty','ruff-per-file-ignores','ruff.toml',toml_table(r'^\[lint\.extend-per-file-ignores\]'),'lint-baseline','ruff (ci-router job ruff) / test_ruff_pytest_style_baseline.py'),
+ ('spec-kitty','ruff-format-exclude','pyproject.toml',toml_array(r'^\[tool\.ruff\.format\][\s\S]*?^exclude\s*=\s*\['),'lint-baseline','test_ruff_format_exclude_ratchet.py'),
+ ('spec-kitty','mypy-transitional-quarantine','pyproject.toml',toml_array(r'# Transitional quarantine[^\n]*\nmodule\s*=\s*\['),'typing-baseline','mypy (Makefile typecheck)'),
+ ('spec-kitty','foreign-coverage-dark-roots','.github/ci-foreign-coverage-baseline.json',json_path(['dark_roots']),'coverage-baseline','coverage guards'),
+ ('spec-kitty','foreign-coverage-truly-dark-packages','.github/ci-foreign-coverage-baseline.json',json_path(['truly_dark_packages']),'coverage-baseline','coverage guards'),
+ ('spec-kitty','foreign-coverage-in-matrix-dark-packages','.github/ci-foreign-coverage-baseline.json',json_path(['in_matrix_dark_packages']),'coverage-baseline','coverage guards'),
+ ('spec-kitty','layer-ledger-runtime-allowed-specify-cli',A+'test_layer_rules.py',pydict_lines('_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str]'),'in-code allowlist','test_layer_rules.py'),
+ ('spec-kitty','layer-ledger-mission-runtime-allowed-specify-cli',A+'test_layer_rules.py',pydict_lines('_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str]'),'in-code allowlist','test_layer_rules.py'),
+ ('spec-kitty','ci-out-of-matrix-test-dirs','.github/ci-module-registry.yml',oom_dirs,'ci-coverage-exception','test_module_shard_registry.py'),
+ ('spec-kitty-charter','checkstyle-suppressions-register','config/checkstyle/suppressions.xml',xml_suppress,'suppression-register','CheckstyleRegister.kt'),
+ ('doc-kitty','example-url-baseline','example/url-baseline.txt',txtlines,'baseline','check-redirect-coverage.mjs'),
+]
+for f in ['charter','doctrine','glossary','runtime','shared','specify_auth_compat','specify_cli_agent','specify_cli_rest','specify_core','specify_misc','specify_status_merge','specify_sync','lock-ban-wp04','lock-ban-wp05','no_follow_symlinks_apply','os-detect-ban-deferred','os-detect-ban-mypy-narrowing','os-detect-ban-sanctioned-raw','os-detect-ban-wp03','os-detect-ban-wp04','root_vacuous_denial']:
+    FILE_LEDGERS.append(('spec-kitty','exemptions/'+f,A+'_exemptions/'+f+'.txt',txtlines,'exemption-list','clock/lock/os-detection/symlink/root-denial gates'))
+for i in range(1,9):
+    FILE_LEDGERS.append(('spec-kitty',f'global-state-allowlist/S{i}',A+f'global_state_allowlist/S{i}.yaml',ylist(['rows'],['file','qualname','kind']),'allowlist','test_no_manual_global_state_mutation.py'))
+# marker scans: repo,id,pathspecs,regex(for git grep -E),class
+SCANS=[
+ ('spec-kitty','py-xfail-markers',['tests/*.py'],r'pytest\.mark\.xfail\(|pytest\.xfail\(','expected-failure'),
+ ('spec-kitty','py-p0-repro-markers',['tests/*.py'],r'p0_repro\(issue','expected-failure'),
+ ('spec-kitty','py-quarantine-markers',['tests/*.py'],r'mark\.quarantine','quarantine'),
+ ('spec-kitty','src-type-ignore',['src/*.py'],r'# type: ignore','inline-suppression'),
+ ('spec-kitty','src-noqa',['src/*.py'],r'# noqa','inline-suppression'),
+ ('spec-kitty','src-deprecated-or-hidden-cli',['src/*.py'],r'deprecated=True|hidden=True','compat-alias'),
+ ('spec-kitty-events','py-xfail-markers',['*.py'],r'pytest\.mark\.xfail\(|pytest\.xfail\(','expected-failure'),
+ ('spec-kitty-events','src-type-ignore-noqa',['src/*.py'],r'# type: ignore|# noqa','inline-suppression'),
+ ('spec-kitty-events','java-disabled',['*.java'],r'@Disabled','expected-failure'),
+ ('spec-kitty-events','java-suppresswarnings',['*.java'],r'@SuppressWarnings','inline-suppression'),
+ ('spec-kitty-charter','java-disabled',['*.java','*.kt'],r'@Disabled','expected-failure'),
+ ('spec-kitty-charter','java-suppresswarnings',['*.java'],r'@SuppressWarnings','inline-suppression'),
+ ('spec-kitty-charter','java-nosonar',['*.java','*.kt'],r'NOSONAR','inline-suppression'),
+ ('doc-kitty','eslint-disable',['*.ts','*.tsx','*.mjs','*.js','*.astro'],r'eslint-disable','inline-suppression'),
+ ('doc-kitty','ts-ignore-expect-error',['*.ts','*.tsx','*.mjs','*.astro'],r'@ts-(ignore|expect-error)','inline-suppression'),
+ ('doc-kitty','test-skip-fixme-todo',['*.ts','*.tsx','*.mjs','*.js'],r'\b(it|test|describe)\.(skip|fixme|todo)\(','expected-failure'),
+ ('spec-kitty-open-packs','py-noqa-type-ignore',['*.py'],r'# type: ignore|# noqa','inline-suppression'),
+]
+MODFILES=[('spec-kitty','src-legacy-compat-shim-modules',r'^src/.*(legacy|compat|shim|deprecat|alias)[^/]*\.py$','legacy/compat module (by file name)')]
+SYMS={'layer-ledger-runtime-allowed-specify-cli':'_RUNTIME_ALLOWED_SPECIFY_CLI','layer-ledger-mission-runtime-allowed-specify-cli':'_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI','superseded-migrations':'SUPERSEDED_MIGRATIONS'}
+ISSUE=re.compile(r'(?<![\w/])#\d{2,5}\b|issues/\d+|planning#\d+|\b[a-z-]+#\d+\b')
+ADR=re.compile(r'\bADR\b|docs/adr|adr[ -]?\d{4}',re.I)
+RETIRE=re.compile(r'drain|remove[sd]? (this |the |it )?(once|when|after|by|line)|delete (a line |this )?once|until |retire[sd]? (when|once|by|after)|sunset|expir|exit:|target\s*=\s*0|removal_release|removal release|by 20\d\d-\d\d|drain_by|remove_by|re-?justif',re.I)
+OWNER=re.compile(r'\bowner\b|owned by|owner:',re.I)
+RATION=re.compile(r'rationale|reason|justification|note|because|why',re.I)
+APPROV=re.compile(r'approv|ruling|operator|sanction|authoriz|accepted by|signed off',re.I)
+def flags(blob): return dict(issue=bool(ISSUE.search(blob)),adr=bool(ADR.search(blob)),retire=bool(RETIRE.search(blob)),owner=bool(OWNER.search(blob)),rationale=bool(RATION.search(blob)),approval=bool(APPROV.search(blob)))
+def d(s): return datetime.datetime.fromisoformat(s)
+END_D=d(END); START_D=d(START)
+ledger_rows=[]; entry_rows=[]
+def summarize(repo,lid,path,cls,gate,now,first_seen,start_set,added,removed,note='',header=''):
+    hf=flags(header)
+    n=len(now); ref=sum(1 for b in now.values() if (lambda f:f['issue'] or f['adr'] or f['retire'])(flags(b)))
+    ages=[(END_D-d(first_seen[k])).days for k in now if k in first_seen]
+    def q(p): 
+        if not ages: return ''
+        a=sorted(ages); return a[min(len(a)-1,int(p*len(a)))]
+    sc=None if start_set is None else len(start_set)
+    net=None if sc is None else n-sc
+    trend='' if net is None else ('flat' if net==0 else 'growing' if net>0 else 'shrinking')
+    ledger_rows.append(dict(repo=repo,ledger=lid,path=path,ledger_class=cls,read_by=gate,entries_now=n,entries_at_2026_09_07=('' if sc is None else sc),added_in_range=added,removed_in_range=removed,net_change=('' if net is None else net),trend=trend,entries_with_tracking_ref_or_retirement=ref,share_with_ref=(round(ref/n,3) if n else ''),with_issue=sum(flags(b)['issue'] for b in now.values()),with_adr=sum(flags(b)['adr'] for b in now.values()),with_retirement_condition=sum(flags(b)['retire'] for b in now.values()),age_days_min=(min(ages) if ages else ''),age_days_median=(statistics.median(ages) if ages else ''),age_days_p90=q(0.9),age_days_max=(max(ages) if ages else ''),header_issue=hf['issue'],header_adr=hf['adr'],header_retirement=hf['retire'],header_owner=hf['owner'],note=note))
+    for k,b in now.items():
+        f=flags(b)
+        entry_rows.append(dict(repo=repo,ledger=lid,path=path,key=k[:300],first_seen=first_seen.get(k,''),age_days=((END_D-d(first_seen[k])).days if k in first_seen else ''),**f,blob=b[:1200]))
+ONLY=os.environ.get('LEDGER_ONLY')
+if ONLY: FILE_LEDGERS=[x for x in FILE_LEDGERS if re.search(ONLY,x[1])]; SCANS=[]; MODFILES=[]
+for repo,lid,path,ext,cls,gate in FILE_LEDGERS:
+    cs=commits(repo,path)
+    if not cs: 
+        ledger_rows.append(dict(repo=repo,ledger=lid,path=path,ledger_class=cls,read_by=gate,entries_now='',note='file not found at head')); continue
+    first_seen={}; prev=None; start_set=None; added=removed=0; existed_before=False; bad=0
+    for sha,dt in cs:
+        t=show(repo,sha,path)
+        cur=ext(t) if t is not None else {}
+        if cur is None: bad+=1; continue
+        ks=set(cur)
+        for k in ks: first_seen.setdefault(k,dt)
+        if d(dt)<START_D: start_set=ks; existed_before=True
+        elif prev is not None or True:
+            p=prev if prev is not None else set()
+            if d(dt)<=END_D: added+=len(ks-p); removed+=len(p-ks)
+        prev=ks
+    now=ext(show(repo,HEADS[repo],path)) or {}
+    note=f'{len(cs)} commits to file on first-parent history'+('' if existed_before else '; file (at this path) did not exist on 2026-09-07, start count taken as 0')+(f'; {bad} unparseable revisions skipped' if bad else '')
+    summarize(repo,lid,path,cls,gate,now,first_seen,start_set if existed_before else set(),added,removed,note,header=header_text(repo,path,SYMS.get(lid)))
+# _baselines.yaml leaves (count ledgers)
+BP=A+'_baselines.yaml'; cs=commits('spec-kitty',BP); DUP={'test_no_dead_symbols.allowlist_entries','test_no_dead_symbols.widened_grandfathered_470','test_runtime_charter_activation_boundary.boundary_baseline','test_no_inert_schema_slots.baseline_entries','test_layer_rules.mission_runtime_allowed_specify_cli','test_layer_rules.runtime_allowed_specify_cli'}
+hist=[]; 
+for sha,dt in cs:
+    t=show('spec-kitty',sha,BP); hist.append((dt,baselines_leaves(t) if t else {}))
+nowl=hist[-1][1]; startl={}
+for dt,l in hist:
+    if d(dt)<START_D: startl=l
+baseline_rows=[]
+for leaf,(val,blob) in sorted(nowl.items()):
+    fs=next(dt for dt,l in hist if leaf in l); sv=startl.get(leaf,(None,))[0]
+    up=down=0; pv=None
+    for dt,l in hist:
+        v=l.get(leaf,(None,))[0]
+        if v is not None and pv is not None and d(dt)>=START_D: up+=max(0,v-pv); down+=max(0,pv-v)
+        if v is not None: pv=v
+    f=flags(blob)
+    baseline_rows.append(dict(leaf=leaf,value_now=val,value_at_2026_09_07=('' if sv is None else sv),raised_by_in_range=up,lowered_by_in_range=down,net=('' if sv is None else val-sv),leaf_first_seen=fs,duplicate_of_file_ledger=leaf in DUP,**f,justification=blob[:700]))
+# scans
+def scan(repo,rev,specs,rx):
+    out=git(repo,'grep','-n','-I','-E',rx,rev,'--',*specs)
+    res=[]
+    for l in out.splitlines():
+        p=l.split(':',3)
+        if len(p)<4: continue
+        res.append((p[1],int(p[2]),p[3].strip()))
+    return res
+def blame_date(repo,path,line):
+    out=git(repo,'blame','--porcelain','-L',f'{line},{line}',HEADS[repo],'--',path)
+    m=re.search(r'^committer-time (\d+)',out,re.M)
+    return datetime.datetime.fromtimestamp(int(m.group(1)),datetime.timezone.utc).isoformat() if m else ''
+for repo,lid,specs,rx,cls in SCANS:
+    hits=scan(repo,HEADS[repo],specs,rx); sr=start_rev(repo)
+    # self-referential: drop test files that test the scanners themselves? keep; noted.
+    start_hits=scan(repo,sr,specs,rx) if sr else None
+    now={}; first_seen={}
+    lines_cache={}
+    for path,ln,text in hits:
+        if path not in lines_cache: lines_cache[path]=(show(repo,HEADS[repo],path) or '').splitlines()
+        L=lines_cache[path]; ctx=' '.join(x.strip() for x in L[max(0,ln-4):ln+8])
+        k=f'{path}::{text[:160]}::{sum(1 for kk in now if kk.startswith(path+"::"+text[:160]))}'
+        now[k]=ctx
+        if len(hits)<=400: first_seen[k]=blame_date(repo,path,ln)
+    startkeys=None
+    if start_hits is not None:
+        startkeys=set(); 
+        for path,ln,text in start_hits: startkeys.add(f'{path}::{text[:160]}::{sum(1 for kk in startkeys if kk.startswith(path+"::"+text[:160]))}')
+    nk=set(now); a=len(nk-startkeys) if startkeys is not None else ''; r=len(startkeys-nk) if startkeys is not None else ''
+    summarize(repo,lid,'git grep -E %r -- %s'%(rx,' '.join(specs)),cls,'(marker scan)',now,{k:v for k,v in first_seen.items() if v},startkeys,a,r,note='marker scan at two endpoints; added/removed are endpoint set differences keyed on path+line text (a moved or reworded marker counts as one removal and one addition); age = git blame date of the marker line'+('' if len(hits)<=400 else '; age not computed (more than 400 hits)')+('' if sr else '; repository has no first-parent commit before 2026-09-07'))
+for repo,lid,rx,cls in MODFILES:
+    def lf(rev): return set(p for p in git(repo,'ls-tree','-r','--name-only',rev).splitlines() if re.search(rx,p))
+    now=lf(HEADS[repo]); sr=start_rev(repo); st=lf(sr)
+    fs={}
+    for p in now:
+        o=git(repo,'log','--first-parent','--diff-filter=A','--format=%cI',HEADS[repo],'--',p).splitlines()
+        if o: fs[p]=o[-1]
+    summarize(repo,lid,'git ls-tree -r | grep -E %r'%rx,cls,'(file-name scan)',{p:p for p in now},fs,st,len(now-st),len(st-now),note='file-name pattern only; a name match does not prove the module is transitional')
+cols=['repo','ledger','path','ledger_class','read_by','entries_now','entries_at_2026_09_07','added_in_range','removed_in_range','net_change','trend','entries_with_tracking_ref_or_retirement','share_with_ref','with_issue','with_adr','with_retirement_condition','age_days_min','age_days_median','age_days_p90','age_days_max','header_issue','header_adr','header_retirement','header_owner','note']
+w=csv.DictWriter(open(f'{OUT}/ledgers.csv','w',newline=''),fieldnames=cols); w.writeheader(); [w.writerow({c:r.get(c,'') for c in cols}) for r in ledger_rows]
+w=csv.DictWriter(open(f'{OUT}/ledger_entries.csv','w',newline=''),fieldnames=list(entry_rows[0].keys())); w.writeheader(); w.writerows(entry_rows)
+w=csv.DictWriter(open(f'{OUT}/ratchet_baseline_leaves.csv','w',newline=''),fieldnames=list(baseline_rows[0].keys())); w.writeheader(); w.writerows(baseline_rows)
+print('ledgers',len(ledger_rows),'entries',len(entry_rows),'leaves',len(baseline_rows))

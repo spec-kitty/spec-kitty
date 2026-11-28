@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""M02a/M02b frames, seeded samples, and per-fix tracing dossiers (blame-derived introducer candidates)."""
+import json, random, re, subprocess, sys, collections, csv
+REPO = sys.argv[1]; COMMITS = sys.argv[2]; OUT = sys.argv[3]; DOSS = sys.argv[4]
+def git(*a, check=True):
+    return subprocess.run(["git", "-C", REPO, *a], capture_output=True, text=True, check=check).stdout
+rs = [json.loads(l) for l in open(COMMITS)]
+FIXSUBJ = re.compile(r"^(fix|hotfix|bugfix|revert|fixup|fold)(\([^)]*\))?!?:|^Revert |^landing fold|^fold:|^(fix|fixes|fixed|repair|correct|resolve)\b", re.I)
+FIXKW = re.compile(r"\b(bug|bugfix|regression|hotfix|broken|crash\w*|fix(es|ed)?)\b", re.I)
+def is_fix(s):
+    return bool(FIXSUBJ.search(s)) or bool(FIXKW.search(s))
+PIN = re.compile(r"^(packs/[^/]+\.source\.yaml|pins/.+|uv\.lock)$")
+def contract(p):
+    return p.startswith("contracts/") or "/contracts/" in p or p.endswith("upstream_contract.json") or p.startswith("docs/contracts/")
+DEP = re.compile(r'^[+-]\s*"?[A-Za-z0-9_.\-\[\]]+\s*(==|>=|<=|~=|<|>|!=)')
+def pyproject_dep_change(sha):
+    d = git("show", "--format=", "-U0", sha, "--", "pyproject.toml")
+    return any(DEP.match(l) for l in d.splitlines() if l[:1] in "+-" and not l.startswith(("+++", "---")))
+def all_paths(sha):
+    return [l for l in git("show", "--format=", "--name-only", "-M", sha).splitlines() if l]
+frame_a, frame_b, nonframe = [], [], 0
+cand = [x for x in rs if x['line'] == 'main-post' and not x['merge'] and not x['bulk'] and x['utc'][:10] >= '2026-09-07' and is_fix(x['subject'])]
+for x in cand:
+    paths = all_paths(x['sha'])
+    pins = [p for p in paths if PIN.match(p)]
+    if "pyproject.toml" in paths and pyproject_dep_change(x['sha']): pins.append("pyproject.toml(dependency lines)")
+    cons = [p for p in paths if contract(p)]
+    x['pins'] = pins; x['cons'] = cons
+    if len(x['components']) >= 2 or pins or cons: frame_a.append(x)
+    elif len(x['components']) == 1: frame_b.append(x)
+    else: nonframe += 1
+r = random.Random(20261128)
+sa = r.sample(sorted(frame_a, key=lambda x: x['sha']), 30)
+sb = r.sample(sorted(frame_b, key=lambda x: x['sha']), 30)
+json.dump(dict(fix_subject_commits_main_2026_09_07_to_11_28=len(cand), frame_a=len(frame_a), frame_b=len(frame_b), fix_commits_touching_no_component_and_no_pin_contract=nonframe,
+               frame_a_by_trigger=dict(ge2_components=sum(1 for x in frame_a if len(x['components']) >= 2), pin=sum(1 for x in frame_a if x['pins']), contract=sum(1 for x in frame_a if x['cons'])),
+               sample_a=[x['sha'] for x in sa], sample_b=[x['sha'] for x in sb]), open(f"{OUT}/M02-frames-and-samples.json", "w"), indent=1)
+
+def blame_introducers(x):
+    par = x['parents'][0]
+    diff = git("show", "--format=", "-U0", "--no-renames", x['sha'], "--", "src")
+    cur = None; cnt = collections.Counter(); spans = []
+    for l in diff.splitlines():
+        if l.startswith("--- a/"): cur = l[6:]
+        elif l.startswith("--- /dev/null"): cur = None
+        elif l.startswith("@@") and cur:
+            m = re.match(r"@@ -(\d+)(?:,(\d+))? \+", l)
+            st, n = int(m.group(1)), int(m.group(2) or 1)
+            if n == 0:  # pure insertion: blame the line above as context
+                if st > 0: spans.append((cur, st, 1))
+            else: spans.append((cur, st, n))
+    for f, st, n in spans[:60]:
+        out = git("blame", "--porcelain", "-L", f"{st},{st + n - 1}", par, "--", f, check=False)
+        for l in out.splitlines():
+            if re.match(r"^[0-9a-f]{40} \d+ \d+", l): cnt[l[:40]] += 1
+    return cnt
+with open(DOSS, "w") as fo:
+    for lab, smp in (("A", sa), ("B", sb)):
+        for i, x in enumerate(smp):
+            body = git("log", "-1", "--format=%B", x['sha'])
+            fo.write(f"\n######## {lab}{i:02d} {x['sha']} {x['utc']} comps={x['components']} pins={x.get('pins')} contracts={x.get('cons')}\n")
+            fo.write(body[:1600] + "\n")
+            cnt = blame_introducers(x); tot = sum(cnt.values())
+            fo.write(f"-- blame of modified/removed lines at parent: {tot} lines\n")
+            for sha, n in cnt.most_common(3):
+                info = git("log", "-1", "--format=%cs | %s", sha)
+                # when did the introducer reach main (first-parent commit of head containing it)?
+                fo.write(f"   {n:4d} {sha[:12]} {info.strip()[:150]}\n")
+                ib = git("log", "-1", "--format=%B", sha)
+                refs = sorted(set(re.findall(r"#\d+", ib)))[:8]
+                wp = re.findall(r"\bWP\d{2}\b", ib)[:3]
+                fo.write(f"        refs={refs} wp={wp} body1={ib.splitlines()[2] if len(ib.splitlines()) > 2 else ''!r:.160}\n")
+print(len(cand), len(frame_a), len(frame_b), nonframe)

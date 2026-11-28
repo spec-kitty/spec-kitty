@@ -1,0 +1,46 @@
+finding_id: F-A1-026
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M3 decision timeline (index)"
+  deviation: null
+subject:
+  component: "decision records"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "521 decision records indexed at head: spec-kitty 239 (1.x 12, 2.x 37, 3.x 138, 4.x 52; 2026-01-23 to 2026-11-08), spec-kitty-charter 83 (2026-10-13 to 2026-11-22), doc-kitty 85, spec-kitty-open-packs 16, spec-kitty-events 8 (2026-10-27 to 2026-11-06), planning decisions 34 (2026-08-22 to 2026-09-14) and planning Kitty Shared Architecture v0.11 56. Status classes (heuristic): core 183 accepted, 30 superseded, 26 proposed; charter 59 accepted, 22 accepted-and-partly-superseded, 2 proposed. October 2026 is the month with most records (119 of 465 excluding v0.11). Dates came from frontmatter or status lines for 423 records and from git first-add date for 98 (doc-kitty and v0.11)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/decision-timeline.csv"
+    method: "python3 evidence/A1/script-index-adrs.txt <scratch> <out> (indexes every ADR/decision file of the five repos + planning at head)"
+    sha256: "98f525172cec2f99837a443c6f233bc680ac510fb5ea73a59e63b0adcdc105f7"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "all ADR trees of five repos, planning decisions/ and architecture/docs/adr"
+  not_covered: "ADR-like records outside ADR folders (e.g. charter repo plans/open-questions)"
+  population: "521 records"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "cross-checked counts against `ls | wc -l` of each ADR folder (minus README/templates)"
+  result: "counts match the folder listings"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

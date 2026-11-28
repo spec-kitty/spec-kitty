@@ -1,0 +1,43 @@
+import subprocess,collections,statistics,csv,datetime,sys,re
+REPO='events'; H='646e330b896b96d7a11f53b34aa3d0c0baa69a05'
+out=subprocess.run(['git','-C',REPO,'log','--no-merges','--no-renames','--name-only','--format=\x1e%H %ct %s',H],capture_output=True,text=True).stdout
+def comp_py(p):
+    if not p.startswith('src/spec_kitty_events/'): return None
+    rest=p[len('src/spec_kitty_events/'):].split('/')
+    return rest[0] if len(rest)>1 else re.sub(r'\.py$','',rest[0])
+def comp_java(p):
+    parts=p.split('/')
+    if parts[0] in ('service','contracts','java') and len(parts)>2: return parts[0]+'/'+parts[1]
+    return None
+rows=[]; recs=[]
+for rec in out.split('\x1e')[1:]:
+    ls=[l for l in rec.split('\n') if l.strip()]
+    sha,ct=ls[0].split()[:2]; subj=ls[0].split(' ',2)[2] if len(ls[0].split(' '))>2 else ''
+    paths=ls[1:]
+    m=datetime.datetime.fromtimestamp(int(ct),datetime.timezone.utc).strftime('%Y-%m')
+    if len(paths)>500: recs.append((sha,m,'bulk',None,None,subj)); continue
+    py=sorted(set(c for c in map(comp_py,paths) if c)); jv=sorted(set(c for c in map(comp_java,paths) if c))
+    recs.append((sha,m,'ok',py,jv,subj))
+def st(v):
+    s=sorted(v);k=(len(s)-1)*0.9;f=int(k);c=min(f+1,len(s)-1)
+    return [len(v),statistics.median(v),round(s[f]+(s[c]-s[f])*(k-f),2),round(sum(v)/len(v),3),round(sum(1 for a in v if a>=2)/len(v),4)]
+months=sorted(set(r[1] for r in recs))
+fix=re.compile(r'^(fix|hotfix|revert)(\(|:|!)|^Revert ',re.I)
+with open('out/events-sibling-series.csv','w',newline='') as f:
+    w=csv.writer(f); w.writerow(['scope','key','component_set','subset','n_code_commits','median','p90','mean','share_ge2','nonmerge_commits_total','bulk_excluded'])
+    def emit(scope,key,sub):
+        allc=len(sub); bulk=sum(1 for r in sub if r[2]=='bulk')
+        for name,idx in (('python-modules',3),('python+java-modules',None)):
+            for subset in ('ALL','fix-subject'):
+                v=[]
+                for r in sub:
+                    if r[2]!='ok': continue
+                    if subset=='fix-subject' and not fix.search(r[5]): continue
+                    cs=r[3] if idx==3 else r[3]+r[4]
+                    if cs: v.append(len(cs))
+                if v: w.writerow([scope,key,name,subset,*st(v),allc,bulk])
+    for m in months: emit('month',m,[r for r in recs if r[1]==m])
+    for p,(a,b) in {'T1':('2026-04','2026-06'),'T2':('2026-07','2026-09-05'),'T3':('2026-09-06','2026-11')}.items():
+        pass
+    emit('overall','2026-01..2026-11',recs)
+print(len(recs))

@@ -1,0 +1,518 @@
+path,distinct_months_with_corrective_commits,months
+src/specify_cli/cli/commands/agent/tasks.py,11,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/workflow.py,11,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/upgrade.py,11,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/__init__.py,10,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/accept.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/implement.py,10,2026-01 2026-02 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/init.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/git/commit_helpers.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/orchestrator_api/commands.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/status/emit.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/upgrade/runner.py,10,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/status.py,9,2026-02 2026-03 2026-04 2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/merge.py,9,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09
+src/specify_cli/core/git_ops.py,9,2026-01 2026-02 2026-03 2026-04 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/dashboard/scanner.py,9,2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09
+src/specify_cli/status/doctor.py,9,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/status/store.py,9,2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/__init__.py,8,2026-01 2026-02 2026-04 2026-05 2026-07 2026-08 2026-10 2026-11
+src/specify_cli/cli/commands/decision.py,8,2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/doctor.py,8,2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/mission_type.py,8,2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/next_cmd.py,8,2026-03 2026-04 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/core/paths.py,8,2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-11
+src/specify_cli/core/upstream_contract.json,8,2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/mission.py,8,2026-01 2026-02 2026-03 2026-04 2026-06 2026-07 2026-09 2026-10
+src/specify_cli/status/reducer.py,8,2026-03 2026-04 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/acceptance/__init__.py,7,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/agent_utils/status.py,7,2026-01 2026-04 2026-05 2026-06 2026-07 2026-08 2026-10
+src/specify_cli/cli/commands/migrate_cmd.py,7,2026-02 2026-03 2026-04 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/sync.py,7,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/cli/commands/tracker.py,7,2026-03 2026-04 2026-05 2026-06 2026-08 2026-09 2026-10
+src/specify_cli/coordination/transaction.py,7,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/core/mission_creation.py,7,2026-04 2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/core/worktree.py,7,2026-01 2026-02 2026-04 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/core/worktree_topology.py,7,2026-02 2026-04 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/dashboard/static/dashboard/dashboard.js,7,2026-01 2026-02 2026-03 2026-04 2026-05 2026-08 2026-09
+src/specify_cli/dossier/indexer.py,7,2026-02 2026-03 2026-04 2026-07 2026-08 2026-10 2026-11
+src/specify_cli/frontmatter.py,7,2026-01 2026-02 2026-03 2026-07 2026-08 2026-10 2026-11
+src/specify_cli/invocation/executor.py,7,2026-04 2026-05 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/lanes/compute.py,7,2026-04 2026-05 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/lanes/worktree_allocator.py,7,2026-04 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/migration/mission_state.py,7,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/review/baseline.py,7,2026-04 2026-05 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/skills/command_installer.py,7,2026-04 2026-05 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/status/lifecycle_events.py,7,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/status/models.py,7,2026-03 2026-04 2026-05 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/status/work_package_lifecycle.py,7,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/sync/queue.py,7,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07 2026-08
+src/mission_runtime/__init__.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/mission_runtime/resolution.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/runtime/next/runtime_bridge.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/acceptance/matrix.py,6,2026-05 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/charter_runtime/freshness/computer.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/agent/config.py,6,2026-01 2026-04 2026-06 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/context.py,6,2026-03 2026-04 2026-06 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/agent/mission_finalize.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/_synthesis.py,6,2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/activate.py,6,2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/deactivate.py,6,2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/generate.py,6,2026-05 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/list_cmd.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/charter/synthesize.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/doctrine.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/glossary.py,6,2026-02 2026-03 2026-04 2026-05 2026-10 2026-11
+src/specify_cli/cli/commands/lifecycle.py,6,2026-02 2026-04 2026-06 2026-07 2026-09 2026-10
+src/specify_cli/cli/commands/retrospect.py,6,2026-05 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/review/__init__.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-11
+src/specify_cli/cli/helpers.py,6,2026-02 2026-03 2026-05 2026-07 2026-09 2026-10
+src/specify_cli/context/mission_resolver.py,6,2026-04 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/coordination/commit_router.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/coordination/surface_resolver.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/core/vcs/git.py,6,2026-01 2026-02 2026-03 2026-08 2026-09 2026-10
+src/specify_cli/gitignore_manager.py,6,2026-02 2026-03 2026-04 2026-08 2026-09 2026-10
+src/specify_cli/lanes/implement_support.py,6,2026-04 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/manifest.py,6,2026-01 2026-02 2026-03 2026-04 2026-06 2026-09
+src/specify_cli/merge/executor.py,6,2026-01 2026-02 2026-06 2026-07 2026-08 2026-09
+src/specify_cli/merge/preflight.py,6,2026-01 2026-02 2026-06 2026-07 2026-08 2026-09
+src/specify_cli/mission_metadata.py,6,2026-04 2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/missions/_substantive.py,6,2026-04 2026-05 2026-06 2026-07 2026-09 2026-10
+src/specify_cli/paths/windows_paths.py,6,2026-04 2026-05 2026-06 2026-07 2026-09 2026-11
+src/specify_cli/retrospective/generator.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/review/arbiter.py,6,2026-04 2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/skills/installer.py,6,2026-04 2026-05 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/status/__init__.py,6,2026-06 2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/status/validate.py,6,2026-02 2026-03 2026-04 2026-09 2026-10 2026-11
+src/specify_cli/sync/__init__.py,6,2026-03 2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/sync/background.py,6,2026-02 2026-03 2026-04 2026-05 2026-07 2026-08
+src/specify_cli/sync/dossier_pipeline.py,6,2026-03 2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/sync/emitter.py,6,2026-02 2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/sync/events.py,6,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07
+src/specify_cli/sync/project_identity.py,6,2026-02 2026-03 2026-04 2026-05 2026-06 2026-07
+src/specify_cli/task_utils/support.py,6,2026-05 2026-06 2026-07 2026-08 2026-09 2026-11
+src/specify_cli/template/manager.py,6,2026-01 2026-03 2026-04 2026-06 2026-09 2026-10
+src/charter/compiler.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/charter/context.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/charter/drg.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/doctrine/drg/migration/extractor.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/doctrine/drg/models.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/doctrine/skills/spec-kitty-charter-doctrine/SKILL.md,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/doctrine/skills/spec-kitty-mission-system/SKILL.md,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/mission_runtime/artifacts.py,5,2026-06 2026-07 2026-08 2026-10 2026-11
+src/runtime/next/runtime_bridge_composition.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/runtime/next/runtime_bridge_io.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/_completion_manifest.json,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/audit/shape_registry.py,5,2026-05 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/auth/token_manager.py,5,2026-04 2026-05 2026-06 2026-08 2026-09
+src/specify_cli/bulk_edit/gate.py,5,2026-05 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/_auth_doctor.py,5,2026-04 2026-05 2026-06 2026-08 2026-09
+src/specify_cli/cli/commands/_coordination_doctor.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_parsing.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_record_analysis.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_setup_plan.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_move_task.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_parsing_validation.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_status_cmd.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_transition_core.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/workflow_executor.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent_retrospect.py,5,2026-05 2026-06 2026-08 2026-10 2026-11
+src/specify_cli/cli/commands/charter/context.py,5,2026-05 2026-06 2026-08 2026-10 2026-11
+src/specify_cli/cli/commands/charter/interview.py,5,2026-05 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/implement_cores.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/intake.py,5,2026-04 2026-05 2026-07 2026-08 2026-09
+src/specify_cli/cli/commands/research.py,5,2026-01 2026-03 2026-04 2026-09 2026-10
+src/specify_cli/cli/commands/review/ERROR_CODES.md,5,2026-05 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/review/_report.py,5,2026-05 2026-06 2026-07 2026-09 2026-11
+src/specify_cli/cli/commands/safe_commit_cmd.py,5,2026-05 2026-06 2026-08 2026-09 2026-10
+src/specify_cli/cli/selector_resolution.py,5,2026-04 2026-06 2026-08 2026-09 2026-10
+src/specify_cli/compat/planner.py,5,2026-05 2026-06 2026-07 2026-08 2026-09
+src/specify_cli/coordination/coherence.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/coordination/status_transition.py,5,2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/coordination/workspace.py,5,2026-05 2026-06 2026-07 2026-09 2026-10
+src/specify_cli/core/version_checker.py,5,2026-01 2026-03 2026-06 2026-07 2026-08
+src/specify_cli/dashboard/server.py,5,2026-04 2026-05 2026-06 2026-08 2026-09
+src/specify_cli/dashboard/templates/glossary.html,5,2026-04 2026-05 2026-06 2026-08 2026-09
+src/specify_cli/dashboard/templates/index.html,5,2026-02 2026-03 2026-04 2026-05 2026-08
+src/specify_cli/decisions/service.py,5,2026-05 2026-06 2026-09 2026-10 2026-11
+src/specify_cli/dossier/drift_detector.py,5,2026-02 2026-03 2026-04 2026-05 2026-06
+src/specify_cli/dossier/snapshot.py,5,2026-02 2026-03 2026-04 2026-05 2026-06
+src/specify_cli/git/ref_advance.py,5,2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/lanes/auto_rebase.py,5,2026-05 2026-06 2026-07 2026-10 2026-11
+src/specify_cli/lanes/branch_naming.py,5,2026-04 2026-06 2026-07 2026-09 2026-11
+src/specify_cli/lanes/merge.py,5,2026-04 2026-05 2026-06 2026-07 2026-09
+src/specify_cli/migration/backfill_runtime_state.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/migration/backfill_topology.py,5,2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/migration/runtime_state_cutover.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/missions/_read_path_resolver.py,5,2026-06 2026-07 2026-09 2026-10 2026-11
+src/specify_cli/missions/software-dev/command-templates/implement.md,5,2026-01 2026-02 2026-03 2026-04 2026-05
+src/specify_cli/orchestrator_api/envelope.py,5,2026-03 2026-05 2026-09 2026-10 2026-11
+src/specify_cli/retrospective/writer.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/review/_interpreter.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/review/cycle.py,5,2026-06 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/review/pre_review_gate.py,5,2026-07 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/runtime/agent_commands.py,5,2026-04 2026-05 2026-06 2026-09 2026-11
+src/specify_cli/scripts/tasks/acceptance_support.py,5,2026-01 2026-02 2026-04 2026-05 2026-06
+src/specify_cli/state/contract.py,5,2026-06 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/status/adapters.py,5,2026-05 2026-07 2026-08 2026-09 2026-10
+src/specify_cli/status/identity_audit.py,5,2026-04 2026-06 2026-08 2026-10 2026-11
+src/specify_cli/status/wp_metadata.py,5,2026-04 2026-06 2026-07 2026-08 2026-10
+src/specify_cli/sync/batch.py,5,2026-02 2026-03 2026-04 2026-05 2026-07
+src/specify_cli/sync/client.py,5,2026-02 2026-03 2026-04 2026-05 2026-06
+src/specify_cli/sync/daemon.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/template/asset_generator.py,5,2026-03 2026-04 2026-05 2026-06 2026-10
+src/specify_cli/tracker/origin.py,5,2026-04 2026-05 2026-06 2026-07 2026-08
+src/specify_cli/tracker/saas_client.py,5,2026-03 2026-04 2026-07 2026-08 2026-09
+src/specify_cli/upgrade/migrations/base.py,5,2026-03 2026-04 2026-09 2026-10 2026-11
+src/specify_cli/upgrade/registry.py,5,2026-03 2026-08 2026-09 2026-10 2026-11
+src/specify_cli/validators/paths.py,5,2026-03 2026-06 2026-08 2026-09 2026-11
+src/specify_cli/verify_enhanced.py,5,2026-02 2026-03 2026-04 2026-06 2026-09
+src/specify_cli/workspace/context.py,5,2026-06 2026-07 2026-08 2026-09 2026-11
+src/charter/activation/compiler.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/consistency_check.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/context.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/context_renderers/artifact_bodies.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/context_renderers/bootstrap_text.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/context_renderers/template_include.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/kind_vocabulary.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/pack_manager.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/resolver.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/activation/synthesizer/project_drg.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/offering/drg/org_pack_config.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/offering/drg/org_pack_loader.py,4,2026-08 2026-09 2026-10 2026-11
+src/charter/sync.py,4,2026-04 2026-05 2026-06 2026-08
+src/charter/synthesizer/manifest.py,4,2026-04 2026-05 2026-07 2026-08
+src/charter/synthesizer/resynthesize_pipeline.py,4,2026-04 2026-05 2026-07 2026-08
+src/charter/synthesizer/write_pipeline.py,4,2026-04 2026-05 2026-06 2026-07
+src/doctrine/agent_profiles/repository.py,4,2026-04 2026-05 2026-07 2026-08
+src/doctrine/skills/spec-kitty-implement-review/SKILL.md,4,2026-04 2026-05 2026-06 2026-07
+src/doctrine/skills/spec-kitty-runtime-next/SKILL.md,4,2026-04 2026-05 2026-06 2026-08
+src/kernel/paths.py,4,2026-04 2026-06 2026-07 2026-08
+src/mission_runtime/lifecycle_phase.py,4,2026-07 2026-08 2026-10 2026-11
+src/mission_runtime/write_target_degrade.py,4,2026-07 2026-09 2026-10 2026-11
+src/runtime/next/decision.py,4,2026-07 2026-08 2026-09 2026-10
+src/runtime/next/prompt_builder.py,4,2026-06 2026-07 2026-09 2026-11
+src/specify_cli/.contextive/orchestration.yml,4,2026-04 2026-06 2026-07 2026-08
+src/specify_cli/acceptance/summary_core.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/analysis_report.py,4,2026-06 2026-07 2026-08 2026-09
+src/specify_cli/audit/engine.py,4,2026-06 2026-08 2026-10 2026-11
+src/specify_cli/audit/models.py,4,2026-05 2026-06 2026-08 2026-10
+src/specify_cli/bulk_edit/diff_check.py,4,2026-07 2026-08 2026-10 2026-11
+src/specify_cli/charter_runtime/preflight/hook.py,4,2026-06 2026-08 2026-09 2026-10
+src/specify_cli/charter_runtime/preflight/runner.py,4,2026-06 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/_command_surface_doctor.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/_doctrine_collect.py,4,2026-07 2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/_identity_audit.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/_mission_state_doctor.py,4,2026-07 2026-08 2026-09 2026-11
+src/specify_cli/cli/commands/agent/__init__.py,4,2026-01 2026-04 2026-05 2026-09
+src/specify_cli/cli/commands/agent/feature.py,4,2026-01 2026-02 2026-03 2026-04
+src/specify_cli/cli/commands/agent/mission_branch_context.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_check_prerequisites.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_feature_resolution.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_mark_status.py,4,2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_shared.py,4,2026-07 2026-08 2026-10 2026-11
+src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/auth.py,4,2026-02 2026-03 2026-04 2026-08
+src/specify_cli/cli/commands/charter/_common.py,4,2026-05 2026-08 2026-09 2026-11
+src/specify_cli/cli/commands/charter/_status_collectors.py,4,2026-06 2026-07 2026-08 2026-10
+src/specify_cli/cli/commands/charter/sync.py,4,2026-05 2026-06 2026-08 2026-09
+src/specify_cli/cli/commands/dashboard.py,4,2026-02 2026-03 2026-04 2026-08
+src/specify_cli/cli/commands/init_help.py,4,2026-03 2026-05 2026-09 2026-11
+src/specify_cli/cli/commands/materialize.py,4,2026-04 2026-06 2026-10 2026-11
+src/specify_cli/cli/commands/profile_invocation.py,4,2026-07 2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/review/_diagnostics.py,4,2026-05 2026-07 2026-09 2026-11
+src/specify_cli/cli/commands/verify.py,4,2026-03 2026-04 2026-06 2026-07
+src/specify_cli/compat/remediation.py,4,2026-06 2026-07 2026-08 2026-10
+src/specify_cli/compat/upgrade_hint.py,4,2026-05 2026-06 2026-08 2026-10
+src/specify_cli/coordination/outbound.py,4,2026-05 2026-06 2026-08 2026-10
+src/specify_cli/core/agent_config.py,4,2026-03 2026-09 2026-10 2026-11
+src/specify_cli/core/project_resolver.py,4,2026-03 2026-04 2026-06 2026-09
+src/specify_cli/core/stale_detection.py,4,2026-01 2026-02 2026-04 2026-07
+src/specify_cli/core/utils.py,4,2026-04 2026-08 2026-09 2026-10
+src/specify_cli/core/vcs/detection.py,4,2026-01 2026-02 2026-06 2026-09
+src/specify_cli/dashboard/diagnostics.py,4,2026-02 2026-04 2026-08 2026-09
+src/specify_cli/dashboard/handlers/api.py,4,2026-01 2026-02 2026-04 2026-08
+src/specify_cli/dashboard/handlers/features.py,4,2026-01 2026-04 2026-05 2026-09
+src/specify_cli/dashboard/static/dashboard/dashboard.css,4,2026-03 2026-04 2026-05 2026-08
+src/specify_cli/doctrine/org_charter.py,4,2026-07 2026-08 2026-09 2026-10
+src/specify_cli/dossier/api.py,4,2026-02 2026-03 2026-04 2026-06
+src/specify_cli/dossier/events.py,4,2026-03 2026-04 2026-05 2026-08
+src/specify_cli/dossier/hasher.py,4,2026-03 2026-05 2026-07 2026-11
+src/specify_cli/events/decision_log.py,4,2026-06 2026-07 2026-09 2026-10
+src/specify_cli/git/sparse_checkout.py,4,2026-05 2026-06 2026-09 2026-11
+src/specify_cli/identity/project.py,4,2026-05 2026-06 2026-07 2026-11
+src/specify_cli/invocation/propagator.py,4,2026-04 2026-06 2026-07 2026-11
+src/specify_cli/invocation/writer.py,4,2026-06 2026-09 2026-10 2026-11
+src/specify_cli/lanes/for_review_gate.py,4,2026-08 2026-09 2026-10 2026-11
+src/specify_cli/lanes/lifecycle_sync.py,4,2026-06 2026-09 2026-10 2026-11
+src/specify_cli/lanes/recovery.py,4,2026-06 2026-07 2026-09 2026-11
+src/specify_cli/migration/backfill_identity.py,4,2026-04 2026-08 2026-10 2026-11
+src/specify_cli/migration/normalize_mission_lifecycle.py,4,2026-06 2026-08 2026-10 2026-11
+src/specify_cli/mission_loader/command.py,4,2026-06 2026-07 2026-08 2026-09
+src/specify_cli/mission_step_contracts/executor.py,4,2026-05 2026-07 2026-08 2026-10
+src/specify_cli/missions/documentation/templates/task-prompt-template.md,4,2026-02 2026-04 2026-09 2026-10
+src/specify_cli/missions/research/templates/task-prompt-template.md,4,2026-02 2026-04 2026-09 2026-10
+src/specify_cli/missions/software-dev/command-templates/review.md,4,2026-01 2026-02 2026-03 2026-05
+src/specify_cli/missions/software-dev/command-templates/specify.md,4,2026-01 2026-02 2026-04 2026-05
+src/specify_cli/missions/software-dev/command-templates/tasks.md,4,2026-01 2026-02 2026-04 2026-05
+src/specify_cli/missions/software-dev/templates/task-prompt-template.md,4,2026-01 2026-02 2026-04 2026-06
+src/specify_cli/ownership/inference.py,4,2026-04 2026-07 2026-08 2026-10
+src/specify_cli/policy/merge_gates.py,4,2026-04 2026-08 2026-09 2026-10
+src/specify_cli/post_merge/retrospective_terminus.py,4,2026-06 2026-07 2026-09 2026-10
+src/specify_cli/post_merge/review_artifact_consistency.py,4,2026-05 2026-06 2026-07 2026-08
+src/specify_cli/retrospective/reader.py,4,2026-05 2026-06 2026-08 2026-09
+src/specify_cli/retrospective/summary.py,4,2026-05 2026-06 2026-08 2026-11
+src/specify_cli/review/artifacts.py,4,2026-06 2026-07 2026-09 2026-10
+src/specify_cli/review/dirty_classifier.py,4,2026-04 2026-07 2026-09 2026-10
+src/specify_cli/review/scope_source.py,4,2026-07 2026-08 2026-09 2026-11
+src/specify_cli/runtime/doctor.py,4,2026-04 2026-08 2026-10 2026-11
+src/specify_cli/runtime/resolver.py,4,2026-02 2026-04 2026-06 2026-08
+src/specify_cli/saas_client/auth.py,4,2026-04 2026-07 2026-08 2026-09
+src/specify_cli/scripts/tasks/task_helpers.py,4,2026-01 2026-02 2026-03 2026-06
+src/specify_cli/scripts/tasks/tasks_cli.py,4,2026-01 2026-02 2026-04 2026-06
+src/specify_cli/session_presence/manager.py,4,2026-06 2026-07 2026-10 2026-11
+src/specify_cli/session_presence/writers/markdown_rules.py,4,2026-06 2026-09 2026-10 2026-11
+src/specify_cli/skills/manifest.py,4,2026-05 2026-09 2026-10 2026-11
+src/specify_cli/skills/manifest_store.py,4,2026-04 2026-05 2026-09 2026-10
+src/specify_cli/skills/verifier.py,4,2026-05 2026-06 2026-07 2026-10
+src/specify_cli/status/aggregate.py,4,2026-06 2026-07 2026-08 2026-09
+src/specify_cli/status/locking.py,4,2026-03 2026-04 2026-10 2026-11
+src/specify_cli/sync/config.py,4,2026-03 2026-04 2026-06 2026-07
+src/specify_cli/sync/runtime.py,4,2026-02 2026-04 2026-06 2026-07
+src/specify_cli/tasks/issue_matrix.py,4,2026-07 2026-09 2026-10 2026-11
+src/specify_cli/tasks_support.py,4,2026-01 2026-02 2026-03 2026-04
+src/specify_cli/template/renderer.py,4,2026-02 2026-03 2026-04 2026-10
+src/specify_cli/tool_surface/bundles/claude_wrapper.py,4,2026-06 2026-08 2026-09 2026-11
+src/specify_cli/tool_surface/providers/agent_profiles.py,4,2026-06 2026-09 2026-10 2026-11
+src/specify_cli/tool_surface/providers/managed_skills.py,4,2026-06 2026-09 2026-10 2026-11
+src/specify_cli/tracker/credentials.py,4,2026-03 2026-04 2026-06 2026-09
+src/specify_cli/upgrade/autocommit.py,4,2026-07 2026-08 2026-10 2026-11
+src/specify_cli/upgrade/detector.py,4,2026-01 2026-03 2026-04 2026-08
+src/specify_cli/upgrade/metadata.py,4,2026-03 2026-06 2026-08 2026-10
+src/specify_cli/upgrade/migrations/m_0_12_1_remove_kitty_specs_from_gitignore.py,4,2026-01 2026-03 2026-08 2026-09
+src/specify_cli/upgrade/migrations/m_0_16_2_remove_wp_status_gitignore_rule.py,4,2026-02 2026-03 2026-08 2026-09
+src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py,4,2026-01 2026-03 2026-08 2026-10
+src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py,4,2026-01 2026-03 2026-08 2026-10
+src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py,4,2026-04 2026-07 2026-10 2026-11
+src/charter/activation/ERROR_CODES.md,3,2026-08 2026-10 2026-11
+src/charter/activation/_activation_render.py,3,2026-08 2026-09 2026-11
+src/charter/activation/_diagnostics.py,3,2026-08 2026-10 2026-11
+src/charter/activation/_drg_helpers.py,3,2026-08 2026-09 2026-10
+src/charter/activation/activation_engine.py,3,2026-09 2026-10 2026-11
+src/charter/activation/activations.py,3,2026-08 2026-09 2026-10
+src/charter/activation/charter_yaml_io.py,3,2026-09 2026-10 2026-11
+src/charter/activation/context_contract.py,3,2026-08 2026-09 2026-10
+src/charter/activation/context_renderers/profile_sections.py,3,2026-08 2026-09 2026-11
+src/charter/activation/drg_activation.py,3,2026-08 2026-10 2026-11
+src/charter/activation/mission_type_profiles.py,3,2026-08 2026-10 2026-11
+src/charter/activation/profile_resolution.py,3,2026-09 2026-10 2026-11
+src/charter/activation/progressive_disclosure.py,3,2026-08 2026-09 2026-10
+src/charter/activation/schemas.py,3,2026-08 2026-10 2026-11
+src/charter/activation/synthesizer/orchestrator.py,3,2026-08 2026-09 2026-11
+src/charter/activation/synthesizer/resynthesize_pipeline.py,3,2026-09 2026-10 2026-11
+src/charter/bundle.py,3,2026-04 2026-06 2026-08
+src/charter/context_renderers/section_bodies.py,3,2026-05 2026-06 2026-08
+src/charter/evidence/code_reader.py,3,2026-04 2026-05 2026-07
+src/charter/hasher.py,3,2026-05 2026-06 2026-09
+src/charter/interview.py,3,2026-04 2026-05 2026-08
+src/charter/kind_vocabulary.py,3,2026-06 2026-07 2026-08
+src/charter/neutrality/language_scoped_allowlist.yaml,3,2026-04 2026-05 2026-07
+src/charter/offering/agent_profiles/repository.py,3,2026-08 2026-09 2026-11
+src/charter/offering/artifact_kinds.py,3,2026-08 2026-09 2026-10
+src/charter/offering/assets/repository.py,3,2026-08 2026-09 2026-10
+src/charter/offering/base.py,3,2026-08 2026-09 2026-11
+src/charter/offering/drg/migration/id_normalizer.py,3,2026-08 2026-09 2026-10
+src/charter/offering/drg/models.py,3,2026-08 2026-09 2026-10
+src/charter/offering/missions/mission_step_repository.py,3,2026-08 2026-09 2026-10
+src/charter/offering/missions/mission_type_repository.py,3,2026-08 2026-09 2026-10
+src/charter/offering/schemas/directive.schema.yaml,3,2026-08 2026-09 2026-10
+src/charter/offering/skills/spec-kitty-implement-review/SKILL.md,3,2026-09 2026-10 2026-11
+src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md,3,2026-09 2026-10 2026-11
+src/charter/pack_manager.py,3,2026-05 2026-06 2026-08
+src/charter/resolver.py,3,2026-04 2026-05 2026-08
+src/charter/synthesizer/synthesize_pipeline.py,3,2026-04 2026-05 2026-08
+src/charter/synthesizer/topic_resolver.py,3,2026-04 2026-05 2026-08
+src/doctrine/drg/org_pack_config.py,3,2026-05 2026-07 2026-08
+src/doctrine/drg/query.py,3,2026-04 2026-05 2026-07
+src/doctrine/graph.yaml,3,2026-04 2026-05 2026-06
+src/doctrine/missions/repository.py,3,2026-04 2026-06 2026-08
+src/doctrine/resolver.py,3,2026-04 2026-06 2026-08
+src/doctrine/schemas/toolguide.schema.yaml,3,2026-04 2026-05 2026-07
+src/doctrine/service.py,3,2026-04 2026-06 2026-08
+src/doctrine/skills/ad-hoc-profile-load/SKILL.md,3,2026-04 2026-06 2026-07
+src/doctrine/skills/spec-kitty-mission-review/SKILL.md,3,2026-04 2026-05 2026-06
+src/doctrine/skills/spec-kitty-orchestrator-api-operator/SKILL.md,3,2026-04 2026-05 2026-06
+src/doctrine/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md,3,2026-05 2026-06 2026-07
+src/doctrine/styleguides/models.py,3,2026-04 2026-05 2026-07
+src/doctrine/styleguides/repository.py,3,2026-04 2026-05 2026-08
+src/doctrine/templates/command-templates/merge.md,3,2026-02 2026-03 2026-04
+src/kernel/git_topology.py,3,2026-08 2026-09 2026-11
+src/runtime/next/_tmp_namespace.py,3,2026-07 2026-09 2026-10
+src/runtime/next/next_invocation_lifecycle.py,3,2026-09 2026-10 2026-11
+src/runtime/next/runtime_bridge_cores.py,3,2026-08 2026-10 2026-11
+src/runtime/next/runtime_bridge_retrospective.py,3,2026-07 2026-09 2026-10
+src/specify_cli/.contextive/execution.yml,3,2026-07 2026-09 2026-11
+src/specify_cli/acceptance.py,3,2026-02 2026-03 2026-04
+src/specify_cli/acceptance/gates_core.py,3,2026-07 2026-09 2026-10
+src/specify_cli/agent_utils/directories.py,3,2026-04 2026-10 2026-11
+src/specify_cli/analysis_inputs.py,3,2026-09 2026-10 2026-11
+src/specify_cli/audit/classifiers/status_json.py,3,2026-05 2026-09 2026-10
+src/specify_cli/auth/flows/device_code.py,3,2026-04 2026-05 2026-08
+src/specify_cli/auth/flows/refresh.py,3,2026-04 2026-05 2026-09
+src/specify_cli/auth/secure_storage/file_fallback.py,3,2026-04 2026-06 2026-09
+src/specify_cli/auth/transport.py,3,2026-04 2026-05 2026-06
+src/specify_cli/charter_activate.py,3,2026-05 2026-06 2026-11
+src/specify_cli/charter_runtime/preflight/result.py,3,2026-06 2026-08 2026-09
+src/specify_cli/cli/commands/_auth_login.py,3,2026-05 2026-08 2026-09
+src/specify_cli/cli/commands/_auth_status.py,3,2026-04 2026-08 2026-09
+src/specify_cli/cli/commands/_decisions_doctor.py,3,2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/_owned_checkout.py,3,2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/_profile_health_render.py,3,2026-07 2026-10 2026-11
+src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py,3,2026-08 2026-09 2026-11
+src/specify_cli/cli/commands/agent/mission.py,3,2026-04 2026-05 2026-06
+src/specify_cli/cli/commands/agent/mission_accept_merge.py,3,2026-06 2026-10 2026-11
+src/specify_cli/cli/commands/agent/mission_create.py,3,2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/agent/tasks_finalize.py,3,2026-07 2026-09 2026-11
+src/specify_cli/cli/commands/agent/tasks_map_requirements.py,3,2026-07 2026-09 2026-10
+src/specify_cli/cli/commands/agent/workflow_cores.py,3,2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/charter/__init__.py,3,2026-05 2026-06 2026-09
+src/specify_cli/cli/commands/charter/_fresh_doctrine.py,3,2026-05 2026-06 2026-09
+src/specify_cli/cli/commands/charter/_widen.py,3,2026-05 2026-06 2026-08
+src/specify_cli/cli/commands/charter/resynthesize.py,3,2026-05 2026-09 2026-10
+src/specify_cli/cli/commands/charter/status.py,3,2026-05 2026-10 2026-11
+src/specify_cli/cli/commands/charter_bundle.py,3,2026-04 2026-05 2026-08
+src/specify_cli/cli/commands/consolidate.py,3,2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/context.py,3,2026-03 2026-04 2026-06
+src/specify_cli/cli/commands/cutover_guard.py,3,2026-07 2026-09 2026-10
+src/specify_cli/cli/commands/dispatch.py,3,2026-09 2026-10 2026-11
+src/specify_cli/cli/commands/merge_driver.py,3,2026-07 2026-09 2026-10
+src/specify_cli/cli/commands/mission.py,3,2026-01 2026-03 2026-04
+src/specify_cli/cli/commands/moments.py,3,2026-08 2026-09 2026-10
+src/specify_cli/cli/commands/profiles_cmd.py,3,2026-05 2026-06 2026-08
+src/specify_cli/cli/commands/repair.py,3,2026-01 2026-03 2026-04
+src/specify_cli/cli/commands/review/_dead_code.py,3,2026-05 2026-07 2026-09
+src/specify_cli/cli/commands/session_start.py,3,2026-06 2026-08 2026-11
+src/specify_cli/cli/commands/spec_commit_cmd.py,3,2026-06 2026-09 2026-10
+src/specify_cli/cli/commands/validate_encoding.py,3,2026-03 2026-04 2026-06
+src/specify_cli/compat/_detect/install_method.py,3,2026-05 2026-06 2026-07
+src/specify_cli/configured_command.py,3,2026-05 2026-08 2026-09
+src/specify_cli/consolidation/_constants.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/done_bookkeeping.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/executor.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/forecast.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/git_probes.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/reconciliation.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/resolve.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/rollback.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/state.py,3,2026-09 2026-10 2026-11
+src/specify_cli/consolidation/wp_attribution.py,3,2026-09 2026-10 2026-11
+src/specify_cli/context/resolver.py,3,2026-04 2026-06 2026-09
+src/specify_cli/coordination/policy.py,3,2026-06 2026-08 2026-11
+src/specify_cli/coordination/status_service.py,3,2026-06 2026-07 2026-11
+src/specify_cli/coordination/surface_authority.py,3,2026-09 2026-10 2026-11
+src/specify_cli/core/config.py,3,2026-04 2026-10 2026-11
+src/specify_cli/core/dependency_graph.py,3,2026-01 2026-03 2026-05
+src/specify_cli/core/execution_context.py,3,2026-03 2026-04 2026-06
+src/specify_cli/core/multi_parent_merge.py,3,2026-01 2026-02 2026-03
+src/specify_cli/core/owned_mission.py,3,2026-09 2026-10 2026-11
+src/specify_cli/core/wps_manifest.py,3,2026-06 2026-09 2026-10
+src/specify_cli/dashboard/handlers/glossary.py,3,2026-04 2026-05 2026-06
+src/specify_cli/dashboard/lifecycle.py,3,2026-01 2026-02 2026-04
+src/specify_cli/decisions/emit.py,3,2026-06 2026-09 2026-10
+src/specify_cli/decisions/index_fold.py,3,2026-09 2026-10 2026-11
+src/specify_cli/doc_generators.py,3,2026-01 2026-02 2026-03
+src/specify_cli/doctor/ops.py,3,2026-06 2026-10 2026-11
+src/specify_cli/doctrine/config.py,3,2026-05 2026-07 2026-08
+src/specify_cli/doctrine/pack_validator.py,3,2026-06 2026-08 2026-10
+src/specify_cli/doctrine/snapshot.py,3,2026-07 2026-08 2026-10
+src/specify_cli/doctrine/sources/git_source.py,3,2026-06 2026-08 2026-09
+src/specify_cli/dossier/models.py,3,2026-02 2026-03 2026-04
+src/specify_cli/git/destructive_guard.py,3,2026-09 2026-10 2026-11
+src/specify_cli/git/report_transaction.py,3,2026-09 2026-10 2026-11
+src/specify_cli/glossary/checkpoint.py,3,2026-02 2026-03 2026-05
+src/specify_cli/glossary/exceptions.py,3,2026-02 2026-03 2026-05
+src/specify_cli/glossary/scope.py,3,2026-02 2026-03 2026-05
+src/specify_cli/invocation/record.py,3,2026-04 2026-06 2026-11
+src/specify_cli/invocation/router.py,3,2026-06 2026-09 2026-11
+src/specify_cli/lanes/compute_and_persist.py,3,2026-09 2026-10 2026-11
+src/specify_cli/lanes/consolidation.py,3,2026-09 2026-10 2026-11
+src/specify_cli/lanes/lane_tip.py,3,2026-09 2026-10 2026-11
+src/specify_cli/lanes/models.py,3,2026-04 2026-07 2026-11
+src/specify_cli/lanes/persistence.py,3,2026-04 2026-09 2026-11
+src/specify_cli/lanes/single_branch_landing.py,3,2026-09 2026-10 2026-11
+src/specify_cli/lanes/stale_check.py,3,2026-07 2026-10 2026-11
+src/specify_cli/merge/ordering.py,3,2026-04 2026-06 2026-08
+src/specify_cli/merge/state.py,3,2026-04 2026-07 2026-09
+src/specify_cli/migration/rewrite_shims.py,3,2026-04 2026-06 2026-10
+src/specify_cli/mission_brief.py,3,2026-04 2026-05 2026-09
+src/specify_cli/missions/_create.py,3,2026-05 2026-06 2026-10
+src/specify_cli/missions/plan/plan_interview.py,3,2026-05 2026-06 2026-07
+src/specify_cli/missions/plan/specify_interview.py,3,2026-05 2026-06 2026-07
+src/specify_cli/missions/software-dev/command-templates/accept.md,3,2026-01 2026-02 2026-05
+src/specify_cli/missions/software-dev/command-templates/analyze.md,3,2026-01 2026-02 2026-04
+src/specify_cli/missions/software-dev/command-templates/checklist.md,3,2026-01 2026-02 2026-04
+src/specify_cli/missions/software-dev/command-templates/plan.md,3,2026-01 2026-02 2026-04
+src/specify_cli/missions/software-dev/templates/plan-template.md,3,2026-01 2026-04 2026-06
+src/specify_cli/next/prompt_builder.py,3,2026-02 2026-04 2026-05
+src/specify_cli/next/runtime_bridge.py,3,2026-04 2026-05 2026-06
+src/specify_cli/ownership/validation.py,3,2026-06 2026-10 2026-11
+src/specify_cli/paths/__init__.py,3,2026-04 2026-09 2026-11
+src/specify_cli/plan_validation.py,3,2026-03 2026-04 2026-09
+src/specify_cli/policy/commit_guard.py,3,2026-06 2026-08 2026-09
+src/specify_cli/release/changelog.py,3,2026-04 2026-06 2026-11
+src/specify_cli/requirement_mapping/lint.py,3,2026-09 2026-10 2026-11
+src/specify_cli/retrospective/gate.py,3,2026-06 2026-08 2026-11
+src/specify_cli/retrospective/tracer_writer.py,3,2026-09 2026-10 2026-11
+src/specify_cli/review/gate_bindings.py,3,2026-07 2026-08 2026-11
+src/specify_cli/review/gate_registry.py,3,2026-07 2026-08 2026-10
+src/specify_cli/review/lock.py,3,2026-09 2026-10 2026-11
+src/specify_cli/runtime/asset_preparation.py,3,2026-09 2026-10 2026-11
+src/specify_cli/runtime/bootstrap.py,3,2026-02 2026-03 2026-09
+src/specify_cli/runtime/home.py,3,2026-02 2026-04 2026-06
+src/specify_cli/runtime/migrate.py,3,2026-03 2026-09 2026-10
+src/specify_cli/runtime/show_origin.py,3,2026-02 2026-03 2026-06
+src/specify_cli/saas/readiness.py,3,2026-04 2026-05 2026-06
+src/specify_cli/session_presence/content.py,3,2026-06 2026-10 2026-11
+src/specify_cli/session_presence/upgrade_check.py,3,2026-06 2026-07 2026-09
+src/specify_cli/skills/command_renderer.py,3,2026-04 2026-05 2026-09
+src/specify_cli/spec_kitty_events/error_log.py,3,2026-02 2026-03 2026-04
+src/specify_cli/state/doctor.py,3,2026-06 2026-10 2026-11
+src/specify_cli/status/bootstrap.py,3,2026-04 2026-06 2026-10
+src/specify_cli/status/cutover_eligibility.py,3,2026-07 2026-10 2026-11
+src/specify_cli/status/doctor_husks.py,3,2026-06 2026-07 2026-10
+src/specify_cli/status/event_log_merge.py,3,2026-06 2026-10 2026-11
+src/specify_cli/status/lifecycle.py,3,2026-07 2026-08 2026-09
+src/specify_cli/status/transition_pipeline.py,3,2026-09 2026-10 2026-11
+src/specify_cli/status/transitions.py,3,2026-02 2026-04 2026-05
+src/specify_cli/status/views.py,3,2026-04 2026-05 2026-09
+src/specify_cli/sync/body_queue.py,3,2026-03 2026-04 2026-07
+src/specify_cli/sync/body_upload.py,3,2026-04 2026-05 2026-07
+src/specify_cli/sync/clock.py,3,2026-03 2026-05 2026-06
+src/specify_cli/sync/namespace.py,3,2026-04 2026-05 2026-08
+src/specify_cli/sync/orphan_sweep.py,3,2026-04 2026-05 2026-06
+src/specify_cli/sync/preflight.py,3,2026-05 2026-06 2026-07
+src/specify_cli/sync/routing.py,3,2026-05 2026-06 2026-07
+src/specify_cli/tasks/issue_matrix_migration.py,3,2026-09 2026-10 2026-11
+src/specify_cli/templates/AGENTS.md,3,2026-01 2026-04 2026-06
+src/specify_cli/templates/POWERSHELL_SYNTAX.md,3,2026-01 2026-04 2026-06
+src/specify_cli/templates/command-templates/merge.md,3,2026-01 2026-02 2026-03
+src/specify_cli/templates/plan-template.md,3,2026-01 2026-04 2026-06
+src/specify_cli/templates/task-prompt-template.md,3,2026-01 2026-02 2026-06
+src/specify_cli/tool_surface/bundles/_builder.py,3,2026-09 2026-10 2026-11
+src/specify_cli/tool_surface/bundles/projection.py,3,2026-09 2026-10 2026-11
+src/specify_cli/tool_surface/profiles/manifest.py,3,2026-07 2026-09 2026-10
+src/specify_cli/tool_surface/profiles/projection.py,3,2026-07 2026-08 2026-09
+src/specify_cli/tool_surface/providers/command_skills.py,3,2026-06 2026-09 2026-10
+src/specify_cli/tool_surface/providers/native_config.py,3,2026-06 2026-09 2026-11
+src/specify_cli/tool_surface/providers/plugin_bundle.py,3,2026-06 2026-09 2026-11
+src/specify_cli/tool_surface/providers/session_presence.py,3,2026-06 2026-09 2026-11
+src/specify_cli/tool_surface/repair.py,3,2026-09 2026-10 2026-11
+src/specify_cli/tracker/saas_service.py,3,2026-04 2026-06 2026-07
+src/specify_cli/tracker/store.py,3,2026-03 2026-05 2026-06
+src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py,3,2026-01 2026-03 2026-10
+src/specify_cli/upgrade/migrations/m_0_11_3_workflow_agent_flag.py,3,2026-01 2026-03 2026-08
+src/specify_cli/upgrade/migrations/m_0_13_5_add_commit_workflow_to_templates.py,3,2026-01 2026-03 2026-09
+src/specify_cli/upgrade/migrations/m_unify_charter_activation.py,3,2026-07 2026-08 2026-09
+src/specify_cli/upgrade/skill_update.py,3,2026-05 2026-06 2026-09
+src/specify_cli/version_utils.py,3,2026-01 2026-03 2026-10
+src/specify_cli/workspace/root_resolver.py,3,2026-04 2026-05 2026-06

@@ -1,0 +1,96 @@
+{
+ "denominator": 20,
+ "run1": {
+  "answered": {
+   "yes": 19,
+   "partly": 1
+  },
+  "single_source_cited": {
+   "yes": 18,
+   "no": 2
+  },
+  "cited_source_authoritative": {
+   "no": 8,
+   "yes": 11,
+   "unclear": 1
+  },
+  "correct_against_code": {
+   "partly correct": 8,
+   "correct": 12
+  },
+  "contradicting_source": {
+   "found": 10,
+   "not found": 10
+  },
+  "meets_all_three": {
+   "no": 18,
+   "yes": 2
+  }
+ },
+ "run2": {
+  "answered": {
+   "yes": 19,
+   "partly": 1
+  },
+  "single_source_cited": {
+   "yes": 18,
+   "no": 2
+  },
+  "cited_source_authoritative": {
+   "no": 9,
+   "yes": 10,
+   "unclear": 1
+  },
+  "correct_against_code": {
+   "partly correct": 7,
+   "correct": 13
+  },
+  "contradicting_source": {
+   "found": 10,
+   "not found": 10
+  },
+  "meets_all_three": {
+   "no": 18,
+   "yes": 2
+  }
+ },
+ "run2_rows_changed": 12,
+ "run1_meets": [
+  11,
+  13
+ ],
+ "run2_meets": [
+  11,
+  13
+ ],
+ "run1_partly_or_contradicted": [
+  1,
+  2,
+  3,
+  4,
+  6,
+  7,
+  8,
+  12,
+  14,
+  15,
+  18,
+  20
+ ],
+ "run1_meets_relaxed": [
+  9,
+  10,
+  11,
+  13,
+  16,
+  17
+ ],
+ "run2_meets_relaxed": [
+  9,
+  10,
+  11,
+  13,
+  16,
+  17
+ ]
+}

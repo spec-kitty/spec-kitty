@@ -1,0 +1,220 @@
+# Static searches behind E1 findings. Each block: the command, then its output. Run in shared clones at the head revisions (see MANIFEST).
+
+$ (cd src-spec-kitty && git grep -n 'source_documented' -- src)
+src/runtime/next/runtime_bridge_composition.py:10:(:func:`_count_source_documented_events` / :func:`_publication_approved` /
+src/runtime/next/runtime_bridge_composition.py:38:``_count_source_documented_events`` and ``_publication_approved`` through a
+src/runtime/next/runtime_bridge_composition.py:347:def _count_source_documented_events(feature_dir: Path) -> int:
+src/runtime/next/runtime_bridge_composition.py:348:    """Return the number of ``source_documented`` events in the mission event log.
+src/runtime/next/runtime_bridge_composition.py:353:    record, and counts those whose ``type`` equals ``"source_documented"``.
+src/runtime/next/runtime_bridge_composition.py:371:            if isinstance(entry, dict) and entry.get("type") == "source_documented":
+src/runtime/next/runtime_bridge_cores.py:578:    if snapshot.status_facts["source_documented_count"] < 3:
+src/runtime/next/runtime_bridge_io.py:46:``_count_source_documented_events``, ``_publication_approved``,
+src/runtime/next/runtime_bridge_io.py:1615:    ``runtime_bridge_guards`` (#2560); ``_count_source_documented_events``,
+src/runtime/next/runtime_bridge_io.py:1710:        "source_documented_count": _composition._count_source_documented_events(feature_dir),
+[exit 0]
+
+$ (cd src-spec-kitty && git grep -n 'emit_event(' -- src)
+src/runtime/next/next_invocation_lifecycle.py:474:    emit_event(
+src/specify_cli/mission_v1/events.py:133:def emit_event(
+[exit 0]
+
+$ (cd src-spec-kitty && git grep -n -E '"gate_passed"|publication_approved' -- src | grep -v 'offering/skills')
+src/runtime/next/runtime_bridge_composition.py:10:(:func:`_count_source_documented_events` / :func:`_publication_approved` /
+src/runtime/next/runtime_bridge_composition.py:38:``_count_source_documented_events`` and ``_publication_approved`` through a
+src/runtime/next/runtime_bridge_composition.py:378:def _publication_approved(feature_dir: Path) -> bool:
+src/runtime/next/runtime_bridge_composition.py:379:    """Return True iff the mission event log carries a ``publication_approved`` gate event.
+src/runtime/next/runtime_bridge_composition.py:382:    as ``{"type": "gate_passed", "name": "<gate_name>"}`` in
+src/runtime/next/runtime_bridge_composition.py:388:    (``gate_passed("publication_approved")``) for both the source-side gate
+src/runtime/next/runtime_bridge_composition.py:406:            if isinstance(entry, dict) and entry.get("type") == "gate_passed" and entry.get("name") == "publication_approved":
+src/runtime/next/runtime_bridge_cores.py:585:    if not snapshot.status_facts["publication_approved"]:
+src/runtime/next/runtime_bridge_io.py:46:``_count_source_documented_events``, ``_publication_approved``,
+src/runtime/next/runtime_bridge_io.py:1616:    ``_publication_approved`` and ``_has_generated_docs`` are owned by
+src/runtime/next/runtime_bridge_io.py:1711:        "publication_approved": bool(_composition._publication_approved(feature_dir)),
+[exit 0]
+
+$ (cd src-spec-kitty && git grep -n 'source_documented' -- tests | grep -v '^tests/fixtures' | head -8)
+tests/integration/test_research_runtime_walk.py:436:                {"name": "src-1", "type": "source_documented"},
+tests/integration/test_research_runtime_walk.py:437:                {"name": "src-2", "type": "source_documented"},
+tests/integration/test_research_runtime_walk.py:438:                {"name": "src-3", "type": "source_documented"},
+tests/research/test_research_plan_missions_integration.py:64:    "source_documented_count": 3,
+tests/research/test_research_plan_missions_integration.py:211:    gate (``event_count('source_documented', 3)``), and the publication gate
+tests/research/test_research_plan_missions_integration.py:232:                status_facts={"source_documented_count": documented},
+tests/research/test_research_plan_missions_integration.py:240:                status_facts={"source_documented_count": 3},
+tests/research/test_research_plan_missions_integration.py:246:        failures = _guard_failures("research", "gathering", status_facts={"source_documented_count": 3})
+[exit 0]
+
+$ (cd src-spec-kitty && git grep -l -E 'source_documented' -- docs ':!docs/reports' ':!docs/archive')
+docs/context/mission-types.md
+[exit 0]
+
+$ (cd src-spec-kitty && git grep -n -E 'source-register' -- src/runtime docs/context/mission-types.md | head -8)
+docs/context/mission-types.md:88:also expects `research/source-register.csv` documenting sources with citations, URLs,
+src/runtime/next/runtime_bridge_cores.py:577:    failures = _check_artifact_present(snapshot, "source-register.csv")
+[exit 0]
+
+$ (cd src-spec-kitty && grep -rn 'mypy' .github/workflows/ ; echo '(end of grep for mypy in .github/workflows)')
+(end of grep for mypy in .github/workflows)
+[exit 0]
+
+$ (cd src-spec-kitty && sed -n 532,540p .kittify/charter/charter.md)
+### Programme PR Workflow
+
+**All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
+
+Nothing on GitHub enforces this workflow: there is no branch protection or required
+review. The leftover workflow files still run and post check results, but nothing
+requires them to pass — a failing run has no power to block a PR. The binding process is
+[`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
+§5–§9.
+[exit 0]
+
+$ (cd src-spec-kitty && sed -n 763,768p .kittify/charter/charter.md)
+## Burn-down Policy (binding per HiC §5a.2 / C-004)
+
+(a) Every mutable architectural allowlist is governed by a baseline in
+`tests/architectural/_baselines.yaml`. Growth above baseline **FAILS CI**;
+shrinkage WARNS (informational, non-fatal). A baseline entry is debt: it names a
+tracker issue, an owner and a drain date, and it is removed when it reaches zero.
+[exit 0]
+
+$ (cd src-spec-kitty && sed -n 77,84p docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md)
+  invariant**: the gate forbids the pattern everywhere except the canonical owner.
+- A **new gate** is added only when it can start empty, or in the same mission that
+  drains it to empty.
+- A **transient allowlist** needs a tracker issue, a named owner and an exit date, and is
+  recorded in `tests/architectural/_baselines.yaml`. A gate with no allowlist needs no
+  baseline entry.
+- Existing ratchets are drained as campsite work when a mission touches their surface.
+  A ratchet with no owner or exit date is a finding, not a baseline to re-pin.
+[exit 0]
+
+$ (cd src-spec-kitty && sed -n 702,706p .kittify/charter/charter.md)
+### Exception Handling
+
+Exceptions discussed case-by-case. Strong justification required.
+
+**If exceptions become common:** Update charter instead of creating more exceptions.
+[exit 0]
+
+$ (cd src-spec-kitty-events && grep -rn 'pyargs' .github Makefile pyproject.toml ; echo '(end of grep for pyargs)'; grep -n 'pyargs' AGENTS.md)
+(end of grep for pyargs)
+62:| Packaged conformance gate — every PR | `uv run pytest --pyargs spec_kitty_events.conformance` |
+[exit 0]
+
+$ (cd src-spec-kitty-events && grep -n 'testpaths' pyproject.toml; sed -n 122,129p .github/workflows/ci.yml)
+139:testpaths = ["tests"]
+          git clone -q https://github.com/spec-kitty/$REPO.git "$SK_HOME/$REPO"
+          git -C "$SK_HOME/$REPO" fetch -q origin "$SHA"
+      - name: Run the suite (bin/ci-run.sh --sync)
+        working-directory: ${{ env.SK_HOME }}/spec-kitty-planning
+        env:
+          SHA: ${{ steps.t.outputs.sha }}
+          PR: ${{ steps.t.outputs.pr }}
+        run: bin/ci-run.sh --sync "$REPO" "$SHA" "$PR"
+[exit 0]
+
+$ (cd src-spec-kitty-events && sed -n 13,24p .github/workflows/cross-repo-harness-tests.yml; sed -n 96,108p .github/workflows/cross-repo-harness-tests.yml)
+# Pinned SHA: 193f5c0eb07c8fdb6943d91d205ab892b98d6dfc
+# SHA-bump procedure: see README.md > "Identity-Boundary CI Gate".
+#
+# Fork pull requests (#95, operator ruling Q1 option a): GitHub withholds repository
+# secrets from `pull_request` runs whose head is a fork, so no App token can be minted
+# and the harness cannot be cloned. On a fork PR the gate job is skipped by its `if:`,
+# which GitHub reports as success for the required `cross-repo-harness-tests` check, and
+# `fork-pr-harness-deferred` says so on the PR. The harness is not run on fork code here:
+# after reviewing the diff (pushing it upstream gives it the secrets), a maintainer pushes
+# the fork head unchanged to an upstream branch and runs the gate there before merge
+# (docs/guides/contributing.md > "Pull requests from forks"); a push to main runs it again.
+# No pull_request_target: no workflow hands a secret to fork code on its own.
+
+      - name: Install spec-kitty CLI on PATH
+        # The unit tests under tests/identity_boundary/unit/ instantiate
+        # the canary harness which captures cli_version by shelling out
+        # to the spec-kitty binary. The published 3.2.0rc22 metadata omits
+        # click, so supply it explicitly to keep this required gate executable.
+        run: |
+          uv tool install --prerelease=allow --with click 'spec-kitty-cli==3.2.0rc22'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run identity-boundary unit tests
+        working-directory: e2e
+        run: uv run pytest tests/unit/identity_boundary/ tests/identity_boundary/unit/ -v
+[exit 0]
+
+$ (cd src-spec-kitty-events && cat service/core-pin.json)
+{"repository": "spec-kitty/spec-kitty", "sha": "512567eee71e31bb39f580c4f7acf8b865e9d1b2", "purpose": "CI-only peers: lock interop, the nightly corpus oracle and the write-core-parity oracles (status_append, transition parity, fromisoformat
+[exit 0]
+
+$ (cd src-spec-kitty-charter && sed -n 5,16p config/checkstyle/suppressions.xml)
+<!--
+  The one register of exceptions to the hand-written quality gates (spec NFR-001; research G3). It holds every
+  exception to Checkstyle here, and records any exception to another gate (Error Prone, NullAway, doclint) as a
+  comment entry, since those gates are never relaxed in source.
+
+  Each entry carries, in the comment directly above it:
+    rule:   the check that is suppressed
+    file:   the file it applies to (also the `files` attribute)
+    reason: why the code is right and the rule is wrong for it
+    sunset: the date by which the entry is removed or re-justified
+
+  Size: 0 entries.
+[exit 0]
+
+$ (cd src-spec-kitty-charter && grep -n -i 'sunset' .kittify/charter-packs/styleguide/java-style-guide.styleguide.yaml .kittify/charter-packs/directive/002-risk-appetite-directive.directive.yaml | head -6)
+.kittify/charter-packs/styleguide/java-style-guide.styleguide.yaml:11:    sunset.
+.kittify/charter-packs/styleguide/java-style-guide.styleguide.yaml:41:  reason and sunset - never as scattered inline suppressions.
+.kittify/charter-packs/directive/002-risk-appetite-directive.directive.yaml:9:- An exception for any other risk without scope, reason, approver and sunset or 
+.kittify/charter-packs/directive/002-risk-appetite-directive.directive.yaml:45:  a sunset or review date in the pull request and, when it outlives the change, 
+[exit 0]
+
+$ (cd src-spec-kitty-events && sed -n 113,116p .kittify/charter/charter.md)
+## Exception Policy
+
+Exceptions require explicit maintainer approval plus a documented follow-up to restore the standard path.
+[exit 0]
+
+$ (cd src-doc-kitty && sed -n 90,93p .kittify/charter/charter.md)
+accepted; a change is a new or superseding ADR (for example ADR-0009 supersedes
+ADR-0005's `divio_type`). Deviation from the canonical structure is tolerated with
+graceful degradation and is unsupported out of the box; a genuine exception to a
+gate is recorded as an ADR with its rationale.
+[exit 0]
+
+$ pack text at open-packs a79c36318b7a (core-pin), read in the PX-01 clone after sync_packs
+packs/built-in/missions/research/mission.yaml:0
+packs/built-in/missions/research/mission-runtime.yaml:0
+42:      path_pattern: "source-register.csv"
+8:**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/research/source-register.
+28:- `kitty-specs/<mission>/research/source-register.csv` — every reviewed source, kept or excluded.
+41:- Document **every** reviewed source in `research/source-register.csv`. A source that is read but not registered is invisible to downstream review.
+79:2. For each candidate source: assess against inclusion/exclusion criteria, register it in `research/source-register.csv` (kept or excluded, with reason), and — if kept — extract the key finding
+21
+documentation-accept.step-contract.yaml
+
+$ action indices of the pinned built-in pack: directives named per software-dev action
+specify: 2 directives named
+plan: 3 directives named
+tasks: 3 directives named
+implement: 12 directives named
+review: 6 directives named
+
+$ charter context --action <a> --json (spec-kitty-cli 4.0.0rc9, PX-01 clone): directives listed in all_directives, and presence of sampled rule phrases in .text
+accept.json mode compact all_directives 50 text chars 4992 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': False}
+implement.json mode bootstrap all_directives 50 text chars 37455 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': True}
+plan.json mode bootstrap all_directives 50 text chars 33625 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': True}
+review.json mode bootstrap all_directives 50 text chars 37448 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': True}
+specify.json mode bootstrap all_directives 50 text chars 33656 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': True}
+tasks.json mode compact all_directives 50 text chars 4992 {'A384': False, 'A400': False, 'A446': False, 'A527': False, 'A528': False, 'A548': False, 'principle line': False}
+
+$ (cd src-spec-kitty && git grep -n -i 'spec-kitty-charter' -- .github/workflows; ls pins)
+README.md
+read-service.source.yaml
+[exit 0]
+
+$ out-of-matrix census (python over .github/ci-module-registry.yml and git ls-files tests at 5c4fc5a79d)
+module rows: 20
+out_of_matrix records: 32 | directories listed: 107 | with per_pr_home: 4 | without: 103
+tracked test files (tests/**/test_*.py): 4369 in 200 directories
+test files directly in an out-of-matrix directory without per_pr_home: 1383 (31.7%)
+test files directly in an out-of-matrix directory with per_pr_home: 397 (9.1%)
+largest directories without per_pr_home: [('tests/specify_cli/cli/commands', 242), ('tests/integration', 150), ('tests/specify_cli', 97), ('tests/specify_cli/cli/commands/charter', 60), ('tests/specify_cli/upgrade/migrations', 44), ('tests/specify_cli/invocation', 36), ('tests/specify_cli/migration', 33), ('tests/contract', 32)]

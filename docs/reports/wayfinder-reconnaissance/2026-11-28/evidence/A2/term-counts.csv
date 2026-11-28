@@ -1,0 +1,211 @@
+term,repo,revision,lines_all_tracked,lines_code,lines_docs_context_or_glossary
+"runtime",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,41721,6668,135
+"runtime",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1115,118,27
+"runtime",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,854,155,6
+"runtime",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,403,33,31
+"runtime",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,735,122,1
+"dispatch",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,8893,1225,31
+"dispatch",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,413,21,5
+"dispatch",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,209,34,0
+"dispatch",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,384,18,8
+"dispatch",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,187,21,0
+"mission",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,211601,51758,395
+"mission",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,18310,2328,177
+"mission",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,10564,2316,10
+"mission",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,4284,215,250
+"mission",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,4561,488,1
+"mission type",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,21051,5789,47
+"mission type",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,9747,2158,112
+"mission type",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1327,332,0
+"mission type",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,860,36,36
+"mission type",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,512,1,0
+"work package",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,25498,3289,111
+"work package",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,2063,56,4
+"work package",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1685,334,3
+"work package",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,914,10,72
+"work package",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1029,20,0
+"invocation",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,11942,2395,36
+"invocation",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,201,81,2
+"invocation",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1359,39,0
+"invocation",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,121,14,9
+"invocation",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,44,6,0
+"Op",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,2973,600,32
+"Op",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,141,6,0
+"Op",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,164,64,0
+"Op",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,164,4,6
+"Op",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,133,20,0
+"pack",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,37999,11236,119
+"pack",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,82770,29001,450
+"pack",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,70,0,1
+"pack",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,9344,1363,106
+"pack",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1726,342,1
+"orchestrator",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,11149,911,16
+"orchestrator",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,611,1,0
+"orchestrator",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,212,0,0
+"orchestrator",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,242,9,14
+"orchestrator",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,521,9,0
+"orchestration",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,2243,164,129
+"orchestration",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,28,1,0
+"orchestration",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,17,2,1
+"orchestration",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,110,4,1
+"orchestration",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,6,0,0
+"coordination",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,31255,9449,27
+"coordination",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,253,28,0
+"coordination",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,394,90,1
+"coordination",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,92,1,23
+"coordination",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,112,0,0
+"control plane",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,116,3,0
+"control plane",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,2,0,0
+"control plane",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1,0,0
+"control plane",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,9,0,0
+"control plane",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1,0,0
+"harness",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,5706,1186,7
+"harness",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,505,45,16
+"harness",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,399,123,0
+"harness",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,54,2,7
+"harness",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,242,84,0
+"tool",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,30217,3090,55
+"tool",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,7235,466,4
+"tool",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,2946,577,2
+"tool",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1759,34,29
+"tool",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2953,202,2
+"agent",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,120043,14774,190
+"agent",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,10066,438,93
+"agent",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,3382,393,0
+"agent",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,3468,69,79
+"agent",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,6057,414,47
+"profile",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,49072,5875,173
+"profile",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,15178,2233,279
+"profile",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,3477,303,7
+"profile",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,2631,57,46
+"profile",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,3599,123,0
+"runner",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,8484,4350,2
+"runner",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,981,191,0
+"runner",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,507,259,0
+"runner",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,240,14,1
+"runner",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,193,39,0
+"assignment",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,1757,431,8
+"assignment",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,31,3,0
+"assignment",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,64,8,0
+"assignment",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,30,3,5
+"assignment",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,33,7,0
+"attempt",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,3265,1006,4
+"attempt",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,250,170,1
+"attempt",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,151,60,0
+"attempt",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,43,2,2
+"attempt",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,167,58,0
+"session",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,6736,629,13
+"session",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1256,469,4
+"session",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,741,192,0
+"session",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,420,82,6
+"session",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,121,29,0
+"lane",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,109009,30175,142
+"lane",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,3708,211,1
+"lane",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,5847,2111,7
+"lane",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,898,12,116
+"lane",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,3235,161,0
+"projection",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,5264,1280,5
+"projection",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,331,19,0
+"projection",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,382,118,1
+"projection",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,76,0,8
+"projection",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,216,73,0
+"snapshot",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,15183,6427,11
+"snapshot",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1527,662,1
+"snapshot",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,626,251,2
+"snapshot",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,150,6,9
+"snapshot",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,791,412,1
+"materialize",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,7475,2782,14
+"materialize",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,66,5,2
+"materialize",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,134,66,0
+"materialize",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,36,0,4
+"materialize",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,305,184,0
+"ledger",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,13683,3062,29
+"ledger",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,239,50,18
+"ledger",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1083,579,1
+"ledger",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,175,16,20
+"ledger",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,31,0,0
+"event",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,66835,17229,135
+"event",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,2000,186,32
+"event",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,13430,4376,55
+"event",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1354,108,91
+"event",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,832,144,0
+"bus",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,110,3,0
+"bus",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,3,0,0
+"bus",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1,0,0
+"bus",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,11,0,0
+"bus",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,11,0,0
+"seam",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,29026,6598,12
+"seam",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1603,109,19
+"seam",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,207,46,0
+"seam",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,215,2,1
+"seam",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,989,209,0
+"adapter",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,4551,1096,7
+"adapter",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1708,519,2
+"adapter",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,1078,619,0
+"adapter",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,52,0,5
+"adapter",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,251,107,0
+"contract",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,56514,7942,77
+"contract",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,16150,1107,111
+"contract",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,6717,999,28
+"contract",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1292,218,31
+"contract",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,3128,662,1
+"charter",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,101229,22298,438
+"charter",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,40318,14506,535
+"charter",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,727,15,3
+"charter",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,4014,311,176
+"charter",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2541,405,13
+"doctrine",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,49344,3784,149
+"doctrine",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,578,26,5
+"doctrine",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,72,11,0
+"doctrine",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,1289,19,50
+"doctrine",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,216,7,7
+"offering",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,9114,4415,57
+"offering",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,2511,287,110
+"offering",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0,0,0
+"offering",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,143,20,16
+"offering",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2,0,0
+"activation",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,21801,7345,88
+"activation",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,13697,3515,123
+"activation",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,30,2,0
+"activation",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,287,11,60
+"activation",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,79,3,0
+"service",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,10848,2786,15
+"service",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,18992,1748,222
+"service",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,5368,861,37
+"service",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,872,219,12
+"service",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1302,263,0
+"daemon",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,3425,115,3
+"daemon",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,199,6,2
+"daemon",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,83,9,0
+"daemon",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,11,0,1
+"daemon",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1,0,0
+"modulith/monolith",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,404,85,2
+"modulith/monolith",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,2,0,0
+"modulith/monolith",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,3,0,0
+"modulith/monolith",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,24,0,0
+"modulith/monolith",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,2,0,0
+"Build Kitty",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,19,1,8
+"Build Kitty",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,7,0,5
+"Build Kitty",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,21,5,5
+"Build Kitty",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,13,0,5
+"Build Kitty",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0,0
+"Brain Kitty",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,13,0,8
+"Brain Kitty",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,24,4,11
+"Brain Kitty",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,2,0,2
+"Brain Kitty",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,72,5,5
+"Brain Kitty",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0,0
+"Team Kitty",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,694,10,25
+"Team Kitty",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,10,0,7
+"Team Kitty",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,25,9,4
+"Team Kitty",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,31,4,8
+"Team Kitty",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0,0
+"DocKitty",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,1170,221,0
+"DocKitty",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,221,10,7
+"DocKitty",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,127,4,0
+"DocKitty",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,195,5,0
+"DocKitty",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,5437,948,31
+"SkyKitty",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,29,0,2
+"SkyKitty",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0,0,0
+"SkyKitty",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0,0,0
+"SkyKitty",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,2,0,0
+"SkyKitty",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0,0,0

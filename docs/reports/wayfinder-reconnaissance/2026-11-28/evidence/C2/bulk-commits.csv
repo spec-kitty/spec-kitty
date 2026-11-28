@@ -1,0 +1,23 @@
+sha,utc,line,nfiles,code,class,subject
+623057f9787aebf1817d82406f295c862d6baf40,2026-04-04T17:32:19Z,public,521,True,capability-growth,"feat(057): doctrine stack, constitution, and agent profiles"
+fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982,2026-05-19T10:30:58Z,public,1289,True,capability-growth,feat(charter+doctrine): three-layer DRG + monorepo CharterScope + composable workflows + ratchet burn-down (4 missions)
+11db4480edc72810e8707f626a28a09c65ba877b,2026-06-28T13:17:58Z,public,770,True,capability-growth,"feat(WP08): bulk_ref_rewrite.py + sweep all moved-path refs (occurrence-map-driven, kitty-specs excluded) + targeted-ref"
+9e9c060741766125cbb0e4007bb09b24c90f4024,2026-06-28T13:17:58Z,public,626,False,compatibility-work,"docs(WP12): backfill descriptions — plans (non-engineering-notes, 82 pages)"
+64e27fc3b42ff1ed932a3f9ebe35fbf4d6b39ea8,2026-06-28T13:17:58Z,public,626,False,corrective-maintenance,"fix(WP06 cycle3): exempt docs/adr/ from terminology guard (historical ADRs immutable, mirrors kitty-specs/ precedent) + "
+674575ada510389e9d436607d01a13e8275f6c3f,2026-06-28T13:17:58Z,public,625,False,compatibility-work,docs(WP12): T071 mechanical frontmatter backfill (doc_status/updated/related/title) across tree
+5aff7d0e8cf46ffdfe14b27505058a0984f47ae0,2026-07-22T05:42:33Z,public,584,False,compatibility-work,chore(#2816): migrate corpus runtime state to the event log (status_phase flip)
+7438ec48eb94ab29dfbf0c40d8693052b0ba434c,2026-07-28T15:22:11Z,public,641,False,corrective-maintenance,chore(corpus): repair mission-state across 324 missions (data-only)
+219e90d7020c8b03a11f2824010269dc659c9c0c,2026-07-28T17:19:00Z,public,7270,False,other,docs(mission A): planning artefacts and completion records for doctrine-silence-guards
+525af2153de99bef989dd80b09e3f59c3f09b26f,2026-07-28T17:19:00Z,public,7344,False,other,test(WP01): failing-first zero-producer lint — the red is the deliverable
+177e062694b4141056e7b008980cef1735019b3c,2026-08-12T07:10:06Z,public,509,True,other,test: assertively sanitize low-signal suite cruft (#3285)
+cd3d6a91d2487283ee9ad943482df9a3b0e4a245,2026-08-14T04:43:47Z,public,975,True,other,Per-project sync consent ledgers — CLI half (WP01–WP10) (#3293)
+2b5335cf813431ca3a05782085270f6d5b0d88ba,2026-08-29T14:37:56Z,public,792,True,capability-growth,feat(charter-code-topology): retire the doctrine package — relocate to charter/offering (#3664)
+4e8fc05969e609e5d004bdb74b23e69e8df30c87,2026-08-30T07:09:20Z,public,607,True,capability-growth,feat(charter-activation-split): M2b — physical offering<->activation two-module split (#3664)
+58105021dbd8a930260ad2d2b7fc73162f5a5868,2026-08-31T13:54:21Z,experimental,905,True,convergence-activity,feat(charter-code-topology): retire the doctrine package — relocate to charter/offering (#3664)
+e72f8b8a0ba83edae19338750d8c15a535171289,2026-08-31T21:34:46Z,experimental,1450,True,convergence-activity,feat(charter-activation-split): M2b — physical offering<->activation two-module split (#3664)
+a9c4f1d23727a200d475eaf7a217b7a207f16af9,2026-08-31T21:34:47Z,experimental,872,True,corrective-maintenance,fix(#806): scope path rewrite and activation imports
+b89f353c89c36aabc6c067e79744dc53c5f06592,2026-10-09T18:32:34Z,main-post,892,False,restructuring,test(charter): cutover acceptance suite; tests/doctrine moves to tests/charter_offering with repointed imports and CI ga
+3f6ef61fc327a68d8fe905ca5d10e5cca6a5b547,2026-10-19T19:38:52Z,main-post,648,True,capability-growth,feat(packs): source built-in and internal packs from spec-kitty-open-packs at a pinned commit (#6451)
+a212ccdf550813eedd2517636db88cecc0a22e6a,2026-11-01T21:47:01Z,main-post,1964,False,restructuring,refactor!: remove core's copies of the events service and contracts
+a770f69bc53f55b6c21ed608bd457e1a3b93ae9f,2026-11-01T23:34:33Z,main-post,620,False,capability-growth,feat(docs): cut docs/ over to doc-kitty frontmatter; related reader on slugs (#6929)
+4b428e3e7b330813e0869396c6cbfe2240ddb82a,2026-11-08T10:46:20Z,main-post,689,False,compatibility-work,docs: migrate the corpus to the doc-kitty frontmatter contract (D-7)

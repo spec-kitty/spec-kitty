@@ -1,0 +1,63 @@
+finding_id: F-A2-009
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: artifact kind vocabulary
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Core and the charter service model ''mission type'' differently: core''s ArtifactKind has 13 members and
+  the token mission-type raises MissionTypeNotAnArtifactKind; the charter service''s ArtifactKind has 17 members
+  including activatable MISSION_TYPE, and its docstring states ''Core has no such artifact kind (a recorded divergence)''.
+  The two kind sets share 11 members; core-only: mission_step_contract, glossary_pack; charter-only: glossary, mission_type,
+  guard, lifecycle, step_enhancement, routing_catalog. Role/Profile also differ: core Role is ''responsibility assignment
+  for a step or work package''; charter Role is ''what a mission step asks for and a profile fills ... the only
+  link between mission types and profiles''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: 'section V2: git show of both ArtifactKind sources at head'
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: rows D01, D02, D21
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Enum members at head in both repos; glossary definitions.
+  not_covered: Charter-service wire mapping between the two kind sets.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether core's glossary records the divergence.
+  result: Core docs/context mission type entry does not mention the charter kind; the divergence is recorded only
+    on the charter side.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

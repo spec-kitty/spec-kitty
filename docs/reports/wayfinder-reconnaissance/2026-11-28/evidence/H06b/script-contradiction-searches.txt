@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# H06b contradiction searches. Usage: bash script-contradiction-searches.txt <core-export-dir> > contradiction-searches-log.txt
+# Search frame: docs/ trees, root README.md and .kittify/charter/charter.md of the five primary repositories at head
+# (plus tests/architectural/README.md and pins/README.md, packs/README.md, src/charter/offering/README.md in core as READMEs).
+# Excluded from the frame: docs/changelog, docs/reports, docs/plans/investigations, archive folders.
+C="$1"; E=/home/user/spec-kitty-events; CH=/home/user/spec-kitty-charter; OP=/home/user/spec-kitty-open-packs; DK=/home/user/doc-kitty
+D="$C/docs $C/README.md $C/.kittify/charter/charter.md $C/tests/architectural/README.md $C/pins/README.md $C/packs/README.md $C/src/charter/offering/README.md $E/docs $E/README.md $E/.kittify/charter/charter.md $CH/docs $CH/README.md $CH/.kittify/charter/charter.md $OP/docs $OP/README.md $OP/.kittify/charter/charter.md $DK/docs $DK/README.md $DK/.kittify/charter/charter.md"
+echo "frame: markdown files searched = $(find $D -name '*.md' 2>/dev/null | grep -v '/changelog/\|/reports/\|/plans/investigations/\|/archive' | wc -l)"
+G(){ echo "  \$ grep -rnEi '$1'  (first ${2:-10} hits)"; grep -rnEi "$1" $D --include=*.md | grep -v "/changelog/\|/reports/\|/plans/investigations/\|/archive" | sed "s#$C/#spec-kitty/#;s#/home/user/##" | cut -c1-330 | head -${2:-10}; echo "  total hits: $(grep -rnEi "$1" $D --include=*.md | grep -v '/changelog/\|/reports/\|/plans/investigations/\|/archive' | wc -l)"; }
+p(){ echo "  --- ${1#/home/user/}:$2" | sed "s#$C/#spec-kitty/#"; sed -n "$2p" "$1" | cut -c1-520 | sed 's/^/      /'; }
+h(){ echo; echo "===== $* ====="; }
+h "Q1 import direction: other chains"
+G "kernel.{0,12}(<-|←).{0,12}doctrine|charter.{0,40}may import.{0,20}specify_cli|doctrine. must not import from .charter" 10
+p $C/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md 4,5; p $C/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md 16,21; p $C/tests/architectural/README.md 32,32; p $C/docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md 4,5; p $C/docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md 19,19
+h "Q2 ordering: Lamport or not-by-time statements"
+G "(never|not) used (to order|for ordering)|ordering is (owned )?by .{0,3}\(?lamport|primary: .logical_clock" 10
+p $E/docs/architecture/ordering-and-reduction.md 4,5; p $E/docs/architecture/ordering-and-reduction.md 22,26; p $E/docs/api/envelope/README.md 34,34; p $C/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md 136,136
+h "Q3 lane-state authority: other authorities"
+G "(frontmatter|status\.json|tasks\.md).{0,60}(is|remains|as) (the )?(sole |single |canonical )?(authority|source of truth)" 10
+h "Q4 built-in pack: committed/vendored statements"
+G "(committed|vendored|re-vendored|vendors it).{0,80}(built-in|packs/built-in)|(built-in|packs/built-in).{0,80}(committed, pinned|re-vendored|later vendors)" 10
+p $CH/docs/adr/0005-service-registers-and-distributes-packs.md 4,6; p $CH/docs/adr/0005-service-registers-and-distributes-packs.md 52,57; p $CH/docs/context/system-context.md 80,81
+h "Q5 events contract ownership/versioning: other schema versions, exact or git pins"
+G "schema_version.{0,40}(1\.0\.0|2\.0\.0|4\.0\.0)" 5
+G "pins? an exact, immutable git SHA|exact .==. versions" 6
+p $E/.kittify/charter/charter.md 71,72
+h "Q6 activation authority"
+G "(source of truth|single authority|authoritative).{0,80}activation|activation.{0,80}(source of truth|single authority|authoritative)" 14
+p $CH/docs/adr/0033-local-active-charter-is-source-of-truth.md 4,7; p $CH/docs/adr/0033-local-active-charter-is-source-of-truth.md 40,41; p $C/.kittify/charter/charter.md 429,432; p $CH/docs/glossary/charter/README.md 28,28
+h "Q7 offering seam"
+G "consumed through (its public surface \()?.charter\.offering\.api|must not import .charter\.offering|generated Python client" 12
+p $C/docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md 4,5; p $C/docs/plans/domains/doctrine-charter-domain-plan.md 116,119; p $CH/docs/adr/0005-service-registers-and-distributes-packs.md 60,62; p $C/.kittify/charter/charter.md 427,429
+h "Q8 services launched by the CLI"
+G "No pin exists yet|launcher.{0,30}(is )?(unbuilt|not built)|No Python code launches|mechanism is built|first command that needs a service" 12
+p $C/docs/development/how-to/service-pins.md 35,38; p $C/pins/README.md 29,32; p $C/.kittify/charter/charter.md 400,402
+h "Q9 external orchestrator interface: other interfaces"
+G "external orchestrat.{0,80}(MCP|REST|HTTP API|gRPC|webhook)|only (supported|sanctioned) (way|interface).{0,40}orchestrat" 8
+h "Q10 mission identity: number used for lookup"
+G "mission_number.{0,80}(lookup|identity|selector|resolve|canonical)" 8
+h "Q11 precedence rules between documents"
+G "(wins|takes precedence|prevails) (over|when).{0,60}(doc|ADR|charter|architecture|page|roadmap|plan|glossary|code)|When terms conflict" 14
+p $C/docs/context/glossary-conventions.md 22,26
+h "Q12 events bump procedure: other pinning rules"
+G "pin .spec-kitty-events. with exact|spec-kitty-events==|exact pinning" 8
+p $C/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md 4,5; p $C/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md 48,49; echo "  superseded markers in that ADR: $(grep -ci 'superseded' $C/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md)"
+h "Q13 wheel content: statements that the wheel ships a binary, server or the internal pack"
+G "wheel (ships|bundles|includes|carries).{0,80}(binary|binaries|jar|server|internal)" 10
+h "Q14 mission types: where a type is defined"
+G "defined by its own .mission\.yaml|canonical catalogue lives in|three (mission-type )?registries" 8
+p $C/docs/context/mission-types.md 20,23; p $C/docs/architecture/mission-system.md 104,105
+h "Q15 publication seam: registered handlers"
+G "zeitgeist_bridge|register an observer with .status/adapters" 8
+p $C/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md 4,5; p $C/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md 128,129
+h "Q16 doc-kitty role and consumption"
+G "doc-toolkit.{0,60}(npm|published|registry|git dependency|github:)" 8
+h "Q17 who decides profile, model, tool"
+G "(orchestrator|operator|runtime|router) (selects|chooses|decides|picks|assigns).{0,60}(agent|tool|harness|model|profile)|profile comes from" 10
+h "Q18 exceptions to rules: approval"
+G "(exception|exemption|waiver).{0,80}(approved by|requires approval|sign[- ]off|operator approves)" 8
+h "Q19 recovery after interruption: statements that work is lost or not resumable"
+G "(crash|interrupt|killed).{0,80}(start over|from scratch|cannot be resumed|not resumable|is lost)" 8
+h "Q20 planned moves: direction statements"
+G "nothing Python moves|being extracted into its own repository|local file is the source of truth|service is authoritative for activation" 10
+p $C/docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md 71,71

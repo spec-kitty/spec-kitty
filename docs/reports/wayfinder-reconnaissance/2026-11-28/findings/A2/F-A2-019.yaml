@@ -1,0 +1,63 @@
+finding_id: F-A2-019
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-3 outside-term mapping
+  deviation: Outside-term definitions were not supplied to A2 (they are in a document A2 must not read); fit was
+    judged on the term name only and every row says so. Confidence set low accordingly.
+subject:
+  component: outside terms
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 23 outside-term rows, 4 have a same-named ecosystem counterpart judged ''same'' (Build Kitty, core CLI,
+  Packs, Doc Kitty — the ecosystem spells it DocKitty: 1,624 ''DocKitty'' lines vs 1 ''Doc Kitty'' line in doc-kitty),
+  2 ''broader'' (Charter and API, Events and API), 1 ''narrower'' (assignment), 5 ''different'' (mission coordination,
+  harness adapter, attempt, session, projection) and 11 ''no counterpart''. Eleven outside phrases occur in none
+  of the 9 repositories searched: Charter and API, execution infrastructure, containerised runner, control-pane,
+  HUD, Operations Deck, Kira, Wayfinder (outside this report folder), knowledge plane, native journal, savoir. Absence
+  is not a deficiency (brief).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/outside-terms.csv
+  method: python3 build-outside-script.txt
+  sha256: 9a78b2bc6511a3dbb8bbedfe344a76b9191c9467f4f48385bf0ddb71a76a8015
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/outside-counts.csv
+  method: see phrase-count-commands.txt
+  sha256: 8f965bfb42670f315d13f0c205b128aa5ebc30f3a43c9bffc8d6570cba762601
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Name-level mapping against 5 primary + 4 supplementary repos.
+  not_covered: Outside definitions were not supplied to A2; fit judged on names only.
+  population: 23 outside-term rows
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Grepped each outside phrase in 9 repos to find counterparts under the same name.
+  result: Counts in outside-counts.csv.
+relations: []
+confidence: low
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

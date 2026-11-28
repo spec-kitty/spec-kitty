@@ -1,0 +1,79 @@
+finding_id: F-A1-001
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M4 source-authority map"
+  deviation: null
+subject:
+  component: "core governance records"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Core records at head state 13 distinct precedence rules (evidence/A1/source-authority-map.csv rows repository=spec-kitty), each scoped to one subject: code over docs (charter.md:313-314); docs/architecture + docs/adr over the rest of docs/ (architecture/README.md:32-44); the enforced pair (pyproject wheel packages + test_layer_rules.py) over every prose module map (architecture/README.md:50-52; 00_landscape:327-348); later explicit ADR over earlier ADR (architecture/README.md:106-107); charter.yaml over charter.md (06_unified_charter_bundle.md:206-219); the CLI-SaaS contract file over ADRs for the hosted wire (charter.md:670-672); planning PROGRAM.md sections 5-9 as the binding PR process (charter.md:536-540); glossary-conventions order ADR/PRD > glossary > runtime contracts for term conflicts (glossary-conventions.md:21-27). No single core record ranks these rules against each other."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/source-authority-map.csv"
+    method: "hand-compiled from the cited records; see source column"
+    sha256: "f27d669111a03760eb5b290519cfff298fca01605ee332b21ad33ba492331155"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:313-314 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '313,314p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/README.md:32-52 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/README.md | sed -n '32,52p'"
+    sha256: "3cc1892dace7d452bfea342bfbef36f65c74277e42d4e394a348ff670a9c865e"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/06_unified_charter_bundle.md:206-219 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/06_unified_charter_bundle.md | sed -n '206,219p'"
+    sha256: "2afbafd8c1f355d1060e5ca8eb2bc4cfce75940a06b1aaeb9702af895189e9e0"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E5
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:670-672 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '670,672p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "core charter.md, docs/architecture/README.md, 00_landscape, 05_ownership_map, 06_unified_charter_bundle, docs/context/glossary-conventions.md and governance.md, roadmap; CLAUDE.md as tagged secondary source"
+  not_covered: "docs/development/**, docs/guides/** authority statements; code-level authority (e.g. bundle.py)"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn -i 'precedence|prevail|wins|source of truth|authoritative|on conflict' over core charter.md, docs/architecture, docs/context; looked for a record that orders the scoped rules"
+  result: "no record found that orders the scoped precedence rules against each other; CLAUDE.md (tagged) states only charter-over-CLAUDE.md"
+relations:
+  - {type: refines, target: F-A1-003}
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

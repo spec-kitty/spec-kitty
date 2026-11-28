@@ -1,0 +1,327 @@
+frame: markdown files searched = 1365
+
+===== Q1 import direction: other chains =====
+  $ grep -rnEi 'kernel.{0,12}(<-|←).{0,12}doctrine|charter.{0,40}may import.{0,20}specify_cli|doctrine. must not import from .charter'  (first 10 hits)
+spec-kitty/docs/plans/doctrine/org-doctrine-layer-architecture-review.md:40:The mission shipped the planned three-layer doctrine model (`built-in → org → project`) plus a `spec-kitty doctrine` operator CLI, an `org-charter.yaml` policy file, and an advisory `charter lint` org-layer surface. Architectural boundaries (`kernel 
+spec-kitty/docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md:49:* Layering: `kernel ← doctrine ← charter ← specify_cli`; kernel may gain no upward imports.
+spec-kitty/docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md:67:spine remains `kernel ← doctrine ← charter ← specify_cli`; `runtime`,
+spec-kitty/docs/adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md:61:which is **above `doctrine`** in the layer graph (`kernel ← doctrine ← charter ← runtime`).
+spec-kitty/docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md:19:kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
+spec-kitty/docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md:30:kernel  <-  doctrine
+spec-kitty/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md:20:charter    (depends on doctrine + kernel, may import specify_cli.runtime)
+spec-kitty/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md:43:| **Granularity** | Sub-module rules express "charter may import `specify_cli.runtime` but not `specify_cli.cli`" |
+spec-kitty/tests/architectural/README.md:7:> *spec-kitty is a strictly layered system (kernel ← doctrine ← charter ← specify_cli)
+spec-kitty/tests/architectural/README.md:20:| **1. Layer direction** | `kernel ← doctrine ← charter ← specify_cli`; no upward imports | `test_layer_rules.py`, `test_runtime_charter_doctrine_boundary.py` |
+  total hits: 11
+  --- spec-kitty/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md:4,5
+      status: Accepted
+      doc_status: active
+  --- spec-kitty/docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md:16,21
+      kernel          (zero outgoing dependencies — the true root)
+        ^
+      doctrine        (depends on kernel only)
+        ^
+      charter    (depends on doctrine + kernel, may import specify_cli.runtime)
+        ^
+  --- spec-kitty/tests/architectural/README.md:32,32
+      - **`test_layer_rules.py`** — Enforces import direction: `kernel` must not import from `doctrine`, `doctrine` must not import from `charter`, `charter` must not import from `specify_cli`. Any upward import fails this gate.
+  --- spec-kitty/docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md:4,5
+      status: Accepted
+      doc_status: active
+  --- spec-kitty/docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md:19,19
+      kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
+
+===== Q2 ordering: Lamport or not-by-time statements =====
+  $ grep -rnEi '(never|not) used (to order|for ordering)|ordering is (owned )?by .{0,3}\(?lamport|primary: .logical_clock'  (first 10 hits)
+spec-kitty/docs/api/batch-api-contract.md:153:| `timestamp` | string | Yes | ISO 8601 with timezone (wall-clock, not used for ordering) | `"2026-02-12T10:00:00+00:00"` |
+spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:42:3. **Sort**: Order by deterministic key — primary: `logical_clock` (Lamport), secondary: `at` (UTC timestamp), tertiary: `event_id` (ULID, lexicographic tiebreaker)
+spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:155:- **Step 3 (Sort), as implemented.** The CLI writes no `logical_clock` on status rows, so the "primary: `logical_clock`" key does not apply. Every CLI status read reduces through the `spec-kitty-events` wall-clock fold, `spec_kitty_events.diary.reduce_parsed`:
+spec-kitty/docs/architecture/event-ledger-writers-and-readers.md:221:| G-3 | Docs say the status path is Lamport-ordered; it is wall clock | `status/reducer.py:17-18`, `:205`, `:401`; ADR 2026-10-14-1 "Reducer duality" bullet; ADR 2026-02-09-3 (sort "primary: `logical_clock`", "`status emit` ticks the logical clock", the gate "u
+spec-kitty-events/docs/api/envelope/README.md:34:| `timestamp` | `datetime` | Producer-assigned wall-clock occurrence time (ISO-8601 UTC). Consumers preserve it and record receipt time separately. **Not used for ordering.** |
+spec-kitty-events/docs/api/envelope/README.md:55:- **Ordering is by `(lamport_clock, node_id)`, not time, for clocked envelopes.** Wall-clock `timestamp` can skew
+spec-kitty-events/docs/glossary/README.md:36:`timestamp` is never used to order. See [ordering and reduction](/architecture/ordering-and-reduction/).
+spec-kitty-events/docs/architecture/services/event-ledger-writers-and-readers.md:248:| G-3 | Docs say the status path is Lamport-ordered; it is wall clock | `status/reducer.py:17-18`, `:205`, `:401`; ADR 2026-10-14-1 "Reducer duality" bullet; ADR 2026-02-09-3 (sort "primary: `logical_clock`", "`status emit` ticks the logical clo
+  total hits: 8
+  --- spec-kitty-events/docs/architecture/ordering-and-reduction.md:4,5
+      doc_status: active
+      updated: 2026-10-18T00:00:00Z
+  --- spec-kitty-events/docs/architecture/ordering-and-reduction.md:22,26
+      The envelope's `timestamp` is the producer's wall-clock occurrence time. It can skew between
+      nodes, so it is **never** used to order a stream. Ordering is owned by
+      `(lamport_clock, node_id)`: the Lamport logical clock establishes causal order and `node_id`
+      breaks ties deterministically. Consumers preserve `timestamp` for display and record receipt
+      time separately; they never substitute it for ordering.
+  --- spec-kitty-events/docs/api/envelope/README.md:34,34
+      | `timestamp` | `datetime` | Producer-assigned wall-clock occurrence time (ISO-8601 UTC). Consumers preserve it and record receipt time separately. **Not used for ordering.** |
+  --- spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:136,136
+      This ADR's chosen algorithm (Option 3, Lamport-primary) is therefore honored by the **Lamport** reducer only. A **second**, non-conformant reducer still ships in the codebase — the wall-clock LWW `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`) — and its split-brain (a later wall-clock event overriding a causally-earlier one, exactly the "Last-writer-wins by timestamp" failure mode this ADR **rejected**) is **not** resolved by the terminus-merge-integrity mission. It is tracked as a **separat
+
+===== Q3 lane-state authority: other authorities =====
+  $ grep -rnEi '(frontmatter|status\.json|tasks\.md).{0,60}(is|remains|as) (the )?(sole |single |canonical )?(authority|source of truth)'  (first 10 hits)
+spec-kitty/docs/development/reference/version-taxonomy.md:60:In-file frontmatter is the source of truth for each page. The inventory
+spec-kitty/docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md:48:  frontmatter field is ever read as authority; static fields are never mirrored into events.
+spec-kitty/docs/adr/2.x/2026-02-09-1-canonical-wp-status-model.md:81:Continue using WP front-matter `lane` fields and tasks.md checkboxes as the source of truth.
+spec-kitty/docs/adr/2.x/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md:251:   - Detection overrides frontmatter (lane status is source of truth)
+spec-kitty/docs/architecture/status-model.md:455:| 0 | Hardening | Transition matrix enforced, no event log. Frontmatter was sole authority. | **Historical** |
+  total hits: 5
+
+===== Q4 built-in pack: committed/vendored statements =====
+  $ grep -rnEi '(committed|vendored|re-vendored|vendors it).{0,80}(built-in|packs/built-in)|(built-in|packs/built-in).{0,80}(committed, pinned|re-vendored|later vendors)'  (first 10 hits)
+spec-kitty/docs/api/cli-commands.md:1394:│                              against the committed packs/built-in source.    │
+spec-kitty/docs/api/cli-commands.md:2275:│ provenance              Flag committed absolute built-in-pack leaks and      │
+spec-kitty/docs/api/cli-commands.md:2836: Flag committed absolute built-in-pack leaks and ambiguous template sources
+spec-kitty/docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md:70:- **Committed provenance stores the token** `${SPEC_KITTY_PACKS_ROOT}/built-in/...`, never a
+spec-kitty/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:56:1. **The vendored tree stays committed.** `packs/built-in/` remains tracked in core, but it
+spec-kitty/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:99:* The committed `packs/built-in/` and `packs/internal/` trees are no longer tracked in
+spec-kitty/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:165:  a release-time CI step vendors it into `packs/built-in/` before `hatch build`, so the
+spec-kitty/docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md:677:  refuse when one is configured), and a configured `merge.default`. A committed built-in
+spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:56:Core treats built-in as a committed, pinned, drift-gated tree (core ADR
+spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:82:   depends on. Committed production trees (`packs/internal`, `packs/qa` here; built-in wherever this model
+  total hits: 12
+  --- spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:4,6
+      doc_status: active
+      updated: 2026-11-07T00:00:00Z
+      decision_status: Accepted, with Amendments 2026-10-19 and 2026-11-07
+  --- spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:52,57
+      Today packs are **vendored**: this repository carries `packs/internal` and `packs/qa` as hand-synced mirrors,
+      and core carries `packs/built-in`. Vendoring duplicates the source of truth and must be reconciled by manual
+      provenance tracking and drift gates.
+      
+      Core treats built-in as a committed, pinned, drift-gated tree (core ADR
+      [`2026-08-16-2`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md)
+  --- spec-kitty-charter/docs/context/system-context.md:80,81
+      - **spec-kitty-open-packs.** Source of truth for the built-in and internal pack
+        content, re-vendored into core at release as a pinned, checksummed ref (core ADR `2026-08-16-2` Option B; the content is seeded upstream per open-packs #32, and the re-vendor pipeline core #3504 is in progress). Its CI registers only packs that declare
+
+===== Q5 events contract ownership/versioning: other schema versions, exact or git pins =====
+  $ grep -rnEi 'schema_version.{0,40}(1\.0\.0|2\.0\.0|4\.0\.0)'  (first 5 hits)
+spec-kitty/docs/api/charter-commands.md:362:The block is a local shape (`schema_version` `1.0.0`), not the spec-kitty-charter activation
+spec-kitty/docs/api/charter-commands.md:367:| `schema_version` | `"1.0.0"` | Local schema version of this block |
+spec-kitty/docs/api/charter-commands.md:403:  "schema_version": "1.0.0",
+spec-kitty/docs/api/charter-commands.md:451:"activation": {"schema_version": "1.0.0", "error": {"code": "ACTIVE_CHARTER_CONFIG_INVALID", "message": "..."}}
+spec-kitty/docs/api/charter-commands.md:701:| `schema_version` | `"1.0.0"` | Local schema version of this payload |
+  total hits: 10
+  $ grep -rnEi 'pins? an exact, immutable git SHA|exact .==. versions'  (first 6 hits)
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:50:2. `spec-kitty` and `spec-kitty-saas` pin `spec-kitty-events` with exact `==` versions.
+spec-kitty-events/.kittify/charter/charter.md:72:- **Programme exception (temporary, `EXPERIMENTAL-spec-kitty-*` only):** for the duration of that programme, `PROGRAM.md` §2 governs instead of the PyPI rule above — every consumer pins an exact, immutable git SHA to this package rather than resolving it from PyPI, via `[tool.u
+  total hits: 2
+  --- spec-kitty-events/.kittify/charter/charter.md:71,72
+      - CLI and SaaS consume this package through released PyPI artifacts. Do not rely on consumer vendoring, committed editable installs, path dependencies, or moving git refs as the production integration model.
+      - **Programme exception (temporary, `EXPERIMENTAL-spec-kitty-*` only):** for the duration of that programme, `PROGRAM.md` §2 governs instead of the PyPI rule above — every consumer pins an exact, immutable git SHA to this package rather than resolving it from PyPI, via `[tool.uv.sources]` (source consumers) or a PEP 508 direct git reference (wheel-installed consumers, e.g. the CLI). An exact SHA pin that only moves through a reviewed PR is not a "moving git ref"; the ban above still applies in full to actually-m
+
+===== Q6 activation authority =====
+  $ grep -rnEi '(source of truth|single authority|authoritative).{0,80}activation|activation.{0,80}(source of truth|single authority|authoritative)'  (first 14 hits)
+spec-kitty/docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md:3:description: '`charter.yaml` becomes the authoritative structured charter owning activation state, `charter.md` becomes a curated companion, and the prose-to-triad extractor retires.'
+spec-kitty/docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md:80:   `charter.activation.language_scope` is the single authority for this decision. The dead-code gate reports
+spec-kitty/docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md:97:     `m_3_2_0rc35_default_charter_pack`) is the single authority for the activation set, with
+spec-kitty/docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md:89:`.kittify/charter/activation.yaml` (git-tracked) is the single authority for activation. It is a
+spec-kitty/docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:201:## Amendment 2026-10-20: the charter service becomes authoritative for activation
+spec-kitty/docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:208:  charter service is authoritative for activation, and core's activation ledger
+spec-kitty/docs/context/charter.md:116:| **Definition** | The git-tracked file `.kittify/charter/activation.yaml`, the single authority for what a project has activated. It holds `activated_kinds`, `mission_type_activations`, the three-state `activated_<plural>` allow state (absent = the kind's `effective_when_absent` default, `
+spec-kitty/.kittify/charter/charter.md:431:contract's 1.0.0 remote cutover the charter service is authoritative for activation and the
+spec-kitty-charter/docs/plans/triage-2026-11-02.md:280:| 62 | Reconcile the activation ledgers into a single exclusion authority | Task · 4.x cutover · #56 | Task | P2 | #56 | 4.x cutover | close-other | Delivered in core: core #6496 closed completed via PR #6567 (activation ledger as single authority); the charter-side author
+spec-kitty-charter/docs/glossary/governance/README.md:248:The project's local `activation.yaml` is the source of truth for its active charter and acts as a write-through cache: a change to it results in a call to the service, whose copy answers activation and resolution requests. On a cold start the two are compared; when they d
+spec-kitty-charter/docs/glossary/charter/README.md:60:What a project has chosen from the charter offering: its plate, as against the buffet. One active charter per project; there is no separate per-mission charter. It names the offering packs it builds on by id and version, and its activations and deactivations. The project's lo
+spec-kitty-charter/docs/adr/0033-local-active-charter-is-source-of-truth.md:2:title: "ADR-0033: The project's local activation file is the source of truth for its active charter"
+spec-kitty-charter/docs/adr/0033-local-active-charter-is-source-of-truth.md:24:# ADR-0033: The project's local activation file is the source of truth for its active charter
+spec-kitty-charter/docs/adr/0033-local-active-charter-is-source-of-truth.md:46:ADR-0013 made one activation ledger file in the project the single authority. ADR-0020 then moved
+  total hits: 19
+  --- spec-kitty-charter/docs/adr/0033-local-active-charter-is-source-of-truth.md:4,7
+      doc_status: active
+      updated: 2026-11-02T00:00:00Z
+      decision_status: 'Accepted; decision 6 superseded in part by ADR-0048 (2026-11-02); decision 5 amended by ADR-0053 (2026-11-02)'
+      decision_date: '2026-10-26'
+  --- spec-kitty-charter/docs/adr/0033-local-active-charter-is-source-of-truth.md:40,41
+        single authority" wording. The local file is the source of truth, and the service holds a
+        written-through copy.
+  --- spec-kitty/.kittify/charter/charter.md:429,432
+      Python offering is replaced in place, not extracted; `charter.activation` stays in core, and
+      its switch to the charter surface is a 4.0 deliverable, no longer post-GA: after the charter
+      contract's 1.0.0 remote cutover the charter service is authoritative for activation and the
+      activation ledger is its mapped local copy (ADR `2026-10-16-1`, Amendments 2026-10-19 and
+  --- spec-kitty-charter/docs/glossary/charter/README.md:28,28
+      The `.kittify/config.yaml`-resolved, three-state per-kind activation authority for a charter artifact kind (`activated_paradigms`, `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`, `activated_glossary_packs`). Resolved via `PackContext.from_config`'s INV-2 two-file pointer chase: read `.kittify/config.yaml` directly, unless it carries a string `charter:` pointer, in which case follow i
+
+===== Q7 offering seam =====
+  $ grep -rnEi 'consumed through (its public surface \()?.charter\.offering\.api|must not import .charter\.offering|generated Python client'  (first 12 hits)
+spec-kitty/docs/plans/domains/doctrine-charter-domain-plan.md:118:  repository**, consumed through its public surface (`charter.offering.api`), like
+spec-kitty/docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:88:   Released and versioned on its own, consumed through `charter.offering.api`, exactly as
+spec-kitty/docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:223:- **The `charter.*` facades stay the in-tree door for offering.** `specify_cli` must not import `charter.offering.*`, `charter.offering.api` included (C-001, stated in the `charter.offering.api` docstring and ratcheted by `tests/architectural/te
+spec-kitty/docs/architecture/05_ownership_map.md:53:> an external contract package **in its own repository**, consumed through `charter.offering.api`
+spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:62:description, and a **generated Python client**. Whatever this service does with packs, core consumes it **as a
+spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:102:7. **Core is a generated client.** Core obtains packs through the generated Python client against this
+spec-kitty-charter/docs/architecture/pack-registration-distribution.md:222:  consumer_rest["REST/HATEOAS client<br/>(+ core's generated Python client)"] --> restadp
+spec-kitty-charter/docs/architecture/pack-registration-distribution.md:309:| Core is a generated client (ADR-0004) | REST adapter + generated Python client; no second resolver in core |
+spec-kitty-charter/docs/architecture/pack-registration-distribution.md:318:    core["spec-kitty core<br/>(generated Python client)"]
+  total hits: 9
+  --- spec-kitty/docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:4,5
+      status: Superseded
+      doc_status: superseded
+  --- spec-kitty/docs/plans/domains/doctrine-charter-domain-plan.md:116,119
+      - **Charter modular extraction is a GA gate leg.** The charter (`src/charter/offering/`, or all
+        of `src/charter/`) becomes an **independently-released external contract package in its own
+        repository**, consumed through its public surface (`charter.offering.api`), like
+        `spec-kitty-events` / `spec-kitty-tracker`. Its precondition — **#645**, moving the ~129
+  --- spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:60,62
+      
+      Interaction with core is fixed by ADR-0001/0002/0004: an **OpenAPI contract**, a **Swagger/docsite** contract
+      description, and a **generated Python client**. Whatever this service does with packs, core consumes it **as a
+  --- spec-kitty/.kittify/charter/charter.md:427,429
+      charter stays in core until it is retired: the offering's reads cut over to the
+      `spec-kitty-charter` service through `charter.offering.api` (core's frozen seam), and the
+      Python offering is replaced in place, not extracted; `charter.activation` stays in core, and
+
+===== Q8 services launched by the CLI =====
+  $ grep -rnEi 'No pin exists yet|launcher.{0,30}(is )?(unbuilt|not built)|No Python code launches|mechanism is built|first command that needs a service'  (first 12 hits)
+spec-kitty/docs/plans/events-domain-move/plan.md:41:- **No Python code launches either service.** The CLI wheel ships no server (ADR 2026-10-01-2 D-7). Python read paths stay native Python behind one read port (D-5).
+spec-kitty/docs/plans/events-domain-move/plan.md:65:- **Write service:** shapes only (`write_service_protocol.py`, ADR 2026-10-27-1). One daemon per **git common dir**, endpoint file `<gcd>/spec-kitty-write-service/endpoint.json`. The launcher (#6676) is unbuilt. ADR 2026-10-22-1 D-5: native image, then JVM jar, else a named ref
+spec-kitty/docs/development/how-to/service-pins.md:35:> **No pin exists yet.** `pins/` holds only its `README.md` until a service repository cuts its first
+spec-kitty/docs/development/how-to/service-pins.md:66:Nothing, normally: the first command that needs a service fetches, verifies and starts it.
+spec-kitty/docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md:94:4. The existing `--include <selector>` surface is the fetch verb; no new retrieval mechanism is built.
+spec-kitty/docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md:57:The CLI itself never ran either service. The wheel ships no server (2026-10-01-2 D-7), and the write-service launcher (#6676) is unbuilt. Moving the code costs core nothing at runtime, but it does change how core gets the
+spec-kitty/.kittify/charter/charter.md:402:  `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored:
+spec-kitty-charter/docs/architecture/service-lifecycle.md:88:  start one daemon per worktree, but the launcher is not built yet
+  total hits: 8
+  --- spec-kitty/docs/development/how-to/service-pins.md:35,38
+      > **No pin exists yet.** `pins/` holds only its `README.md` until a service repository cuts its first
+      > `service-v*` release. Until then `make sync-services` prints `no service pinned` and exits 0, and
+      > every command that needs a service refuses with `SERVICE_PIN_INVALID`. The pull request that adds
+      > the first pin also wires the `sync-services` action into CI and `sync-services` into `make dev-setup`.
+  --- spec-kitty/pins/README.md:29,32
+      - `read-service.source.yaml`: the Mission Status read service from spec-kitty-events
+        `service-v0.1.0-rc.1`, with its contract bundles, contract tools and conformance
+        fixtures. It is pinned for CI conformance only: the CLI never launches it, and
+        `spec-kitty service fetch --all` does not fetch it (ADR 2026-10-29-1 D-6).
+  --- spec-kitty/.kittify/charter/charter.md:400,402
+      - **the pinned service build**, which core pins with one lockfile per service
+        (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only through
+        `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored:
+
+===== Q9 external orchestrator interface: other interfaces =====
+  $ grep -rnEi 'external orchestrat.{0,80}(MCP|REST|HTTP API|gRPC|webhook)|only (supported|sanctioned) (way|interface).{0,40}orchestrat'  (first 8 hits)
+  total hits: 0
+
+===== Q10 mission identity: number used for lookup =====
+  $ grep -rnEi 'mission_number.{0,80}(lookup|identity|selector|resolve|canonical)'  (first 8 hits)
+spec-kitty/docs/api/terminology.md:38:| `mission_id` | Mission | **Canonical mission machine identity.** ULID (26 chars), minted at `agent mission create`. Aggregate key for events and selectors. | Immutable once minted | Replaces `mission_number` as canonical identity as of mission 083 |
+spec-kitty/docs/api/event-envelope.md:23:- `Mission` is the tracked item under `kitty-specs/<mission-slug>/`. Its **canonical** machine identity is `mission_id` (a ULID). The human-readable `mission_slug` and the display-only `mission_number` are serialized alongside it for context, but **selectors and event routing use `mission
+spec-kitty/docs/adr/3.x/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md:74:3. `mission_number` is not a canonical identifier. It is descriptive,
+  total hits: 3
+
+===== Q11 precedence rules between documents =====
+  $ grep -rnEi '(wins|takes precedence|prevails) (over|when).{0,60}(doc|ADR|charter|architecture|page|roadmap|plan|glossary|code)|When terms conflict'  (first 14 hits)
+spec-kitty/docs/context/glossary-conventions.md:9:  guidance_text: Read this to know which source wins when terms conflict and which rows a glossary entry must carry.
+spec-kitty/docs/context/glossary-conventions.md:23:When terms conflict, use this order:
+doc-kitty/docs/guides/consumer-setup.md:1746:| `defaultGlossaryContext` | none | The glossary context of every generated page under a source directory, so features need no `@dk:context` tag: `{ shipping: 'shipping', 'shipping/eu': 'customs' }`. A key is a directory relative to its source, written like a `titles` key, and covers 
+doc-kitty/docs/guides/authoring.md:321:| `@dk:context=<ctx>` | `glossary_context` | The glossary context used to resolve terms in the step text. At most one. Wins over the site's folder default (`gherkin.defaultGlossaryContext`). |
+  total hits: 4
+  --- spec-kitty/docs/context/glossary-conventions.md:22,26
+      
+      When terms conflict, use this order:
+      
+      1. Accepted product planning docs (PDR/PRD/ADR)
+      2. This glossary (policy language)
+
+===== Q12 events bump procedure: other pinning rules =====
+  $ grep -rnEi 'pin .spec-kitty-events. with exact|spec-kitty-events==|exact pinning'  (first 8 hits)
+spec-kitty/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md:123:  `spec-kitty-events==4.0.0`.
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:2:title: PyPI Exact Pinning for `spec-kitty-events` Across Consumer Repos
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:45:**Chosen option:** PyPI exact pinning with strict consumer parity.
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:50:2. `spec-kitty` and `spec-kitty-saas` pin `spec-kitty-events` with exact `==` versions.
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:57:* `spec-kitty` dependency pin set to `spec-kitty-events==0.4.0a0`.
+spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:58:* `spec-kitty-saas` dependency pin set to `spec-kitty-events==0.4.0a0`.
+spec-kitty-events/docs/api/python-package.md:24:pip install "spec-kitty-events==10.6.0"
+spec-kitty-events/docs/api/consumer-contract-dossier-v2.4.0.md:24:**Package**: `spec-kitty-events==2.4.0`
+  total hits: 10
+  --- spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:4,5
+      status: Accepted
+      doc_status: active
+  --- spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md:48,49
+      
+      1. `spec-kitty-events` publishes contract releases to PyPI.
+  superseded markers in that ADR: 0
+
+===== Q13 wheel content: statements that the wheel ships a binary, server or the internal pack =====
+  $ grep -rnEi 'wheel (ships|bundles|includes|carries).{0,80}(binary|binaries|jar|server|internal)'  (first 10 hits)
+spec-kitty/docs/plans/events-domain-move/plan.md:41:- **No Python code launches either service.** The CLI wheel ships no server (ADR 2026-10-01-2 D-7). Python read paths stay native Python behind one read port (D-5).
+spec-kitty/docs/development/reference/ci-gate-mechanics.md:1015:  --check`) and asserts the wheel carries the pins and no service binary.
+spec-kitty/docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md:57:The CLI itself never ran either service. The wheel ships no server (2026-10-01-2 D-7), and the write-service launcher (#6676) is unbuilt. Moving the code costs core nothing at runtime, but it does change how core gets the
+spec-kitty/docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:141:  as a subprocess. The CLI wheel ships no server, daemon, port or PID file. Choosing a
+spec-kitty/docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:292:  artifact. It is not part of the Python wheel, so "the CLI wheel ships no server, daemon,
+spec-kitty/docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:404:- **D-7 and D-9 to D-12 (the service is its own build in this repository, extracted when its contract freezes).** The service, its `domain-model` and `event-log` libraries and the `mission-status` contract move to `spec-kitty-events` wit
+spec-kitty-events/docs/guides/service-protocol-and-releases.md:196:  mismatch. The PyPI wheel carries no binary. This fetch is core's launcher work (#6676);
+  total hits: 7
+
+===== Q14 mission types: where a type is defined =====
+  $ grep -rnEi 'defined by its own .mission\.yaml|canonical catalogue lives in|three (mission-type )?registries'  (first 8 hits)
+spec-kitty/docs/architecture/mission-system.md:104:artifact**. The canonical catalogue lives in `packs/built-in/missions/<type>/`,
+spec-kitty/docs/context/mission-types.md:21:defined by its own `mission.yaml` under `src/specify_cli/missions/` (the built-in pack
+  total hits: 2
+  --- spec-kitty/docs/context/mission-types.md:20,23
+      along the way. As of this writing there are exactly four mission types, each
+      defined by its own `mission.yaml` under `src/specify_cli/missions/` (the built-in pack
+      carries an identical copy under `packs/built-in/missions/<type>/`, beside the
+      `mission-runtime.yaml` step DAG):
+  --- spec-kitty/docs/architecture/mission-system.md:104,105
+      artifact**. The canonical catalogue lives in `packs/built-in/missions/<type>/`,
+      where each type *offers* its governance, action indices, step contracts, and
+
+===== Q15 publication seam: registered handlers =====
+  $ grep -rnEi 'zeitgeist_bridge|register an observer with .status/adapters'  (first 8 hits)
+spec-kitty/docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:73:- **Single writer, local first.** The live fan-out never raises into local persistence (`status/zeitgeist_bridge.py`, lines 52-56).
+spec-kitty/docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:88:| EC-1 | **BLOCKER** | An engine↔hosted decision round trip does not exist today. The target architecture assumes the engine opens decisions on the hosted side and receives answers back. | `decision open` appends l
+spec-kitty/docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:91:| EC-4 | HIGH | Any replacement for the per-team relays must keep, or explicitly retire, the live surfaces the CLI ships today. | Lane, lifecycle and decision moments fan out live (`zeitgeist_bridge.py`, 1-30); also 
+spec-kitty/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:128:- Core → Sync/Tracker/SaaS fan-out: register an observer with `status/adapters.py` or
+spec-kitty/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md:117:- Only the Zeitgeist handlers in `status/zeitgeist_bridge.py` check drain, before codec or credential work, and return when it is off.
+spec-kitty/docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md:40:This survey predates #6164 (PR #6206), which removed the hosted surfaces from open-core: `status/zeitgeist_bridge.py`, the hidden hosted CLI entries and the drain gates in `status/adapters.py` are gone. The citations below describe the tree a
+spec-kitty/docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md:62:- `status/lifecycle_events.py` (producer 3) has 14 direct module importers, among them `migration/mission_state.py`, `status/doctor.py`, `status/views.py`, `status/zeitgeist_bridge.py` and the upgrade migration `m_3_2_9_migrate_lifecycle_enve
+spec-kitty/docs/architecture/04_implementation_mapping/README.md:101:runtime-moment, live-work and decision-widen surfaces, `status/zeitgeist_bridge.py`
+  total hits: 8
+  --- spec-kitty/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:4,5
+      status: Accepted
+      doc_status: active
+  --- spec-kitty/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:128,129
+      - Core → Sync/Tracker/SaaS fan-out: register an observer with `status/adapters.py` or
+        `core/adapters.py`; call the fire function.
+
+===== Q16 doc-kitty role and consumption =====
+  $ grep -rnEi 'doc-toolkit.{0,60}(npm|published|registry|git dependency|github:)'  (first 8 hits)
+spec-kitty/docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md:92:"@spec-kitty/doc-toolkit": "github:spec-kitty/doc-kitty#<40-character commit SHA>&path:/src"
+doc-kitty/docs/ops/releasing.md:3:description: How a maintainer publishes @spec-kitty/doc-toolkit to the GitHub Packages npm registry by pushing a version tag, and why it needs no publish secret.
+doc-kitty/docs/guides/consumer-setup.md:22:`@spec-kitty/doc-toolkit` from the **GitHub Packages** registry and wants to wire
+doc-kitty/docs/guides/consumer-setup.md:89:`@spec-kitty/doc-toolkit` is published to the **GitHub Packages** npm registry
+doc-kitty/README.md:44:`@spec-kitty/doc-toolkit` is published to the **GitHub Packages** npm registry
+  total hits: 5
+
+===== Q17 who decides profile, model, tool =====
+  $ grep -rnEi '(orchestrator|operator|runtime|router) (selects|chooses|decides|picks|assigns).{0,60}(agent|tool|harness|model|profile)|profile comes from'  (first 10 hits)
+spec-kitty/docs/api/agent_profiles/README.md:36:and boundaries for a work package: the runtime assigns profiles to work
+spec-kitty/docs/api/profile-invocation.md:28:router picks the best profile by default. Pass `--profile` only when the caller
+spec-kitty/docs/architecture/execution-lanes.md:27:3. The runtime chooses the lane worktree. Agents do not pick a base branch manually.
+spec-kitty/docs/architecture/runtime-loop.md:28:`spec-kitty next` inverts that relationship. Instead of the human choosing the next action, the **runtime decides** and tells the agent what to do. The agent calls `spec-kitty next`, receives a decision, executes it, reports the result, and asks again. This is the runtime loop.
+spec-kitty-charter/docs/context/user-journeys/08-resolve-a-step.md:107:- The profile comes from the work package's `agent_profile` frontmatter, forwarded by
+  total hits: 5
+
+===== Q18 exceptions to rules: approval =====
+  $ grep -rnEi '(exception|exemption|waiver).{0,80}(approved by|requires approval|sign[- ]off|operator approves)'  (first 8 hits)
+  total hits: 0
+
+===== Q19 recovery after interruption: statements that work is lost or not resumable =====
+  $ grep -rnEi '(crash|interrupt|killed).{0,80}(start over|from scratch|cannot be resumed|not resumable|is lost)'  (first 8 hits)
+  total hits: 0
+
+===== Q20 planned moves: direction statements =====
+  $ grep -rnEi 'nothing Python moves|being extracted into its own repository|local file is the source of truth|service is authoritative for activation'  (first 10 hits)
+spec-kitty/docs/plans/domains/doctrine-charter-domain-plan.md:108:> repository. The Python charter stays in core until it is retired, and nothing Python moves
+spec-kitty/docs/plans/domains/packs-extraction-domain-plan.md:113:> repository. The Python charter stays in core until it is retired, and nothing Python moves
+spec-kitty/docs/plans/4-0-0-milestone-roadmap.md:86:   **Superseded 2026-10-19 (operator ruling): the Python charter stays in core until it is retired and nothing Python moves to `spec-kitty-charter`; offering reads cut over to the `spec-kitty-charter` service through `charter.offering.api`, and the GA leg is a frozen seam plus 
+spec-kitty/docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md:71:- The activation layer is being extracted into its own repository, so layering must hold
+spec-kitty/docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:185:  repository move. Nothing Python moves to `spec-kitty-charter`; the Python charter stays in
+spec-kitty/docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:208:  charter service is authoritative for activation, and core's activation ledger
+spec-kitty/docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:21:> the Python charter stays in core until it is retired, and nothing Python moves to
+spec-kitty/docs/architecture/05_ownership_map.md:60:> stays in core until it is retired and nothing Python moves to `spec-kitty-charter`; offering
+spec-kitty/docs/architecture/00_landscape/README.md:62:> core until it is retired, nothing Python moves to `spec-kitty-charter`, and offering reads
+spec-kitty/.kittify/charter/charter.md:426:external contract package, and nothing Python moves to `spec-kitty-charter`. The Python
+  total hits: 20
+  --- spec-kitty/docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md:71,71
+      - The activation layer is being extracted into its own repository, so layering must hold

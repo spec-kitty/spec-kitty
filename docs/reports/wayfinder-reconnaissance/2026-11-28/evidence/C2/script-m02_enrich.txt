@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Enrich M02 samples: fix PR, introducer (top blame) PR, Mission artefacts in introducer PR, acceptance at head,
+first referenced issue (qualified by tracker and date). Read-only gh api GETs."""
+import json, re, subprocess, sys, collections
+REPO = sys.argv[1]; FRAMES = sys.argv[2]; COMMITS = sys.argv[3]; OUT = sys.argv[4]
+H = "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+def git(*a, check=False):
+    return subprocess.run(["git", "-C", REPO, *a], capture_output=True, text=True, check=check).stdout
+def gh(p):
+    r = subprocess.run(["gh", "api", p], capture_output=True, text=True)
+    return json.loads(r.stdout) if r.returncode == 0 else None
+rs = {json.loads(l)['sha']: json.loads(l) for l in open(COMMITS)}
+fr = json.load(open(FRAMES))
+def pr_of(sha):
+    res = gh(f"repos/spec-kitty/spec-kitty/commits/{sha}/pulls")
+    if res:
+        m = [q for q in res if q.get('merged_at')] or res
+        return m[0]['number'], m[0].get('merged_at'), m[0]['title'][:100]
+    res = gh(f"repos/spec-kitty/EXPERIMENTAL-spec-kitty/commits/{sha}/pulls")
+    if res:
+        m = [q for q in res if q.get('merged_at')] or res
+        return f"EXP#{m[0]['number']}", m[0].get('merged_at'), m[0]['title'][:100]
+    return None, None, None
+def pr_mission_slugs(num):
+    if not isinstance(num, int): return []
+    files = []
+    for page in (1, 2, 3):
+        f = gh(f"repos/spec-kitty/spec-kitty/pulls/{num}/files?per_page=100&page={page}")
+        if not f: break
+        files += [x['filename'] for x in f]
+        if len(f) < 100: break
+    return sorted(set(p.split('/')[1] for p in files if p.startswith('kitty-specs/') and p.count('/') >= 2))
+def acceptance(slug):
+    raw = git("show", f"{H}:kitty-specs/{slug}/meta.json")
+    if not raw: return "no-meta-at-head"
+    try: m = json.loads(raw)
+    except Exception: return "meta-unreadable"
+    acc = m.get('accepted_at') or (m.get('acceptance') or {}).get('accepted_at') if isinstance(m.get('acceptance'), dict) else m.get('accepted_at')
+    hist = m.get('acceptance_history')
+    return f"accepted_at={acc}" if acc else ("acceptance_history" if hist else "not-accepted-at-head")
+def blame_top(sha):
+    x = rs[sha]; par = x['parents'][0]
+    diff = git("show", "--format=", "-U0", "--no-renames", sha, "--", "src")
+    cur = None; cnt = collections.Counter()
+    spans = []
+    for l in diff.splitlines():
+        if l.startswith("--- a/"): cur = l[6:]
+        elif l.startswith("--- /dev/null"): cur = None
+        elif l.startswith("@@") and cur:
+            m = re.match(r"@@ -(\d+)(?:,(\d+))? \+", l); st, n = int(m.group(1)), int(m.group(2) or 1)
+            spans.append((cur, st, max(n, 1)) if n else (cur, max(st, 1), 1))
+    for f, st, n in spans[:60]:
+        for l in git("blame", "--porcelain", "-L", f"{st},{st + n - 1}", par, "--", f).splitlines():
+            if re.match(r"^[0-9a-f]{40} \d+ \d+", l): cnt[l[:40]] += 1
+    return cnt
+def first_issue(sha, fixdate):
+    body = git("log", "-1", "--format=%s%n%b", sha)
+    nums = [int(n) for n in re.findall(r"#(\d{3,5})\b", body)]
+    for n in nums:
+        it = gh(f"repos/spec-kitty/spec-kitty/issues/{n}")
+        if not it: continue
+        if it.get('created_at', '9999')[:10] > fixdate: continue
+        kind = 'pr' if it.get('pull_request') else 'issue'
+        if kind == 'pr': continue
+        u = it['user']['login']; typ = it['user'].get('type')
+        return dict(n=n, tracker='spec-kitty/spec-kitty', created=it['created_at'][:10], author_is_bot=(typ == 'Bot' or u.endswith('[bot]')),
+                    labels=[l['name'] for l in it.get('labels', [])][:6], title=it['title'][:110], body=(it.get('body') or '')[:400].replace("\n", " "))
+    return dict(n=None, refs=nums[:6])
+out = []
+for lab, key in (("A", "sample_a"), ("B", "sample_b")):
+    for i, sha in enumerate(fr[key]):
+        x = rs[sha]; fixdate = x['utc'][:10]
+        fpr = pr_of(sha)
+        cnt = blame_top(sha); tot = sum(cnt.values())
+        intro = cnt.most_common(1)[0][0] if cnt else None
+        rec = dict(id=f"{lab}{i:02d}", sha=sha, date=fixdate, subject=x['subject'][:110], components=x['components'], fix_pr=fpr,
+                   blame_lines=tot, intro=None)
+        if intro:
+            share = cnt[intro] / tot
+            ipr = pr_of(intro)
+            slugs = pr_mission_slugs(ipr[0]) if ipr[0] else []
+            isub = git("log", "-1", "--format=%cs|%s", intro).strip()
+            on_main_before_fix = subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", intro, x['parents'][0]]).returncode == 0
+            rec['intro'] = dict(sha=intro, share_of_blamed_lines=round(share, 2), subject=isub[:140], pr=ipr, same_pr_as_fix=(ipr[0] is not None and ipr[0] == fpr[0]),
+                                mission_slugs_in_pr=slugs[:4], acceptance={s: acceptance(s) for s in slugs[:4]}, ancestor_of_fix_parent=on_main_before_fix)
+        rec['issue'] = first_issue(sha, fixdate)
+        out.append(rec); sys.stderr.write(".")
+json.dump(out, open(OUT, "w"), indent=1)

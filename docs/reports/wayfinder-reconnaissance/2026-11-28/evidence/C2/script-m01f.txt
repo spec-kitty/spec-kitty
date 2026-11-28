@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""M01f: cross-component import edges added/removed per sampled code commit (AST walk of changed .py files
+before/after), plus whether a component-pair edge is new to the whole src tree at the parent revision."""
+import ast, subprocess, sys, json, random, collections, csv, functools
+REPO = sys.argv[1]; COMMITS = sys.argv[2]; OUT = sys.argv[3]
+src = open(sys.argv[4]).read().split("# ---------------- classifier")[0]
+src = src.replace('REPO = sys.argv[1]', f'REPO = {REPO!r}').replace('OUT = sys.argv[2]', 'OUT=None')
+g = {}; exec(src, g); component = g['component']
+CLASSES = ['capability-growth', 'corrective-maintenance', 'restructuring', 'compatibility-work', 'convergence-activity', 'other']
+
+def git(*a, inp=None):
+    return subprocess.run(["git", "-C", REPO, *a], check=True, capture_output=True, input=inp).stdout
+
+def period(x):
+    if x['line'] == 'main-post': return 'T3'
+    d = x['utc'][:10]
+    if '2026-04-01' <= d <= '2026-06-30': return 'T1'
+    if '2026-07-01' <= d <= '2026-09-05': return 'T2'
+    return None
+
+rs = [json.loads(l) for l in open(COMMITS)]
+pop = [x for x in rs if x['code'] and not x['merge'] and not x['bulk'] and x['line'] != 'convergence-merge']
+for x in pop: x['period'] = period(x)
+r = random.Random(20261128)
+sample = []
+for p in ('T1', 'T2', 'T3'):
+    pp = sorted([x for x in pop if x['period'] == p], key=lambda x: x['sha'])
+    strata = {c: [x for x in pp if x['cls'] == c] for c in CLASSES}
+    N = len(pp); alloc = {}
+    for c, s in strata.items(): alloc[c] = min(len(s), 10) if s else 0
+    rest = 150 - sum(alloc.values())
+    # proportional allocation of the remainder over strata with remaining members
+    rem = {c: len(s) - alloc[c] for c, s in strata.items()}
+    tot = sum(rem.values())
+    for c in CLASSES:
+        if tot: alloc[c] += min(rem[c], int(round(rest * rem[c] / tot)))
+    # fix rounding to exactly 150
+    while sum(alloc.values()) > 150:
+        c = max(CLASSES, key=lambda c: alloc[c]); alloc[c] -= 1
+    while sum(alloc.values()) < 150:
+        c = max(CLASSES, key=lambda c: len(strata[c]) - alloc[c]); alloc[c] += 1
+    for c in CLASSES:
+        if alloc[c]: sample += [(p, c, x) for x in r.sample(strata[c], alloc[c])]
+
+@functools.lru_cache(maxsize=None)
+def tree_index(rev):
+    ls = git("ls-tree", "-r", rev, "src").decode().splitlines()
+    files = {}; dirs = set()
+    for l in ls:
+        meta, path = l.split("\t", 1)
+        files[path] = meta.split()[2]
+        parts = path.split("/")
+        for i in range(2, len(parts)): dirs.add("/".join(parts[:i]))
+    return files, dirs
+
+blob_cache = {}
+def blob_text(oid):
+    if oid not in blob_cache:
+        blob_cache[oid] = git("cat-file", "blob", oid)
+    return blob_cache[oid]
+
+def resolve_target(modparts, dirs):
+    # longest prefix that is a directory under src
+    best = None
+    for i in range(len(modparts), 0, -1):
+        d = "src/" + "/".join(modparts[:i])
+        if d in dirs:
+            best = d; break
+    if best is None:
+        return None
+    return component(best + "/__x__.py") if best.count("/") >= 1 else None
+
+imp_cache = {}
+def imports_of(oid, path, dirs_key, dirs):
+    key = (oid, dirs_key)
+    if key in imp_cache: return imp_cache[key]
+    try:
+        tree = ast.parse(blob_text(oid))
+    except Exception:
+        imp_cache[key] = None; return None
+    pkg = path[len("src/"):].split("/")[:-1]
+    targets = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                t = resolve_target(a.name.split("."), dirs)
+                if t: targets.add(t)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = pkg[: len(pkg) - (node.level - 1)] if node.level - 1 <= len(pkg) else []
+                mod = base + (node.module.split(".") if node.module else [])
+            else:
+                mod = node.module.split(".") if node.module else []
+            if not mod: continue
+            for a in node.names:
+                t = resolve_target(mod + [a.name], dirs)
+                if t: targets.add(t)
+    imp_cache[key] = targets
+    return targets
+
+full_cache = {}
+def full_pairs(rev):
+    if rev in full_cache: return full_cache[rev]
+    files, dirs = tree_index(rev)
+    pairs = set()
+    for path, oid in files.items():
+        if not path.endswith(".py"): continue
+        sc = component(path)
+        t = imports_of(oid, path, rev, dirs)
+        if t:
+            for tc in t:
+                if tc != sc: pairs.add((sc, tc))
+    full_cache[rev] = pairs
+    return pairs
+
+rows = []
+for p, c, x in sample:
+    sha = x['sha']; par = x['parents'][0] if x['parents'] else None
+    after_files, after_dirs = tree_index(sha)
+    before_files, before_dirs = tree_index(par) if par else ({}, set())
+    changed = [q for q in x['src_paths'] if q.endswith('.py')]
+    fe_before = set(); fe_after = set(); parse_fail = 0
+    for q in set(changed):
+        for (files, dirs, rev, bucket) in ((before_files, before_dirs, par, fe_before), (after_files, after_dirs, sha, fe_after)):
+            if q in files:
+                t = imports_of(files[q], q, rev, dirs)
+                if t is None: parse_fail += 1; continue
+                sc = component(q)
+                for tc in t:
+                    if tc != sc: bucket.add((q, sc, tc))
+    added = fe_after - fe_before; removed = fe_before - fe_after
+    pa = set((s, t) for _, s, t in fe_after); pb = set((s, t) for _, s, t in fe_before)
+    new_pairs_in_changed = pa - pb
+    whole_before = full_pairs(par) if par else set()
+    new_to_tree = sorted(f"{s}->{t}" for s, t in new_pairs_in_changed if (s, t) not in whole_before)
+    rows.append([p, c, sha, x['line'], x['utc'][:10], x['py_changed'], len(set(changed)), len(added), len(removed),
+                 len(new_pairs_in_changed), len(new_to_tree), ";".join(new_to_tree), parse_fail, x['subject'][:90]])
+    sys.stderr.write(".")
+with open(f"{OUT}/M01f-import-edges-sample.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["period", "class", "sha", "line", "date", "py_lines_changed_src", "py_files_changed_src", "file_edges_added", "file_edges_removed", "component_pairs_new_within_changed_files", "component_pairs_new_to_src_tree", "new_pairs", "parse_failures", "subject"])
+    w.writerows(rows)
+# aggregate
+agg = collections.defaultdict(lambda: [0, 0, 0, 0, 0, 0])
+for row in rows:
+    for k in ((row[0], row[1]), (row[0], 'ALL')):
+        a = agg[k]; a[0] += 1; a[1] += row[5]; a[2] += row[7]; a[3] += row[8]; a[4] += row[10]; a[5] += row[9]
+with open(f"{OUT}/M01f-import-edges-aggregate.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["period", "class", "sampled_commits", "py_lines_changed", "file_edges_added", "file_edges_removed", "file_edges_added_per_kloc", "file_edges_removed_per_kloc", "net_per_kloc", "component_pairs_new_to_tree", "pairs_new_to_tree_per_kloc", "component_pairs_new_within_changed_files"])
+    for (p, c), a in sorted(agg.items()):
+        k = a[1] / 1000 if a[1] else None
+        w.writerow([p, c, a[0], a[1], a[2], a[3], round(a[2] / k, 3) if k else '', round(a[3] / k, 3) if k else '', round((a[2] - a[3]) / k, 3) if k else '', a[4], round(a[4] / k, 3) if k else '', a[5]])
+print("\ndone", len(rows))

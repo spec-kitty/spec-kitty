@@ -1,0 +1,19 @@
+== run 1 (three files in one invocation, killed by memory cgroup OOM: exit 137)
+sync_exit=0
+Python 3.11.15
+pytest 9.0.3
+............................pytest_exit=137 seconds=436
+== dmesg at the time
+[ 1748.120873] Memory cgroup out of memory: Killed process 19066 (java) total-vm:5656640kB, anon-rss:2114140kB, file-rss:2756kB, shmem-rss:0kB, UID:0 pgtables:4920kB oom_score_adj:0
+[ 1877.721494] Memory cgroup out of memory: Killed process 6430 (python) total-vm:2062996kB, anon-rss:2006580kB, file-rss:2464kB, shmem-rss:0kB, UID:0 pgtables:4084kB oom_score_adj:0
+[ 1908.730167] Memory cgroup out of memory: Killed process 4177 (python) total-vm:2059660kB, anon-rss:2003552kB, file-rss:2548kB, shmem-rss:0kB, UID:0 pgtables:4084kB oom_score_adj:0
+[ 1963.306487] Memory cgroup out of memory: Killed process 19027 (python) total-vm:1928976kB, anon-rss:1874880kB, file-rss:2612kB, shmem-rss:0kB, UID:0 pgtables:3824kB oom_score_adj:0
+== run 2 (one file per invocation, layer-rules file not retried)
+
+(35 durations < 1s hidden.)
+12 passed in 61.43s (0:01:01)
+file=tests/architectural/test_pyproject_shape.py pytest_exit=0 seconds=69
+
+(7 durations < 1s hidden.)
+3 passed in 41.76s
+file=tests/architectural/test_shared_package_boundary.py pytest_exit=0 seconds=48

@@ -1,0 +1,38 @@
+import csv,sys
+S,out=sys.argv[1],sys.argv[2]
+C='spec-kitty@5c4fc5a:';G=C+'docs/context/';CH='spec-kitty-charter@06cdfbe:';EV='spec-kitty-events@646e330:';OP='spec-kitty-open-packs@f9a5575:';DK='doc-kitty@1acc49f:';FK='fleet-kitty@e3b39b8:'
+NOTE0="Fit judged from the outside term's name only: A2 was not given the outside definitions. "
+R=[
+("Build Kitty","Build Kitty (product line)",G+"product-lines.md:25","same","Name exists; definitions differ by repo (core: CLI + Mission Status Read API; events: CLI and its extension surface). fleet-kitty uses build-kitty as a worker image/label name ("+FK+"README.md)."),
+("core CLI","Spec Kitty CLI / spec-kitty-cli package; landscape 'Control Plane' + 'Kitty-core'",C+"docs/architecture/04_implementation_mapping/README.md:56","same","'core CLI' appears as prose in core, charter, events, open-packs, doc-kitty; no glossary entry. Core 'Do NOT use' row keeps product-line names off the CLI package."),
+("Charter and API","charter service + charter contract (OpenAPI); charter.offering.api seam; Brain Kitty",CH+"docs/context/domain.md:77; "+CH+"docs/context/domain.md:189","broader","Outside term bundles a governance unit and its API; ecosystem separates charter (document), charter service, Python charter package and charter contract."),
+("Packs","Charter Pack; built-in/org/project pack levels; spec-kitty-open-packs repository",G+"charter.md:56; "+G+"governance.md:81","same","'pack' carries level, audience-tier and repository senses; see F-A2-008."),
+("Doc Kitty","DocKitty (one word): @spec-kitty/doc-toolkit and the docs convention",DK+"docs/context/product.md:68","same","Spelling differs: ecosystem writes 'DocKitty' (1,624 lines in doc-kitty) and 'Doc Kitty' only once. Placed in Brain Kitty only by "+CH+"docs/context/product.md:49."),
+("Events and API","spec-kitty-events contract package + read/write services (service-v* line)",EV+"docs/context/README.md:13; "+EV+"docs/glossary/README.md:102","broader","Ecosystem separates the Python contract package (v* line) from the Java services (service-v* line)."),
+("mission coordination","COORD partition, coordination branch/worktree; 'workflow coordination' (Agent definition)",G+"orchestration.md:787; "+G+"identity.md:26","different","Phrase occurs (74 lines core, mostly kitty-specs) meaning the per-mission coordination branch/worktree (topology sense), not agent coordination."),
+("execution infrastructure","execution lane, write checkout, workspace; landscape 'Orchestration' container",G+"topology.md; "+C+"docs/architecture/04_implementation_mapping/README.md:59","no counterpart","Zero occurrences in 9 repos."),
+("containerised runner","none in core; fleet-kitty Docker worker image and sk-cirun VMs",FK+"README.md; "+FK+"docs/LOCAL-DOCKER.md","no counterpart","Zero occurrences of the phrase in 9 repos; core has no container runner. fleet-kitty (supplementary) runs factory workers in Docker and CI-run VMs."),
+("control-pane surface","landscape 'Control Plane' container (src/specify_cli/cli/); Tool Surface / Topology Surface",C+"docs/architecture/04_implementation_mapping/README.md:56; "+G+"execution.md:34","no counterpart","'control-pane' zero occurrences. 'surface' is a governed two-sense word in core (bare 'surface' forbidden)."),
+("HUD","none",'-',"no counterpart","Zero occurrences in 9 repos."),
+("Operations Deck","none; nearest: Team Kitty consumer surfaces (mission-ui) over the Mission Status Read API",G+"product-lines.md:51","no counterpart","Zero occurrences."),
+("Kira","none",'-',"no counterpart","Zero occurrences in 9 repos."),
+("Wayfinder","none",'-',"no counterpart","Zero occurrences outside this report folder."),
+("architectural knowledge plane","docs/context glossaries + ADRs + charter (policy layer); DRG",G+"glossary-conventions.md:29","no counterpart","'knowledge plane' zero occurrences; events calls Brain Kitty 'the knowledge-and-specification side'."),
+("modulith packager","'Modulith first' (ADR); wheel packaging + spec-kitty-services companion wheel",C+"docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:91","no counterpart","'modulith' occurs 3 lines in core (ADR); no packager concept."),
+("harness adapter","SynthesisAdapter; tool-surface providers/session-presence writers per harness; HarnessCapabilityRecord",C+"src/charter/activation/synthesizer/adapter.py:70; "+C+"src/specify_cli/tool_surface/profiles/capability_matrix.py:37","different","Phrase occurs once (planning repo). 'harness' itself has 4 senses (F-A2-002)."),
+("assignment","AgentAssignment (tool, model, profile_id, role per WP); Role = responsibility assignment",C+"src/specify_cli/status/models.py:1084; "+G+"identity.md:38","narrower","Code value object, no glossary entry."),
+("attempt","consolidation attempt (begin_attempt); events FactoryAttemptRef; OpsInvocation 'invocation attempt'",C+"src/specify_cli/consolidation/rollback.py:783; "+EV+"src/spec_kitty_events/work_observation.py:332","different","Three unrelated senses; the events sense (factory job attempt, distinct from session) has no core-src importer."),
+("session","harness conversation session (SessionStart hook, session presence); events SessionIdentity; charter PacksSession",C+"src/specify_cli/session_presence/manager.py:1; "+EV+"src/spec_kitty_events/work_observation.py:6","different","Core discourages 'mission session' ("+G+"orchestration.md:95); Mission Run is the runtime execution unit."),
+("projection","bookkeeping projection, skill/profile projection, SaaS read-model projection, teardown projection window, Zeitgeist projection",C+"src/specify_cli/consolidation/bookkeeping_projection.py:1; "+G+"execution.md:73","different","At least 7 code senses in core, none with a glossary entry (F-A2-004)."),
+("native journal","status event log / status diary (status.events.jsonl); events 'durable journal' (strict profile)",G+"charter.md:122; "+EV+"docs/glossary/README.md:65; "+EV+"docs/glossary/README.md:69","no counterpart","'native journal' zero occurrences; 'durable journal' exists only in events (hosted ingress). Core 'event journal' (65 lines) names the retired event_journal subsystem."),
+("savoir / savoir-faire / savoir-etre","directives / tactics+procedures / agent-profile ethos (charter 'Ethos', 'Creed')",G+"charter.md:235; "+G+"charter.md:248; "+CH+"docs/glossary/governance/README.md:82","no counterpart","Zero occurrences. Nearest by analogy only: knowing (paradigm/directive), know-how (tactic/procedure), being (charter-repo Ethos/Creed)."),
+]
+cnt={}
+for r in csv.DictReader(open(S+'/outside-counts.csv')): cnt.setdefault(r['outside_term'],{})[r['repo']]=r['lines_all_tracked']
+w=csv.writer(open(out,'w',newline=''))
+w.writerow(['outside_term','nearest_ecosystem_terms','ecosystem_definition_source','fit','note','occurrences_of_outside_term_lines_per_repo'])
+for o,n,s,f,note in R:
+    key={'savoir / savoir-faire / savoir-etre':'savoir','modulith packager':'modulith packager'}.get(o,o)
+    c=cnt.get(key,{}); occ=';'.join(f"{k}={v}" for k,v in c.items())
+    w.writerow([o,n,s,f,NOTE0+note,occ])
+print(len(R))

@@ -1,0 +1,63 @@
+finding_id: F-A2-004
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: vocabulary (projection)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '''projection'' has no glossary entry in any of the five repos, yet core src at head defines 10 projection-named
+  classes in 6 modules carrying at least 5 unrelated senses: coord-to-target status projection in consolidation
+  (ProjectionResult, LateProjectionRefused, LateProjectionRefusalKind), coordination teardown ''projection window''
+  (ProjectionTeardownGate/Abort), rendering a skill or agent profile into a tool root (PackSkillProjection, PreparedProjection),
+  a ''SaaS read-model projection policy'' (ProjectionRule), and MissionBranchProjection in lane cleanup; events
+  adds a Zeitgeist ''retention-window projection'' and the read service''s ProjectionCache. Core src: 527 lines
+  matching bare ''projection''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/code-identifiers.txt
+  method: git grep class definitions and identifier counts at core head
+  sha256: dadd3af209601126abe5edf0149b24e9f648d469e18876c6c3f7eb18a124787e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/multi-sense.csv
+  method: python3 build-multi-script.txt
+  sha256: 9f7855e7fc5637fbe41008fee029a79d27684c004d95dd579e16c427dff3c216
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Class names and module docstrings in core src; events glossary.
+  not_covered: Prose uses of projection in docs.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched all five glossaries for a projection entry or Do-NOT-use row.
+  result: 'Only incidental uses: core execution.md:73 (Pack skill guard calls the rendered SKILL.md a projection)
+    and glossary-conventions ''CLI/events/projections''.'
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

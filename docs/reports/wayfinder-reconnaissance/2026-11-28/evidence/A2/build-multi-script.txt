@@ -1,0 +1,49 @@
+import csv,sys
+E=sys.argv[1]
+rows=list(csv.DictReader(open(E+'/terms.csv')))
+from collections import OrderedDict
+g=OrderedDict()
+for r in rows: g.setdefault(r['term'],[]).append(r)
+D={ # disambiguation status in a glossary, with where
+'runtime':('no','no glossary entry in any of the 5 repos'),
+'dispatch':('partial','core Routing entry names dispatch/profile routing and The drain names the retired drain; no dispatch entry'),
+'mission type':('partial','core and charter glossaries each define their sense; charter Java docstring records the divergence; core glossary does not'),
+'invocation':('no','no entry in core or events glossary'),
+'Op':('no','core entry is candidate; events relay op not mentioned'),
+'pack':('yes','core Charter Pack + Pack skill (three senses of skill)'),
+'pack tier':('no','three uses of tier; charter repo forbids tier; core glossary uses Organization Tier and kernel.pack_tiers'),
+'orchestrator':('no','only Orchestrator API defined'),
+'orchestration':('no','context name only'),
+'coordination':('partial','COORD partition entry guards coord branch/worktree; workflow sense not guarded'),
+'harness':('no','glossary sense contradicts code sense; core docs/context has no entry'),
+'profile':('partial','core Agent Profile; charter Profile adds role-selection model'),
+'runner':('no','no entry'),
+'assignment':('no','no entry'),
+'attempt':('no','no entry'),
+'session':('partial','only "avoid mission session" guard in Mission Run'),
+'lane':('yes','core Lane entry Other-sense row; status lane vs execution lane'),
+'projection':('no','no entry; used inside Pack skill guard and glossary-conventions'),
+'snapshot':('no','only Dossier Snapshot defined'),
+'materialize':('no','no entry'),
+'ledger':('partial','Activation ledger guard names migration ledger, decision ledger, status event log; charter uses event ledger'),
+'seam':('no','no entry'),
+'adapter':('no','no entry'),
+'contract':('partial','compound entries only (step contract, Contract Version, Contract Scenario)'),
+'charter':('partial','core: two entries + Do-NOT-use guards for bundle/pack/offering/preset; charter repo domain.md disambiguates 4 senses'),
+'doctrine':('no','repos disagree on whether the word is canonical'),
+'offering':('partial','charter repo separates offering concept from /offering resource'),
+'service':('no','no entry in core; events and charter glossaries define their own services'),
+'daemon':('no','no entry'),
+'modulith/monolith':('no','no entry'),
+'Build Kitty':('yes','core product-lines Do-NOT-use guards; but definitions drift across repos (F-A2-013)'),
+'Brain Kitty':('yes','as above'),
+'Team Kitty':('yes','as above'),
+}
+w=csv.writer(open(E+'/multi-sense.csv','w',newline=''))
+w.writerow(['term','sense_count_found','senses_with_source','glossary_disambiguates','disambiguation_note'])
+n=0
+for t,rs in g.items():
+    if len(rs)<2 and t not in ('Build Kitty','Brain Kitty','Team Kitty'): continue
+    st,note=D.get(t,('n/a',''))
+    w.writerow([t,len(rs),' || '.join(f"{r['sense']} [{r['defining_source']}]" for r in rs),st,note]); n+=1
+print(n)

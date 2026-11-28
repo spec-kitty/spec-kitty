@@ -1,0 +1,47 @@
+{
+ "corrective_code_commits": 3611,
+ "fix_subject_corrective": 3611,
+ "files_with_corrective": 1977,
+ "files_corrective_ge3_months": 517,
+ "components_with_corrective": 88,
+ "components_corrective_ge3_months": 68,
+ "refixed_within_14d_by_period": {
+  "T1": [
+   428,
+   306,
+   541
+  ],
+  "T2": [
+   631,
+   498,
+   956
+  ],
+  "T3": [
+   1331,
+   1041,
+   1880
+  ],
+  "null": [
+   169,
+   133,
+   234
+  ]
+ },
+ "per_period": {
+  "T1": {
+   "files_with_corrective": 830,
+   "files_ge3_months": 69,
+   "files_ge3_corrective_commits": 229
+  },
+  "T2": {
+   "files_with_corrective": 780,
+   "files_ge3_months": 38,
+   "files_ge3_corrective_commits": 263
+  },
+  "T3": {
+   "files_with_corrective": 956,
+   "files_ge3_months": 142,
+   "files_ge3_corrective_commits": 436
+  }
+ }
+}

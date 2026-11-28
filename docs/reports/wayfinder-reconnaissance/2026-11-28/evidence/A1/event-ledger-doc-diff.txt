@@ -1,0 +1,90 @@
+# command: diff <(git -C /home/user/spec-kitty show 5c4fc5a7:docs/architecture/event-ledger-writers-and-readers.md | sed 1,20d) <(git -C /home/user/spec-kitty-events show 646e330b:docs/architecture/services/event-ledger-writers-and-readers.md | sed 1,20d)
+9,10c9,10
+< [status model](status-model.md). For contributor rules ("how do I write or read an
+< event today") read [Events in core](../development/reference/events-in-core.md).
+---
+> [status model](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/architecture/status-model.md). For contributor rules ("how do I write or read an
+> event today") read [Events in core](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/development/reference/events-in-core.md).
+95a96,118
+> ## The write service as a status writer
+> 
+> `command-cli` (#160, #161) now appends `status.events.jsonl` for `checkout_append`, beside
+> core's Python writers during the strangler. Its code is in
+> [`service/command-cli`](https://github.com/spec-kitty/spec-kitty-events/tree/main/service/command-cli):
+> `application.write.WriteService` runs the FR-026 check order, and
+> `adapter.out.statuslog.EventLogStatusLog` hands the encoded bytes to `event-log`'s
+> `StatusLogAppender`.
+> 
+> - **One lock, both writers.** Python's `feature_status_lock` and the service's
+>   `MissionLockPath` both use
+>   `<gcd>/spec-kitty-locks/<missionDirectory basename>.status.lock`, so an append from either
+>   language excludes the other.
+> - **The same bytes.** The service writes what core's one encoder writes
+>   (`serialize_event_line`: `sanitize_event_for_log`, then `json.dumps(..., sort_keys=True)`), and
+>   the shared `status_append` fixtures hold Python and Java to the same bytes.
+> - **A separate write fold.** The authority's fold (`domain.authority.WriteFold`) ports the
+>   checks it needs at the pinned core commit; it does not reuse the read service's
+>   `StatusReducer` (C-010), and the read side is unchanged.
+> - **Not yet the only writer.** Core's client (`#6195`) binds to a release that carries this write
+>   core; until then core's Python writers remain the production path, and the service is
+>   exercised by its own tests and the parity corpus.
+> 
+110c133
+< | Mission Status Read API (Java) | `services/mission-status-api/.../reducer/StatusReducer.java`, ordering `AtThenEventId.java` | the log | own port of `reduce_parsed` | plain `(at, event_id)`, **no approved-departure lift** |
+---
+> | Mission Status Read API (Java) | core's `services/mission-status-api/.../reducer/StatusReducer.java`, now this repository's [`service/event-log/`](https://github.com/spec-kitty/spec-kitty-events/tree/main/service/event-log) (`domain.readmodel.reducer.StatusReducer`), ordering `AtThenEventId.java` | the log | own port of `reduce_parsed` | wall clock `at`, then `event_id`, with the approved-departure lift (ported by #170) |
+122,125c145,152
+< **The read API contract.** `contracts/mission-status/openapi.yaml:4` is `1.0.0-SNAPSHOT`
+< (unreleased until the `contract-mission-status-v1.0.0` tag). The Java service in
+< `services/mission-status-api/` serves the project, Mission list, SSE events and both artifact
+< routes (#957, PRs #6401 and #6427). `getMission`, `getWorkPackage` and
+---
+> **The read API contract.** `contracts/mission-status/openapi.yaml:4` reads
+> `1.0.0-SNAPSHOT`; the contract bundle ships as an asset of `service-v*` releases, and the
+> standalone `contract-mission-status-v1.0.0` tag line is retired
+> ([ADR-0003](../../adr/0003-gradle-build-and-service-release-line.md)). The Java service —
+> the `:mission-status-api` Gradle module rooted at
+> [`service/`](https://github.com/spec-kitty/spec-kitty-events/tree/main/service) in this
+> repository — serves the project, Mission list, SSE events and both artifact routes (#957,
+> PRs #6401 and #6427). `getMission`, `getWorkPackage` and
+202c229
+< | G-4 | Java read API does not port the #4941 approved-departure lift | `StatusReducer.java` Javadoc on `PORTED_EVENTS_VERSION` ("NOT yet ported"); `AtThenEventId.java` plain `(at, event_id)`; no golden covers the clock-ahead case | 2026-10-01-2 D-11 (conformance to the Python reducer) | Add the clock-ahead golden, port the lift before more read routes ship | #6268 |
+---
+> | G-4 | ~~Java read API does not port the #4941 approved-departure lift~~ **Closed (#170, which took over spec-kitty#6268):** `StatusReducer` ports `_approved_departure_sort_at` and `_carry_lifted_sort_at`; with nothing lifted the order is the 10.4.6 one: `(at, event_id)` (`AtThenEventId`), a departure following its same-`at` approval | `service/event-log/.../reducer/StatusReducer.java`; `ApprovedDepartureLiftTest`; the `interleaved/clock-ahead-approval-departure` conformance fixture | 2026-10-01-2 D-11 (conformance to the Python reducer) | None open | #170 |
+212c239
+< | G-14 | ~~Core locks `spec-kitty-events` 11.0.0; upstream is 11.2.1~~ **Closed 2026-10-28 (#6602):** core locks 11.3.0 and declares `>=11.3.0,<12` (11.1.0, 11.2.0 and 11.2.1 never reached PyPI, spec-kitty-events#143) | `uv.lock`; `pyproject.toml:80`; `.kittify/release/shared-package-compatibility.json`; envelope snapshot `tests/contract/snapshots/spec-kitty-events-11.3.0.json` | 2026-10-13-2 D-1 (release order) | None open: done through the safe-adoption steps in the [contributor note](../development/reference/events-in-core.md#adopting-a-new-spec-kitty-events-release); #6445 adopted the models; #6446 stays blocked on an EventBridge door for run-log decision events | #6602 |
+---
+> | G-14 | ~~Core locks `spec-kitty-events` 11.0.0; upstream is 11.2.1~~ **Closed 2026-10-28 (#6602):** core locks 11.3.0 and declares `>=11.3.0,<12` (11.1.0, 11.2.0 and 11.2.1 never reached PyPI, spec-kitty-events#143) | `uv.lock`; `pyproject.toml:80`; `.kittify/release/shared-package-compatibility.json`; envelope snapshot `tests/contract/snapshots/spec-kitty-events-11.3.0.json` | 2026-10-13-2 D-1 (release order) | None open: done through the safe-adoption steps in the [contributor note](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/development/reference/events-in-core.md#adopting-a-new-spec-kitty-events-release); #6445 adopted the models; #6446 stays blocked on an EventBridge door for run-log decision events | #6602 |
+225c252
+<    (lock refresh), G-3 (doc amendments), G-4 (#6268), #6409
+---
+>    (lock refresh), G-3 (doc amendments), G-4 (#170, closed), #6409
+241c268,270
+<   migration").
+---
+>   migration"). Per-WP attribution also reads `policy_metadata.wp_window`, the window-opening
+>   record of core's `status-event-wp-window` contract; the write service relays it unchanged and
+>   never refuses on it (#229).
+245c274,276
+<   generated with, but a behaviour change no golden exercises passes that check (G-4).
+---
+>   generated with, but a behaviour change no golden exercises passes that check: the 10.5.1
+>   approved-departure lift did until #170 ported it with a golden that covers it (G-4, closed).
+>   The write service holds its own copy of that ordering (#249).
+269,275c300,306
+< - ADR [2026-10-14-1](../adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md): one canonical event writer.
+< - ADR [2026-10-13-2](../adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md): the ledger is the publication seam.
+< - ADR [2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md): Mission Status Read API.
+< - ADR [2026-02-09-3](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md): event-log merge semantics.
+< - ADR [2026-10-17-1](../adr/4.x/2026-10-17-1-explicit-migration-ledger.md): migration ledger.
+< - ADR [2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md): Team Kitty surfaces (Amendment 2026-10-12).
+< - `spec-kitty-events` `docs/api/ledger-write-contract.md`, `docs/architecture/ordering-and-reduction.md`, `docs/api/versioning-and-compatibility.md`.
+---
+> - ADR [2026-10-14-1](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md): one canonical event writer.
+> - ADR [2026-10-13-2](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md): the ledger is the publication seam.
+> - ADR [2026-10-01-2](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md): Mission Status Read API.
+> - ADR [2026-02-09-3](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md): event-log merge semantics.
+> - ADR [2026-10-17-1](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md): migration ledger.
+> - ADR [2026-10-06-1](https://github.com/spec-kitty/spec-kitty/blob/512567eee71e31bb39f580c4f7acf8b865e9d1b2/docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md): Team Kitty surfaces (Amendment 2026-10-12).
+> - `spec-kitty-events`: [ledger write contract](../../api/ledger-write-contract.md), [ordering and reduction](../ordering-and-reduction.md), [versioning and compatibility](../../api/versioning-and-compatibility.md).
+# exit=1

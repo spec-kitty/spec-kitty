@@ -1,0 +1,208 @@
+outside_term,regex,repo,revision,lines_all_tracked
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,19
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,7
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,21
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,13
+"Build Kitty","\bbuild[ -]kitty\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,44
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Build Kitty","\bbuild[ -]kitty\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,339
+"Build Kitty","\bbuild[ -]kitty\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"core CLI","\bcore cli\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,34
+"core CLI","\bcore cli\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,31
+"core CLI","\bcore cli\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,18
+"core CLI","\bcore cli\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,17
+"core CLI","\bcore cli\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,4
+"core CLI","\bcore cli\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"core CLI","\bcore cli\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"core CLI","\bcore cli\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"core CLI","\bcore cli\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"Charter and API","\bcharter (and|&) api\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Charter and API","\bcharter (and|&) api\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Charter and API","\bcharter (and|&) api\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Packs","\bpacks\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,17857
+"Packs","\bpacks\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,38375
+"Packs","\bpacks\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,24
+"Packs","\bpacks\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,4654
+"Packs","\bpacks\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,1060
+"Packs","\bpacks\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,33
+"Packs","\bpacks\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,10
+"Packs","\bpacks\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,1
+"Packs","\bpacks\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,1170
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,221
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,127
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,195
+"Doc Kitty","\bdoc[ -]?kitty\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,5437
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,12
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,18
+"Doc Kitty","\bdoc[ -]?kitty\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Doc Kitty","\bdoc[ -]?kitty\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Events and API","\bevents (and|&) api\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,4
+"Events and API","\bevents (and|&) api\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"Events and API","\bevents (and|&) api\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"Events and API","\bevents (and|&) api\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"Events and API","\bevents (and|&) api\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Events and API","\bevents (and|&) api\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"Events and API","\bevents (and|&) api\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Events and API","\bevents (and|&) api\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Events and API","\bevents (and|&) api\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"mission coordination","\bmission coordination\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,74
+"mission coordination","\bmission coordination\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"mission coordination","\bmission coordination\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,10
+"mission coordination","\bmission coordination\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"mission coordination","\bmission coordination\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"mission coordination","\bmission coordination\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,3
+"mission coordination","\bmission coordination\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"mission coordination","\bmission coordination\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"mission coordination","\bmission coordination\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"execution infrastructure","\bexecution infrastructure\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"execution infrastructure","\bexecution infrastructure\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"execution infrastructure","\bexecution infrastructure\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"containerised runner","\bcontaineri[sz]ed runners?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"control-pane surface","\bcontrol[ -]pane\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"control-pane surface","\bcontrol[ -]pane\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"control-pane surface","\bcontrol[ -]pane\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"HUD","\bHUD\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"HUD","\bHUD\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"HUD","\bHUD\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"HUD","\bHUD\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"HUD","\bHUD\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"HUD","\bHUD\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"HUD","\bHUD\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"HUD","\bHUD\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"HUD","\bHUD\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Operations Deck","\boperations deck\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"Operations Deck","\boperations deck\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"Operations Deck","\boperations deck\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"Operations Deck","\boperations deck\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"Operations Deck","\boperations deck\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Operations Deck","\boperations deck\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"Operations Deck","\boperations deck\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Operations Deck","\boperations deck\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Operations Deck","\boperations deck\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Kira","\bkira\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"Kira","\bkira\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"Kira","\bkira\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"Kira","\bkira\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"Kira","\bkira\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Kira","\bkira\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"Kira","\bkira\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Kira","\bkira\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Kira","\bkira\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"Wayfinder","\bwayfinder\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"Wayfinder","\bwayfinder\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"Wayfinder","\bwayfinder\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"Wayfinder","\bwayfinder\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"Wayfinder","\bwayfinder\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"Wayfinder","\bwayfinder\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"Wayfinder","\bwayfinder\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"Wayfinder","\bwayfinder\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"Wayfinder","\bwayfinder\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"architectural knowledge plane","\bknowledge plane\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"architectural knowledge plane","\bknowledge plane\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"architectural knowledge plane","\bknowledge plane\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"modulith packager","\bmodulith\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,3
+"modulith packager","\bmodulith\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"modulith packager","\bmodulith\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"modulith packager","\bmodulith\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"modulith packager","\bmodulith\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"modulith packager","\bmodulith\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"modulith packager","\bmodulith\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"modulith packager","\bmodulith\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"modulith packager","\bmodulith\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"harness adapter","\bharness adapters?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"harness adapter","\bharness adapters?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"harness adapter","\bharness adapters?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"harness adapter","\bharness adapters?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"harness adapter","\bharness adapters?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"harness adapter","\bharness adapters?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,1
+"harness adapter","\bharness adapters?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"harness adapter","\bharness adapters?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"harness adapter","\bharness adapters?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"assignment","\bassignments?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,1757
+"assignment","\bassignments?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,31
+"assignment","\bassignments?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,64
+"assignment","\bassignments?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,30
+"assignment","\bassignments?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,33
+"assignment","\bassignments?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,35
+"assignment","\bassignments?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,1
+"assignment","\bassignments?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,29
+"assignment","\bassignments?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,6
+"attempt","\battempts?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,3265
+"attempt","\battempts?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,250
+"attempt","\battempts?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,151
+"attempt","\battempts?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,43
+"attempt","\battempts?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,167
+"attempt","\battempts?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,1280
+"attempt","\battempts?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,3
+"attempt","\battempts?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,833
+"attempt","\battempts?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,17
+"session","\bsessions?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,6736
+"session","\bsessions?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,1256
+"session","\bsessions?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,741
+"session","\bsessions?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,420
+"session","\bsessions?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,121
+"session","\bsessions?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,705
+"session","\bsessions?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,111
+"session","\bsessions?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,444
+"session","\bsessions?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,14
+"projection","\bprojections?\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,5264
+"projection","\bprojections?\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,331
+"projection","\bprojections?\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,382
+"projection","\bprojections?\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,76
+"projection","\bprojections?\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,216
+"projection","\bprojections?\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,100
+"projection","\bprojections?\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"projection","\bprojections?\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,22
+"projection","\bprojections?\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"native journal","\bnative journal\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"native journal","\bnative journal\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"native journal","\bnative journal\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"native journal","\bnative journal\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"native journal","\bnative journal\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"native journal","\bnative journal\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"native journal","\bnative journal\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"native journal","\bnative journal\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"native journal","\bnative journal\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0
+"savoir","\bsavoir\b",spec-kitty,5c4fc5a79de1c1c299ab221ca26e5555c68ef533,0
+"savoir","\bsavoir\b",spec-kitty-charter,06cdfbe94856e8d24eca350c63d2a7b47bb9f13a,0
+"savoir","\bsavoir\b",spec-kitty-events,646e330b896b96d7a11f53b34aa3d0c0baa69a05,0
+"savoir","\bsavoir\b",spec-kitty-open-packs,f9a557510dc7ff04597a0b8aba87f736e25f785e,0
+"savoir","\bsavoir\b",doc-kitty,1acc49fbe209436d3c1666a86e8b3960ee19e5ac,0
+"savoir","\bsavoir\b",spec-kitty-planning,89f52a458082b87a5b9e2ca67537f843be53ebfe,0
+"savoir","\bsavoir\b",spec-kitty-container,1ff99fea6f09986b7d934ebac7ba756578556168,0
+"savoir","\bsavoir\b",fleet-kitty,e3b39b8078700410681a3e5fc733a4d0c792eccb,0
+"savoir","\bsavoir\b",spec-kitty-orchestrator,8be32b14d15a48bb035a436cf13d49c8fa231c2f,0

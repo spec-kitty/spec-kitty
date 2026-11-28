@@ -1,0 +1,46 @@
+finding_id: F-A1-027
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M3 supersession chains"
+  deviation: null
+subject:
+  component: "ownership/location/contract decisions"
+  repository: "ecosystem"
+  revision: "heads per COMMON"
+  revision_kind: head
+claim: "10 supersession chains reconstructed for ownership, location or contract decisions (evidence/A1/supersession-chains.csv, 68 steps). 6 of 10 chains cross repositories. Major supersessions: charter location (core 2026-10-12-2 Accepted 2026-10-12, superseded 2026-10-19 by charter repo ADR-0008/0010, a core ADR superseded by records in another repository); read service location (in-core modulith -> separate Java service -> 'extract when frozen' -> spec-kitty-events on 2026-10-29); event writer (many writers -> one EventBridge -> resident Java write service -> built in spec-kitty-events); hosted surfaces (client-repo inversion 2026-09-06 -> unsupported 2026-10-06 -> removed 2026-10-14); pack logic (core -> charter repo, ruling 2026-11-16, recorded only in open-packs). The events-package distribution chain has 9 steps across core, planning and events with two rules live at head (F-A1-007)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "evidence/A1/supersession-chains.csv"
+    method: "hand-compiled from deep-read records; script-build-chains.txt"
+    sha256: "c13a43c28056ced63884290e29a47a7db009826a3cb308f745909672428311d7"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "chains for components named in the brief"
+  not_covered: "chains for internal core mechanics (consolidation, lanes)"
+  population: "10 chains, 68 steps"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "for each chain looked for later records that reverse the end state"
+  result: "end states recorded in the CSV; contested end states listed in F-A1-007, F-A1-013"
+relations: []
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

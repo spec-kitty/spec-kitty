@@ -1,0 +1,63 @@
+finding_id: F-A1-035
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M7 reuse of the 2026-09-27 review"
+  deviation: null
+subject:
+  component: "2026-09-27 engine-side alignment review"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "The core record docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md (draft, point-in-time, pinned to core e2dcf69c / 4.0.0rc5) reports 29 findings (1 BLOCKER, 10 HIGH, 15 MEDIUM, 3 LOW) from a four-profile read-only squad comparing the engine with the Kitty Shared Architecture; it states its code citations were re-read at e2dcf69c, CLI behaviour was checked by running the CLI and one item (DA-9) is a hypothesis. Its BLOCKER is the absence of an engine-hosted decision round trip (EC-1); its authority claims include that Accepted spec-kitty ADRs are binding (DA-2) and that the ADR index omits the Proposed status (DA-7). The full analysis is stated to be in a private planning repository not read here."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:28-67 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md | sed -n '28,67p'"
+    sha256: "66168b70d7bdd3f23c339d2fc7a67635b896c8d33d80a2f023b5bba1fd3a1ce0"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:193-201 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md | sed -n '193,201p'"
+    sha256: "66168b70d7bdd3f23c339d2fc7a67635b896c8d33d80a2f023b5bba1fd3a1ce0"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "evidence/A1/review-2026-09-27-summary.txt"
+    method: "hand summary"
+    sha256: "c17602f5414574c39b2849921fe03bf0604428c7ce9fa6407c88a6c334f094c1"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "the whole review page"
+  not_covered: "the private full analysis; re-verification of its findings (out of A1 scope)"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "searched core 4.x ADRs and plans for records closing or citing its findings"
+  result: "no core ADR cites it; its README links it"
+relations:
+  - {type: refines, target: F-A1-019}
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,51 @@
+finding_id: F-A2-018
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-1 term inventory
+  deviation: null
+subject:
+  component: glossary applicability scope
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 287 core docs/context entries with an ''Applicable to'' row, 39 (13.6%) name 4.x, though the current
+  line is 4.0 (README ''current version line''). Canonical core entries for Mission (1.x-3.x), Mission Type, work
+  package, Lane, Tool, Agent (1.x/2.x) do not name 4.x. Most frequent values: ''1.x, 2.x'' 122, ''3.x'' 71, ''4.x''
+  36.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/core-glossary-index.txt
+  method: python tally of Applicable-to rows (in file)
+  sha256: dc5f63f393b2fded317fe466875558c9eed2583f0c8e97f1b851d099b3e0e40f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Applicable-to rows on docs/context pages.
+  not_covered: What maintainers intend the row to mean for still-current terms.
+  population: 287 entries
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked glossary-conventions.md for a rule that omission of 4.x means still current.
+  result: The convention defines the row as version scope; no rule about carry-forward found.
+relations: []
+confidence: medium
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Does 'Applicable to' mean introduced-in or valid-in?

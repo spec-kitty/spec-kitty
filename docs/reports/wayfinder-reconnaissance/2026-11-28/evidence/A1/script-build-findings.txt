@@ -1,0 +1,116 @@
+"""Generate A1 finding records (YAML) with sha256 of cited files at their head revisions.
+
+Run after scrub of evidence/A1 so artefact hashes are final.
+"""
+import hashlib, subprocess, sys, json
+from pathlib import Path
+
+R = Path("/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28")
+EV = R / "evidence/A1"
+OUT = R / "findings/A1"
+REPOS = {
+    "spec-kitty": ("/home/user/spec-kitty", "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"),
+    "spec-kitty-charter": ("/home/user/spec-kitty-charter", "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"),
+    "spec-kitty-events": ("/home/user/spec-kitty-events", "646e330b896b96d7a11f53b34aa3d0c0baa69a05"),
+    "spec-kitty-open-packs": ("/home/user/spec-kitty-open-packs", "f9a557510dc7ff04597a0b8aba87f736e25f785e"),
+    "doc-kitty": ("/home/user/doc-kitty", "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"),
+    "spec-kitty-planning": ("/home/user/spec-kitty-planning", "89f52a458082b87a5b9e2ca67537f843be53ebfe"),
+}
+ENV_DOC = "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+ENV_ART = "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+OBS = "2026-11-28T09:30:00Z"
+
+
+def blob_sha(repo, path):
+    root, rev = REPOS[repo]
+    data = subprocess.run(["git", "-C", root, "show", f"{rev}:{path}"], capture_output=True).stdout
+    if not data:
+        raise SystemExit(f"missing {repo}:{path}")
+    return hashlib.sha256(data).hexdigest()
+
+
+def art_sha(name):
+    return hashlib.sha256((EV / name).read_bytes()).hexdigest()
+
+
+def doc(repo, path, lines, eid):
+    root, rev = REPOS[repo]
+    return {"id": eid, "kind": "document-claim", "reference": f"{repo}:{path}:{lines} @ {rev}",
+            "method": f"git -C {root} show {rev}:{path} | sed -n '{lines.split(',')[0].replace('-', ',')}p'",
+            "sha256": blob_sha(repo, path), "exit_code": 0, "environment": ENV_DOC, "observed_at": OBS}
+
+
+def art(name, eid, method, kind="document-claim", exit_code=0):
+    return {"id": eid, "kind": kind, "reference": f"evidence/A1/{name}", "method": method,
+            "sha256": art_sha(name), "exit_code": exit_code, "environment": ENV_ART, "observed_at": OBS}
+
+
+def q(s):
+    if s is None:
+        return "null"
+    return json.dumps(s, ensure_ascii=False)
+
+
+def emit(f):
+    lines = []
+    a = lines.append
+    a(f"finding_id: {f['id']}")
+    a("workstream: A1 recorded intent (components, decisions, authority)")
+    a("hypotheses: []")
+    a(f"classification: {f.get('cls', 'observation')}")
+    a(f"view: {f.get('view', 'recorded-intent')}")
+    a("prereg:")
+    a(f"  measure: {q(f['measure'])}")
+    a(f"  deviation: {q(f.get('deviation'))}")
+    a("subject:")
+    a(f"  component: {q(f['component'])}")
+    a(f"  repository: {q(f['repository'])}")
+    a(f"  revision: {q(f['revision'])}")
+    a("  revision_kind: head")
+    a(f"claim: {q(f['claim'])}")
+    a("evidence:")
+    for e in f.get("evidence", []):
+        a(f"  - id: {e['id']}")
+        for k in ("kind", "reference", "method", "sha256", "exit_code", "environment", "observed_at"):
+            v = e[k]
+            a(f"    {k}: {v if isinstance(v, int) else q(v)}")
+    if not f.get("evidence"):
+        a("  []")
+    a("scope:")
+    a(f"  covered: {q(f.get('covered', ''))}")
+    a(f"  not_covered: {q(f.get('not_covered', ''))}")
+    a(f"  population: {q(f.get('population'))}")
+    a(f"  sample: {q(f.get('sample'))}")
+    a(f"  seed: {q(f.get('seed'))}")
+    a(f"interpretation: {q(f.get('interpretation'))}")
+    a("derived_from: " + (json.dumps(f.get("derived_from", [])) ))
+    a("counterevidence: " + (json.dumps(f.get("counter", []), ensure_ascii=False)))
+    a("disconfirmation:")
+    a(f"  search: {q(f['dsearch'])}")
+    a(f"  result: {q(f['dresult'])}")
+    rel = f.get("relations", [])
+    if rel:
+        a("relations:")
+        for t, tg in rel:
+            a(f"  - {{type: {t}, target: {tg}}}")
+    else:
+        a("relations: []")
+    a(f"confidence: {f.get('conf', 'high')}")
+    a("analyst:")
+    a("  profile: curator-carla")
+    a("  model: opus")
+    a("verification:")
+    a("  status: unverified")
+    a("  by: null")
+    a("quality_attributes: " + json.dumps(f.get("qa", [])))
+    a("candidate_invariants: " + json.dumps(f.get("inv", []), ensure_ascii=False))
+    a("open_questions: " + json.dumps(f.get("oq", []), ensure_ascii=False))
+    (OUT / f"{f['id']}.yaml").write_text("\n".join(lines) + "\n")
+
+
+sys.path.insert(0, str(Path(__file__).parent))
+from findings_data import build  # noqa: E402
+
+for f in build(doc, art, REPOS):
+    emit(f)
+print("ok")

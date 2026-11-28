@@ -1,0 +1,47 @@
+PX-01 research-mission experiment: summary of the run
+=====================================================
+Setup: git clone --shared of /home/user/spec-kitty into scratch, branch px01-main at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+(core head). Scratch HOME and XDG directories. CLI: spec-kitty-cli 4.0.0rc9, the editable install on PATH (its source equals core
+head: git diff origin/main HEAD -- src packs pyproject.toml is empty in the checkout it points at). Python 3.13.18, git 2.43.0.
+Every command, its output and exit code: px01-command-log.txt (21 commands).
+
+Sequence
+ 1. spec-kitty agent mission create px01-research-probe --mission-type research --topology single_branch --json   exit 0
+    -> Mission px01-research-probe-01M8GPPT, scaffold only, plan_guard SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED.
+ 2. spec-kitty next --mission <slug> --json (query)                                                                 exit 0  preview_step scoping
+ 3. spec-kitty next --agent claude --mission <slug> --result success --json                                         exit 0  step scoping
+    The first prompt carried a "Charter Context Error": packs/internal not on disk in a fresh clone.
+ 4. scripts/sync_packs.py --pack all (the documented once-per-checkout step, `make sync-packs`)                     exit 0
+ 5. spec.md authored (all template placeholders filled) and committed; next --result success                        exit 0  step methodology
+ 6. spec-kitty agent mission setup-plan --mission <slug> --json                                                      exit 0  result "blocked",
+    SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED: it asked for DR/AR/QR requirement lines that differ from the shipped template lines.
+    (`next` had already advanced past scoping with the same spec.)
+ 7. spec.md requirement lines rewritten and committed; setup-plan                                                    exit 0  plan.md scaffolded
+ 8. plan.md authored and committed; next --result success                                                            exit 0  step gathering
+ 9. research/source-register.csv (10 rows) and research/evidence-log.csv (2 rows) authored at the path the step prompt,
+    the spec template and the plan template name, and committed; next --result success                               exit 1  kind "blocked"
+      guard_failures: ["Required artifact missing: source-register.csv", "Insufficient sources documented (need >=3)"]
+      guard_failure_paths: {"source-register.csv": "kitty-specs/<slug>/source-register.csv"}
+10. spec-kitty next --mission <slug> --json (query)                                                                  exit 0  mission_state gathering,
+      reason "No eligible steps: remaining steps have unmet dependencies."
+
+Outcome: stalls at a guard with no documented producer.
+ First step that cannot be passed: gathering (third of six: scoping, methodology, gathering, synthesis, output, accept).
+ Guard: runtime.next.runtime_bridge_cores._evaluate_gathering_guard (src/runtime/next/runtime_bridge_cores.py:576-580).
+ What it waits for:
+  (a) a file source-register.csv directly in the Mission directory (expected-artifacts.yaml path_pattern "source-register.csv"),
+      while the gathering prompt, the spec template, the plan template and docs/context/mission-types.md name
+      research/source-register.csv;
+  (b) at least 3 rows of type "source_documented" in kitty-specs/<slug>/mission-events.jsonl
+      (src/runtime/next/runtime_bridge_composition.py:347-374).
+ Producer search for (b): in src/ the string source_documented occurs only in the reader and the guard; the one call site of
+ the mission event writer emit_event is src/runtime/next/next_invocation_lifecycle.py:474, which writes MissionNextInvoked.
+ Tests that pass this guard write the rows into the file by hand (tests/integration/test_research_runtime_walk.py:436-438).
+ The step prompt says: "follow your harness's event-emission mechanism for each accepted source"; it names no command.
+ `spec-kitty agent status emit` writes work-package lane transitions to status.events.jsonl, a different file.
+ No document under docs/ outside reports and archive names a producer (the only hit, docs/context/mission-types.md, states the need).
+ The same holds for the later output step: its guard waits for a gate_passed row named publication_approved
+ (runtime_bridge_composition.py:378-409), for which no writer was found either. That step was not reached.
+
+Not done, by instruction: no event row was written by hand, the register was not copied to the path the guard reports, nothing
+was repaired. Details in static-searches.txt.

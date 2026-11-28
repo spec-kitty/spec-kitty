@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""M01g: review intensity for a seeded sample of 40 code commits per period (read-only GitHub GETs via gh api)."""
+import json, random, subprocess, sys, csv, re, time
+COMMITS = sys.argv[1]; OUT = sys.argv[2]
+rs = [json.loads(l) for l in open(COMMITS)]
+def period(x):
+    if x['line'] == 'main-post': return 'T3'
+    d = x['utc'][:10]
+    if '2026-04-01' <= d <= '2026-06-30': return 'T1'
+    if '2026-07-01' <= d <= '2026-09-05': return 'T2'
+    return None
+pop = [x for x in rs if x['code'] and not x['merge'] and not x['bulk'] and x['line'] != 'convergence-merge']
+for x in pop: x['period'] = period(x)
+r = random.Random(20261128)
+sample = []
+for p in ('T1', 'T2', 'T3'):
+    pp = sorted([x for x in pop if x['period'] == p], key=lambda x: x['sha'])
+    sample += [(p, x) for x in r.sample(pp, 40)]
+AGENT_NAMES = re.compile(r"(\[bot\]|^claude$|^codex$|sk-agent|python[- ]pedro|^atdd$|auto-rebase|ci-bot|copilot|^sk-|agent)", re.I)
+def cat(name, typ=None):
+    if typ == 'Bot' or (name and name.endswith('[bot]')): return 'bot'
+    if name and AGENT_NAMES.search(name): return 'agent'
+    return 'human-or-unknown'
+def gh(path):
+    for attempt in range(3):
+        p = subprocess.run(["gh", "api", path], capture_output=True, text=True)
+        if p.returncode == 0: return json.loads(p.stdout)
+        if "404" in p.stderr or "422" in p.stderr: return None
+        time.sleep(3)
+    return {"__error__": p.stderr.strip()[:200]}
+REPOS = {"main-post": ["spec-kitty/spec-kitty"], "public": ["spec-kitty/spec-kitty"], "experimental": ["spec-kitty/EXPERIMENTAL-spec-kitty", "spec-kitty/spec-kitty"]}
+rows = []
+for p, x in sample:
+    author_name = x['author']
+    found = None; repo_used = None; err = None
+    for repo in REPOS[x['line']]:
+        res = gh(f"repos/{repo}/commits/{x['sha']}/pulls")
+        if isinstance(res, dict) and "__error__" in res: err = res["__error__"]; continue
+        if res:
+            merged = [q for q in res if q.get('merged_at')] or res
+            found = merged[0]; repo_used = repo; break
+    if not found:
+        # fall back: PR number in subject "(#NNNN)" -- recorded but flagged as subject-derived
+        rows.append([p, x['sha'], x['line'], x['utc'][:10], x['cls'], cat(author_name), 'no' if not err else 'not-assessable', '', '', '', '', '', '', '', err or '', x['subject'][:90]])
+        continue
+    num = found['number']; pr_author = found['user']['login']; pr_author_type = found['user'].get('type')
+    reviews = gh(f"repos/{repo_used}/pulls/{num}/reviews?per_page=100") or []
+    if isinstance(reviews, dict): reviews = []
+    others = [rv for rv in reviews if rv.get('user') and rv['user']['login'] != pr_author]
+    approved_other = [rv for rv in others if rv.get('state') == 'APPROVED']
+    other_human = [rv for rv in others if cat(rv['user']['login'], rv['user'].get('type')) == 'human-or-unknown']
+    rows.append([p, x['sha'], x['line'], x['utc'][:10], x['cls'], cat(author_name), 'yes', repo_used, num, found.get('merged_at') or '',
+                 cat(pr_author, pr_author_type), len(reviews), len(others), len(approved_other),
+                 f"other_reviewers_human_or_unknown={len(set(rv['user']['login'] for rv in other_human))}", x['subject'][:90]])
+    sys.stderr.write(".")
+with open(f"{OUT}/M01g-review-intensity-sample.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["period", "sha", "line", "commit_date", "class", "commit_author_category", "in_pull_request", "repository", "pr_number", "pr_merged_at", "pr_author_category", "reviews_total", "reviews_by_other_account", "approvals_by_other_account", "note", "subject"])
+    w.writerows(rows)
+print("done", len(rows))

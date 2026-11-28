@@ -1,0 +1,75 @@
+finding_id: F-A2-001
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-1 term inventory
+  deviation: null
+subject:
+  component: docs/context glossary
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of the 38 inventory items in the A2 brief (pack and pack tiers counted as one; the three product-line names
+  as one), core''s docs/context glossary at head has an entry for the term or its canonical compound for 12 (32%),
+  only entries for narrower compound senses for 9 (24%: orchestrator, coordination, snapshot, ledger, event, adapter,
+  contract, doctrine, activation), and no entry for 17 (45%: runtime, dispatch, invocation, orchestration, control
+  plane, harness, runner, assignment, attempt, session, projection, materialize, bus, seam, service, daemon, modulith/monolith).
+  The 17 unentried terms still occur in core: e.g. runtime 41,721 tracked lines, session 6,736, projection 5,264,
+  seam 29,026.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/core-glossary-index.txt
+  method: grep -n '^### ' docs/context/*.md on git archive of core head
+  sha256: dc5f63f393b2fded317fe466875558c9eed2583f0c8e97f1b851d099b3e0e40f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/terms.csv
+  method: python3 build-terms-script.txt (curated sense table + term-counts.csv)
+  sha256: 4fa34ea51633f5dfae7cc1b6cfc3c6010a8dae3d9dfbaa69221327220e33046b
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/A2/term-counts.csv
+  method: bash evidence/A2/count-script.txt (git grep -I -P per term regex at each head revision; see file)
+  sha256: 15de6be16da225184e00bfbbff4a87eee0b9745cc98c35409497312db6acc569
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Headings of all core docs/context pages at head (287 entries with an Applicable-to row), matched to the
+    38 brief terms by hand.
+  not_covered: Glossary entries outside docs/context in core (.kittify/glossaries seed defines harness); architecture
+    docs that define terms in prose.
+  population: 38 inventory items
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched every docs/context heading for each term and its plural/compound forms; checked the seed glossary
+    and open-packs foundation glossary for the 17 unentried terms.
+  result: harness and machine-level runtime are defined in the core seed glossary and open-packs foundation glossary,
+    not in docs/context; recorded in terms.csv. No docs/context entry found for the other 15.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

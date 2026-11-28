@@ -1,0 +1,79 @@
+finding_id: F-A1-017
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M3 supersession chains"
+  deviation: null
+subject:
+  component: "ADR status maintenance"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "At least 2 core ADRs with status Accepted state decisions that later Accepted records or the charter reverse, without a status change or amendment: 2026-01-31-1 (vendor the events library into the CLI) versus 2026-02-11-6 and charter.md:385 (no vendoring); 2026-09-06-1 ('core = client; zeitgeist_client/saas_client are consumer code integrated here', :58-60, no amendment) versus 04_implementation_mapping:95-108 and charter.md:521 (hosted clients removed, nothing hosted ships)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:docs/adr/2.x/2026-01-31-1-vendor-spec-kitty-events.md:1-15 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/2.x/2026-01-31-1-vendor-spec-kitty-events.md | sed -n '1,15p'"
+    sha256: "72ab8ac04965e02a8458fdf28a824c63820a9152228465545d064fee28ef5b2e"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md:1-62 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md | sed -n '1,62p'"
+    sha256: "af2f6060b6200a6b0d00ecbb6292a59f22bbf9fddb1f81682902918a81c512fc"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/04_implementation_mapping/README.md:95-108 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/04_implementation_mapping/README.md | sed -n '95,108p'"
+    sha256: "f3c95957c617484fa5b87c2988c868b28d9021391f2af1d947b58159e42fcd55"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:382-388 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '382,388p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E5
+    kind: "document-claim"
+    reference: "evidence/A1/deep-read-notes.csv"
+    method: "hand-compiled deep read"
+    sha256: "1354f2e2f0456ddbc02a40847cfca7ce22ebbd941ff2df7fe76d35e0446a81a0"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "deep-read set only"
+  not_covered: "the other 432 indexed records"
+  population: "89 deep-read records (40 seeded + 49 purposive)"
+  sample: "these 2 found in the purposive set; not a rate"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "for each deep-read Accepted record, checked whether a later record in its chain reverses it and whether its status or an amendment says so"
+  result: "2 cases; other reversed records in the deep-read set carry Superseded status or amendments"
+relations:
+  - {type: supports, target: F-A1-037}
+confidence: medium
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

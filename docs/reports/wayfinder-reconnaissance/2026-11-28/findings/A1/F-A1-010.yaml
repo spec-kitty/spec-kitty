@@ -1,0 +1,79 @@
+finding_id: F-A1-010
+workstream: A1 recorded intent (components, decisions, authority)
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "M6 recorded contradictions"
+  deviation: null
+subject:
+  component: "charter location (extraction)"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "After the 2026-10-19 supersession of the charter-extraction ADR, 4 active core records still state the superseded direction without a supersession marker at the statement: the 4.x executive overview (updated 2026-11-24) GA leg 2 'so the charter can be released as its own external contract package in its own repository' (:109-111, :166-169); the living container diagram labels the charter 'open-core · extracting' (02_containers:273, 293, 308); the living component and container views call the seam 'planned (#645)' (03_components:124; 02_containers:118) while the charter records #645 closed and the seam delivered by #6188 (charter.md:434-435). Three other records carry a 'Superseded 2026-10-19' note beside the old text (roadmap :86; packs-extraction plan :111-117; doctrine-charter plan :106-111)."
+evidence:
+  - id: E1
+    kind: "document-claim"
+    reference: "spec-kitty:docs/plans/4-x-executive-overview.md:105-112 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/plans/4-x-executive-overview.md | sed -n '105,112p'"
+    sha256: "b256ffd14517ce5ce728b4c9a58ed47deabbbe3347dc6a8b9e6a0e715bfedd9d"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E2
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/diagrams/02_containers/README.md:286-310 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/diagrams/02_containers/README.md | sed -n '286,310p'"
+    sha256: "b6482a730f3121e89f0fcae06ac96b90cafde7640751807cf79107fa7a43476f"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E3
+    kind: "document-claim"
+    reference: "spec-kitty:docs/architecture/diagrams/03_components/README.md:120-126 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/diagrams/03_components/README.md | sed -n '120,126p'"
+    sha256: "6a9269cfd4afec4e1d24ba4206ed5292eccd8a43371396d7f651febff7bbfde4"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E4
+    kind: "document-claim"
+    reference: "spec-kitty:.kittify/charter/charter.md:425-440 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '425,440p'"
+    sha256: "2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c"
+    exit_code: 0
+    environment: "git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18"
+    observed_at: "2026-11-28T09:30:00Z"
+  - id: E5
+    kind: "document-claim"
+    reference: "evidence/A1/recorded-contradictions.csv"
+    method: "rows RC04-RC06"
+    sha256: "dee327143c0bf5bb521a96af396e973cf4f994bf17eb563c74a8084dc9e8caa2"
+    exit_code: 0
+    environment: "Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0"
+    observed_at: "2026-11-28T09:30:00Z"
+scope:
+  covered: "those 7 records"
+  not_covered: "docs/guides, docs/development"
+  population: "7 core records that mention the charter extraction direction (charter, roadmap, executive overview, 02, 03, two domain plans)"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn 'own repository|extracting|planned (#645)' over core docs/plans and docs/architecture"
+  result: "the 4 unmarked statements listed; 3 records carry supersession notes"
+relations:
+  - {type: refines, target: F-A1-027}
+confidence: high
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

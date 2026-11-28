@@ -1,0 +1,50 @@
+0 capability-growth|adds payload validators to the event emitter
+1 corrective-maintenance|negative status_phase read as early state
+2 capability-growth|new tension-arbiter annotations
+3 corrective-maintenance|wrong WP attribution in mark-status history
+4 corrective-maintenance|dead exception in suppress tuple, corrupt meta escaped
+5 corrective-maintenance|accept crashed on approved planning lane
+6 corrective-maintenance|doctor reported dropped selection green
+7 corrective-maintenance|post-convergence cherry-pick (original not in core); hand-built glob flagged by gate
+8 capability-growth|op records now committed to current branch (new behaviour)
+9 corrective-maintenance|explicit flag failure was a warning
+10 corrective-maintenance|error handling for corrupt agent config; worktree detection guard
+11 corrective-maintenance|report-only bound wrong charter
+12 capability-growth|new doctrine artefacts
+13 corrective-maintenance|raw pydantic error leaked across boundary
+14 restructuring|lift helper into kernel, behaviour unchanged
+15 convergence-activity|cherry-pick dated 2026-09-05 into the converging lines
+16 restructuring|fold onto canonical liveness helper, behaviour preserved
+17 restructuring|Sonar maintainability: constants extraction, min() for sorted()[0]
+18 restructuring|planning commit consumes seam-owned placement, arms unchanged
+19 corrective-maintenance|empty .git dir treated as checkout
+20 capability-growth|new glossary package
+21 corrective-maintenance|refusal output on wrong stream/format
+22 capability-growth|new guard primitive module
+23 convergence-activity|cherry-pick dated 2026-09-01 (convergence preparation)
+24 corrective-maintenance|quadratic sweep, red pin test
+25 corrective-maintenance|unreadable surface flattened to no-op
+26 other|CLI reference regeneration; constant moved in file
+27 corrective-maintenance|teammate clone refused coord writes
+28 corrective-maintenance|migration failed to remove lane dirs
+29 restructuring|remove inert duplicate config entries (split-brain reduction)
+30 corrective-maintenance|lane state not synced after coordination commits
+31 corrective-maintenance|squash merge of a Mission whose content is a red-first regression fix (#6768)
+32 corrective-maintenance|rejection after clock-ahead approval; pin bump
+33 corrective-maintenance|raw traceback instead of JSON envelope
+34 corrective-maintenance|load diagnostics dropped
+35 restructuring|post-unshim residue scrubs and lock test
+36 capability-growth|new drift detector
+37 corrective-maintenance|non-UTF-8 status.json aborted upgrade
+38 other|comment only
+39 corrective-maintenance|dead doc path references repointed
+40 restructuring|unify duplicated active-mission resolution into one helper
+41 corrective-maintenance|judged wrong branch
+42 capability-growth|new orchestrator test-path utilities
+43 corrective-maintenance|dangling symlink reported unreadable
+44 corrective-maintenance|legacy templates instructed retired Activity Log
+45 corrective-maintenance|case-sensitive slug match false negative
+46 corrective-maintenance|skip gate re-applied recorded migrations
+47 corrective-maintenance|bookkeeping classifier by basename, data loss
+48 capability-growth|new reconcile marker and repair
+49 other|comment/docstring corrections only

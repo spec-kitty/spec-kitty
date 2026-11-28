@@ -1,0 +1,60 @@
+finding_id: F-A2-006
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: status event log naming
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The one file status.events.jsonl is named three ways by the three repositories'' glossaries: ''status event
+  log'' (core docs/context charter.md:122), ''Status diary'' (events glossary :65), and ''Event ledger'' (charter
+  domain.md:188, which notes core calls it an event log). Tracked-line counts at head: ''diary'' core 231 / events
+  749 / charter 0; ''event ledger'' core 53 / charter 10 / events 12; ''status event log'' core 878 / events 28
+  / charter 62.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/status-log-names.csv
+  method: see phrase-count-commands.txt
+  sha256: dbb3e62c5391fceb3452196ae38d7fa22d544e97dc405522ddbc1452c378b5c6
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: curated from cited glossary lines (D11, D12)
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossary definitions and repo-wide phrase counts.
+  not_covered: Whether the phrase occurrences each refer to status.events.jsonl (counts are surface matches).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a cross-reference in the events glossary to core's term, and in core's glossary to 'diary'.
+  result: Charter domain.md acknowledges core's term; events and core glossaries do not cross-reference.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

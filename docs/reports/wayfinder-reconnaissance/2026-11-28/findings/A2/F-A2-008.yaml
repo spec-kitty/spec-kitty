@@ -1,0 +1,72 @@
+finding_id: F-A2-008
+workstream: A2 Terminology and concept map
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: pack tier / level / layer
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '''tier'' for packs has three uses and two contradictory rules: (a) audience tier, built-in (shipped) vs
+  internal (in-house), where internal is loaded as an org pack — core binding charter .kittify/charter/charter.md:452;
+  (b) the pack level built-in/org/project, whose single code authority is named kernel.pack_tiers while the glossary
+  entry is ''Pack Level'' (governance.md:81) and the DRG middle layer is ''Organization Tier'' (charter.md:725,
+  whose definition also says ''three-tier'' for a heading ''Three-layer''); (c) open-packs calls pack_level ''Pack
+  tier'' (index.md:24). The charter repository says ''Do not say tier for either'' level or layer (domain.md:107)
+  yet keeps an ''Organization Tier'' glossary entry. Lines: ''pack tier(s)'' core 153 / open-packs 12; ''pack level(s)''
+  core 93 / charter 75; ''project tier'' core 88 / open-packs 28; ''project layer'' core 525; ''project pack'' charter
+  279.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drg-tier-names.csv
+  method: see phrase-count-commands.txt
+  sha256: c1325c041051517e950dac2aa98405ba9889329ab20109a932d5333b47ba89b4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: rows D05, D06, D22
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git
+    archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a:.kittify/charter/charter.md:452
+  method: read section
+  sha256: null
+  exit_code: null
+  environment: null
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossaries, binding charter, kernel module docstring.
+  not_covered: ''
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a glossary entry that relates the audience tier (internal) to the level vocabulary.
+  result: None; the glossary has no 'internal pack' entry.
+relations: []
+confidence: high
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

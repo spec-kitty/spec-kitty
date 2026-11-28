@@ -1,0 +1,15 @@
+#!/bin/bash
+# nx <args to spec-kitty next> : run and pretty-print selected fields
+S=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1
+$S/px01/bin/run spec-kitty next "$@" --json | python3 -c "
+import sys,json
+t=sys.stdin.read(); i=t.rfind('[exit'); j=t[:i]
+try:
+    s=j[j.index('{'):]; d=json.loads(s)
+    pre=j[:j.index('{')].strip()
+    if pre: print('PRE:',pre[:1500])
+    for k in ['kind','mission_state','action','step_id','preview_step','prompt_file','reason','guard_failures','guard_failure_paths','question','options','decision_id','next_command','wp_id','progress','run_id']:
+        if d.get(k) not in (None,[],{},''): print(k,':',json.dumps(d[k])[:1200])
+    print('otherkeys:',[k for k in d if k not in ('kind','mission_state','action','step_id','preview_step','prompt_file','reason','guard_failures','guard_failure_paths','question','options','decision_id','next_command','wp_id','progress','run_id') and d[k] not in (None,[],{},'')])
+except Exception as e: print('RAW:',t[:4000])
+print(t[i:].strip())"

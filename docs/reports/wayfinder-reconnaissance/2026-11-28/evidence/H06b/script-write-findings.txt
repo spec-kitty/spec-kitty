@@ -1,0 +1,58 @@
+# H06b: writes findings/H06b/F-H06b-NNN.yaml from checks.csv, checks-run2.csv and counts.json.
+# Usage: python3 script-write-findings.txt <evidence/H06b dir> <findings/H06b dir> <observed_at_utc>
+import csv, sys, json, hashlib, yaml, os
+ev, fd, ts = sys.argv[1:4]
+sha = lambda n: hashlib.sha256(open(os.path.join(ev,n),'rb').read()).hexdigest()
+rows = {int(r['question']): r for r in csv.DictReader(open(ev+'/checks.csv'))}
+rows2 = {int(r['question']): r for r in csv.DictReader(open(ev+'/checks-run2.csv'))}
+counts = json.load(open(ev+'/counts.json'))
+HEADS = {"spec-kitty":"5c4fc5a79de1c1c299ab221ca26e5555c68ef533"}
+ENV = "Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)"
+COMP = {1:"import direction of the charter package",2:"ordering of work-package status events",3:"authority and read path for work-package lane state",4:"source and pinning of the built-in pack",6:"authority for charter activation",7:"core's seam to the charter offering",8:"services started by the CLI",12:"adoption of a spec-kitty-events release in core",14:"mission types and their step state machine",15:"publication of status events to outside consumers",18:"exceptions to architectural gates",20:"planned moves of responsibility between repositories"}
+def ev_item(i, name, method, kind="static-derived"):
+    return {"id":f"E{i}","kind":kind,"reference":f"evidence/H06b/{name}","method":method,"sha256":sha(name),"exit_code":0,"environment":ENV,"observed_at":ts}
+def base(n, claim, evid, measure, scope, disc, conf="high", rel=None, oq=None, comp="documentation answers checked against code", dev=None):
+    return {"finding_id":f"F-H06b-{n:03d}","workstream":"H06b - Checking documentation answers against code","hypotheses":[],"classification":"observation","view":"observed",
+            "prereg":{"measure":measure,"deviation":dev},
+            "subject":{"component":comp,"repository":"spec-kitty/spec-kitty","revision":HEADS["spec-kitty"],"revision_kind":"head"},
+            "claim":claim,"evidence":evid,"scope":scope,"interpretation":None,"derived_from":[],"counterevidence":[],
+            "disconfirmation":disc,"relations":rel or [],"confidence":conf,"analyst":{"profile":"reviewer-renata","model":"fable"},
+            "verification":{"status":"unverified","by":None},"quality_attributes":[],"candidate_invariants":[],"open_questions":oq or []}
+DEV = "The brief gives the 20 answers but not the question texts, and the files that hold them are outside the permitted inputs. Each question was inferred from its answer. The check therefore tests the answer's claims, not whether the answer addresses the question asked."
+E_code = ev_item(1,"code-checks-log.txt","bash evidence/H06b/script-code-checks.txt <dir holding `git archive 5c4fc5a79d` of spec-kitty> > code-checks-log.txt")
+E_srch = ev_item(2,"contradiction-searches-log.txt","bash evidence/H06b/script-contradiction-searches.txt <same dir> > contradiction-searches-log.txt (frame: 1365 markdown files in docs/ trees, root READMEs and charters of the five primary repositories at head)")
+E_chk  = ev_item(3,"checks.csv","python3 evidence/H06b/script-write-checks.txt evidence/H06b")
+E_whl  = ev_item(4,"wheel-listing.txt","(cd <core export> && uv build --wheel --out-dir ../dist); python3 evidence/H06b/script-wheel-listing.txt dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl","executed")
+E_svc  = ev_item(5,"service-status.txt","spec-kitty service status --json; spec-kitty service fetch --all (in an empty git repository in scratch)","executed")
+E_r2   = ev_item(6,"checks-run2.csv","python3 evidence/H06b/script-write-checks.txt evidence/H06b")
+n = 0
+order = [q for q in sorted(rows) if rows[q]['correct_against_code']!='correct' or rows[q]['contradicting_source']=='found']
+for q in order:
+    r = rows[q]; n += 1
+    parts = [f"Question {q} (run 1), on {COMP[q]}: the documentation-only answer is '{r['correct_against_code']}' against code at head and a contradicting documentation source was '{r['contradicting_source']}'."]
+    parts.append("Code: " + r['code_evidence'] + ".")
+    if r['contradicting_source']=='found': parts.append("Sources that disagree: " + r['contradiction_citations'] + ".")
+    parts.append(f"Cited source authoritative under the repositories' own rule: {r['cited_source_authoritative']} ({r['authority_rule']}).")
+    if q in rows2: parts.append(f"Run 2 ({rows2[q]['change_type']}): '{rows2[q]['correct_against_code']}' against code, contradicting source '{rows2[q]['contradicting_source']}'.")
+    evid = [E_code, E_srch, E_chk] + ([E_whl] if q in (4,12) else []) + ([E_svc] if q==8 else []) + ([E_r2] if q in rows2 else [])
+    for i,e in enumerate(evid,1): e = dict(e); e['id']=f"E{i}"; evid[i-1]=e
+    disc = {"search": f"For the code column: looked for the code path that would make the answer fully right (gate allowlists, callers, build output) before reading the answer's reasoning. For the contradiction column: grep patterns listed under 'Q{q}' in contradiction-searches-log.txt over 1365 markdown files, then read each cited line and its status frontmatter.",
+            "result": ("The answer's claims that hold are listed in the claim. " if r['correct_against_code']!='correct' else "No clause of the answer was found wrong against code. ") + ("Each contradicting passage was read at its line; none carries a superseded marker at the cited lines unless stated." if r['contradicting_source']=='found' else "No incompatible documentation source was found in the frame.")}
+    f = base(n, " ".join(parts), evid, "H06b per-question check (correct against code; contradicting source)",
+             {"covered":f"Run-1 answer {q} of 20 and, where it changed, run-2 answer {q}; code and build of spec-kitty at head and the cited revisions of sibling repositories at their heads.","not_covered":"Clauses of the answer that state a plan (not checkable against code); documentation outside the search frame (changelogs, reports, investigations, kitty-specs).","population":"20 run-1 answers","sample":"1 answer (all 20 were checked; this record carries one)","seed":None},
+             disc, conf=("medium" if q in (6,14,20) else "high"), comp=COMP[q], dev=DEV)
+    yaml.safe_dump(f, open(f"{fd}/F-H06b-{n:03d}.yaml","w"), sort_keys=False, allow_unicode=True, width=110)
+n += 1
+c1, c2 = counts['run1'], counts['run2']
+fmt = lambda c: "; ".join(f"{k}: " + ", ".join(f"{v} {kk}" for kk,v in sorted(d.items())) for k,d in c.items())
+claim = (f"Of 20 documentation-only answers, run 1: answered yes 19/20, partly 1/20; one source cited 18/20; cited source authoritative under the repositories' own rules 11/20 yes, 8/20 no, 1/20 unclear; "
+         f"correct against code 12/20, partly correct 8/20, incorrect 0/20, not checkable 0/20; contradicting documentation source found 10/20; meets all three 2/20 (questions 11 and 13). "
+         f"Run 2 (12 of 20 answers changed, the other 8 carried over): authoritative 10/20 yes, 9/20 no, 1/20 unclear; correct 13/20, partly correct 7/20; contradicting source found 10/20; meets all three 2/20 (questions 11 and 13). "
+         f"With four borderline judgments relaxed (self-declared reference pages for questions 9 and 10, a Proposed ADR that is on the main branch for question 16, the partly answered question 17) the figure is 6/20 in both runs.")
+f = base(n, claim, [dict(E_chk,id="E1"), dict(E_r2,id="E2"), dict(ev_item(3,"counts.json","python3 evidence/H06b/script-write-checks.txt evidence/H06b"),id="E3"), dict(E_code,id="E4"), dict(E_srch,id="E5")],
+         "H06b counts (answered; single authoritative source; correct against code; contradicting source; meets all three; run 1 and run 2)",
+         {"covered":"All 20 run-1 answers and the 12 run-2 changes in evidence/H06a/answers-run1.csv and answers-run2.csv.","not_covered":"Whether each answer addresses its question (question texts were not an input); plan clauses; documentation outside the search frame.","population":"20 answers","sample":"20 (census)","seed":None},
+         {"search":"Recomputed the counts from checks.csv with a relaxed reading of the four borderline authority and answered judgments, and re-read every 'not found' row's search hits for a missed contradiction.","result":"The relaxed reading moves 'meets all three' from 2/20 to 6/20; the correct-against-code and contradicting-source counts do not depend on those four judgments. No further contradiction was found in the 10 'not found' rows."},
+         dev=DEV, oq=["Is an ADR with frontmatter status Proposed that is on the main branch, and says the operator accepts it by merging its pull request, an accepted decision record?","Do the repositories' authority rules cover API reference pages under docs/api/ that declare themselves canonical?"])
+yaml.safe_dump(f, open(f"{fd}/F-H06b-{n:03d}.yaml","w"), sort_keys=False, allow_unicode=True, width=110)
+print("findings written:", n)
