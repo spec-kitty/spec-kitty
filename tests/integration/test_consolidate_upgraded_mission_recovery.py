@@ -45,11 +45,12 @@ _SHARED_SOURCE = "src/shared.py"
 #: The stale refusal the CLI renders for the Story 5 AS-1 control (whitespace-normalised: the
 #: console wraps at its width). lane-a is consolidated first, so the overlap comes from it: the
 #: refusal names lane-a's branch, which the run's rollback never moves (#7755), and starts with
-#: the reopen step an approved work package needs (#7754). No worktree exists, so no in-run
-#: auto-rebase ran and none is reported. It never prints a merge of the Mission branch, which the
-#: rollback restores without lane-a's change (CLAUDE.md, #7311).
+#: the reopen step an approved work package needs (#7754). No lane worktree exists, so no in-run
+#: auto-rebase ran, and the refusal says so before naming lane-a (#7886, FR-003). It never prints a
+#: merge of the Mission branch, which the rollback restores without lane-a's change (CLAUDE.md, #7311).
 _GITATTRIBUTES_STALE_REFUSAL = (
     "✗ lane-b: Lane lane-b is stale: overlapping files ['.gitattributes']. "
+    "Lane lane-b has no lane checkout, so no in-run auto-rebase ran onto kitty/mission-target-owned-01M5457A. "
     "The overlapping change comes from lane lane-a (branch kitty/mission-target-owned-01M5457A-lane-a), "
     "consolidated into kitty/mission-target-owned-01M5457A ahead of it. "
 )
@@ -324,4 +325,5 @@ def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(
     assert _GITATTRIBUTES_STALE_REFUSAL in _normalised(output), output
     assert _GITATTRIBUTES_STALE_REMEDY in _normalised(output), output
     assert "git merge" not in _normalised(output), output
-    assert "in-run auto-rebase" not in _normalised(output), output
+    # The only in-run auto-rebase text is the no-lane-checkout halt reason; no auto-rebase stop is reported.
+    assert _normalised(output).count("in-run auto-rebase") == 1, output
