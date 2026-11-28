@@ -3177,6 +3177,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "follow-up-2026-10-31-the-branch-integration-target-is-judged-too-6464", text: "Follow-up 2026-10-31 — the branch-integration target is judged too (#6464)", level: 3}
     - {slug: "amendment-2026-11-17-a-retarget-is-a-recorded-run-mutation-inside-the-one-door-7692", text: "Amendment 2026-11-17 — a retarget is a recorded run mutation inside the one door (#7692)", level: 3}
+    - {slug: "amendment-2026-11-26-the-rollback-restores-the-run-s-own-auto-rebase-lane-moves-7767", text: "Amendment 2026-11-26 — the rollback restores the run's own auto-rebase lane moves (#7767)", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md"
@@ -3354,6 +3355,8 @@ pages:
     - {slug: "amendment-2026-11-07-a-lane-s-own-dependency-merges-are-its-work-7307", text: "Amendment 2026-11-07: a lane's own dependency merges are its work (#7307)", level: 2}
     - {slug: "amendment-2026-11-08-work-package-windows-are-recorded-at-the-opening-transition-7403", text: "Amendment 2026-11-08: work-package windows are recorded at the opening transition (#7403)", level: 2}
     - {slug: "amendment-2026-11-12-history-from-before-the-mission-is-not-mission-work-7560", text: "Amendment 2026-11-12: history from before the Mission is not Mission work (#7560)", level: 2}
+    - {slug: "amendment-2026-11-25-the-squash-forecast-does-not-re-judge-the-mission-branch-commit-by-commit-7854-7855", text: "Amendment 2026-11-25: the squash forecast does not re-judge the Mission branch commit by commit (#7854, #7855)", level: 2}
+    - {slug: "amendment-2026-11-26-the-reviewed-merge-trust-model-and-fail-closed-merge-probes-7630-5604", text: "Amendment 2026-11-26: the reviewed-merge trust model and fail-closed merge probes (#7630, #5604)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
@@ -3565,6 +3568,7 @@ pages:
     - {slug: "amendment-2026-11-18-a-forced-or-foreign-claim-never-replaces-the-implementer-of-record-and-an-explicit-re-submission-completes-a-bare-claim-7712", text: "Amendment 2026-11-18: a forced or foreign claim never replaces the implementer of record, and an explicit re-submission completes a bare claim (#7712)", level: 2}
     - {slug: "amendment-2026-11-22-the-single-branch-planning-pin-follows-the-planning-commit-across-a-rebase-7793-7297", text: "Amendment 2026-11-22: the single_branch planning pin follows the planning commit across a rebase (#7793, #7297)", level: 2}
     - {slug: "amendment-2026-11-22-the-approval-stamp-survives-the-review-s-own-sync-merge-7802", text: "Amendment 2026-11-22: the approval stamp survives the review's own sync merge (#7802)", level: 2}
+    - {slug: "amendment-2026-11-26-an-unreviewed-resolution-merge-is-refused-at-claim-time-re-review-is-the-exit-5604-5721", text: "Amendment 2026-11-26: an unreviewed resolution merge is refused at claim time; re-review is the exit (#5604, #5721)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -4362,6 +4366,7 @@ pages:
     - {slug: "amendment-2026-11-12-7578-commit-to-target-single-branch-missions-record-their-window-points", text: "Amendment 2026-11-12 (#7578): commit-to-target single_branch Missions record their window points", level: 2}
     - {slug: "amendment-2026-11-18-7726-the-bulk-edit-review-gate-reads-the-review-range", text: "Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range", level: 2}
     - {slug: "amendment-2026-11-22-7759-a-bookkeeping-only-planning-range-is-withheld", text: "Amendment 2026-11-22 (#7759): a bookkeeping-only planning range is withheld", level: 2}
+    - {slug: "amendment-2026-11-26-5604-the-review-range-lists-merge-resolutions", text: "Amendment 2026-11-26 (#5604): the review range lists merge resolutions", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/README.md"
     title: "4.x Architectural Decision Records"
@@ -13770,12 +13775,15 @@ pages:
     - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
     - {slug: "origin-is-ahead-of-this-clone-origin-codes", text: "Origin is ahead of this clone (`ORIGIN_*` codes)", level: 3}
     - {slug: "not-synchronized-with-origin-only-with-push", text: "Not synchronized with origin (only with --push)", level: 3}
+    - {slug: "merge-renormalize-is-refused", text: "`merge.renormalize` is refused", level: 3}
     - {slug: "the-run-stopped-after-moving-branches", text: "The Run Stopped After Moving Branches", level: 2}
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
     - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
     - {slug: "a-failed-run-that-rolled-back-completely-drops-its-baseline", text: "A failed run that rolled back completely drops its baseline", level: 3}
     - {slug: "an-un-attributable-verdict-after-merging-a-dependency-branch", text: "An `un-attributable` verdict after merging a dependency branch", level: 3}
     - {slug: "a-lane-changed-after-its-work-package-was-approved", text: "A lane changed after its work package was approved", level: 3}
+    - {slug: "a-merge-on-an-approved-lane-was-never-reviewed", text: "A merge on an approved lane was never reviewed", level: 3}
+    - {slug: "two-approved-lanes-conflict-stale-lane", text: "Two approved lanes conflict (stale lane)", level: 3}
     - {slug: "a-branch-moved-without-a-record", text: "A branch moved without a record", level: 3}
     - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
