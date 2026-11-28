@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-11-28T08:56:06.186940+00:00",
+  "flattened": false,
+  "friendly_name": "Wayfinder ecosystem architectural reconnaissance",
+  "mid8": "01M8GNWM",
+  "mission_id": "01M8GNWMX7PJ5VSFA4Q1M8HXY8",
+  "mission_number": null,
+  "mission_slug": "wayfinder-ecosystem-reconnaissance-01M8GNWM",
+  "mission_type": "research",
+  "purpose_context": "Read-only research. Six workstreams, synthesis and adversarial review measure the ecosystem against a pre-registration approved by the human architect. No remediation and no implementation change.",
+  "purpose_tldr": "Evidence on the intended, observed and evolving architecture of the Spec Kitty ecosystem, to inform the design of Wayfinder",
+  "slug": "wayfinder-ecosystem-reconnaissance-01M8GNWM",
+  "target_branch": "claude/spec-kitty-arch-reconnaissance-fdeicj",
+  "topology": "single_branch",
+  "topology_source": "explicit"
+}
