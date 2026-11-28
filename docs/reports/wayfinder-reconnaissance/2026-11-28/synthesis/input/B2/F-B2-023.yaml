@@ -1,0 +1,60 @@
+finding_id: F-B2-023
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: module dependency graph and cycles
+  deviation: null
+subject:
+  component: pack-to-pack dependencies (depends_on)
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e
+  revision_kind: head
+claim: 'The 19 pack descriptors declare 41 depends_on edges; every target resolves to a pack in the repository; there is no cycle. 15 edges are exact pins (==3.7.0), all among the 7 built-in-level packs; the 26 edges from org-level packs are ranges. 0 of 41 edges go from a built-in-level pack to an org-level pack. foundation is depended on by 17 of the other 18 packs and testing by 10. At the commit core pins for the built-in pack (a79c3631) packs/ holds 2 descriptors (built-in, internal) and 0 depends_on edges: the pack graph that core composes and the pack graph at open-packs head differ in shape.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/openpacks-head-packs-edges.csv
+  method: python3 script-pack_graph.txt ... f9a55751 ...
+  sha256: 3b53323abd6b2b23c646ed358a7d0f5499ef49c34d6e799c3021a48beeb0c5f7
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:12:56Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/openpacks-head-packs-summary.json
+  method: same
+  sha256: 54f34bfae5aa76ae4ad19f4ea95fc58efbb5a5534eb54e2e0b0d031876cf661f
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:12:56Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/openpacks-corepin-packs-summary.json
+  method: python3 script-pack_graph.txt ... a79c3631 ...
+  sha256: 6b05ea8e530a49549b4a0428a4de3160ba3b7a6e65c16117253e53bca7423c3a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:12:56Z'
+scope:
+  covered: pack.yaml of every pack at head and at core's built-in pin.
+  not_covered: Artifact-level references between packs (graph fragments, requires/suggests edges); the internal pack pin ecda7b00 was not graphed.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Strongly connected components; unresolved pack ids; edges from built-in level to org level.
+  result: None of the three found.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

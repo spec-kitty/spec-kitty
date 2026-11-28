@@ -1,0 +1,59 @@
+finding_id: F-C2-022
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: recurrence
+  deviation: null
+subject:
+  component: core (files and components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 1,977 src files that received corrective-maintenance code commits in 2026-01..2026-11, 517 (26.2%) received them in three or more distinct calendar months; of 88 components with corrective commits, 68 (77%) did. Within periods: T1 69/830 files in >=3 months (3 months in period), T2 38/780 (period spans about 2.2 months), T3 142/956; files with >=3 corrective commits inside the period: T1 229/830, T2 263/780, T3 436/956.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/recurrence-summary.json
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: af690d1b0a4c90aa4fcbbeec8badd54802a8aedeb8316c6de0ff90c905624013
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/recurrence-files-ge3-months.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: d4115354180eeee907bfc8083f741f5bc2ad907bf282bef09c9edbe4138328fa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/recurrence-components-ge3-months.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: 266416ccd2b2672fa15efa7120e921105e8b8d1bbc109766d6010717692a5520
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Corrective-maintenance class by rule (F-C2-005 bounds accuracy).
+  not_covered: File renames are not followed for files (paths as recorded at each commit).
+  population: 3,611 corrective code commits
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether recurrence is concentrated in a few large modules.
+  result: The top of the file list is large CLI and consolidation modules (e.g. cli/commands/agent/tasks_move_task.py, consolidation/reconciliation.py), but 517 files meet the 3-month rule.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

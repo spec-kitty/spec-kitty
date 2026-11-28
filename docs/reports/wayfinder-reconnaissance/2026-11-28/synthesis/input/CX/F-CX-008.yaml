@@ -1,0 +1,59 @@
+finding_id: F-CX-008
+workstream: CX - comparison of two independent runs of workstream C measures
+classification: observation
+view: observed
+prereg:
+  measure: M02a, M02b
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M02 frames and samples differ, and the sampled rates replicate on origin but not on detection. Frames: M02a 666 (C) vs 698 (C2) from 2,276 vs 2,553 fix-subject commits; M02b 1,262 vs 1,264. Samples overlap in 4 of 30 (M02a) and 2 of 30 (M02b). Origin split is identical in both samples: M02a same pull request 13, earlier change on main 15, unknown 2; M02b 21 and 9. Detection does not replicate: M02a (a) 1 vs 2, (c) a person 22 vs 16, untraceable or not determinable 7 vs 11; M02b (a) 3 vs 5, (b) 1 vs 1, (c) 8 vs 8, untraceable or not determinable 18 vs 16. On the 6 commits both traced, origin agrees on 4 and mapped detection on 5. Mission-acceptance counts are not comparable (C counts only the 15 earlier-change introducers, acceptance on or before pull-request merge; C2 counts 20 traced introducers including same-pull-request ones, acceptance before or on the commit day).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/m02-overlap-traces.csv
+  method: 'python3 inline: join of evidence/C/m02-trace-sample.csv and evidence/C2/M02-tracing.csv'
+  sha256: 240ca38bb141e34fb3a8cf65b802ca2a6cf3e6e448bbca5d37514f4e73731e12
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E3
+  kind: executed
+  reference: evidence/CX/sample-frames.csv
+  method: assembled from script-samples.txt output and both runs frame counts
+  sha256: 6a4e591c1cb8daf820418605f083683e47a319163aafb72c7bf33db2ef9674f7
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Frame sizes, sample overlap, origin and detection tallies, the 6 shared traces.
+  not_covered: C2 published no frame list; frame-member overlap is known only for sampled commits (27 of 30 C2 M02a and 30 of 30 C2 M02b sampled SHAs are in the C frames).
+  population: M02a 666 / 698; M02b 1,262 / 1,264
+  sample: 30 per frame per run
+  seed: 20261128
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for definition differences in both frame scripts and coding notes.
+  result: Fix rule (C prefix or first word; C2 adds fold, fixup, landing fold and fix/bug/regression keywords anywhere) and contract rule (C contract/schema directories and schema basenames outside kitty-specs/ and tests/; C2 contracts/ directories including kitty-specs) explain the frame difference; C2 draws M02b from the same random stream after M02a while C uses a fresh stream, so even near-identical M02b frames yield different samples. The detection difference coincides with C2 adding a not-determinable bucket and splitting reviewer-before-main from report.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

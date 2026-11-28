@@ -1,0 +1,51 @@
+finding_id: F-C-012
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: convergence-merge-effect
+  deviation: null
+subject:
+  component: convergence merge 2554bd13ad
+  repository: spec-kitty/spec-kitty
+  revision: 2554bd13adc289d3457681308645fe52619bca0e
+  revision_kind: historical
+claim: The convergence merge commit has the same tree as its EXPERIMENTAL parent f57b06dd87 (tree 1063b7ebfc12, zero differing files). Against its public parent 614c52cb38 it differs in 3,179 files (+69,807/-349,905 lines), of which 481 files under src/ (+17,449/-61,454) in 63 components; the largest src differences are specify_cli/sync 36,491 changed lines, specify_cli/cli 11,064, zeitgeist_client 5,832, delivery 5,718, tracker 2,509, status 2,448. From the fork point, the public line changed 1,100 src files (+106,027/-76,571) and the experimental line 1,295 (+113,112/-127,661).
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/convergence-merge-effect-by-component.csv
+  method: inline-steps.txt step 5
+  sha256: c42dacad3b59a781ab16ad18ea012c4bf6e462f71e747d886e2ffed5d6f30ed6
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/source-lines-at-points.csv
+  method: inline-steps.txt step 4
+  sha256: dd6906ed7e91c3bb4ab697494878c1c429223bbea246c81560497e4a8ad24dba
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Tree comparison of the merge commit with both parents and of each parent with the fork point 38090b6493.
+  not_covered: Which public-line changes were ported to the experimental line before the merge by cherry-pick (348 experimental-line commits carry a cherry-pick trailer).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for any path where the merge result takes the public parent side.
+  result: git rev-parse shows identical tree ids for the merge and its second parent; no such path exists. The merge message states the EXPERIMENTAL tree is preserved exactly (document-claim, consistent).
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

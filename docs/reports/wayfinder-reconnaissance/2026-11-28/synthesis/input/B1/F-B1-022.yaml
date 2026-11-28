@@ -1,0 +1,88 @@
+finding_id: F-B1-022
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: bootstrap and build dependencies
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Import of the package depends on the fetched pack tree: in the same clone with dependencies installed and packs/built-in removed, 811 of 1,490 modules (54.4%) raise BuiltInPackMissing on import (727 in specify_cli, 57 in charter, 27 in runtime), and `spec-kitty --version` and `spec-kitty agent profile list` exit 1 with the same error. Every one of the 811 failures passes through one module-level statement, charter/activation/activations.py line 89, which derives a constant from the built-in mission types when the module is loaded. With the tree present, 0 of 1,490 modules fail and both commands exit 0.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B1/boot-10-nopack-import-all.txt
+  method: .venv/bin/python import_all.py raw-head.json   (packs/built-in absent)
+  sha256: f711677dca725af8cd5ae5c1cf142a2685a1b5be0da8c9da68b566f73da0288a
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E2
+  kind: executed
+  reference: evidence/B1/boot-03-pre-import-all.txt
+  method: .venv/bin/python /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/scripts/import_all.py /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/out/raw-5c4fc5a79de1c1c299ab221ca26e5555c68ef533.json
+  sha256: 8d8e9a5a99c32f5185f5719b6438a4382b16b82144de6f7405e02e009412f010
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E3
+  kind: executed
+  reference: evidence/B1/boot-11-nopack-version.txt
+  method: .venv/bin/spec-kitty --version
+  sha256: d2a7df162fd7c2df4cffbeb5ef0ab695effd35499d2cfca66598dfdeb73e38ab
+  exit_code: 1
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E4
+  kind: executed
+  reference: evidence/B1/boot-04-pre-version.txt
+  method: .venv/bin/spec-kitty --version
+  sha256: f06f4e43d811b13c53726d5c84c7919de5c38a3e29606d7aafe9520e867e5ae7
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E5
+  kind: executed
+  reference: evidence/B1/boot-13-nopack-profile-list.txt
+  method: .venv/bin/spec-kitty agent profile list
+  sha256: 5c44a47df9c03566e18c0d1168856ef7dcb29e75a5116c31449fb6156b2df87e
+  exit_code: 1
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E6
+  kind: static-derived
+  reference: evidence/B1/script-import_all.txt
+  method: authored by the analyst (copy of scratch scripts/import_all.py)
+  sha256: 2a61cdd018fcd1982c6273b8a3ed4b38fb9cd233f0e298ff2859405467954bbd
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:36:07Z'
+scope:
+  covered: All 1,490 modules imported in one interpreter process, in sorted order, in a disposable clone at head.
+  not_covered: Per-module fresh-process imports (a module is counted as failing when its import raises in the shared process, which includes failures inherited from an imported module). An installed wheel, where the tree ships inside the wheel, was not tested.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Ran the identical import sweep and commands with the tree present, and looked for a second trigger site among the failures.
+  result: 0 failures with the tree present. All 811 tracebacks share the one module-level frame; no second trigger appears in this sweep (a later one could be masked by the first).
+relations:
+- type: refines
+  target: F-B1-021
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- installability
+- testability
+candidate_invariants: []
+open_questions:
+- Whether a second import-time read of pack content exists behind the first was not tested.

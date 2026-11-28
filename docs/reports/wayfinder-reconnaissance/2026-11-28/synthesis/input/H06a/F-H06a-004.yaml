@@ -1,0 +1,68 @@
+finding_id: F-H06a-004
+workstream: H06a answering twenty questions from documentation
+classification: observation
+view: recorded-intent
+prereg:
+  measure: H06a-Q4
+  deviation: 'Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst''s context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: ''site content'' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report.'
+subject:
+  component: built-in pack
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Q4 (Which repository owns the source of the built-in pack, and how does core obtain it?) Run-1 documentation (2,051 files across five repositories at head) answers: spec-kitty-open-packs owns the source of the built-in (and internal) pack. Core commits only a pin lockfile, packs/built-in.source.yaml, and ''make sync-packs'' fetches the pinned commit, verifies the clean-tree digest and places packs/built-in/; pins are bumped with ''spec-kitty charter pack vendor --pack built-in --ref <sha>''. Analyst-chosen authority: spec-kitty/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:100-114. Concurring sources cited: 5; differing sources cited: 5. Run-1 searches: 2.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty/docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:100-114 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path> | sed -n '<lines>p'
+  sha256: null
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/H06a/answers-run1.csv
+  method: grep searches logged in evidence/H06a/search-log-run1.txt over the run-1 corpus listed in evidence/H06a/corpus-inventory.csv; answers written by script-write-answers-run1.txt
+  sha256: 4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/H06a/search-log-run1.txt
+  method: script-search-wrapper.txt (grep -rniE) per question
+  sha256: 445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+scope:
+  covered: Run-1 allowed documentation of spec-kitty, spec-kitty-charter, spec-kitty-events, spec-kitty-open-packs, doc-kitty at head; run-2 agent-guidance files for the delta.
+  not_covered: Source code, tests, build and workflow files, kitty-specs/, changelogs, supplementary repositories, historical revisions; whether the documentation is correct.
+  population: 2,051 run-1 corpus files (evidence/H06a/corpus-inventory.csv)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:53-57 (core carries packs/built-in as a committed, pinned, drift-gated tree
+- end-state is core as a client of the charter service's pack distribution)
+- spec-kitty-charter/docs/context/system-context.md:80-81 (re-vendored into core at release
+- re-vendor pipeline in progress)
+- spec-kitty-open-packs/docs/architecture/adr/2026-10-26-1-built-in-ahead-of-core-with-pending-vendoring-allowlist.md:30 (core later vendors it)
+disconfirmation:
+  search: Searched the whole run-1 corpus (all five repositories) for alternative wordings and for statements in sibling repositories and older ADRs that answer the question differently; see search-log-run1.txt entries for Q4.
+  result: 'Differing sources found: 5 (listed in counterevidence).'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- discoverability
+- consistency
+candidate_invariants: []
+open_questions:
+- 'Run 2 (agent-guidance files allowed): gained qualifying sources: Unchanged for core. Two agent guides add that spec-kitty-open-packs aligns to the charter repository, not to core, and that core will later align on the charter service; the charter repository also pins open-packs and syncs it (openPacksRef, ./gradlew syncPacks). Sources: spec-kitty-open-packs/AGENTS.md:21; spec-kitty-charter/.kittify/AGENTS.md:240-244; spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):32-60. Differing: spec-kitty-open-packs/AGENTS.md:21 (core will align on the charter service later) qualifies the pin-and-fetch answer as an interim arrangement, consistent with spec-kitty-charter ADR-0005 but not with any core ADR in the run-1 set.'
+- Correctness against code is not assessed here (assigned to another workstream).

@@ -1,0 +1,43 @@
+finding_id: F-C-022
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: sibling-series
+  deviation: null
+subject:
+  component: spec-kitty-events modules
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'In spec-kitty-events (1,475 non-merge commits), with each module or subpackage of src/spec_kitty_events and each service/, contracts/ and java/ module as a component: T1 24 code commits, median 3.5 components, 75.0% touch two or more; T2 87, median 1, 44.8%; T3 237, median 1, 29.5%. 141 of the T3 commits (all in 2026-10) have the author date and subject of a core commit; without them T3 is 105 code commits, median 1, 41.0%. No code commit falls in 2026-07, and 2 in 2026-06.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/sibling-events-series.csv
+  method: inline-steps.txt step 7 (raw git log sha256 41f5564a6c6228a9630027673acb59835017f3beee64143526095793bbfc241e)
+  sha256: de6317e2ee147ebea5f06d32c62f520181803bd2b747c08541b771501ae5e87d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from spec-kitty-events origin/main, 2026-01..2026-11; periods by committer date.
+  not_covered: No rename map was built for this repository; no line split (the archived experimental events repository has one fetched commit).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether commits imported from core change the T3 figure.
+  result: 'They do: 29.5% with them, 41.0% without; both are reported and the imported commits are counted once, in core.'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,69 @@
+finding_id: F-B2-025
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: pins between the five repositories
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Nine commit-level pins between the five repositories were found, each naming a 40-character commit. Measured against the pinned repository''s origin/main on 2026-11-28 they are behind by: core->events read service 114 commits; core->doc-kitty toolkit 144; open-packs->charter 178; doc-kitty->charter packs contract 182; charter->open-packs 344; core->open-packs internal pack 646; core->open-packs built-in pack 665 (and not an ancestor of main, see F-B2-026); events->core 4,369; charter->core (a constant in a corpus script) 5,111. Version-range couplings stand beside them: core on spec-kitty-events >=11.3.0,<12 and three documentation sites on exact toolkit versions.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/B2/xrepo-pin-matrix.csv
+  method: git log -1 --format=%cI <sha>; git rev-list --count <sha>..origin/main; git merge-base --is-ancestor <sha> origin/main, per pin
+  sha256: f903a248d871efa8e0e3bd7a614d5c5b75dc19c66f1bfb65697e8c481c513720
+  exit_code: 0
+  environment: git 2.43.0
+  observed_at: '2026-11-28T09:11:55Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/xrepo-coupling-points-curated.csv
+  method: hand-verified file:line list (purposive)
+  sha256: a5c71c42da688c020bfa939938b77c04de8cba7bbfb1b4349460dfe46aa69c41
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:37:06Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/xrepo-refs-build-pin-ci.csv
+  method: python3 script-xrepo_refs.txt ... then filter to build-file, pin-or-lock, ci-workflow
+  sha256: a2d19383a52ac397340c9ebc41b33d17170ab5e425b8657953ea6d7b48302d29
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:37:06Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B2/xrepo-refs-summary.json
+  method: python3 script-xrepo_refs.txt ...
+  sha256: 04d3688c16558017a7505d45c5024b3abb4d88a83bdb5c73c90545fc3702cb6f
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:37:05Z'
+scope:
+  covered: Tracked build files, pin and lock files, CI workflows, scripts and sources of the five repositories at head; prose (docs/, kitty-specs/, *.md) excluded.
+  not_covered: Pins held in release assets or in repositories outside the five. 'Commits behind' counts commits on the pinned repository's main, not behaviour change. The token scan has false positives (for example requires_core as a field name); the curated list is hand-checked and purposive.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Scanned for any 40-hex value next to a repository name in build, pin and CI files; looked for branch or tag-only references (which would not be pins).
+  result: One further commit pin points outside the five repositories (events CI checks out the end-to-end-testing repository at 193f5c0e). CI workflows of charter check out open-packs by the pinned ref; no branch-name dependency on another repository's main was found in build files.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+- reproducibility
+candidate_invariants: []
+open_questions: []

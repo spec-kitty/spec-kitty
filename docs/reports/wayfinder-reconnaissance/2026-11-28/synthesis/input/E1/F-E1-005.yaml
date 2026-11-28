@@ -1,0 +1,62 @@
+finding_id: F-E1-005
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-2 CI as an assurance surface
+  deviation: null
+subject:
+  component: per-PR checks that are not required
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'In core, 11 curated per-PR checks post a result that is not among the three required contexts: the packs gate and its jobs (pin check of both pack trees, pack regeneration and graph checks, plugin validation, internal org-pack validation, the negative packaging guard that the internal pack never ships), the CI Aggregate gate (diff-cover of changed lines), the shared-package drift check, the Windows-critical tests and the release-readiness check; the SonarCloud report and the built-in corpus suite are continue-on-error. The packaging guard test file sits in a directory the registry lists as outside the per-PR matrix, and the one job that runs it runs only when the internal pack path group changed.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/gates.csv
+  method: python3 script-gates_all.txt <scratch> gates.csv (script in evidence/E1; reads shared clones of the five repositories at head); rows with where_runs starting "per-PR reported"
+  sha256: 3a271e2cbe8dcde839fcdcf00dcf437b6bd0697243301a808f3313742ba66a2d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: executed
+  reference: evidence/E1/rulesets-live-2026-11-28.json
+  method: gh api (read-only), reduced
+  sha256: 675449c5d4c48162f2be940f1b7d2ac9546d0f2b8197c3a35de0a8ab073d706f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: document-claim
+  reference: .github/workflows/packs.yml:406-430 and .github/ci-module-registry.yml:1328 at 5c4fc5a79d
+  method: job internal-packaging-safety and the out-of-matrix record for tests/cross_cutting/packaging
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Workflows triggered by pull_request in core, compared with the required contexts of ruleset main-2.
+  not_covered: Whether maintainers treat a red non-required check as blocking in practice (merge history was not sampled).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a required aggregate that depends on these workflows (a job in router gate, CI Modules gate or Clean install verification that waits on them).
+  result: 'None: the three required jobs have no needs or workflow_run link to packs.yml, ci-aggregate.yml, check-spec-kitty-events-alignment.yml, ci-windows.yml or release-readiness.yml.'
+relations:
+- type: refines
+  target: F-E1-004
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- reliability
+candidate_invariants: []
+open_questions: []

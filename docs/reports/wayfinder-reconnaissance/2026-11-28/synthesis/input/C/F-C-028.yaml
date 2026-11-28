@@ -1,0 +1,43 @@
+finding_id: F-C-028
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: population-rules
+  deviation: null
+subject:
+  component: bulk commits
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '22 non-merge commits between 2026-01 and 2026-11 change more than 500 files and are excluded from per-commit measures: 11 code commits, 6 docs/specs/tests-only and 5 other. The largest are two commits of 2026-07-28 with 7,344 and 7,270 files; five of the 11 code commits are the doctrine-to-charter topology moves of 2026-08-29..31, present on both lines.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/bulk-commits.csv
+  method: python3 script-analyze.txt
+  sha256: b8441104b74479128a0828666bcbf5846898efb963687fa447e396948bfcb665
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether any excluded commit is the only carrier of a component rename.
+  result: The charter topology moves are excluded as commits, but their renames are in the rename map because the map is built from all commits before exclusion.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

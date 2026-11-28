@@ -1,0 +1,61 @@
+finding_id: F-F-003
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: dispatch-vs-context-preparation
+  deviation: null
+subject:
+  component: governed invocation (spec-kitty dispatch / ProfileInvocationExecutor)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: In core at head, `spec-kitty dispatch` routes a request to a profile, assembles governance context, writes an Op started record and returns; it starts no executor. The invoke path's docstring states it does not spawn any LLM call (src/specify_cli/invocation/executor.py:508), and no subprocess call in src/ launches an agent CLI (0 matches for agent CLI argv patterns; the 5 Popen sites found serve the services launcher, the pre-review test gate and the upgrade check). Selection of the executor and starting it are left to the caller.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/dispatch-op-lifecycle.json
+  method: dispatch --json --profile analyst-annie in a disposable clone; doctor ops --json; profile-invocation complete --outcome abandoned
+  sha256: 99b8e1d7871de43f24bc8fb1ada8ce155963d539e846e1c44213d44359360a03
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/F/dispatch-help.txt
+  method: COLUMNS=160 spec-kitty dispatch --help
+  sha256: fda70fd4851726ba536dc0d32dc04d7539e82f8f5d8eb146a9e9e3aec535d8a3
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: src/specify_cli/invocation, src/specify_cli/cli/commands/dispatch.py, grep of src/ for Popen and agent CLI argv
+  not_covered: Agent harness hooks outside the repository
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn for Popen/start_new_session and agent CLI argv (claude -p, codex exec, --output-format) across src/; read spec-kitty next --help
+  result: 5 Popen sites, none starting an agent; next --help says agents call next in a loop (pull model)
+relations:
+- type: supports
+  target: F-F-005
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

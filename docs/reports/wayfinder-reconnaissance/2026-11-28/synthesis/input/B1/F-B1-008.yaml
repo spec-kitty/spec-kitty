@@ -1,0 +1,46 @@
+finding_id: F-B1-008
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: component graph at head (transitive closure)
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Transitive closure at head (all imports): 60 of 74 components each reach 71 other components and specify_cli.drg_writers reaches 72; kernel, specify_cli.ast_analysis, specify_cli.contracts, specify_cli.docs and specify_cli.tasks_authoring reach 0; charter.offering, specify_cli.bootstrap and specify_cli.paths reach 1; charter and charter.activation reach 3; glossary, specify_cli.calibration and specify_cli.provisioning reach 4. In the other direction kernel is reached by 69 components, charter.offering by 66, charter.activation by 65. With load-time imports only, 48 components reach 61 others and 10 reach 62.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/component-nodes-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 4beb5bf1c8174c8fe4b0faeb9af7e79eace252b666ada23d9162e341a7db082a
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: 74 components at head; columns reaches_all, reaches_load_time, reached_by_all.
+  not_covered: Dynamic imports (importlib with a string; 0 to 8 literal sites per revision are listed in series.csv, computed names are invisible), attribute access after `import pkg`, and implicit execution of parent packages are not edges. Non-Python assets are not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for components that would break the pattern (a specify_cli subpackage with a small closure) and listed every component whose closure is below 60.
+  result: 13 components have a closure of 4 or fewer; 8 of them are specify_cli subpackages, the others are kernel, glossary and the three charter components.
+relations:
+- type: refines
+  target: F-B1-007
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

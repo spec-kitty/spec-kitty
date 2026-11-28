@@ -1,0 +1,67 @@
+finding_id: F-A1-036
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: proposed
+prereg:
+  measure: M7 reuse of the 2026-09-27 review (target architecture)
+  deviation: null
+subject:
+  component: Kitty Shared Architecture v0.11
+  repository: spec-kitty/spec-kitty-planning
+  revision: 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  revision_kind: head
+claim: 'The Kitty Shared Architecture v0.11 (planning architecture/ docsite, updated 2026-09-27, status ''Proposed · for review'') describes a target for spec-kitty, Team Kitty with Zeitgeist, Kitty Studio and CartaStudio; it declares its code basis as saas a377f49, train f86fa8a, zeitgeist 1f2633e and names no core revision (README.md:14-21); its changelog reports earlier review rounds (v0.9: three reviews, four blockers, about seventeen major issues; v0.10: one blocker). Planning states its 56 records bind nothing until ratified; no ratification of any of them was found in the six repositories.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-planning:architecture/docs/README.md:1-30 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:architecture/docs/README.md | sed -n '1,30p'
+  sha256: bbe2c78bc0a7d5c8102ec8e1ebe983a959453868f83ec4dc53c35708966edc55
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-planning:architecture/docs/changelog/README.md:18-30 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:architecture/docs/changelog/README.md | sed -n '18,30p'
+  sha256: d1478c52e1ebc7e3a2fbac86560a82224c2b8d7d59f392a9902153e72b1d9f19
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-planning:decisions/README.md:9-9 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:decisions/README.md | sed -n '9,9p'
+  sha256: 0e85eedd9ab28a4ba110fc5423315ca84737a5b475554c3854b208f832255e61
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: evidence/A1/review-2026-09-27-summary.txt
+  method: hand summary
+  sha256: c17602f5414574c39b2849921fe03bf0604428c7ce9fa6407c88a6c334f094c1
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: hub, changelog, ADR index, risks page
+  not_covered: the 24 architecture pages' detail
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rli 'shared architecture' over the five primary repos' docs and charters
+  result: only the core engine-side review and its README discuss it
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

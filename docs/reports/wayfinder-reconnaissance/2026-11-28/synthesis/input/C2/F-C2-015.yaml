@@ -1,0 +1,45 @@
+finding_id: F-C2-015
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: null
+subject:
+  component: core (cross-component import edges)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M01f by class, added file-level edges per kloc of changed .py lines (sampled commits / lines): T1 capability 3.05 (30 / 16,086), corrective 12.01 (69 / 7,911), restructuring 6.59 (13 / 32,456), compatibility 4.64 (15 / 14,432); T2 capability 2.73 (24 / 14,642), corrective 3.09 (59 / 2,915), restructuring 34.67 (17 / 2,394), compatibility 10.27 (12 / 4,479), convergence 1.36 (22 / 3,691); T3 capability 2.49 (17 / 18,107), corrective 2.03 (67 / 3,941), restructuring 4.12 (22 / 1,941), compatibility 8.84 (12 / 2,489), convergence 5.53 (13 / 1,447). Removed edges per kloc are highest for T2 restructuring (15.87) and T3 capability-growth (2.43).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/C2/M01f-import-edges-aggregate.csv
+  method: python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt
+  sha256: 3de4c097cc4ea85efd5bfaca52d187761470337b2b1aaa8dca3874c7bf86adf9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: As F-C2-014.
+  not_covered: Strata of 12-24 commits give unstable per-kloc rates; denominators are in the CSV.
+  population: as F-C2-014
+  sample: 150 per period stratified
+  seed: '20261128'
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a class whose rate is driven by one commit.
+  result: T1 corrective's 95 added edges come from 69 commits but only 7,911 lines, so a handful of import-heavy small fixes dominate; strata are small and rates are reported with denominators.
+relations:
+- type: refines
+  target: F-C2-014
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

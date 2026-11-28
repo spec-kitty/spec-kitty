@@ -1,0 +1,44 @@
+finding_id: F-D1-004
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: pack pin digests
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Three different tree-digest algorithms pin the same pack trees: core uses clean-tree-sha256 plus snapshot_sha256 (packs/*.source.yaml), open-packs records spec-kitty-snapshot-sha256 in its own packs/<pack>.source.yaml (its comment: ''not interchangeable with core''s pin digests''), charter uses tree-sha256-v1 (packs/open-packs.lock.yaml). Same file name (packs/built-in.source.yaml) carries a different schema in core and in open-packs.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: the three files at head
+  not_covered: whether the algorithms are equivalent on any tree (not computed)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for a shared digest implementation imported by more than one repository
+  result: none found; each repository carries its own script (core src/charter/offering/packs, open-packs scripts/ci/pack_digest.py, charter scripts/packs/sync_packs.py)
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- consistency
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,59 @@
+finding_id: F-C2-013
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: co-change matrix
+  deviation: 'Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05.'
+subject:
+  component: core (fine components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Top co-change pairs (commits touching both / code commits in period): T1 charter/offering+specify_cli/cli 83/947 (support 0.088, confidence offering->cli 0.41), specify_cli/cli+specify_cli/status 82 (status->cli 0.73), specify_cli/cli+sync[retired] 77; T2 specify_cli/(root)+cli 77/1,809 (0.043), cli+core 74, charter/activation+cli 59, charter/activation+charter/offering 56; T3 specify_cli/(root)+cli 99/3,026 (0.033), cli+lanes 88, charter/activation+cli 86, cli+consolidation 83, cli+upgrade 80. specify_cli/cli is in 5 of the top 6 pairs of every period and is touched by 49.6% (T1), 36.2% (T3) of code commits.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/cochange-top15-per-period.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: 49854b1e3c397aafcb8aef1628189dc677e7263c32a709b440ef6f29822c924a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/cochange-pairs-ge3.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: bc5d6e57965445fabb7ad396d638d5913870d207103e9e3f2921185c92e964f2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/component-touch-counts-per-period.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: c58eea4d88f2e6ba94149ae30b84f38a086251ead62fbb7d3cff1bc35f2fcce5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: All pairs with >=3 joint commits per period and line, with support and both confidences.
+  not_covered: Weighting by lines changed.
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a period whose top pair does not involve specify_cli/cli.
+  result: T2 EXPERIMENTAL's third pair (charter/activation+charter/offering, 17/703) does not; every period's top pair does.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

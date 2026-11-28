@@ -1,0 +1,62 @@
+finding_id: F-H06a-021
+workstream: H06a answering twenty questions from documentation
+classification: observation
+view: observed
+prereg:
+  measure: H06a-discoverability
+  deviation: 'Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst''s context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: ''site content'' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report. Searches count only logged corpus-wide grep calls; targeted reads of already-located files are listed separately in the log. Differing-source and decision-document classification is by the analyst.'
+subject:
+  component: ecosystem documentation
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Discoverability over 20 questions, run-1 documentation corpus of 2,051 files: 41 logged corpus-wide searches (mean 2.05, median 2, max 4 per question; plus 51 targeted reads of located files); 15 of 20 questions had at least one cited source stating something different from the chosen authority, and for 14 of 20 that differing source is itself a charter, ADR or architecture document; confidence high 8/20, medium 10/20, low 2/20; questions without a single answering document: 3 of 20 (Q11 no general precedence rule, Q19 recovery spread across pages, Q20 no single approved plan), and Q17 only partly answered; chosen authorities: 19/20 in spec-kitty core, 1/20 in spec-kitty-events; by kind ADR 7, architecture doc 4, charter 3, API reference 2, README 1, development reference 1, how-to 1, plan 1. Run 2 (adding 13 agent-guidance files): 12 of 20 questions changed or gained sources (6 answers changed or became more answerable, 4 gained a contradicting or qualifying source, 2 gained corroborating
+  or authority sources); 8 unchanged.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/H06a/discoverability-measures.csv
+  method: cd evidence/H06a && python3 -I script-discoverability.txt
+  sha256: 8a6f5717d89b649a6b98e6640361fd22673732e32d22b9d8a41e67405be61fbb
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/H06a/discoverability-summary.txt
+  method: cd evidence/H06a && python3 -I script-discoverability.txt > discoverability-summary.txt
+  sha256: 2812b4f071117692e8eca4d716e4e67a54cbefacf7272aaf2591c3f60de25021
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/H06a/answers-run2.csv
+  method: script-write-answers-run2.txt after grep over evidence/H06a/corpus-inventory.csv run2 rows (search-log-run2.txt)
+  sha256: 8f65e6eaf4cbed9e2852e094ad2d6574ab07a289b3b22d120288beaef7c61fc5
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+scope:
+  covered: 20 questions of the H06a brief; run-1 and run-2 corpora at head.
+  not_covered: Correctness of any answer against code; documentation at historical revisions; supplementary repositories.
+  population: 20 questions (fixed by brief); corpus 2,051 run-1 files and 13 run-2 files
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Re-counted per-question searches from the raw log rather than from memory; checked whether any question had no differing source by re-reading the run-1 'other sources different' column; checked run-2 for questions whose answer did not change.
+  result: Counts reproduce from the log; 5 questions (Q9, Q10, Q13, Q16, Q19) have no differing source; 8 questions are unchanged in run 2.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- discoverability
+candidate_invariants: []
+open_questions:
+- Search counts depend on analyst skill and on the harness having shown core CLAUDE.md before run 1; they are an upper-bound-free indicator, not a usability benchmark.

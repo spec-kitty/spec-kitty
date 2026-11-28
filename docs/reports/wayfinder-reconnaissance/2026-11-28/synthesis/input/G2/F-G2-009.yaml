@@ -1,0 +1,64 @@
+finding_id: F-G2-009
+workstream: G - Expressing invariants as checks (G2, full implementation knowledge)
+classification: observation
+view: observed
+prereg:
+  measure: I5
+  deviation: null
+subject:
+  component: 'core Python owned state: status event log, activation record, migration ledger, pins'
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Check results per ledger (function co-location tier, then a module tier, then manual adjudication): activation record (.kittify/charter/activation.yaml): 0 confirmed writes outside charter/activation/activation_ledger.py (2 module-tier candidates, charter/activation/compiler.py and schemas.py, write config.yaml and governance YAML instead; pack_manager.py writes through the owner''s prepare_ledger_write). Migration ledger: 0 confirmed writes outside specify_cli/upgrade/ledger.py (3 module-tier candidates rejected on reading; other modules mutate it only through MigrationLedger.append/append_many). Pins: packs/*.source.yaml are written by charter/offering/packs/pack_pin.py:write_pack_pin (called by pack_vendor.py); pins/<service>.source.yaml are written by kernel/service_pin.py:write_service_pin, whose only caller is specify_cli/services/vendor.py, the documented ''one path''. Status event log: from my import table, 7 modules outside the specify_cli.status package import the raw-append
+  door specify_cli.status._unsafe (coordination.status_service, events.event_bridge, retrospective.events, retrospective.lifecycle_events, migration.verdict_provenance_backfill, migration.backfill_runtime_state, decisions.emit), equal to the 7 out-of-package entries of _unsafe.ALLOWED_CALLERS (9 entries); the existing writes gate test_status_events_writes_gate.py records a further 7 out-of-store write sites in 7 modules, 4 of them outside the status package (lanes.auto_rebase, migration.rebuild_state, consolidation.bookkeeping_projection, consolidation.phase_advance). My function-level heuristic found 15 candidate functions in 10 modules: 3 are the glossary''s own event log (false positives), 5 are in modules the gate records, 7 in 6 modules were not adjudicated.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/core_i5.json
+  method: python3 -I check_g2_core_i5.txt core/src core_i5.json
+  sha256: ed2c057710f9ca6b6591a3af5b46c5e1ecc3cef55373814d89c14e171834008f
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:16:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_core_i5.txt
+  method: check script (stored as .txt)
+  sha256: 47f4f7426a276c6f48e57df818b4deede95728399413bd26adac091e002e80b0
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:16:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/G2/core_checks.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json
+  sha256: 43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+scope:
+  covered: Four ledgers, all src/ files; owners as named in CLAUDE.md and module docstrings, verified by reading.
+  not_covered: Writes whose path arrives through parameters across modules (the heuristic did not see the owners' own writes at function level; the owner's writes were seen only at module tier); subprocess/git writes. The existing writes gate test_status_events_writes_gate.py was run at head and passed 28/28, including test_no_out_of_store_writes and test_allowed_out_of_store_sites_are_live (evidence/G2/core_existing_gates_full_run.txt).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for owner writes as a non-vacuity test (store.py and ledger.py were missed at function level, found at module tier); cross-checked the status-log result against two recorded allowlists (_unsafe.ALLOWED_CALLERS, the writes gate ledgers).
+  result: The status event log has recorded, enumerated writers outside its owning module (at least 11 modules outside the specify_cli.status package across the two allowlists); the other three ledgers showed no confirmed outside writer.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- integrity
+- auditability
+candidate_invariants:
+- Only the owning module, or a caller named in a recorded shrink-only allowlist, writes each ledger file.
+open_questions:
+- Is the owner of the status event log store.py or the whole specify_cli.status package plus coordination.transaction?

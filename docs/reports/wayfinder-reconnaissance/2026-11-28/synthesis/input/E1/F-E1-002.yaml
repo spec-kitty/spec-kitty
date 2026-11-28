@@ -1,0 +1,60 @@
+finding_id: F-E1-002
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-1 gate inventory
+  deviation: null
+subject:
+  component: architectural battery execution
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 39 of the 310 core architectural gate files (12.6%) run on every pull request (4 in three always-on jobs, 35 in the fast roster). The other 271 (87.4%) run in the job architectural-heavy, which runs only when a code path group or a declared scan scope of the gate changed, and again in a nightly backstop; 103 of those 271 declare a scan scope beyond src/** and tests/architectural/**. All of these jobs are in the needs list of the job router-gate, whose check "router gate" is a required status check on main.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/gates.csv
+  method: python3 script-gates_all.txt <scratch> gates.csv (script in evidence/E1; reads shared clones of the five repositories at head)
+  sha256: 3a271e2cbe8dcde839fcdcf00dcf437b6bd0697243301a808f3313742ba66a2d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: .github/ci-module-registry.yml:1348-1416 and .github/workflows/ci-router.yml:1293-1516,2107 at 5c4fc5a79d
+  method: registry roster, deselect list and scan_scopes; router job definitions
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: executed
+  reference: evidence/E1/rulesets-live-2026-11-28.json
+  method: gh api repos/spec-kitty/spec-kitty/rulesets/<id> (read-only), reduced
+  sha256: 675449c5d4c48162f2be940f1b7d2ac9546d0f2b8197c3a35de0a8ab073d706f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Where each of the 310 files runs, derived from the registry roster, the base deselect list and the scan_scopes list.
+  not_covered: Whether the selection logic selects every gate a given diff can affect was not tested (no run was made); the repository has its own gates for that (test_gate_scan_scope_completeness.py, test_battery_scan_scope_routing.py).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for an architectural gate file that no job runs: compared the 310 files with the roster, the deselect list and the base path of the heavy job.'
+  result: 'None found: the heavy job base path is the whole directory, so every file not on the roster or the deselect list is in a heavy shard.'
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- testability
+candidate_invariants: []
+open_questions: []

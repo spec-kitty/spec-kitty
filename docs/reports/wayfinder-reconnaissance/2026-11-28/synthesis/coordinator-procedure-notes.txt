@@ -1,0 +1,27 @@
+# Coordinator's procedure notes for the synthesis and the review
+
+These are notes on how the investigation ran. They contain no finding and no reading of any result. The coordinator has not read the workstreams' conclusions; counts and self-declared deviations come from the workstreams' short hand-back messages.
+
+## Workstreams and counts of finding records
+A1 38, A2 20, B1 27, B2 35, B3 13, C 33, C2 32 (blind replication of C, different model and profile), CX 13, D1 31, D2 22, E1 35, E2 7 plus 24 mutation patches, E3 19, F 28, G1 12, G2 15, H06a 21, H06b 13.
+
+## Briefing gaps caused by the coordinator
+- H06b was not given the texts of the twenty questions and inferred them.
+- A2 was not given definitions of the outside terms it had to map; its mapping is by name, declared low confidence.
+
+## Procedure breaches declared by workstreams
+- B3 read evidence/B1/layer-edges-head.csv (29 edge rows) before fixing its own mapping rules.
+- H06a had agent-guidance files (CLAUDE.md) in its context during the run that was meant to use documentation only.
+- F did not commit its coordination comparator list before classifying.
+- C used 2026-09-05 as the start of T3, and its classification code differs from its written rules for subjects starting "landing fold:".
+- E3: core mutations were applied in a batch of 13 and undetected ones re-run alone; parallelism 4 instead of 2; the architectural gate set was 66 files (244 battery files not run); some out-of-set runs, reported apart.
+
+## Interruptions and environment limits
+- An account usage limit stopped B2, CX, D1, D2, E3, F and G2 mid-run. They were resumed with their own context intact.
+- 15 GB of memory. tests/architectural/test_layer_rules.py was killed for B1 and G1 (B1 executed the gate's helper functions instead). E3 reports having run it alone.
+- The spec-kitty-events Gradle build never succeeded (HTTP 429 on dependency retrieval). Events Java is static only; everything that needed that build is not assessable. This is a coverage limit, never a defect.
+- The charter Gradle build worked with a capped heap for B2, D2 and G2.
+- The repository spec-kitty-go, cited by a core ADR, is not attached. Coverage limit.
+
+## Prior exposure
+See section 4 of 00-rulings-and-deviations.md.

@@ -1,0 +1,51 @@
+finding_id: F-F-020
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: execution documentation drift
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Four statements in core''s execution documents at head disagree with code at head: multi-agent-orchestration.md:34 ''One worktree per WP'' (code allocates one worktree per lane), :95 lists `merge-mission` (removed 2026-09-28), :118 ''API in_progress maps to internal doing'' (status code treats doing as an input alias of in_progress); host-boundary-rules.md:109-110 says the orchestrator creates the worktree after start-implementation (the API allocates the lane worktree since contract 1.1.0).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/F/oa-merge-mission-unknown.txt
+  method: spec-kitty orchestrator-api merge-mission --help
+  sha256: c5cbd22b50d4c55eb785ad2cf028a350375d766e3ad3aa94fb51aa9301e1b00b
+  exit_code: 2
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: 2 documents
+  not_covered: docs/api/orchestrator-api.md body beyond its version list
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked envelope.py 1.1.0 entry and status/transitions.py resolve_lane_alias
+  result: Both confirm the code side
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

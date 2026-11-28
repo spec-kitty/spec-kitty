@@ -1,0 +1,62 @@
+finding_id: F-E3-007
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 undetected mutation M-PI-3
+  deviation: null
+subject:
+  component: src/specify_cli/events/decision_log.py
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M-PI-3 adds a function-body import of runtime.next._internal_runtime.engine._read_snapshot to specify_cli. Run alone: 66 architectural files 1295 passed (baseline tally), layer rules 80 passed, 3 mirror files passed, ruff, format and mypy clean. No file in the frozen set restricts underscore names of runtime.next._internal_runtime: the only private-name gate, tests/architectural/test_events_tracker_public_imports.py:13, scopes itself to the packages spec_kitty_events and spec_kitty_tracker, and the layer rules allow specify_cli to import runtime.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-M-PI-3.txt
+  method: drive_core.sh <scratch> M-PI-3 (alone)
+  sha256: 2c5d66ee49f02f9baa62721a350709afe07177f1f6c854d6f9578946c5266ab1
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/E3/runs-lint-per-mutation.txt
+  method: run_core.py lint-M-PI-3
+  sha256: 9e22b46a4306e1f0a59154b25d6e207c00088670c57a87cdf31281d1895bf0ef
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/E3/runs-supp.txt
+  method: drive_supp2.sh (exploratory, outside the frozen set)
+  sha256: 3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: Mutation M-PI-3 against the frozen gate set of its repository.
+  not_covered: 244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 1 mutation
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep of tests/architectural for _internal_runtime, _read_snapshot and decision_log; ran the dead-symbol, dead-module and write-side gates outside the frozen set.
+  result: Six battery files mention _internal_runtime, none checks imported names. tests/architectural/test_no_dead_symbols.py fails, naming the new function as having no caller, not the import.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions:
+- E2 marks the intended model for this rule as ambiguous (production specify_cli already imports from runtime.next._internal_runtime in 12 import lines).

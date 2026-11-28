@@ -1,0 +1,45 @@
+finding_id: F-CX-003
+workstream: CX - comparison of two independent runs of workstream C measures
+classification: observation
+view: observed
+prereg:
+  measure: M01c
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M01c for all classes replicates in every period: median/p90/mean T1 2/6/2.823 (C) vs 2/6/2.806 (C2); T2 pooled 1/3/1.861 vs 1/3/1.861; T2 EXPERIMENTAL 1/3/1.632 vs 1/3/1.619; T3 1/3/1.681 vs 1/3/1.683; T2 public split into pre-fork and fork-window segments also within 10% (18 of 18 all-class rows replicated). By class, 29 of 108 rows are not replicated, all in classes whose membership differs between the rule sets or in strata under 60 commits: compatibility-work means T1 2.351 (n=77) vs 5.509 (n=55), T3 1.726 (303) vs 3.058 (69); other T1 3.908 (130) vs 2.958 (120); convergence-activity T1 15.0 (3) vs 7.0 (1).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Periods T1, T2 pooled, T2 public (pre-fork and fork-window), T2 EXPERIMENTAL, T3; all six classes.
+  not_covered: 'p90 is not strictly comparable at month level: C uses a nearest-rank integer, C2 linear interpolation.'
+  population: 6,345 code commits
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether all-class values differ in any period, and whether the per-commit component counts differ.
+  result: Per-commit component counts differ on 80 of 6,345 commits (1.3%) and top-level counts on 43; this moves no all-class period value by more than 10%.
+relations:
+- type: refines
+  target: F-CX-002
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

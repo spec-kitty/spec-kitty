@@ -7,7 +7,7 @@ updated: '2026-11-28'
 
 A read-only investigation of the intended, observed and evolving architecture of the Spec Kitty ecosystem. Its purpose is to give the human architect the evidence needed to design Wayfinder, an architectural knowledge and assurance repository. It changes no product documentation, code, test, rule or CI configuration, and it starts no remediation.
 
-**Status: pre-registration approved by the human architect on 2026-11-28 (see `04-approval-and-dispatch.md`). Investigation in progress; no finding in this folder is final until the review stages are complete.**
+**Status: pre-registration approved by the human architect on 2026-11-28 (see `04-approval-and-dispatch.md`). Investigation complete, synthesis running (see `05-status.md`). No finding in this folder is final until the review stages are complete.**
 
 | File | What it holds | State |
 |---|---|---|

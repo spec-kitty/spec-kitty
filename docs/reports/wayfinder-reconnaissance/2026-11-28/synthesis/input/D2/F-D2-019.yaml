@@ -1,0 +1,67 @@
+finding_id: F-D2-019
+workstream: D2 - Independence of the Java services
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: release artefact details
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.1 and service-v0.1.0-rc.2
+  revision_kind: released
+claim: Exploratory observations on the released artefacts. (a) The published replay set names 5 golden files with a 'smoke:' prefix (used by 13 of its 53 requests) that are not in the released conformance-fixtures archive; they exist in the repository test resources at the tagged commit. (b) The conformance-fixtures and contract-tools archives of rc.1 and rc.2 have different SHA-256 values but identical extracted content. (c) The mission-status-api jar has the same SHA-256 in rc.1 and rc.2. (d) The charter repository has a tag service-v0.1.0-rc.2 with no release among the 8 releases listed. (e) The rc.3 charter service reports contract version 0.2.0-SNAPSHOT while the contract released from the same date is 0.2.0-rc.3.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04a-replay-rc1-native.json
+  method: python3 replay_smoke.py <fixtures rc.1> <smoke goldens at 2f5e0394> <bundle mission-status/openapi.yaml> out -- mission-status-api-0.1.0-rc.1-linux-x64
+  sha256: 1582048a305af9e598eda412f06ec10440064e9dd14d45d3bf6175a0b655da14
+  exit_code: 0
+  environment: python3 3.13; native binary sha256 e78c8311...; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/release-assets-events.json
+  method: gh api "repos/spec-kitty/spec-kitty-events/releases?per_page=50" --jq (tag, prerelease, assets name/size/digest)
+  sha256: 6fe2d69f37f71d9f2ff492190d8088135f0b9d73c8b4d726e588582d6adcf90e
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/release-assets-charter.json
+  method: gh api "repos/spec-kitty/spec-kitty-charter/releases?per_page=50" --jq (same)
+  sha256: c31880f9cc2cdf838db8d89f47336799c0dcd9f311f3a83f7fb11d44380b7488
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc3-native-run.txt
+  method: CHARTER_WORKTREE_TOKEN=<random> spec-kitty-charter-service-0.1.0-rc.3-linux-x64 --server.port=N --configRootLocation <root>; curl with bearer token; diff served contract vs released contract asset
+  sha256: 338ece9dfb97bcd82fcdd34b3d4a38ca52515bb0057dafcafdfce4f5cd0d6d6e
+  exit_code: 0
+  environment: native binary sha256 8f45a298...; curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Assets downloaded for this workstream.
+  not_covered: Why each is so was not investigated.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For (a), searched the extracted archive for the five file names.
+  result: Not present in the archive.
+relations: []
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

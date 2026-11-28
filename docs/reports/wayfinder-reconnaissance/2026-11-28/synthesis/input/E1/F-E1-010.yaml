@@ -1,0 +1,60 @@
+finding_id: F-E1-010
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-2 CI as an assurance surface
+  deviation: null
+subject:
+  component: events cross-repository harness
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: The required check cross-repo-harness-tests in spec-kitty-events runs the identity-boundary unit tests of the end-to-end testing repository at commit 193f5c0e (2026-05-21), with the pull request's copy of the events package and spec-kitty-cli==3.2.0rc22 installed from PyPI. On a pull request from a fork the job is skipped, which GitHub reports as success for the required check; a second job posts a notice.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: .github/workflows/cross-repo-harness-tests.yml:13-24,39-108,121-140 at 646e330b89
+  method: workflow header comment and steps; quoted in static-searches.txt
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: sed over the workflow file
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: history-derived
+  reference: evidence/E1/cross-repo-pins.csv
+  method: git rev-list --count
+  sha256: 5b51b3210eea5acab517a75266a52e8eb0bcd7f4f328ccc8222f3612ae635b18
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The one workflow file and the pin distance.
+  not_covered: The harness tests themselves were not run; what they assert was not reviewed.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a second run of the harness against a current CLI (4.x) or the harness head.
+  result: None in the events workflows.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- interoperability
+candidate_invariants: []
+open_questions: []

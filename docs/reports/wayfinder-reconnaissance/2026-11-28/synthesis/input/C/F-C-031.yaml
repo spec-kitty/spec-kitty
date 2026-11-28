@@ -1,0 +1,51 @@
+finding_id: F-C-031
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: convergence-activity class
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Exploratory. 576 non-merge commits carry a cherry-pick trailer. Among code commits classed convergence-activity, 247 fall in T2 (196 on the experimental line, 35 pre-fork, 16 public) and 112 in T3, after the merge; 3 fall in T1. In the classification sample, 3 of the 5 commits the rule put in this class were read as ordinary fixes or a refactor by content; all 3 are dated outside the fork window.
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/volume-denominators.csv
+  method: python3 script-analyze.txt
+  sha256: 83ba94775c13e9d382993e9b371b835a93eafd0aa3e86dd8f570c4cb96334809
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/classification-sample-50.csv
+  method: inline-steps.txt step 6
+  sha256: 58f8faa849d90218dc661f499b3df2739072aa2b9bf5924ebba05ba87068e6c8
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Asked whether trailers after the merge are convergence work.
+  result: Not established either way from history alone; the rule assigns them to the class by definition, and the sample reading suggests at least part are routine cherry-picks between branches.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

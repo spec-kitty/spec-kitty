@@ -1,0 +1,43 @@
+finding_id: F-A1-029
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M1 component catalogue
+  deviation: Value 'contested' added beside claimed / explicitly-not-pursued / silent where two records disagree (3 cells); counted separately.
+subject:
+  component: component catalogue
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+claim: '40 components or capabilities are named by the records (evidence/A1/component-catalogue.csv). Declared independence across the 40: logical claimed 30, contested 2, silent 7; contract claimed 22, contested 1, silent 15; source claimed 13, silent 25; distribution claimed 16, explicitly-not-pursued 4 (kernel wheel for now, charter extraction, charter as package, spec-kitty-runtime), silent 18; deployment claimed 8, silent 21, n/a 11. The 8 deployment claims are: the core CLI as one process, the events read/write services, the charter service (per-worktree daemon or hosted), the external orchestrator, the doc-kitty MCP server, the hosted backend and the charter offering after cutover.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/component-catalogue.csv
+  method: hand-compiled; script-build-catalogue.txt
+  sha256: 916370f2ebea94d2f609d85a3188f1ba39ecc4c71654d86378cdaf43d04e0f51
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: components named in records of the five repos and planning
+  not_covered: components only named in code
+  population: 40 catalogued components
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: for each 'silent' cell, grepped the component's owning repo docs for its name plus 'release', 'process', 'contract'
+  result: no further claims found; cells stay silent
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

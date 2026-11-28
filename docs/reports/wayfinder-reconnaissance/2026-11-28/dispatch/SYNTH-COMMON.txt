@@ -1,0 +1,68 @@
+# Common brief for the synthesis
+
+You are a synthesiser in a read-only architectural reconnaissance of the Spec Kitty ecosystem, commissioned by its human architect. The investigation stage is finished. Your job is to consolidate what was observed, with traceability. Read this file fully first.
+
+Report folder (called R below): /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/
+
+## Envelope
+
+- Consolidate, weigh, and say what the evidence does and does not show. Do not remediate, do not propose implementation work items, do not open issues or pull requests, post nothing to GitHub.
+- Never modify, stage or commit any file under /home/user except new files you write under R/synthesis/ as named in your brief. Never edit findings/, evidence/, workstream-reports/ or synthesis/input/. No git command that changes state. The coordinator commits.
+- You may re-run a small check in a disposable location under /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-<your id>/ to resolve a doubt. Never a whole test suite; the machine has 15 GB of memory. Mark anything you ran yourself as synthesis-run.
+- Missing access, a blocked build or a failed download is a coverage limit, never evidence of an architectural defect. Absence of a component that no recorded intent places in the ecosystem is not a deficiency.
+- The human architect decides intent, priorities and exceptions. You inform those decisions; you do not make them.
+- A contradicted hypothesis is as useful as a supported one. Look for the evidence against each reading before you settle on it.
+
+## Load your profile
+
+In /home/user/spec-kitty run `spec-kitty agent profile show <profile id>` for the profile in your brief and `spec-kitty charter context --action review --json` (stderr warnings about a typescript toolguide are benign). Apply the resolved boundaries. Where they conflict with this envelope, the envelope wins and you note it.
+
+## Read first
+
+1. R/00-rulings-and-deviations.md: the architect's rulings, the five independence dimensions, the four views.
+2. R/01-pre-registration.md: measures, thresholds, verdict criteria (sections 5 and 6), scenarios (8), controls (11). Verdicts come from the criteria in section 6 only.
+3. R/04-approval-and-dispatch.md: the H01 window (2026-07-01 to 2026-09-05, provisional; the convergence is reported apart).
+4. R/synthesis/coordinator-procedure-notes.txt: how the run went, declared breaches, limits. Weigh affected findings accordingly.
+5. R/dispatch/COMMON.txt and the per-workstream briefs in R/dispatch/: what each workstream was asked, in what words.
+
+## Two phases, in this order
+
+Phase 1, evidence first. Work only from:
+- R/synthesis/input/observations-index.csv and R/synthesis/input/<WS>/*.yaml: every observation record, with the investigators' interpretation and confidence fields removed mechanically;
+- R/evidence/<WS>/: the raw artefacts those records cite. Open the artefacts behind every observation your conclusions rest on; do not rely on a claim sentence alone.
+In phase 1 do not open R/findings/, R/workstream-reports/ or R/synthesis/sealed/. Write your phase-1 reading to the file named in your brief before you go on.
+
+Phase 2, comparison. Then read R/findings/ (the interpretation records listed in R/synthesis/sealed/held-back-records.csv, and the confidence fields) and R/workstream-reports/. Record, in the differences file named in your brief, where an investigator's reading differs from yours, which you keep and why. Change your documents where the investigators are right, and say that you did.
+
+## Rules for every statement
+
+- Keep four views apart and label each statement: recorded-intent, observed, approved-plan, proposed. A document describing the implementation is a document-claim and does not establish an observed fact by itself.
+- Keep evidence kinds apart: executed, static-derived, history-derived, document-claim.
+- Keep revision kinds apart: head, core-pin, released, historical. Say where the development architecture and the supported distribution differ.
+- Keep pre-registered measures apart from exploratory observations. Exploratory observations never decide a verdict.
+- Keep evidence of deterioration apart from evidence for a cause. Causal statements are at most "consistent with" or "not consistent with".
+- No trend across the convergence merge 2554bd13ad. Agent involvement is not a proxy for supervision.
+- Cite finding ids (F-<WS>-NNN) for every statement, and name the evidence file when you opened it. A statement with no finding id is marked as your own inference.
+- Where two workstreams disagree (including C against C2, G1 against G2, H06a against H06b, E1 against E3), report both and do not average them away. Do not drop duplicates or inconclusive results silently.
+- Rates with denominators. State scope and what was not covered.
+- Use the ecosystem's own terms (see /home/user/spec-kitty/docs/context/). The domain object is a Mission. Name the sense of overloaded words (primary, merge, routing, residue, projection, runner, coordination).
+- Kira, HUD, Operations Deck and similar belong to a prospective consumption context; their absence is not a deficiency. Paperclip is a comparison only. Desk assessment (H08, AS-10) is never presented as empirical verification.
+
+## Output form
+
+- Markdown files under R/synthesis/, each starting with exactly:
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+- Plain, short sentences. Tables where the content is tabular. At most 2,500 words per document unless your brief says otherwise. Supporting tables as .csv under R/synthesis/. Only .md, .csv, .txt, .json files; no scripts with code extensions.
+- A repository gate forbids a few retired phrases under docs/. Before you finish, run `python3 /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/tools/scrub.py <each file or folder you wrote>`; it is idempotent.
+- No secrets, tokens or personal e-mail addresses.
+
+## Final message
+
+Reply to the coordinator in at most 150 words: files written, deviations from this brief, blocked items. Do not summarise your conclusions; they are in your files.

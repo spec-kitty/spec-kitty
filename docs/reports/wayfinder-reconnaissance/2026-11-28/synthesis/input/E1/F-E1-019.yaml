@@ -1,0 +1,45 @@
+finding_id: F-E1-019
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: M05b
+  deviation: null
+subject:
+  component: ratchet baseline leaves
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'tests/architectural/_baselines.yaml had 21 leaves on 2026-09-07 and has 30 at head: 13 were added, 4 removed. On the 17 leaves present at both dates the summed caps went from 316 to 295. Over the range caps were raised by 44 in total and lowered by 164. Leaves added in the range include the charter.activation boundary (231), dead symbols (231 and 83), retired-surface burn-down (70), destructive-operation allowlist (61) and the status read door legacy allowlist (33, lowered from 45).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/E1/ratchet-baseline-leaves.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head); leaf values per commit of _baselines.yaml (137 commits)
+  sha256: deb89d3e2653e1090f869a7643e5e122f8e35ddcf7913baf96cfc1101d09f6f9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Every commit to the file on first-parent history.
+  not_covered: Whether a raised cap was accompanied by the justification comment in the same commit was not checked per commit.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for leaves whose cap rose without ever falling.
+  result: test_doctrine_census.orphan_reached_exceptions rose 2 to 10; test_mutation_ownership_routing.destructive_op_allowlist rose by 6 since it was added; test_cli_error_surface_seam rose by 1.
+relations:
+- type: refines
+  target: F-E1-018
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

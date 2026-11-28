@@ -1,0 +1,51 @@
+finding_id: F-E3-018
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: mypy on touched files
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Exploratory. mypy with the repository configuration, run on each touched file, raised one new error for 3 of 15 core mutations (M-PI-2, M-RD-2, M-RD-3), each 'Returning Any from function declared to return ...' on the line that uses the newly imported name; it raised nothing for the other 12. The string mypy occurs in no file under .github/workflows at head, and the Makefile typecheck target names 2 files, neither touched by a patch. ruff check and ruff format reported nothing for any of the 15.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-lint-per-mutation.txt
+  method: 'drive_batch.sh step 1: git apply <patch>; ruff check --force-exclude; ruff format --check --force-exclude; mypy <touched files>; git apply -R'
+  sha256: 9e22b46a4306e1f0a59154b25d6e207c00088670c57a87cdf31281d1895bf0ef
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/E3/runs-baseline.txt
+  method: same on the unmodified clone
+  sha256: ed965717d50fffd2d31a94f17d3b4f52ce8cd630ba7e3482cda5a42fdd01c982
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: 15 core mutations, per-file lint and types.
+  not_covered: mypy over the whole package; the scoped mypy test in the battery.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -n mypy over .github/workflows/*.yml and the Makefile in the clone.
+  result: No workflow line; Makefile:103-106 targets src/specify_cli/runtime/agent_commands.py and src/specify_cli/git/commit_helpers.py.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

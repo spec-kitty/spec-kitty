@@ -1,0 +1,59 @@
+finding_id: F-A2-011
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: doctrine vs charter
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The word ''doctrine'' is canonical in one repo and retired in another: core docs/context keeps ''Doctrine Domain'' canonical (charter.md:196); charter repo domain.md:193 retires ''Doctrine'' as a Spec Kitty term; open-packs says ''do not say doctrine'' for charter but ''also called a doctrine artifact''. Inside core, the binding charter heading ''Doctrine Pack Tiers'' and ''Doctrine packs are tiered'' use a term the core seed glossary marks deprecated (''doctrine pack: replaced by Charter Pack''), and cite config key doctrine.org.packs while core src reads charter_packs (75 lines) and names the ''doctrine'' key retired/legacy. The ''skill'' senses also differ: core ''charter skill'' vs open-packs ''doctrine skill''. Lines: doctrine core 49,344 / charter 578 / open-packs 1,289.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: section V5
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: rows D09, D10, D19
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/A2/term-counts.csv
+  method: bash evidence/A2/count-script.txt (git grep -I -P per term regex at each head revision; see file)
+  sha256: 15de6be16da225184e00bfbbff4a87eee0b9745cc98c35409497312db6acc569
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossaries, binding charter, config-key reads in core src.
+  not_covered: Whether a legacy 'doctrine' config key is still accepted at runtime (only migration references found).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched core src for readers of a 'doctrine' config key.
+  result: Only constants naming it retired/legacy (charter/activation/sync.py:265, m_unify_charter_activation_finalize.py:82).
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

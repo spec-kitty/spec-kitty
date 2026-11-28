@@ -1,0 +1,92 @@
+finding_id: F-E3-001
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 baseline state
+  deviation: Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n 4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt.
+subject:
+  component: frozen gate set at unmodified head
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'On the unmodified head the frozen core gate set gave: 66 architectural files 1295 passed, 2 xfailed, 2 setup errors (both in tests/architectural/test_scenario_contract.py, SERVICE_BINARY_MISSING because service extras were not synced in the clone); test_layer_rules.py alone 80/80 passed; mirror tests 913/913 passed; ruff and ruff format clean on 14 touched files; mypy on the 14 touched files exit 1 with 3 errors, all in src/specify_cli/status/reducer.py. Events Python set, open-packs set (with a local copy of the pinned charter contract) and the charter ArchUnit and contract tasks were green. The events Gradle build did not start (HTTP 429 from repo.maven.apache.org at plugin resolution).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-baseline-am.txt
+  method: run_core.py <scratch> baseline-am <15 core ids> with E3_ONLY=arch,mirror in a --shared clone at head after uv sync --frozen --all-extras and scripts/sync_packs.py
+  sha256: e956f6ab702f22fa34cc8d7dcc829fd87a037eba5684f7c36c2070990feeb7b8
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/E3/runs-baseline.txt
+  method: run_core.py <scratch> baseline <15 core ids> with E3_ONLY=ruff,format,mypy
+  sha256: ed965717d50fffd2d31a94f17d3b4f52ce8cd630ba7e3482cda5a42fdd01c982
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/E3/runs-baseline-layer.txt
+  method: pytest tests/architectural/test_layer_rules.py -n0
+  sha256: 32d81bdb3830e0812d3096182558f7ac724e5dbbaa898b307ea24b603b994c5a
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E4
+  kind: executed
+  reference: evidence/E3/runs-ev-baseline.txt
+  method: run_events.sh <scratch> ev-baseline
+  sha256: dbed7415847c02895ccceb0501c775e617d4148e7094f52cf96f6926aca0732a
+  exit_code: 0
+  environment: Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E5
+  kind: executed
+  reference: evidence/E3/runs-op-baseline.txt
+  method: CHARTER_CONTRACT_DIR=<local charter contracts/packs at cb9b1542> run_packs.sh <scratch> op-baseline
+  sha256: cb026f5aaaa7cf206044c83bb3d89d06100cdcfd9ae8f32e2dc84bbfb7fd903e
+  exit_code: 0
+  environment: Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E6
+  kind: executed
+  reference: evidence/E3/runs-charter-gradle.txt
+  method: ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest ; :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples
+  sha256: c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194
+  exit_code: 0
+  environment: JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E7
+  kind: executed
+  reference: evidence/E3/runs-events-gradle.txt
+  method: drive_eventsj.sh <scratch> (one attempt)
+  sha256: f1685602772b1dfa16396eeb0c99c3d1a3a4625c437b0ffb325032ced328392f
+  exit_code: 1
+  environment: JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: Frozen gate set of evidence/E3/gate-set.txt on unmodified clones of four repositories.
+  not_covered: 244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes. Events Gradle tasks (blocked). The open-packs charter-service job.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared the failing node ids of every mutated run with the baseline node ids; looked for baseline failures whose text changed under a mutation.
+  result: The two setup errors and the three reducer.py mypy errors are identical in every run. Three time-budget tests (test_event_log_writes_gate_budget, test_status_module_boundary AST budget) failed intermittently under machine load in mutated runs and passed in others; they name elapsed seconds, not mutated code, and are not counted.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- testability
+candidate_invariants: []
+open_questions: []

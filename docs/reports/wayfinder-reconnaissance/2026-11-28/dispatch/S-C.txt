@@ -1,0 +1,13 @@
+# Synthesis brief S-C: quality attributes, invariants, knowledge model, open decisions
+
+Profile: architect-alphonso. Scratch id: ws-SC. Read R/dispatch/SYNTH-COMMON.txt first. This brief runs after the two other synthesis briefs. In addition to the phase-1 sources you may read every .md and .csv directly under R/synthesis/ (the consolidated documents), and the design brief: the PDF under /root/.claude/uploads/ (read it with the Read tool, by pages). The design brief contains proposals by an outside observer. They are in the proposed view. They are not approved, and a mismatch between a proposal and the repositories is not a deficiency of the repositories.
+
+Phase-1 file: R/synthesis/S-C-phase1.md. Differences file: R/synthesis/S-C-differences.md.
+
+Produce:
+
+1. R/synthesis/quality-attributes-invariants-scenarios.md: the quality attributes the recorded intent and the observations point to; candidate architectural invariants, each stated without naming a technology where that is possible, each with its source (recorded intent, observed regularity, or proposal), whether a contract-only check could be written and what the two check workstreams (G1 contract-only, G2 implementation-aware) found; and quality-attribute scenarios. For H08 and AS-10 say plainly what is desk assessment.
+2. R/synthesis/knowledge-model.md (may run to 3,500 words): the smallest knowledge model that the evidence supports for an architectural knowledge and assurance repository. For each proposed element: which observed need it answers (finding ids), what would be its authoritative source, how it would be kept true, and what happens without it. Answer each synthesis question that the design brief asks, one by one, quoting the question. Say where the evidence argues against an element of the preliminary design, and where it is silent. Options with trade-offs, not a single design. These are prospective design recommendations in the proposed view; label them so.
+3. R/synthesis/open-human-decisions.md: every decision that belongs to the human architect, each with the options, what the evidence says for each, what is unknown, and what it blocks. Include conflicts between recorded decisions and proposals, the provisional H01 window, the charter and events source and distribution questions noted in the rulings file, the unattached repository, and whether any finding should become a tracker issue (the investigation filed none).
+
+You do not change the hypothesis verdicts. If you disagree with one, say so in your differences file with the evidence.

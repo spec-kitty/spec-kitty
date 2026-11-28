@@ -1,0 +1,53 @@
+finding_id: F-D1-023
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: packs
+  deviation: null
+subject:
+  component: built-in pack pin
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e and core-pin a79c36318b7a
+  revision_kind: head
+claim: 'Shape of the built-in pack at pin vs head: at core''s pin packs/built-in holds 505 files with pack_version 1.0.0 and no depends_on; at open-packs head it holds 5 files (pack.yaml, pack-manifest.yaml, README.md, presets) with pack_version 5.7.0 and depends_on six member packs at ==3.7.0 (foundation, writing, testing, refactoring, architecture, planning-analysis). Core''s pin file and build hook fetch one subtree (`subtree: packs/built-in`) and force-include that single directory in the wheel. The pin carries requires_core >=4.0.0rc7,<5, which is checked at pin-bump time (pack_vendor.py) and not at run time; open-packs in turn pins a charter release (service-v0.1.0-rc.3) in charter.lock.yaml, and charter pins open-packs 1692a3b1 for its own tests.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/packs-validate-results.csv
+  method: 'for each pack directory of open-packs at a79c3631 and at f9a55751 (git archive): spec-kitty charter pack validate <dir> --json with the 4.0.0rc8 wheel, the head wheel and the 3.2.7 wheel'
+  sha256: e04c148a9cc35e73ce2499753696909add6b56804ad2a6b02f96d85fbd1f2183
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: tree listing at both commits; pin file and hatch_build.py
+  not_covered: whether core has unmerged work to consume the distribution form
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked in core head for a second pack pin file covering the member packs
+  result: 'none: packs/ holds built-in.source.yaml and internal.source.yaml only'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+candidate_invariants:
+- 'Observed order constraint: open-packs moves with a charter release; core''s built-in pin can only move to an open-packs commit whose trees core''s loader accepts (0 of 19 at head).'
+open_questions: []

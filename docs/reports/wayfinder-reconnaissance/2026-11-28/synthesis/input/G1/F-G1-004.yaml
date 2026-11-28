@@ -1,0 +1,54 @@
+finding_id: F-G1-004
+workstream: G1 - Expressing invariants as checks (public information only)
+classification: observation
+view: observed
+prereg:
+  measure: I2/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'I2 check ran (1.0 s). The charter repository declares no module-info.java (0 files), so the public surface was taken from the published ring rules. Result: 6 imports in 1 of 1,003 main Java files break the rule ''only <slice>.infra.<other> names the other slice'' as coded: artifacts.infra.packs imports six routing.domain types. The published module table lists routing as a dependency of artifacts-edge, so the two published statements differ for this case. 0 hits for the other coded rules (web ring named outside infra.api, adapter reaching another slice''s non-application ring, composition root named by a slice, pack-validation naming other than packs.domain).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-head-I2_private_access.csv
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: d4da95491f751cddcb3f5dd5853c3a872445838949ee12068f761cb74908515c
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-summary.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: Import statements of main sources in 14 service modules; 441 imports of the generated contract package (ai.speckitty.charter.api) were counted and not judged.
+  not_covered: Java visibility modifiers (package-private use); who may import the generated contract types; test sources; fully qualified references without import.
+  population: 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched for imports of another slice's infra ring from any slice other than the composition root.
+  result: 0 found.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants:
+- A slice names another slice only from its <slice>.infra.<other> adapter and only that slice's application or domain ring
+open_questions:
+- Is artifacts.infra.packs naming routing.domain inside the published rule (through the module table) or outside it (through the adapter-naming rule)?

@@ -1,0 +1,16 @@
+# Synthesis brief S-B: components, decisions, dependencies, independence, execution
+
+Profile: synthesizer-sam. Scratch id: ws-SB. Read R/dispatch/SYNTH-COMMON.txt first.
+
+Phase-1 file: R/synthesis/S-B-phase1.md (your own reading, written before phase 2).
+Differences file: R/synthesis/S-B-differences.md.
+
+Produce:
+
+1. R/synthesis/component-catalogue.md and component-catalogue.csv: every component and capability found, with owner repository, responsibility, public interface, consumers, revision kinds at which it was observed, and the finding ids. Mark what was only read from documents.
+2. R/synthesis/decision-timeline.md and decision-timeline.csv: the recorded architectural decisions in date order (charter, ADRs, programme decisions), with status (accepted, amended, superseded), what each decided, and what superseded what. Mark decisions that could not be read.
+3. R/synthesis/dependency-models.md: the intended dependency model (recorded-intent) and the observed one (static and executed evidence), side by side, per repository and across repositories, at head, at the core pins and for released artefacts where they differ. Supporting edge lists as .csv, pointing to evidence files where they already exist.
+4. R/synthesis/independence-and-contracts.md: for each capability in measure M04, each of the five dimensions (logical, contract, source, distribution, deployment): established, partly, not established, not claimed, not assessable, with finding ids. A recorded decision not to pursue a dimension is "not claimed", not a failure. Include the contract surfaces, their versioning, pins and reverse pins, and existing external consumers.
+5. R/synthesis/execution-capability-matrix.md: the fifteen execution responsibilities of measure M07: where each sits (core runtime, external tool, human operations, external coordination, other component), and whether it is implemented, delegated, specified but unimplemented, intentionally out of scope, or absent, with finding ids. Add, clearly apart and labelled as a single case, what R/operations-log.txt records about this investigation's own needs.
+
+You do not assign hypothesis verdicts; another synthesiser does. Do not read R/synthesis/ files written by others.

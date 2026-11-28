@@ -1,0 +1,59 @@
+finding_id: F-A2-013
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: product-line names
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The three product-line names are defined in five places with different scopes: core (product-lines.md) Build Kitty = CLI + Mission Status Read API, Team Kitty = consumer line ''Multiplayer Mode''; events context README:26-29 Build Kitty = ''the free CLI and its extension surface'', Team Kitty = ''the gateway and the paid, team-facing surfaces''; charter generated glossary Brain Kitty = ''being extracted into its own repository'' (core: extraction superseded 2026-10-19); charter product.md:49 places doc-kitty in Brain Kitty, which no other repo does; open-packs: Brain Kitty = ''this repository and spec-kitty-charter''. fleet-kitty uses build-kitty as a worker image and label name. Core tracked lines: Build Kitty 19, Brain Kitty 13, Team Kitty 694; doc-kitty: 0 for all three.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: rows D15, D16, D17
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/term-counts.csv
+  method: bash evidence/A2/count-script.txt (git grep -I -P per term regex at each head revision; see file)
+  sha256: 15de6be16da225184e00bfbbff4a87eee0b9745cc98c35409497312db6acc569
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-events@646e330:docs/context/README.md:26
+  method: read
+  sha256: null
+  exit_code: null
+  environment: null
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Product-line definitions in five primary repos and fleet-kitty README.
+  not_covered: Planning repo usage.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether core's product-lines page places DocKitty.
+  result: It does not; only the charter product page does.
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,53 @@
+finding_id: F-B1-013
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: M03c
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'No intended model: 487,284 of 524,936 physical source lines at head (92.8%) are in units for which the enforced model states no internal structure. The model relates the six layers to each other; the only rules it states inside a layer take specify_cli.consolidation (36,414 lines) and specify_cli/git/ref_advance.py (1,238 lines) as their source. specify_cli holds 407,154 lines (77.6% of all); 90.7% of them have no stated internal model. Of the 4,855 cross-component module edges, 3,250 (66.9%) connect two components inside one layer (2,982 of them inside specify_cli and 268 inside charter), where the enforced model as defined states no rule other than the two above.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/m03c-no-intended-model-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: b5f835b7474cfdfdb8ac55e7407b6186addc2705e93959e0066f041bc4f230c6
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/component-edges-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 04031e7fae6178c8afb35adcc3e0b899354d5f44d171e1bf5f4bafad0c8cb7f2
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: Enforced model as defined in the brief; physical lines of non-test Python under src/.
+  not_covered: Other files under tests/architectural/ state further intra-layer rules (for example the charter.offering / charter.activation boundary named in test_layer_rules.py comments). They are outside the model as defined by the brief and were not inventoried.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Read every test class of test_layer_rules.py for a rule whose source and target are in the same layer.
+  result: Found two (TestMergeCliBoundary, TestRefAdvancePlumbingBoundary) and one identity check (TestUnifiedMissionStepBoundary); all others relate different layers.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- analysability
+- modularity
+candidate_invariants: []
+open_questions: []

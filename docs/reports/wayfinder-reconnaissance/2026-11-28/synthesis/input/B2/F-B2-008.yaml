@@ -1,0 +1,61 @@
+finding_id: F-B2-008
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: module inventory with lines of code by language
+  deviation: null
+subject:
+  component: Gradle build (6 projects + build-logic) and Python package
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'At head the events repository holds a Gradle build of 6 projects (java-binding, mission-status-api, domain-model, event-log, command-cli, contracts) and one Python distribution (spec-kitty-events 11.5.0, package spec_kitty_events). Tracked Java main is 17,131 non-blank lines: mission-status-api 6,540, command-cli 6,355, event-log 2,534, java-binding 944, domain-model 758. The Python package has 18,399 non-blank main lines in 71 modules; contracts/ holds 6,254 lines of Python tooling and scripts/ 8,493. Java test code is 38,765 lines, Python test code 43,473.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/loc-events.csv
+  method: python3 script-loc.txt /home/user/spec-kitty-events events loc-events.csv
+  sha256: 824bdae161e0ef054bd252a00db248454fd0bdc3e94d10a999eb98d9c13c98d1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:20Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-summary.json
+  method: aggregation
+  sha256: 3fc4a77f99240c22fc1185a2048d2566d0771edac7a7f3586e5407daffa11d79
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:17Z'
+- id: E3
+  kind: document-claim
+  reference: settings.gradle.kts:19-43
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: All 6,064 tracked files at head.
+  not_covered: Generated sources; comment lines are not separated.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked for Java source roots outside the five module directories (find for src/main/java).
+  result: None outside java/, service/src, service/domain-model, service/event-log, service/command-cli.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- analysability
+candidate_invariants: []
+open_questions: []

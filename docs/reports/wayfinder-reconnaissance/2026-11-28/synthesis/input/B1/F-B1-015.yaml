@@ -1,0 +1,55 @@
+finding_id: F-B1-015
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: private access
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Concentration of private access at head: 224 of the 734 records target specify_cli.missions, 200 of them the module specify_cli.missions._read_path_resolver; next are specify_cli.consolidation (72), specify_cli.coordination (47), runtime (42, of which 35 name runtime.next._internal_runtime), specify_cli.lanes (40), specify_cli.cli (37) and charter.activation (34). 182 of the 734 cross a top-level package boundary: specify_cli -> charter 56, specify_cli -> runtime 42, mission_runtime -> specify_cli 39, specify_cli -> kernel 21, runtime -> specify_cli 16, charter -> kernel 3, specify_cli -> mission_runtime 2, and one each glossary -> charter, runtime -> kernel, specify_cli -> glossary. The heaviest component pairs are specify_cli.cli -> specify_cli.missions (77) and specify_cli.cli -> specify_cli.consolidation (64).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/private-access-summary-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: ad4f93a8c2741754676cff30ae495041f843c54d2263187a2fdb373618d69fef
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/private-access-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: f6e8fe83e2a9f7095c047b5e55dafaeaa8eb064cc761b6e3468c54ca236cc0ea
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: The 734 records of F-B1-014.
+  not_covered: As F-B1-014.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for whether the underscore module with the most importers is nevertheless listed as a public surface by its package `__all__`.
+  result: 'Not determined from imports alone: the 200 records import the module by its underscore path directly rather than through specify_cli.missions.'
+relations:
+- type: refines
+  target: F-B1-014
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions:
+- Whether specify_cli.missions._read_path_resolver is an intended shared seam despite its underscore name is a question for the documented-relationship comparison.

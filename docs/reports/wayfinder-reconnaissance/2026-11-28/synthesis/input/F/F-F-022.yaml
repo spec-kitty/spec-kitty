@@ -1,0 +1,51 @@
+finding_id: F-F-022
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: supplementary single case
+  deviation: null
+subject:
+  component: operations log corroboration
+  repository: spec-kitty/spec-kitty
+  revision: 4388800275 (working tree)
+  revision_kind: head
+claim: 'Single case, not generalisable. Of 15 operations-log items (14 entries plus the routing remark in entry 5), 9 were corroborated (3, 4, 5 [root checkout only], 6, 7 [filesystem layer], 8 [by absence in core], 9, 13, 14), 4 partially (2, 5b, 10, 12) and 2 stay uncorroborated notes (1, 11). Corroborated core facts: the Mission was created natively (research, single_branch explicit, wp_count 0) and never advanced with next; 0 Ops in the root checkout were opened after the Mission''s creation; restricted report files are world-readable to every executor.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/ops-log-corroboration.csv
+  method: per-entry checks
+  sha256: 9ca5159531c4d33fa7a2837b464c39651d99c082da54f19d0a9255814f38758f
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/F/ops-log-checks.txt
+  method: commands listed in file
+  sha256: 911d390f93ac67cae88ca27f922a79625476146a4b22bf279c4d9516231d473f
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: Repository-checkable parts of each entry
+  not_covered: Session-environment behaviour, chat approvals
+  population: 15 items
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each entry looked for a native surface that would contradict it (Ops, runs, worktrees, research artefacts)
+  result: 'Entry 10 partly contradicted: the research Mission type defines native evidence artefacts (evidence-log.csv, source-register.csv, findings.md) that were not used; entry 5b: implementer profiles only as alternatives in 1 of 4 purposive requests'
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

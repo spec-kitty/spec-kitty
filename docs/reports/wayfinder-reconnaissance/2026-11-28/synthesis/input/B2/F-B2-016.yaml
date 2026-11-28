@@ -1,0 +1,53 @@
+finding_id: F-B2-016
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: spec_kitty_events dependencies
+  deviation: null
+subject:
+  component: Python package spec_kitty_events
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'pyproject.toml declares two runtime dependencies (pydantic >=2,<3 and python-ulid >=1.1.0) and one optional extra (conformance: jsonschema >=4.21,<5). In the package source, pydantic is imported by 30 of 71 modules, jsonschema by 2 (function-local), and pytest by 12 modules of spec_kitty_events.conformance at import time (pytest is in the dev extra only). No module of the package imports ulid: 0 import statements.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-py-external.csv
+  method: python3 script-py_imports.txt ...
+  sha256: d9f999503ba59d9ad9a9001c2d3705bdc6d76a7cfdea1d40fe7c5be9d4df069e
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:08:47Z'
+- id: E2
+  kind: document-claim
+  reference: pyproject.toml:16-36
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Third-party top-level imports of the 71 modules.
+  not_covered: Transitive dependencies; uv.lock contents.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn 'ulid' src/spec_kitty_events --include=*.py for any import line.
+  result: No import of ulid in the package. The 12 pytest importers are test modules and a conftest shipped inside the package for 'pytest --pyargs spec_kitty_events.conformance'.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- dependency hygiene
+candidate_invariants: []
+open_questions:
+- Is python-ulid kept as a declared runtime dependency for consumers, or is it a leftover?

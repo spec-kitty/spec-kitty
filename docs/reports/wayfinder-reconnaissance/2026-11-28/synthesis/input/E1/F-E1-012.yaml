@@ -1,0 +1,52 @@
+finding_id: F-E1-012
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-1 gate inventory
+  deviation: null
+subject:
+  component: events packaged conformance suite
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: No workflow, Makefile target or pytest setting in spec-kitty-events invokes the packaged conformance suite by "pytest --pyargs spec_kitty_events.conformance"; pytest testpaths is ["tests"], and the suite lives under src/. The repository's agent guide names that command as the conformance gate for every pull request.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: grep -rn pyargs .github Makefile pyproject.toml; grep -n testpaths pyproject.toml
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: AGENTS.md Commands table at 646e330b89
+  method: '"Packaged conformance gate — every PR"'
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Tracked workflow files, Makefile and pyproject.toml.
+  not_covered: The script bin/ci-run.sh in spec-kitty-planning, which the non-required suite job runs, was searched only for the string "pyargs" (no hit). Tests under tests/ named *_conformance* run in the required acceptance job and may cover the same fixtures.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- The acceptance job installs the conformance extra and runs the whole tests/ tree, which includes conformance tests.
+disconfirmation:
+  search: 'Looked for an indirect invocation: a test under tests/ that imports the packaged suite, a conftest that adds it, or a Gradle task.'
+  result: tests/ holds 17 test files with "conformance" in the name that run per PR; no step runs the packaged entry point itself.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

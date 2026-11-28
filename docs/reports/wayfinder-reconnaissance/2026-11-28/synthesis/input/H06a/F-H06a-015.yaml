@@ -1,0 +1,65 @@
+finding_id: F-H06a-015
+workstream: H06a answering twenty questions from documentation
+classification: observation
+view: recorded-intent
+prereg:
+  measure: H06a-Q15
+  deviation: 'Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst''s context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: ''site content'' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report.'
+subject:
+  component: status event publication
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Q15 (Where are status events published for outside consumers, and is there a default transport?) Run-1 documentation (2,051 files across five repositories at head) answers: The committed event ledger (status.events.jsonl) is the publication seam: outside consumers read it with ''spec-kitty events tail'' (cursor) or the Mission Status Read API, never by being called by the CLI; spec-kitty/event-router is such a subscriber. An in-process fan-out seam, status/adapters.py, stays transport-free; open-core registers no handler, so every fire_* is a no-op. There is no default transport. Analyst-chosen authority: spec-kitty/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md:104-120. Concurring sources cited: 3; differing sources cited: 2. Run-1 searches: 1.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md:104-120 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path> | sed -n '<lines>p'
+  sha256: null
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/H06a/answers-run1.csv
+  method: grep searches logged in evidence/H06a/search-log-run1.txt over the run-1 corpus listed in evidence/H06a/corpus-inventory.csv; answers written by script-write-answers-run1.txt
+  sha256: 4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/H06a/search-log-run1.txt
+  method: script-search-wrapper.txt (grep -rniE) per question
+  sha256: 445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+scope:
+  covered: Run-1 allowed documentation of spec-kitty, spec-kitty-charter, spec-kitty-events, spec-kitty-open-packs, doc-kitty at head; run-2 agent-guidance files for the delta.
+  not_covered: Source code, tests, build and workflow files, kitty-specs/, changelogs, supplementary repositories, historical revisions; whether the documentation is correct.
+  population: 2,051 run-1 corpus files (evidence/H06a/corpus-inventory.csv)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- spec-kitty/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md:116-118 (Zeitgeist handlers in status/zeitgeist_bridge.py check drain) versus spec-kitty/README.md:183-184 (hosted flows removed from open-core)
+- spec-kitty/docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:128 (Core to Sync/Tracker/SaaS fan-out registers observers on status/adapters.py)
+disconfirmation:
+  search: Searched the whole run-1 corpus (all five repositories) for alternative wordings and for statements in sibling repositories and older ADRs that answer the question differently; see search-log-run1.txt entries for Q15.
+  result: 'Differing sources found: 2 (listed in counterevidence).'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- discoverability
+- consistency
+candidate_invariants: []
+open_questions:
+- 'Run 2 (agent-guidance files allowed): no change recorded.'
+- Correctness against code is not assessed here (assigned to another workstream).

@@ -1,0 +1,46 @@
+finding_id: F-E3-010
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 undetected mutation M-RD-4
+  deviation: null
+subject:
+  component: src/spec_kitty_events/status_log.py
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'M-RD-4 adds a function-body import of specify_cli.status.transitions to the events library, with a type-ignore comment and no declared dependency. ruff check, ruff format, the version guard, both changelog checks, mypy --strict (71 files), the packaged conformance suite (1358 passed) and tests/test_status_log.py all passed. No test, script or lint configuration in the events repository at head scans src/spec_kitty_events for imports of specify_cli: pyproject.toml selects ruff rules E4, E7, E9 and F (line 167) and declares only pydantic and python-ulid as dependencies (lines 16-19).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-ev-M-RD-4.txt
+  method: run_events.sh <scratch> ev-M-RD-4
+  sha256: 57e4f3ad177888d533cd2a370b703620c781b89c6a46375a400064ced29d5e2b
+  exit_code: 0
+  environment: Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: Mutation M-RD-4 against the frozen gate set of its repository.
+  not_covered: The rest of the events tests/ tree beyond the mirror file; the cross-repo harness workflow.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 1 mutation
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rnE for ast.Import, import-linter, banned-api and specify_cli across tests/, scripts/ and pyproject.toml of the events clone.
+  result: Four ast-based tests exist; none scans the library for imports of another distribution.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions:
+- E2 marks the rule as partly ambiguous in the documents it read.

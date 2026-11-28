@@ -1,0 +1,60 @@
+finding_id: F-B3-003
+workstream: B3 documented relationships against the observed component graph
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read.
+subject:
+  component: strict must-not relationships (kernel, charter, charter.offering, glossary, CORE/INTEGRATION)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Category (c), strict: 0 of 656 observed edges (0 of 14 at top level) match a documented must-not relationship that has no recorded exception. The five rules checked are kernel -> any other package, charter -> glossary|runtime|mission_runtime|specify_cli, charter.offering -> anything except kernel, glossary -> specify_cli, and CORE (core, status, readiness, invocation) -> INTEGRATION (orchestrator_api, tracker). charter.offering has one outbound cross-component edge, to kernel (weight 48).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B3/category-c-pairs.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: da89dc5c629aa61399ed601aa72e83b73f1a9bc69fd84640f67b5378cb833e6e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B3/edge-classification-full.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: 7a03f6a7113b61e8679903e317a2816f8cae1eea153935332045b4f83ce1607f
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B3/disconfirmation-strict-must-not.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-disconf.txt <scratch>
+  sha256: edcee2b8450a5ef52f4c0065f5d1abeec47f9353e37e2d78429466ce7bf34f6e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+scope:
+  covered: The five strict rules against all 656 edges, plus an independent AST pass over 1490 Python modules under src/ at head (all import statements, including function-level and TYPE_CHECKING ones).
+  not_covered: Dynamic imports (importlib, __import__ with computed names), string-based plugin loading and non-Python coupling are not seen by either pass.
+  population: 5 strict must-not rules; 656 edges; 1490 modules
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Did not rely on the B1 table alone: wrote a separate import walker and counted module pairs that would break each of the five rules; also looked for modules carrying a retired name (sync, saas, saas_client, auth, dashboard, zeitgeist_client).'
+  result: 0 module pairs for each of the five rules; 0 modules with a retired name; src/ holds exactly the six documented top-level packages.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

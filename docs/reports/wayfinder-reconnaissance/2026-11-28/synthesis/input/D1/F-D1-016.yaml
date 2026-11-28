@@ -1,0 +1,70 @@
+finding_id: F-D1-016
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04e
+  deviation: null
+subject:
+  component: status event produce seam
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M04e (status produce seam). specify_cli/status/adapters.py exposes 3 register_* and 3 fire_* functions. In core src, 0 call sites register a handler (the only references are re-exports in specify_cli/status/__init__.py) and fire_* is called from 5 files (status/emit.py, status/lifecycle_events.py, status/__init__.py, coordination/outbound.py, decisions/emit.py). A stub registered from outside received 2 invocations for 2 emitted transitions with 0 consumer files edited. There is no discovery mechanism (entry point, config) for handlers: something in the same process has to call register_*. 0 files outside specify_cli/status import the adapters module directly; 203 import the specify_cli.status package facade.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04e-status-seam-stub.txt
+  method: core dev venv python evidence/D1/m04e_status_seam_stub.txt
+  sha256: e97e6f1871c62a9776c7ab176d488feec613f86013d8da612c5ada9b60226d57
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:26:31Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/m04e_status_seam_stub.txt
+  method: script source
+  sha256: 4776f4add56210b841efd0e9fc3f7fb4987fd1df349f3de8b65891272b39aeb8
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/D1/m04e-seam-census.json
+  method: python evidence/D1/m04e_seam_census.txt <core>/src
+  sha256: f48a12654e768085a326bd20de7374f34588bd54c69f9aab1aa1e19338f6cc10
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/m04d-head-source_events-11.3.0_tracker-0.5.2.txt
+  method: pytest tests/status/test_adapters_contract.py (8 passed)
+  sha256: bd0ea0a4b85e65fbe48e11bd66f5161ad4282970c722ec7c52efbbb5691e72ec
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:45:44Z'
+scope:
+  covered: status fan-out handler; lifecycle handler registered but not triggered by the two transitions
+  not_covered: resolved-binding fan-out; a handler in another process
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grepped src for any default registration and for an entry-point group for handlers
+  result: none (the only entry-point group in src is spec_kitty.service_binaries for service binaries)
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+- testability
+candidate_invariants: []
+open_questions:
+- The first stub attempt used emit_status_transition(feature_slug=...) as printed in core's CLAUDE.md; at head the keyword is mission_slug and the call raises TypeError.

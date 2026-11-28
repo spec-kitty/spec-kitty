@@ -1,0 +1,46 @@
+finding_id: F-E3-009
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 undetected mutation M-PI-6
+  deviation: null
+subject:
+  component: service/activations application ring
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: M-PI-6 imports ai.speckitty.charter.packs.infra.storage.ConfigRoot into activations.application and uses only its String constant. The module compiled and HexagonalArchitectureTest passed (BUILD SUCCESSFUL, :deployable:test executed), while the same rules SLICE_RINGS and A_SLICE_OVER_ANOTHER_SLICE failed for M-PI-4 in the same session. ConfigRoot.ACTIVATIONS is declared public static final String at ConfigRoot.java:27, and the test imports compiled classes (ClassFileImporter, HexagonalArchitectureTest.java:27).
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-charter-gradle.txt
+  method: 'drive_charter.sh <scratch>: git apply M-PI-6; ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest'
+  sha256: c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194
+  exit_code: 0
+  environment: JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: Mutation M-PI-6 against the frozen gate set of its repository.
+  not_covered: Checkstyle (config/checkstyle/checkstyle.xml holds an IllegalImport module), module allow-list tests and the remaining verifyAll tasks.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 1 mutation
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked that the test task ran rather than being up to date; compared with M-PI-4 and M-RD-6, which the same test rejected.
+  result: Task :deployable:test executed (9 executed, 41 up to date) and passed. Checkstyle and the other verifyAll tasks were not run.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions:
+- Whether any source-level check in verifyAll (Checkstyle) would report this import was not measured.

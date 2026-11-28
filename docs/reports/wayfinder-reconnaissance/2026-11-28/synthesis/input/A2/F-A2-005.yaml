@@ -1,0 +1,51 @@
+finding_id: F-A2-005
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: multi-sense inventory
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Of the inventory terms, 29 carry two or more senses found in the five repositories (terms.csv). A glossary disambiguates the senses fully for 2 (lane, pack), partially for 9 (dispatch, mission type, coordination, profile, session, ledger, contract, charter, offering), and not at all for 18 (runtime, invocation, Op, pack tier, orchestrator, orchestration, harness, runner, assignment, attempt, projection, snapshot, materialize, seam, adapter, doctrine, service, daemon). Core's glossary does carry explicit multi-sense entries for words outside the brief list (Routing, Residue, The drain, Tool Surface/Topology Surface, Pack skill).
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/multi-sense.csv
+  method: python3 build-multi-script.txt
+  sha256: 9f7855e7fc5637fbe41008fee029a79d27684c004d95dd579e16c427dff3c216
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/terms.csv
+  method: python3 build-terms-script.txt
+  sha256: 4fa34ea51633f5dfae7cc1b6cfc3c6010a8dae3d9dfbaa69221327220e33046b
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Senses found by glossary reading, identifier grep and ADR spot reads; disambiguation judged against glossary entries only.
+  not_covered: Senses only in kitty-specs or archived docs; exhaustive sense discovery (sense counts are lower bounds).
+  population: 38 inventory items; 29 multi-sense
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each term looked for a glossary entry with 'Other sense', 'Governed senses' or 'Do NOT use when' rows covering the senses found.
+  result: Lane and pack skill have such rows; nine have rows covering some senses.
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

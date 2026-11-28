@@ -1,0 +1,51 @@
+finding_id: F-C2-012
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01c/M01d top-level
+  deviation: 'Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05.'
+subject:
+  component: core (kernel, charter, glossary, runtime, mission_runtime, specify_cli)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'With the six top-level packages as components, the share of code commits touching two or more is T1 0.248, T2 0.122 (public 0.153, EXPERIMENTAL 0.074), T3 0.116. Pair counts: charter+specify_cli 167/947 (T1, 17.6%), 155/1,809 (T2, 8.6%), 176/3,026 (T3, 5.8%); runtime+specify_cli 84 (8.9%), 54 (3.0%), 80 (2.6%); kernel+specify_cli 13 (1.4%), 12 (0.7%), 78 (2.6%); mission_runtime+specify_cli 21, 32, 50.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/cochange-top-level-packages.csv
+  method: top-level co-change computed from commits.jsonl
+  sha256: bdc29587f85976c950cb77ea40a4b803c01c622c34343465da26d7d0b61dbbe8
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/M01c-M01d-components-per-code-commit.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: d85422382ca9e6c723e64365526d5a8952ccdb7e43ca2c6814e286206c0912fa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Top-level package co-change per period with support and confidence.
+  not_covered: Direction of dependency (see M01f).
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether kernel's rise is one bulk change.
+  result: kernel is touched by 132 code commits in T3 against 14 (T1) and 22 (T2); 78 of the 132 also touch specify_cli.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

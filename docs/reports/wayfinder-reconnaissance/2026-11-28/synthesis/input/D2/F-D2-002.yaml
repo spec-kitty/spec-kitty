@@ -1,0 +1,60 @@
+finding_id: F-D2-002
+workstream: D2 - Independence of the Java services
+classification: observation
+view: observed
+prereg:
+  measure: M04b
+  deviation: Measure stopped for the events repository after the one permitted retry; the affected matrix cells are marked not assessable.
+subject:
+  component: events services build
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'The Gradle build of spec-kitty-events could not be configured in this environment: 2 of 2 attempts of ''./gradlew tasks --all'' in a clean clone failed during plugin resolution (first: HTTP 429 ''Too Many Requests'' from repo.maven.apache.org for kotlin-gradle-plugin-api 2.4.10; retry: plugin org.graalvm.buildtools.native 1.1.8 ''not found'' in the Gradle plugin portal and Maven Central, while a direct request to the portal URL for that file answered 429). No events Java task ran. Its settings.gradle.kts lists gradlePluginPortal() and mavenCentral() only; the charter build, which lists a Google-hosted mirror of Central first, resolved its dependencies on the same host.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04b-events-tasks-attempt1-http429.txt
+  method: ./gradlew --no-daemon tasks --all (clean shared clone, own GRADLE_USER_HOME)
+  sha256: 6fca1c9c021425efb0b10f6939ce53a1f7544eeb40b79508e067a3c2e670e041
+  exit_code: 1
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04b-events-tasks-retry-plugin-unresolved.txt
+  method: ./gradlew --no-daemon --max-workers=2 tasks --all (the one retry)
+  sha256: 23a16acf0f601e324cc44489a1079e77576e7bda07a13c113a4e48bd30516d5f
+  exit_code: 1
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04b-events-plugin-url-probe.txt
+  method: curl -s -o /dev/null -L -w "%{http_code} %{url_effective}" <plugin marker pom on portal, Central, Google mirror>
+  sha256: 95917a423699540a81d4bd6da6ff1aef29801e568f527ba30869540138672edb
+  exit_code: 0
+  environment: curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Two configuration attempts as the brief allows (one retry).
+  not_covered: 'Every M04b cell for the events read service, write service and contracts is not assessable by execution: build from clean clone, ArchUnit rules (ArchitectureRulesTest, WriteOwnershipRulesTest and others exist in the tree), contract validation tasks, and the Java side of the parity corpora.'
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Checked whether the failure was caused by the repository rather than by retrieval: probed the same artefact URL on three hosts.'
+  result: The artefact exists (HTTP 200 on Maven Central directly and on the mirror); the portal route answered 429. This is a coverage limit of this environment, not evidence about the repository.
+relations: []
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- buildability
+candidate_invariants: []
+open_questions: []

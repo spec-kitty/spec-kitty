@@ -1,0 +1,43 @@
+finding_id: F-C-006
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01c
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: core components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Components per code commit by class, mean (n): T1 capability-growth 3.58 (189), corrective-maintenance 2.28 (509), restructuring 2.69 (39), compatibility-work 2.35 (77), other 3.91 (130); T2 pooled 2.63 (279), 1.57 (845), 3.00 (110), 1.72 (141), convergence-activity 1.79 (247), other 1.55 (187); T3 2.91 (228), 1.54 (1,624), 1.79 (373), 1.73 (303), convergence-activity 1.66 (112), other 1.43 (386). The median is 2 for capability-growth in every period and 1 for corrective-maintenance in every period; p90 for capability-growth is 7, 5 and 7.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a class whose order against corrective-maintenance reverses between periods.
+  result: 'None: capability-growth has the higher mean and share in all of T1, T2 pooled and T3; on the experimental T2 segment alone capability-growth (mean 1.38, n=66) is below the pooled value and close to corrective-maintenance (1.40).'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

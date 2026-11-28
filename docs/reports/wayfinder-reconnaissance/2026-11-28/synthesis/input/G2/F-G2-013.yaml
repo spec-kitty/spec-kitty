@@ -1,0 +1,65 @@
+finding_id: F-G2-013
+workstream: G - Expressing invariants as checks (G2, full implementation knowledge)
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python second-level packages
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The largest second-level strongly connected component of the core runtime import graph has 85 of 190 second-level packages, including specify_cli.cli (the command-line package), mission_runtime.<root>, mission_runtime.resolution and runtime.next. Fifteen specify_cli subpackages outside specify_cli/cli import specify_cli.cli.* at 65 sites (most: consolidation 17, tasks 16, orchestrator_api 13); the most imported targets are specify_cli.cli.console (27) and specify_cli.cli.commands.review._issue_matrix (10).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/core_checks.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json
+  sha256: 43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_core.txt
+  method: check script (stored as .txt)
+  sha256: aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/G2/core_L1_edge_counts.csv
+  method: aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)
+  sha256: 84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+scope:
+  covered: Runtime imports (TYPE_CHECKING excluded), second-level package granularity.
+  not_covered: 'Intent: no recorded baseline or rule for second-level cycles was found; the console import is sanctioned for 16 consolidation files by a ledger in test_layer_rules.py.'
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Recomputed with TYPE_CHECKING included (same SCC membership at top level); searched architecture tests for a second-level cycle rule.
+  result: None found.
+relations:
+- type: refines
+  target: F-G2-001
+- type: refines
+  target: F-G2-007
+analyst:
+  profile: architect-alphonso
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions:
+- Should specify_cli.cli be outside every cycle with domain subpackages?

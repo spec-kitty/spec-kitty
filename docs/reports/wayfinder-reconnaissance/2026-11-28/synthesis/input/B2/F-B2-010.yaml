@@ -1,0 +1,52 @@
+finding_id: F-B2-010
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: cycles at package level
+  deviation: 'The events Gradle build did not run in this environment (attempt 1: dependency verification refused a plugin marker POM served by the environment''s Maven Central mirror; attempts 2 and 3 without the mirror: HTTP 429 from repo.maven.apache.org). No class files, no jdeps, no ArchUnit run: every number here is derived from source text.'
+subject:
+  component: Java packages
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'Of 39 main-source Java packages, 6 (15.4%) are in a package-level import cycle, in 2 cycles: {missionstatus.application.query, missionstatus.application.query.stream} in mission-status-api and {commandcli.domain.authority, .batch, .claim, .dependency} in command-cli. Neither cycle crosses a module boundary. No test source calls ArchUnit slices() or beFreeOfCycles().'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-static-main-cycles.json
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: ea117cec8866f0dc65451c763a4ea4d1b81e98253ac4d78b318b68cf0b8a481c
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-static-main-package-edges.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: 880d730997ae3e74b7575f29c4deedaf8b514b5c06def887abf74decdeeef327
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+scope:
+  covered: 127 package-to-package import edges of the main sources.
+  not_covered: Dependencies without an import statement.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn 'beFreeOfCycles\|slices()' over service/ and java/; strongly connected components over the package graph.
+  result: No cycle rule. Two components as stated.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

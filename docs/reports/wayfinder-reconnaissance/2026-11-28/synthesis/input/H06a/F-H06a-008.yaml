@@ -1,0 +1,71 @@
+finding_id: F-H06a-008
+workstream: H06a answering twenty questions from documentation
+classification: observation
+view: recorded-intent
+prereg:
+  measure: H06a-Q8
+  deviation: 'Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst''s context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: ''site content'' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report.'
+subject:
+  component: service launcher
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Q8 (Does the CLI start a long-running service? Which one, with what lifecycle?) Run-1 documentation (2,051 files across five repositories at head) answers: By design yes: the CLI fetches, digest-verifies and starts pinned service binaries on first need and never ships them in the wheel. The write service runs as one loopback HTTP instance per git common dir (endpoint file in the git common dir, default idle timeout 1800 s, ''spec-kitty service stop'' stops it); the charter service is designed as one loopback daemon per worktree; the Mission Status read service is pinned for CI conformance only and is never launched by the CLI. Several documents say the launcher or pins do not yet exist. Analyst-chosen authority: spec-kitty/.kittify/charter/charter.md:404-410. Concurring sources cited: 7; differing sources cited: 8. Run-1 searches: 2.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty/.kittify/charter/charter.md:404-410 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path> | sed -n '<lines>p'
+  sha256: null
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/H06a/answers-run1.csv
+  method: grep searches logged in evidence/H06a/search-log-run1.txt over the run-1 corpus listed in evidence/H06a/corpus-inventory.csv; answers written by script-write-answers-run1.txt
+  sha256: 4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/H06a/search-log-run1.txt
+  method: script-search-wrapper.txt (grep -rniE) per question
+  sha256: 445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+scope:
+  covered: Run-1 allowed documentation of spec-kitty, spec-kitty-charter, spec-kitty-events, spec-kitty-open-packs, doc-kitty at head; run-2 agent-guidance files for the delta.
+  not_covered: Source code, tests, build and workflow files, kitty-specs/, changelogs, supplementary repositories, historical revisions; whether the documentation is correct.
+  population: 2,051 run-1 corpus files (evidence/H06a/corpus-inventory.csv)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- spec-kitty/docs/development/how-to/service-pins.md:35-38 (no pin exists yet
+- every command needing a service refuses SERVICE_PIN_INVALID) versus spec-kitty/pins/README.md:31 and charter.md:400-401 (read-service pin vendored)
+- spec-kitty/docs/plans/events-domain-move/plan.md:41,64-65 (no Python code launches either service
+- charter launcher unbuilt
+- write service shapes only)
+- spec-kitty-charter/docs/architecture/service-lifecycle.md:88 (launcher not built yet)
+- spec-kitty/docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:141 (CLI wheel ships no server, daemon, port or PID file)
+- 'spec-kitty/docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md:48 (#6117 design: native binary run once per command)'
+disconfirmation:
+  search: Searched the whole run-1 corpus (all five repositories) for alternative wordings and for statements in sibling repositories and older ADRs that answer the question differently; see search-log-run1.txt entries for Q8.
+  result: 'Differing sources found: 8 (listed in counterevidence).'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- discoverability
+- consistency
+candidate_invariants: []
+open_questions:
+- 'Run 2 (agent-guidance files allowed): changed: Changes from ''by design yes'' to ''not yet in practice'': the write-service pin and the charter-service pin are still pending (the write-service pin waits for a spec-kitty-events release carrying command-cli) and binding the EventBridge to the launcher is open (#6195); the only vendored pin, the read service, is never launched. The charter service is designed as a CLI-started, read-only, loopback, per-worktree daemon. Sources: spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):683; spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):284; spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):82. Differing: spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):683 (write-service and charter-service pins pending) versus spec-kitty/docs/development/how-to/service-pins.md:66 (the first command that needs a service fetches, verifies and starts it).'
+- Correctness against code is not assessed here (assigned to another workstream).

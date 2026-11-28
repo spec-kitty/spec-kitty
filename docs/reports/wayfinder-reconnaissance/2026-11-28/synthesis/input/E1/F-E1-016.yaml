@@ -1,0 +1,59 @@
+finding_id: F-E1-016
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: M05a
+  deviation: null
+subject:
+  component: population of transitional constructs
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Machine-readable sources at head hold 75 ledgers: 57 file ledgers (55 in core, 1 in charter, 1 in doc-kitty) with 3,357 entries, of which 28 are non-empty, and 18 marker scans with 1,612 inline markers. Two lint baselines account for 2,265 of the file-ledger entries (formatter exclude list 1,929; per-file lint ignores 336); the other 55 file ledgers hold 1,092. The largest of those: charter.activation boundary baseline 231, dead-symbol allowlist 225 plus 80 widened, built-in pack provenance baseline 104, out-of-matrix test directories 103, mypy quarantine 46, charter path-literal allowlist 40. In addition tests/architectural/_baselines.yaml caps 30 in-code allowlists (24 non-zero).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head)
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/ledger-totals.json
+  method: aggregation of ledgers.csv and the full entry file (sha256 07b7ce4f86b56bb229fa91c409f938744f291a95008143fa4eba8010134831a0, kept in scratch; regenerate with the script)
+  sha256: 212ac343335d6a1bc7b6fb21c7e834c50d21d0ee688ba17a12122dcd54eeced2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: static-derived
+  reference: evidence/E1/ledger-entries-compact.csv
+  method: entries without the two largest ledgers (formatter exclude list and src noqa scan), truncated keys
+  sha256: 9ea34640822e171a63223bfb5b8560c6f5ad404d5ddaaa54a1992b9744b381f2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Files read by architectural tests (allowlist, baseline, exemption, census files), the superseded-migrations table, the shim registry, the lint, format and typing baselines in ruff.toml and pyproject.toml, the coverage baseline, the out-of-matrix list, the two layer-rule ledgers declared in code, and marker scans for expected-failure, quarantine, inline suppression and deprecated or hidden CLI options.
+  not_covered: In-code allowlists other than the two layer-rule ledgers are counted only through their cap in _baselines.yaml, not entry by entry. Six leaves of that file duplicate file ledgers and are not added to the totals. Compatibility aliases are covered only by a scan for deprecated=True / hidden=True (49 hits) and by a file-name scan for legacy/compat/shim modules (13 files); a name match does not prove a construct is transitional.
+  population: all tracked files of the five repositories at head
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for ledgers the census missed by listing every non-Python data file under tests/architectural and every file whose name contains allowlist, baseline, exempt, suppress or ratchet in the other four repositories.
+  result: 'Not included by decision: census tombstones, hash pins, fixture folders and charter mutation floors (thresholds, not exceptions). No further exception file found in events or open-packs.'
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

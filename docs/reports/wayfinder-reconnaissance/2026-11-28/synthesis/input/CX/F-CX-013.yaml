@@ -1,0 +1,72 @@
+finding_id: F-CX-013
+workstream: CX - comparison of two independent runs of workstream C measures
+classification: observation
+view: observed
+prereg:
+  measure: definitional sensitivities
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Definitional or procedural choices that moved a compared result by more than 10%: (1) rule order and keyword fall-through in commit classification (compatibility-work T3 303 vs 69 code commits; class-level M01c/M01d for compatibility-work and other); (2) component assignment by file lineage (C) vs directory rules (C2) (top-level M01d T2 EXPERIMENTAL 11%; T1 co-change pair counts; recurrence denominator 1,712 vs 1,977); (3) line boundary of the fork window, reachability vs date (fork-window top-level M01d 12%); (4) M01f estimator and stratum allocation together with a heavy-tailed sample (T2 1.651 vs 5.953); (5) M02 fix-subject rule and contract-path rule (frames 666 vs 698; no-component fixes 348 vs 591); (6) M02 detection buckets, untraceable vs not-determinable plus reviewer split (M02a person 22 vs 16); (7) refix file matching through rename lineage, line compatibility and fix set (T3 84.7% vs 70.8%) and the strict-overlap rule (Jaccard vs share of the first fix); (8) events component
+  universe and imported-commit test (2026-10 0.268 vs 0.218; 141 vs 0 imported); (9) acceptance definition in M02 (not comparable); (10) agent-authorship column definition (not comparable). Choices that did not move a result by more than 10%: rename detection in the merge diff, the percentile method, and treatment of bulk commits once subtracted.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/CX/classification-rulesets-compared.txt
+  method: static comparison
+  sha256: 8403ef779aa1c4f4b24f63c69c376cce98b8548bd85ffd3fb4db2a823adc42d8
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E3
+  kind: executed
+  reference: evidence/CX/sample-frames.csv
+  method: assembled from sample comparison
+  sha256: 6a4e591c1cb8daf820418605f083683e47a319163aafb72c7bf33db2ef9674f7
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Every not-replicated and not-comparable row of comparison.csv traced to a script or deviation note of C or C2.
+  not_covered: Interactions between sensitivities were not separated by recomputation, except for the M01f estimator.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each non-replicated row, looked for a different sample from the same frame before naming a definition.
+  result: Different samples from the same frame apply to M01f (frames identical, strata differ) and partly to M02b (frames differ by 2 commits, draws differ by random stream); all other non-replicated rows trace to a definition.
+relations:
+- type: refines
+  target: F-CX-002
+- type: refines
+  target: F-CX-004
+- type: refines
+  target: F-CX-006
+- type: refines
+  target: F-CX-008
+- type: refines
+  target: F-CX-009
+- type: refines
+  target: F-CX-010
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,77 @@
+finding_id: F-A1-016
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: core charter files
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Core records name different charter files as authoritative: CLAUDE.md [secondary source] calls .kittify/charter/charter.md ''the binding governance document'', and charter.md itself carries the amendment log and says the operator accepts its amendments by merging (charter.md:5-9); docs/architecture/06_unified_charter_bundle.md (active, updated 2026-10-21) says charter.yaml is ''the single authoritative structured charter'' and charter.md is a curated companion ''never parsed for policy'' (:47-48, :206-219); the ADR deciding that inversion, 2026-07-18-1, is still status Proposed.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty:docs/architecture/06_unified_charter_bundle.md:40-50 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/06_unified_charter_bundle.md | sed -n '40,50p'
+  sha256: 2afbafd8c1f355d1060e5ca8eb2bc4cfce75940a06b1aaeb9702af895189e9e0
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:docs/architecture/06_unified_charter_bundle.md:206-221 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/06_unified_charter_bundle.md | sed -n '206,221p'
+  sha256: 2afbafd8c1f355d1060e5ca8eb2bc4cfce75940a06b1aaeb9702af895189e9e0
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:1-9 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '1,9p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty:docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md:1-16 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md | sed -n '1,16p'
+  sha256: 9c6e3a97eb9d6948e280cf4cf49d82be4b3b2d173f22628a8d11cb2d168bfe39
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E5
+  kind: document-claim
+  reference: spec-kitty:CLAUDE.md:20-30 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:CLAUDE.md | sed -n '20,30p'
+  sha256: a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: 06 doc, charter.md, ADR 2026-07-18-1, CLAUDE.md (tagged)
+  not_covered: charter.yaml content equivalence with charter.md
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for a record reconciling charter.md's 'binding' role with 06's 'companion' role
+  result: none found
+relations:
+- type: refines
+  target: F-A1-002
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,56 @@
+finding_id: F-B3-009
+workstream: B3 documented relationships against the observed component graph
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read.
+subject:
+  component: sensitivity of M03b to the general layer-chain rule
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Sensitivity to rule (b). Not counting the general layer-chain rule as documentation moves M03b by 3 of 14 edges at top level (78.6% -> 57.1%; weight 91.2% -> 87.9%; load-time weight 94.7% -> 91.0%) and by 5 of 656 edges at full granularity (24.7% -> 23.9%; weight 30.2% -> 29.0%; load-time edges 29.8% -> 29.0%, load-time weight 35.7% -> 34.3%). The pairs carried only by the general rule are runtime -> kernel (26), runtime -> charter (20) and mission_runtime -> kernel (8). The change of granularity moves the edge share by 53.9 percentage points (78.6% -> 24.7%), against 21.5 points (top level) and 0.8 points (full) for the rule.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B3/m03b-summary.json
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: 70b1027a2741130900e04797d82e452f29130b6979ac09f5c852d4e0ea7086aa
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B3/edge-classification-top-level.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: 7d9cc6b1167ab28242ea5e49949e6d821630ce3ae627988746b4066d1d2b15fc
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+scope:
+  covered: All 656 cross-component edges of evidence/B1/component-edges-head.csv (74 components, core Python under src/ at head), classified by the rules of mapping-rules.txt against the 72 rows of evidence/A1/documented-relationships.csv, of which 14 rows speak to an in-repo Python pair.
+  not_covered: Relationships to external packages, services, packs and other repositories (50 documented rows, outside the observed table); rules that distinguish modules inside one component; correctness of the B1 edge extraction itself (taken as given, one independent AST pass was run for the strict must-not rules only).
+  population: 14 top-level pairs; 656 edges
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Computed two further variants to see whether another classification choice moves the result more than rule (b): counting ledgered pairs as documented (V2) and adding four record-derived relationships outside the frozen table (V3).'
+  result: V2 moves the full-granularity edge share by 4.4 points (to 29.1%) and the top-level one by 14.3 points (to 92.9%); V3 moves the full one by 2.1 points (to 26.8%). Neither exceeds the effect of granularity.
+relations:
+- type: refines
+  target: F-B3-001
+- type: refines
+  target: F-B3-002
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- analysability
+candidate_invariants: []
+open_questions: []

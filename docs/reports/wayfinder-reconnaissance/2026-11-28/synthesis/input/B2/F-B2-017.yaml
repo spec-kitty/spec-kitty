@@ -1,0 +1,52 @@
+finding_id: F-B2-017
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: Java modules and the Python package in one repository
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'Three Java build files read directories of the Python package in place: java/build.gradle.kts:20 (src/spec_kitty_events/producer_contract as the binding''s contract and resources), service/event-log/build.gradle.kts:69 and :78 (conformance/fixtures/status_append) and service/command-cli/build.gradle.kts:334 (conformance/status_transition_parity). The java-binding version literal (11.5.0, java/build.gradle.kts:17) is checked against pyproject.toml by a build task. No Java source file and no Python module imports code of the other language.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: java/build.gradle.kts:17-20; service/event-log/build.gradle.kts:69,78; service/command-cli/build.gradle.kts:334
+  method: read at head (grep -n 'spec_kitty_events' over the Gradle build files)
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-gradle-declared.csv
+  method: python3 script-gradle_declared.txt ...
+  sha256: eaf9530ea00b553cfc60393ee5d1d8796c5d126650a024607af20a0860afbad1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+scope:
+  covered: Gradle build files of the 6 projects and build-logic.
+  not_covered: Scripts and CI workflows that pass paths at run time.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a copy of the producer_contract files under java/ or service/ (which would make the link a duplication instead of a path reference).
+  result: No copy found; the build comment at java/build.gradle.kts:4-5 says nothing is copied or generated, consistent with the tree.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

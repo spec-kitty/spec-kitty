@@ -1,0 +1,61 @@
+finding_id: F-B2-030
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: shared schemas or contracts duplicated between repositories
+  deviation: null
+subject:
+  component: contracts/_shared (OpenAPI building blocks)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: The charter and events repositories each hold a contracts/_shared directory of OpenAPI building blocks. 5 files are byte-identical in both at head (parameters/_index.yaml, parameters/PageCursor.yaml, parameters/PageSize.yaml, responses/_index.yaml, schemas/PageCursor.yaml) and 2 share a name with different content (schemas/PageInfo.yaml, line similarity 0.70; responses/Problem.yaml, 0.667). Neither repository pins or fetches the other's copy; the only mentions of the other repository in build and CI files are comments.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-identical.csv
+  method: python3 script-dup_schemas.txt dup-schemas
+  sha256: f908a7ad5b083bca15dfb3556a6cd4d292a5983d911f2654f9a6e618989830e6
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:24Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-same-name.csv
+  method: same
+  sha256: 976131d49fa40016a62bfb577ec77f1956adde1d00ee8159c50fca51c122457a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:24Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/xrepo-refs-build-pin-ci.csv
+  method: rows charter->events and events->charter
+  sha256: a2d19383a52ac397340c9ebc41b33d17170ab5e425b8657953ea6d7b48302d29
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:37:06Z'
+scope:
+  covered: Files under contracts/ in both repositories.
+  not_covered: Whether the two Problem and PageInfo shapes are wire-compatible.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a pin, a sync script or a generated-from marker tying the two _shared directories together.
+  result: None found. charter->events and events->charter references in build and CI files are 2 lines each, all comments.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- contract clarity
+- evolvability
+candidate_invariants: []
+open_questions: []

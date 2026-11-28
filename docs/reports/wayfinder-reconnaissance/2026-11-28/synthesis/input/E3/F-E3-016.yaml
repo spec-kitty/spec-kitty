@@ -1,0 +1,44 @@
+finding_id: F-E3-016
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: tests/architectural/test_no_dead_symbols.py
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Exploratory, outside the frozen set. tests/architectural/test_no_dead_symbols.py failed for all 4 of the 4 core mutations the frozen set did not detect (M-PI-3, M-PI-5, M-OB-2, M-OB-4), each time naming the function the patch added as a public symbol with no caller. The message does not mention the import, write or call that constitutes the violation. 11 of the 15 core patches add a new function that nothing calls; the gate was run only on these 4.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-supp.txt
+  method: 'drive_supp2.sh <scratch>: pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py -n0 at baseline and per mutation'
+  sha256: 3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: 4 mutations, 3 gate files outside the frozen set.
+  not_covered: The other 11 core mutations against this gate (7 of them add an uncalled function).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Ran the same three files on the unmodified clone.
+  result: Baseline 121 passed; each mutated run 2 failed, 119 passed, both failures in the dead-symbol gate.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- A patch that also calls the new function from production code would not trip this gate; not measured.

@@ -1,0 +1,53 @@
+finding_id: F-C-020
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M02b
+  deviation: null
+subject:
+  component: fix commits in one component
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'In a seeded sample of 30 from the 1,262 single-component fix commits, the corrected defect was introduced earlier in the same pull request for 21 and by an earlier change on main for 9. Detection route: (a) automated check before main 3 (one inferred from the subject); (b) automated run after reaching main 1 (a test red on main); (c) a person 8; untraceable 18 (16 same-pull-request folds and 2 earlier-change cases with no detector named).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m02b-frame.csv
+  method: python3 script-m02frame.txt
+  sha256: 9cb39f0c5594d22b002744a0ae92910395a2017dcf9b249a29bb89892d89217d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/m02-trace-sample.csv
+  method: python3 script-m02dossier.txt, then analyst judgement, inline-steps.txt step 9 (dossier sha256 d83ad27d668c2fb5a8a65c1a019a1809320eca937ae37087a46a6ea3fda34357)
+  sha256: 6bcd25b943b015f9035b77abbf7e22c09f17011b0bc2e08bc69ba455da31db7c
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: 1262
+  sample: 30
+  seed: 20261128
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared with M02a for the share of same-pull-request folds.
+  result: 21 of 30 in M02b against 13 of 30 in M02a; with n=30 each the difference is within what sampling alone can produce (Fisher exact two-sided p = 0.067 on the 2x2 table 13/17 against 21/9).
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- reliability
+- testability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,60 @@
+finding_id: F-D1-017
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04e
+  deviation: null
+subject:
+  component: tracker client boundary
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: M04e (tracker boundary). spec_kitty_tracker is imported by 4 files, all inside src/specify_cli/tracker (9 files); 0 files outside that package import it. 2 files outside import specify_cli.tracker. The 23 imported names come from 5 tracker modules; 22 are in the top-level __all__. No second tracker implementation was tried behind the adapter (not assessed).
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/m04e-seam-census.json
+  method: python evidence/D1/m04e_seam_census.txt <core>/src
+  sha256: f48a12654e768085a326bd20de7374f34588bd54c69f9aab1aa1e19338f6cc10
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/m04c-import-census.json
+  method: core dev venv python evidence/D1/m04c_import_census.txt src  (AST walk; classifies each imported name against the installed spec-kitty-events 11.3.0 / spec-kitty-tracker 0.5.2)
+  sha256: 010cb3c715504b6827f1498131da3e1b33386ba63932e077953fa4706f43479a
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/D1/m04e-package-import-matrix.json
+  method: AST import matrix
+  sha256: fb237cbd4686ecd4b5dba42d4a1a8d4dce1fb4aeebeca4af6a8807fe784247a0
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: static import census; consumer-contract test (10 passed) and 2 tracker test files in F-D1-013
+  not_covered: stub behind specify_cli.tracker
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched every core package for an import of spec_kitty_tracker outside the adapter
+  result: '0'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

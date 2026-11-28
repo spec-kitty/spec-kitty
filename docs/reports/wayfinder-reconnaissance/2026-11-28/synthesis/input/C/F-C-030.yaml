@@ -1,0 +1,51 @@
+finding_id: F-C-030
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: unit of measurement
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Exploratory. The share of code commits whose subject ends in a pull request number (a proxy for squash commits) is 42.6% in T1, 21.0% in T2 pooled (18.1% pre-fork, 40.8% public, 16.5% experimental) and 44.2% in T3; by month it ranges from 2.2% (2026-01, 2026-02) to 67.7% (2026-03). Such commits have a higher median of changed src/ lines (130 vs 72 in T1, 48 vs 26 in T3) and a higher share touching two or more components (59.8% vs 50.0% in T1, 39.8% vs 30.0% in T3).
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/exploratory-squash-proxy.csv
+  method: inline aggregation over commits.csv
+  sha256: f82f575e4e1ad16efe811904977bc0d2585de3d186f3f5c8b52cfd1b30c59b61
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/volume-denominators.csv
+  method: python3 script-analyze.txt
+  sha256: 83ba94775c13e9d382993e9b371b835a93eafd0aa3e86dd8f570c4cb96334809
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the period order of M01d survives inside each group.
+  result: 'It does: among commits with the suffix 59.8% (T1), 43.8% (T2), 39.8% (T3); without it 50.0%, 35.7%, 30.0%.'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

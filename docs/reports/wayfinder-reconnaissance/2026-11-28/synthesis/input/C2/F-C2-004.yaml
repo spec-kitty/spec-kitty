@@ -1,0 +1,43 @@
+finding_id: F-C2-004
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: convergence-merge-effect
+  deviation: null
+subject:
+  component: core (convergence merge 2554bd13ad)
+  repository: spec-kitty/spec-kitty
+  revision: 2554bd13adc289d3457681308645fe52619bca0e
+  revision_kind: historical
+claim: 'The convergence merge 2554bd13ad has the same tree as its second parent f57b06dd (EXPERIMENTAL line end): diff against parent 2 is empty. Against parent 1 (public line end 614c52cb) it changes 3,179 files (+69,807/-349,905), of which 480 under src/ (+17,174/-61,179). The largest src changes relative to parent 1 by component: specify_cli/sync[retired] 64 files -36,491; specify_cli/cli 64 files +2,705/-8,359; specify_cli/zeitgeist_client[retired] 15 files +5,832; specify_cli/delivery[retired] 11 files -5,718; specify_cli/status +1,558/-890; specify_cli/tracker +1,099/-1,164.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/convergence-merge-diff-by-component.csv
+  method: git diff --numstat -M 2554bd13ad^1 2554bd13ad -- src (and ^2), aggregated by component with script-sloc.txt
+  sha256: f78238d7a86d66b6ba4ad3bf569437771e01b107acc8726bfb32c7d4bc298c1d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Tree-level diff of the merge result against each parent, src/ only for the component table.
+  not_covered: Which public-line changes were re-applied on the EXPERIMENTAL line before the merge (cherry-picks are counted in F-C2-029).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked the merge message and tree ids for a non-trivial merge resolution.
+  result: 'Tree ids: merge 1063b7eb = parent 2 1063b7eb; parent 1 d4886d7d. The merge message states it preserves the exact EXPERIMENTAL tree (document-claim consistent with the observation).'
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

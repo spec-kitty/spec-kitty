@@ -1,0 +1,52 @@
+finding_id: F-D1-028
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04b
+  deviation: null
+subject:
+  component: doc-kitty
+  repository: spec-kitty/doc-kitty
+  revision: 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  revision_kind: head
+claim: 'doc-kitty. The toolkit (@spec-kitty/doc-toolkit, 0.7.1 at head, tags v0.3.0..v0.7.1) is consumed by four sibling documentation sites through four different references: core pins git commit 1042a407 (144 commits behind head), open-packs pins version 0.3.0, events 0.6.0, charter 0.7.0. doc-kitty itself pins a charter contract tag (contract-packs-v0.1.0-rc.2, 7 file digests) and an open-packs commit for a test corpus. No core Python package imports or shells out to doc-kitty (it is used from site/ only).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04b-dockitty.txt
+  method: 'isolated clone: install, 1 vitest file, validate:docs, typecheck'
+  sha256: 130adc0172e8f818f3ef58db1c9b4a2172fa55eb875c9b96dada7e436acf5d1d
+  exit_code: 2
+  environment: node 22.23.5; pnpm 11.22.0
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: pin files and site/package.json of the four consumers
+  not_covered: installing the published package from GitHub Packages (needs registry credentials; not attempted)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grepped core src for doc-kitty / doc-toolkit references
+  result: none in src; only site/ and docs
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

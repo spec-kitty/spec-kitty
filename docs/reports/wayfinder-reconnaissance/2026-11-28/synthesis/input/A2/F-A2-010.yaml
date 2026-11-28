@@ -1,0 +1,52 @@
+finding_id: F-A2-010
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-4 cross-repo drift
+  deviation: null
+subject:
+  component: event ordering vocabulary
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: The events glossary states 'Lamport clock ... owns event ordering. Wall-clock timestamp is never used to order' (docs/glossary/README.md:34), while the same repository's diary reducer — the reducer its own 'Status diary' entry names — sorts transitions by an effective 'at' timestamp then event_id, and diary.py contains 0 occurrences of 'lamport'. Core's glossary (system-events.md:137) says the status reducer orders by 'at' then event_id and forbids describing the status path as Lamport-ordered.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: 'section V3: git show diary.py lines 1966-1980 at events head; grep -ci lamport'
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a:docs/context/system-events.md:137
+  method: read entry
+  sha256: null
+  exit_code: null
+  environment: null
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossary wording vs diary reducer sort key.
+  not_covered: Other events reducers (status.reduce_status_events groups by lamport_clock, consistent with the glossary).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- spec-kitty-events src/spec_kitty_events/status.py:901 uses lamport_clock for rollback-aware ordering
+disconfirmation:
+  search: Checked whether the glossary scopes its Lamport statement to particular reducers.
+  result: It does not; status.py's reducer does use lamport_clock, so the statement holds for some reducers and not the diary.
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

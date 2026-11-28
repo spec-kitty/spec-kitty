@@ -1,0 +1,51 @@
+finding_id: F-CX-010
+workstream: CX - comparison of two independent runs of workstream C measures
+classification: observation
+view: observed
+prereg:
+  measure: recurrence and refix chains
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Component recurrence replicates (corrective commits in three or more months: 69 of 88 vs 68 of 88 components); file recurrence replicates in count (497 vs 517 files) but not in denominator (1,712 vs 1,977 corrected files; shares 29.0% vs 26.2%, relative difference 10.4%). The 14-day refix share with one shared src file replicates in T1 (435/539 = 80.7% vs 428/541 = 79.1%) and not in T2 pooled (75.0% vs 66.0%) or T3 (1,624/1,917 = 84.7% vs 1,331/1,880 = 70.8%). The strict variants are not comparable: C requires file-set Jaccard >= 0.5 (29.7% / 44.3% / 52.3%), C2 requires >= 50% of the first fix files (56.6% / 52.1% / 55.4%). Both runs show the one-shared-file share falling from T1 to T2; from T2 to T3 both show a rise.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/CX/classification-rulesets-compared.txt
+  method: static comparison of both rule files and refix code
+  sha256: 8403ef779aa1c4f4b24f63c69c376cce98b8548bd85ffd3fb4db2a823adc42d8
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Recurrence over 2026-01..11; refix per period.
+  not_covered: The T3 refix difference was not isolated by recomputation into its separate causes.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Read both refix implementations (evidence/C/script-recur.txt, evidence/C2/script-analyze.txt lines 150-180).
+  result: 'Three differences apply at once: the fix set (C fix-subject flag, C2 corrective rules R2/R6), C maps renamed files to their final path before matching while C2 matches raw paths, and C restricts the later fix to a compatible line of history; the file-recurrence denominator differs for the same path-lineage reason.'
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,101 @@
+finding_id: F-E3-005
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 detection count, class IC
+  deviation: Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n 4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt.
+subject:
+  component: mutation class IC (incompatible contract change)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Class IC: 5 of 6 mutations detected (5 of 6 assessable): 4 by checks per-change CI runs (M-IC-1 events unit and conformance tests, M-IC-4 and M-IC-6 core unit tests found by the mirror rule, M-IC-5 open-packs digest and generated-page drift checks) and 1 only by a tool no workflow invokes (M-IC-3, contracts/tools/example_check.py; Gradle side not assessable). Not detected: M-IC-2 (charter contract, optional request property made required). 4 of the 5 failure messages name the changed field or value; M-IC-5 names the pack and a digest. In none of the 6 runs did a check of a version constant or changelog requirement fail. By subtlety: blatant 2/2, moderate 1/2, subtle 2/2.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/detection.csv
+  method: see evidence/E3/script-*.txt drivers; rows filtered on class IC
+  sha256: 03f998275495744b04d38db44f85ce6814f4acdd45b37181345cba495d4c701b
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/E3/detection-counts.txt
+  method: python tally over detection.csv
+  sha256: f1add3603ff7d30ede1b154c63b54ff20262b9bd0e02178ab7a98225202c9893
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/E3/runs-ev-M-IC-1.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 37865a31de0a73dfc353faa484b14020cefce933579ac9f6ac092001bfdde3c5
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E4
+  kind: executed
+  reference: evidence/E3/runs-M-IC-4.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 9b8a29cd589c1597ce382273d0e6949e0b02df6f2823170fce744d16ee8b0d1a
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E5
+  kind: executed
+  reference: evidence/E3/runs-M-IC-6.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 66d8f598dff12327ee58193bdd7f84e1c3794283d4a79713bf8f9b7fd16f43c4
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E6
+  kind: executed
+  reference: evidence/E3/runs-op-M-IC-5.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 611827f112dd02c9b7b81e2f9173352dd028f738bdb90a3463380c0f5258f446
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E7
+  kind: executed
+  reference: evidence/E3/runs-evj-M-IC-3.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 29eff8e03bbcfcba39f300a6a393f796f14c74c1b258208d9da37572b22f1039
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E8
+  kind: executed
+  reference: evidence/E3/runs-charter-gradle.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: The 6 class-IC mutations of E2 against the frozen gate set, across the repositories they touch.
+  not_covered: 244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 6 class-IC mutations
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each mutation counted as detected, read the failure text to confirm it names the mutated file; for each counted as not detected, re-ran alone and looked for any failing node absent from the baseline.
+  result: Every counted detection names the mutated file or symbol. No uncounted new failure other than load-dependent time-budget tests.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,59 @@
+finding_id: F-A1-025
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: mission-status contract owner
+  repository: doc-kitty; spec-kitty/spec-kitty-events
+  revision: 1acc49fbe209436d3c1666a86e8b3960ee19e5ac; 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: doc-kitty ADR-0082 (Accepted 2026-11-23) describes the mission-status contract as 'core's public contract' and pins its snapshot to 'a core commit, then a contract release tag (spec-kitty/spec-kitty#7627)' (:3, :50, :67, :304); events ADR-0002 and events charter.md:90 (2026-10-29) assign the Mission Status Read API and its OpenAPI contract to spec-kitty-events, released on service-v*.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:36-80 @ 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  method: git -C /home/user/doc-kitty show 1acc49fbe209436d3c1666a86e8b3960ee19e5ac:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md | sed -n '36,80p'
+  sha256: 2c65a64ca069598015c7e754a7f6de8fc1bf61e6aa58d8113dcf1128dbde25d2
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:300-306 @ 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  method: git -C /home/user/doc-kitty show 1acc49fbe209436d3c1666a86e8b3960ee19e5ac:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md | sed -n '300,306p'
+  sha256: 2c65a64ca069598015c7e754a7f6de8fc1bf61e6aa58d8113dcf1128dbde25d2
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-events:.kittify/charter/charter.md:86-93 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  method: git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:.kittify/charter/charter.md | sed -n '86,93p'
+  sha256: 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: doc-kitty ADR-0082, events charter and ADR-0002
+  not_covered: doc-kitty's vendored contract snapshot
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -n 'spec-kitty-events|service-v' in doc-kitty ADR-0082
+  result: no mention of spec-kitty-events or service-v* in ADR-0082
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

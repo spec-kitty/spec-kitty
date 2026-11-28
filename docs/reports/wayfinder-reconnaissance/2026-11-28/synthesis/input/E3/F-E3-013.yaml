@@ -1,0 +1,46 @@
+finding_id: F-E3-013
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 undetected mutation M-IC-2
+  deviation: null
+subject:
+  component: contracts/charter/schemas/ExclusionRequest.yaml
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'M-IC-2 makes the optional request property cascade required, with no changelog fragment and no version change. lintContract, checkContractCompatibility, checkContractChangelogFragments, checkClosedResponseObjects and checkRefusalExamples all passed (BUILD SUCCESSFUL). checkContractCompatibility printed ''No released baseline: contracts/charter/CHANGELOG.md records no final release before this one'' (message from contracts/src/main/java/ai/speckitty/charter/contracts/compat/ReleaseGate.java:437). checkContractChangelogFragments is described at contracts/build.gradle.kts:1041-1043 as checking the form of the fragments in changes/ and printed ''37 changelog fragments are well formed''.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-charter-gradle.txt
+  method: 'drive_charter.sh <scratch>: git apply M-IC-2; ./gradlew --no-daemon :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples --continue'
+  sha256: c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194
+  exit_code: 0
+  environment: JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: Mutation M-IC-2 against the frozen gate set of its repository.
+  not_covered: Service tests that exercise the contract (for example ContractConformanceTest), lintFixtures and compatibilityFixtures, the release workflow.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 1 mutation
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Ran the same five tasks at baseline for comparison; listed contract tags in the charter clone.
+  result: Baseline output is the same. Tags contract-charter-v0.2.0-rc.1 to rc.3 exist; the gate reports no final release.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions:
+- E2 marks the rule as partly ambiguous for a 0.2.0-SNAPSHOT contract.

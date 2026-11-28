@@ -1,0 +1,70 @@
+finding_id: F-D1-009
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04b
+  deviation: null
+subject:
+  component: sibling repositories in isolation
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: open-packs f9a557510dc7ff04597a0b8aba87f736e25f785e; doc-kitty 1acc49fbe209436d3c1666a86e8b3960ee19e5ac; tracker 658abee7b33ed2d14003c08fdbec4ffea2f45223; events 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'M04b. From a fresh clone in a directory holding no sibling checkout: spec-kitty-tracker (658abee7) installs, 5 named test files pass (exit 0) and wheel+sdist build (exit 0). spec-kitty-events Python part (646e330b) syncs from its lock, 5 named test files pass (314 passed), packaged conformance passes (1358 passed), wheel+sdist 11.5.0 build. spec-kitty-open-packs (f9a55751) passes check-pack-digests.sh, check_vocabulary.py (758 files, 0 findings), 3 named unittest files (56 tests) and validate-packs.sh (20 packs, 26 charter schemas) with no core tree; validate-packs.sh needs network to the charter repository at the pinned commit (or CHARTER_CONTRACT_DIR). doc-kitty (1acc49fb) installs its workspace from the lockfile, 1 named vitest file passes, validate:docs passes (217 files); the toolkit typecheck exits 2 (TS2345 in tests/single-h1.test.ts).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04b-tracker.txt
+  method: 'see file: uv pip install -e ''.[dev]''; pytest 5 named files; python -m build'
+  sha256: 353ceedf33318bf5e4ff1c9e906a6891fc8501fcaa55d4954ae7ec28ca7dded5
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04b-events.txt
+  method: uv sync --frozen --all-extras; uv run pytest --no-cov 5 named files; --pyargs spec_kitty_events.conformance; uv build
+  sha256: 55dd53be55cb1b8e35ca57fc55b73161cea06dd9ac3413c11c6e4c7ebd68fdd5
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/m04b-openpacks.txt
+  method: scripts/ci/check-pack-digests.sh; validate-packs.sh; check_vocabulary.py; python -m unittest 3 named files
+  sha256: e80a1895b1d4037be1fb25cc2ce78c53488b97b1ec4411a78318ccfa11f09c48
+  exit_code: 0
+  environment: Python 3.11.15; pyyaml 6.0.3; jsonschema 4.26.0; tree-sitter 0.25.2
+  observed_at: '2026-11-28T09:18:26Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/m04b-dockitty.txt
+  method: pnpm install --frozen-lockfile; vitest run tests/remark-version-pin.test.ts; pnpm run validate:docs; toolkit typecheck
+  sha256: 130adc0172e8f818f3ef58db1c9b4a2172fa55eb875c9b96dada7e436acf5d1d
+  exit_code: 2
+  environment: node 22.23.5; pnpm 11.22.0; vitest 2.1.9
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: named files and targets only
+  not_covered: whole suites; events Gradle/Java build; open-packs charter-service job (needs the charter jar); doc-kitty site build and Playwright
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: for each repository looked for a step that reads a sibling checkout path (../<repo>)
+  result: none needed by the named checks; open-packs' first validate-packs.sh attempt returned HTTP 404 because this sandbox injects a placeholder GITHUB_TOKEN that the script forwards (environment artefact; passes with the variable unset)
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- testability
+- modifiability
+candidate_invariants: []
+open_questions:
+- Is the doc-kitty typecheck failure present in its own CI, or specific to this environment's resolved toolchain?

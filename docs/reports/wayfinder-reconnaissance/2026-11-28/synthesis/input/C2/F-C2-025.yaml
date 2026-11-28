@@ -1,0 +1,43 @@
+finding_id: F-C2-025
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: narrative change chains (purposive)
+  deviation: null
+subject:
+  component: core (hotspot files)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Nine purposive chains (three per period) list every code commit to one file in a window: T1 runtime/next/runtime_bridge.py 20 commits/16 corrective in 2026-05-25..06-06 starting with its extraction on 06-01; cli/commands/merge.py 56/36; acceptance/__init__.py 46/27. T2 zeitgeist_client/credentials.py 27/17 in 08-21..08-29 from its creation on 08-21; gitignore_manager.py 25/15; orchestrator_api/commands.py 51/29. T3 consolidation/executor.py 60/42 from its creation on 09-28 to 10-15; upgrade/runner.py 42/29; consolidation/reconciliation.py 64/47.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/change-chains-purposive.txt
+  method: listing from commits.jsonl; file creation from git log --diff-filter=A
+  sha256: ac932d8b4dfc3eba6a946550e821a13ef92a8f5cc50068f49a6751a3f8e6511f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Sequence and class of commits per file; tagged purposive, not a sample.
+  not_covered: No cause is asserted; corrective commits in a chain are not shown to correct the chain's first change.
+  population: null
+  sample: purposive
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for chains of comparable length in files created by restructuring rather than new capability.
+  result: 'Both kinds appear: executor.py and reconciliation.py were created by a rename (merge -> consolidate), credentials.py and runtime_bridge.py by new code or extraction.'
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

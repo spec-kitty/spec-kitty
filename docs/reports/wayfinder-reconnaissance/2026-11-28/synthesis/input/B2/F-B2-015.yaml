@@ -1,0 +1,61 @@
+finding_id: F-B2-015
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: spec_kitty_events import graph and cycles
+  deviation: null
+subject:
+  component: Python package spec_kitty_events
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'The package has 71 modules in 45 top-level units and 204 module-to-module import edges. Module level: no cycle among imports executed at import time; one cycle of 3 modules when function-local and TYPE_CHECKING imports are included (conformance.validators, decisionpoint, persistence). Unit level: one cycle among import-time imports ({__init__, conformance, strict}: strict imports conformance, conformance imports the package root, the root imports strict) and a 7-unit component when deferred imports are included. 9 distinct cross-unit imports name an underscore-prefixed module or attribute, out of 921 cross-unit imported names (1.0%).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-py-summary.json
+  method: python3 script-py_imports.txt /home/user/spec-kitty-events/src spec_kitty_events events-py
+  sha256: 8af0ad09bc253c84a897432dfc68cf7f51242735bd6300f1f79e4a3640c50117
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:08:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-py-unit-edges.csv
+  method: same
+  sha256: c2895e427e355e69a4398b4ad64de106e937e3c50255a2d5086151bc59fe3295
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:08:47Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/events-py-module-edges.csv
+  method: same
+  sha256: 8b2dd4098f852ed9c6edb52cf0ad9cf250074c9513b8fd891e96732c06a06303
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:08:47Z'
+scope:
+  covered: Every Import and ImportFrom node of the 71 modules, classified as import-time, function-local or TYPE_CHECKING.
+  not_covered: Dynamic imports (importlib); the installed package.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Recomputed the cycles with import-time edges only, to see whether the cycles depend on deferred imports.
+  result: The module-level cycle disappears with import-time edges only; the 3-unit cycle remains because it passes through package __init__ modules.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- analysability
+candidate_invariants: []
+open_questions: []

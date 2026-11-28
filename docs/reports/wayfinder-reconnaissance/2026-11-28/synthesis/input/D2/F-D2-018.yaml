@@ -1,0 +1,67 @@
+finding_id: F-D2-018
+workstream: D2 - Independence of the Java services
+classification: observation
+view: observed
+prereg:
+  measure: process-requirement
+  deviation: null
+subject:
+  component: consumers and process form
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Which consumer needs which process form, as observed: open-packs'' check requires the charter service as a separate process reached over HTTP (it starts a jar and calls /api/v1). Core at head requires charter reads and status writes in-process: it has no client for either service, and the charter-service launch policy is disabled. Core''s launcher treats the write service as a separate process only. doc-kitty consumes the packs contract as files and runs no service. No consumer was found that requires a Java service in-process.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04a-openpacks-charter-service-check-rc3.txt
+  method: CHARTER_CONTRACT_DIR=<charter contracts/packs at cb9b1542> python scripts/ci/charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.3.jar
+  sha256: aac78c1e9b3b4608a292434a462d98dfa5fe9e8f38e54eb3c05cfde5185cdaa5
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Temurin JDK 25.0.5; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: static-derived
+  reference: evidence/D2/m04f-core-service-callers-grep.txt
+  method: grep -rnE "ServiceLauncher|services.launcher|ServiceClient|..." --include=*.py src (outside services/)
+  sha256: 5cfb930ea0479b3c23cec2b3e7debc52fafc9d571c11c22ff2a6cece85cee4ee
+  exit_code: 0
+  environment: grep; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04f-core-status-write-without-service.txt
+  method: python status_write_without_service.py (emit_status_transition x2, materialize, ServiceLauncher.ensure for 3 services)
+  sha256: 1465c1259d7f108f92eb9e71ebc2d84835d6d39b5f74fe3a273b381753e896e7
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/contract-dockitty-packs-contract-lock-verify.txt
+  method: 'python3: doc-kitty contract.lock.json digests vs released packs-contract.tar.gz members vs vendored copies'
+  sha256: 27fcbf46ce8d8b96b80950f9aa135560c060011ab070caf4f1a5b5fff535680a
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: The consumers found in F-D2-007 and core.
+  not_covered: Consumers outside the cloned repositories.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a JVM embedding or a library dependency on a service jar in any consumer.
+  result: None found; the generated Java client in the charter repository is an HTTP client.
+relations: []
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

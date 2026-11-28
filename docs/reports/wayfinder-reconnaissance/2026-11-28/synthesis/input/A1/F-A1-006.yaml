@@ -1,0 +1,59 @@
+finding_id: F-A1-006
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: merge path enforcement
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Core''s charter states that nothing on GitHub enforces the PR workflow: no branch protection or required review, and failing runs cannot block a PR (charter.md:536-540; PROGRAM.md:53 says the same for the programme), while the Accepted core ADR 2026-11-01-1 records that main merges through a GitHub merge queue (:3, :11, Accepted 2026-11-01).'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:532-540 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '532,540p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md:1-17 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md | sed -n '1,17p'
+  sha256: 7653ed894835b3f2ee40125f0a68afbdb91e1e9d04be17c875eaffef7ac618c2
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-planning:PROGRAM.md:53-53 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:PROGRAM.md | sed -n '53,53p'
+  sha256: 4391f668ce1f1be1b2f59384764cd44bc4cf92a1c63f5d02b399cf469cfd94ec
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: core charter, ADR 2026-11-01-1, PROGRAM.md
+  not_covered: repository settings on GitHub (not a record; workstream D/F scope)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched core 4.x ADRs and charter for any amendment withdrawing the merge queue or updating the 'nothing on GitHub enforces' sentence
+  result: none found; CLAUDE.md (tagged secondary) says branch-protection settings enforce the merge gate, siding with the ADR
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

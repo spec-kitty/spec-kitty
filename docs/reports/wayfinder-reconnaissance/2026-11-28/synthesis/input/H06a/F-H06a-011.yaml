@@ -1,0 +1,67 @@
+finding_id: F-H06a-011
+workstream: H06a answering twenty questions from documentation
+classification: observation
+view: recorded-intent
+prereg:
+  measure: H06a-Q11
+  deviation: 'Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst''s context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: ''site content'' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report.'
+subject:
+  component: documentation authority
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Q11 (Which source prevails when architecture documents disagree?) Run-1 documentation (2,051 files across five repositories at head) answers: docs/architecture/ and docs/adr/ are authoritative over the rest of docs/ (''when the two overlap, architecture wins''); module boundaries are owned by code, the enforced pair, and every prose module map is a derived view that loses on conflict; a later ADR supersedes an earlier one only explicitly. The documentation states no general rule for two architecture documents that disagree with each other beyond explicit ADR supersession. Analyst-chosen authority: spec-kitty/docs/architecture/README.md:32-50. Concurring sources cited: 4; differing sources cited: 4. Run-1 searches: 2.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty/docs/architecture/README.md:32-50 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path> | sed -n '<lines>p'
+  sha256: null
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/H06a/answers-run1.csv
+  method: grep searches logged in evidence/H06a/search-log-run1.txt over the run-1 corpus listed in evidence/H06a/corpus-inventory.csv; answers written by script-write-answers-run1.txt
+  sha256: 4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/H06a/search-log-run1.txt
+  method: script-search-wrapper.txt (grep -rniE) per question
+  sha256: 445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad
+  exit_code: 0
+  environment: GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)
+  observed_at: '2026-11-28T09:20:00Z'
+scope:
+  covered: Run-1 allowed documentation of spec-kitty, spec-kitty-charter, spec-kitty-events, spec-kitty-open-packs, doc-kitty at head; run-2 agent-guidance files for the delta.
+  not_covered: Source code, tests, build and workflow files, kitty-specs/, changelogs, supplementary repositories, historical revisions; whether the documentation is correct.
+  population: 2,051 run-1 corpus files (evidence/H06a/corpus-inventory.csv)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence:
+- 'Other local precedence rules: spec-kitty/docs/architecture/ai-agent-architecture.md:40 (the code wins)'
+- spec-kitty/docs/plans/4-0-0-milestone-roadmap.md:65 (this roadmap wins over the prior one)
+- spec-kitty/docs/plans/doctrine/foundational-values-and-creed.md:20 (this document wins over older ones)
+- spec-kitty/docs/plans/domains/packs-extraction-domain-plan.md:34 (the epic wins on what ships)
+disconfirmation:
+  search: Searched the whole run-1 corpus (all five repositories) for alternative wordings and for statements in sibling repositories and older ADRs that answer the question differently; see search-log-run1.txt entries for Q11.
+  result: 'Differing sources found: 4 (listed in counterevidence).'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- discoverability
+- consistency
+candidate_invariants: []
+open_questions:
+- 'Run 2 (agent-guidance files allowed): changed: Adds a rule absent from run 1: when the charter and the agent guide disagree, the charter wins; module set and import direction belong to the enforced pair, and every prose module map is a derived view. Still no general rule for two architecture documents that disagree. Sources: spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):22; spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):272-287. Differing: None contradicting; the agent guide''s charter-wins rule matches spec-kitty/docs/development/reference/quality-and-tech-debt-standing-orders.md:17-21.'
+- Correctness against code is not assessed here (assigned to another workstream).

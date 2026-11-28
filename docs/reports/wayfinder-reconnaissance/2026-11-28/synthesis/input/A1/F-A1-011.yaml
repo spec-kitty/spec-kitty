@@ -1,0 +1,69 @@
+finding_id: F-A1-011
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: charter activation timing
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Two core domain plans state 'charter.activation stays in core until its post-GA rework' inside their 2026-10-19 supersession notes (packs-extraction-domain-plan.md:115; doctrine-charter-domain-plan.md:110), and ADR 2026-10-16-1 keeps 'post-GA' in its title and 'D-2 stands' in its 2026-10-19 amendment; its own 2026-10-20 amendment and core charter.md:5-9 state the post-GA timing is superseded and the switch is a 4.0 deliverable.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty:docs/plans/domains/packs-extraction-domain-plan.md:110-120 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/plans/domains/packs-extraction-domain-plan.md | sed -n '110,120p'
+  sha256: a15cc34c96d909a3e42d8e5866493c6f6f2e28fe8cc4f789821f75f95c01cca1
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:docs/plans/domains/doctrine-charter-domain-plan.md:106-113 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/plans/domains/doctrine-charter-domain-plan.md | sed -n '106,113p'
+  sha256: d5fcad705c8b53b4bbf3371fa7a83566749c0085a2e3f3729f6afddd67b9a523
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md:201-216 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md | sed -n '201,216p'
+  sha256: 9369f6906baf382a10ed6f537102aaae3eb79e22e7374b3eaabe996a7deec0e0
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:1-9 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '1,9p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: the two domain plans, ADR 2026-10-16-1, charter
+  not_covered: tracker milestones
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn 'post-GA' over core docs/plans, docs/adr/4.x and charter.md
+  result: the plans' supersession notes were written 2026-10-19, before the 2026-10-20 amendment; no later edit found
+relations:
+- type: supports
+  target: F-A1-038
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

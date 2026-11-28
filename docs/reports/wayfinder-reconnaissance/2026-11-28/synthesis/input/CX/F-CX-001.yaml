@@ -1,0 +1,51 @@
+finding_id: F-CX-001
+workstream: CX - comparison of two independent runs of workstream C measures
+classification: observation
+view: observed
+prereg:
+  measure: volume denominators (C vs C2)
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Volume denominators replicate when bulk commits are removed from both: the two runs report the same 6,345 non-bulk code commits (identical sha12 sets, 0 commits in only one run), identical changed src lines per commit (6,345 of 6,345 equal), and per-period code commits T1 947/947, T2 pooled 1,809/1,809, T2 EXPERIMENTAL 703/703, T3 3,026/3,026; non-merge non-bulk commits T1 2,800/2,800, T2 4,416/4,416, T3 10,046/10,046 (C values derived by CX as non-merge minus bulk); source lines at T1 end, P3a, P3b and head are equal. 25 of 25 all-class volume rows are replicated; 30 of 60 by-class rows are not (relative difference above 10%), e.g. T3 compatibility-work 303 vs 69 code commits and T3 corrective-maintenance 1,624 vs 1,880.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/join-output.txt
+  method: python3 script-join.txt
+  sha256: 248248197bfca3f72d77f0c646db528f5cea6cba71474b6ea7350626d8631834
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Period-level and line-level volume rows of evidence/C/volume-denominators.csv and evidence/C2/volume-denominators.csv; per-commit join of code-commits-compact.csv and code-commits-classified.csv.
+  not_covered: Monthly volume rows were not tabulated (period totals already identical).
+  population: 6,345 non-bulk code commits 2026-01..2026-11 (both runs)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for commits present in one run only and for per-commit churn differences; checked whether C code_commits include bulk commits.
+  result: C non-merge and code-commit counts include bulk commits (950 vs 947 in T1 = 3 bulk code commits); after subtraction no difference remains. No churn difference on any commit.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

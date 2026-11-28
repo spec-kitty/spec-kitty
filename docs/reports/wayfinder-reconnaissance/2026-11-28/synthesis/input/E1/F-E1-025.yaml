@@ -1,0 +1,45 @@
+finding_id: F-E1-025
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-7 exception governance
+  deviation: null
+subject:
+  component: owner, rationale, approval and retirement on sampled entries
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'In a seeded sample of 30 of 3,357 file-ledger entries, read by hand: a rationale is present for 30 (6 on the entry, the rest only in the ledger header); a retirement condition for 22 (1 on the entry); an owner for 2 (both in the header of the charter.activation baseline); an approval record for 1; all four for 0. 18 of the 30 fell in the formatter exclude list. In a second seeded sample of 30 drawn from the 1,092 entries outside the two lint baselines: rationale 30 (17 on the entry), retirement condition 16 with 4 more partial, owner 6, approval 7, all four 0.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledger-sample-30.csv
+  method: python random.Random(20261128).sample(range(N), 30) over entries sorted by repository, ledger and key; each row read by hand against the entry text and the ledger header
+  sha256: f050dd7616a276a4a991fbf2524bdb0cf22be59d8e57781a3c35121540fc87d5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Entry text, attached comments, group or category records and the ledger file header or its _baselines.yaml leaf.
+  not_covered: Approval or ownership recorded in the pull request that added the entry was not read.
+  population: 3,357 file-ledger entries (primary); 1,092 (secondary)
+  sample: 30 + 30
+  seed: 20261128
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for an entry in either sample that names its own owner.
+  result: None; the inert-slots baseline parser refuses an owner key by design.
+relations:
+- type: supports
+  target: F-E1-022
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

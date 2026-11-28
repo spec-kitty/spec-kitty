@@ -1,0 +1,51 @@
+finding_id: F-C-026
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: narrative-chains
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: T2 change chains (purposive)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Four chains chosen by hand in T2 (tag: purposive). #2773 (charter.yaml as the authoritative bundle, 2026-07-19): 8 citing code commits to 2026-10-13, 4 fix-subject, ending with removal of the charter sync no-op command. #3488 (operating procedures in doctor, 2026-08-20): 8 commits to 2026-09-01, 4 on each line. #3131 (merge retention, 2026-09-02): 13 commits to 2026-09-15, 7 fix-subject, 6 public, 6 experimental, 1 converged. #2947 (next loop through committed authority, 2026-09-02): 7 commits to 2026-09-05, 3 of them cherry-picks onto the experimental line.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/narrative-chains-summary.csv
+  method: same
+  sha256: 98005cc29a8468f6e7470cc317ba08f623db2a14617cb25a2fcd35f23bbbb2be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/narrative-chains.csv
+  method: inline selection by reference number over commits.csv and commit bodies (purposive)
+  sha256: 8e86839b7bcb378cf70720abfc919174ba15abe155a6bfadde655cadd5c740fb
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Code commits whose subject or body cites the reference number.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: purposive, 4 chains
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the commits on the second line are new corrections or copies.
+  result: 'In #3131 and #2947 the experimental-line commits repeat the public-line subjects three days later (ports); they are copies, not additional corrections.'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

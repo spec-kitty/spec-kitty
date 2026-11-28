@@ -1,0 +1,43 @@
+finding_id: F-C-008
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01d
+  deviation: null
+subject:
+  component: core components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Monthly series of the share of code commits touching two or more components (first-parent line of each month): 2026-01 35.2% (n=182), 02 27.0% (319), 03 50.0% (62), 04 66.1% (218), 05 47.4% (291), 06 52.7% (438), 07 41.1% (504), 08 pre-fork 37.9% (325), 08 public 47.5% (183), 08 experimental 31.3% (479), 09 public 35.1% (94), 09 experimental 34.4% (224), 09 converged 34.4% (799), 10 36.9% (1,167), 11 31.5% (1,060). Monthly median is 1 except 2026-03 (1.5), 04 and 06 (2).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded. Months 2026-08 and 2026-09 are given per line.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the three converged months differ from each other more than from the two pre-merge lines.
+  result: Converged months span 31.5%..36.9%; the two lines in 2026-09 before the merge are 35.1% and 34.4%.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

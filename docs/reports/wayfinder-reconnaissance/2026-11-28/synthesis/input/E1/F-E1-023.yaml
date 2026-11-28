@@ -1,0 +1,61 @@
+finding_id: F-E1-023
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-7 exception governance
+  deviation: null
+subject:
+  component: allowlist files without a baseline leaf
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The same policy says every mutable architectural allowlist is governed by a baseline in _baselines.yaml. Of the 19 non-empty ledger files under tests/architectural, 6 have a leaf there (two dead-symbol lists, the charter.activation boundary, inert slots, two layer-rule ledgers) and 13 do not; of those 13, 2 carry a cap inside their own file (charter path literals, inline meta reads), 3 are generated census files, and 8 are allowlists or exemption lists described as shrink-only in their header (mission-type reader exemptions, built-in pack provenance, three OS-detection exemption lists, root-vacuous denial exemptions, two global-state allowlist shards).
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head)
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/ratchet-baseline-leaves.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head)
+  sha256: deb89d3e2653e1090f869a7643e5e122f8e35ddcf7913baf96cfc1101d09f6f9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: document-claim
+  reference: .kittify/charter/charter.md:765-768 at 5c4fc5a79d
+  method: Burn-down Policy (a)
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: File ledgers with at least one entry whose path is under tests/architectural.
+  not_covered: Whether each of the 8 has its own growth check inside its gate (their headers say so) was read from headers, not tested.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Read the header of each of the 13 for another growth control.
+  result: All 13 state shrink-only or generated semantics in their header or gate docstring.
+relations:
+- type: refines
+  target: F-E1-022
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

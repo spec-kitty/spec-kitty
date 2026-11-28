@@ -1,0 +1,78 @@
+finding_id: F-D1-006
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: distribution-contents
+  deviation: null
+subject:
+  component: spec-kitty-cli released artefacts
+  repository: spec-kitty/spec-kitty
+  revision: spec-kitty-cli 4.0.0rc8 and 3.2.7 (PyPI)
+  revision_kind: released
+claim: 'Released artefacts differ from head as follows. 4.0.0rc8 wheel: 2188 files, same 6 top-level trees, same built-in pack commit and same read-service pin as head, extra `services` pin ==4.0.0rc8; its resolved closure is 53 distributions against 44 for the head wheel (9 extra: mcp, starlette, uvicorn, sse-starlette, httpx-sse, pyjwt, pydantic-settings, python-dotenv, python-multipart). 3.2.7 wheel: 2066 files, a top-level module doctrine.py, 502 pack files, no _pins, depends on spec-kitty-events >=6.0.0,<7 and spec-kitty-tracker >=0.4,<0.5 (resolved 6.1.0 / 0.4.3), closure 49. The 3.2.7 sdist additionally ships kitty-specs (450 files), docs (29), tests (10), scripts (2), research-outputs (4) and packs/internal/README.md. spec-kitty-services 4.0.0rc8 on PyPI is one py3-none-any wheel of 8 files with no binary.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/dist-contents.json
+  method: python tools_listdist (zipfile/tarfile listing) over dist-head/*.whl,*.tar.gz and the PyPI downloads; grouped by top-level directory
+  sha256: 75a76f42b25f8bbb203b0173e3000b320dd8335f78d37157dcf63f9a058e14b4
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04a-cli-rc8-install.txt
+  method: uv venv --python 3.11; uv pip install --prerelease=allow spec-kitty-cli==4.0.0rc8; uv pip freeze
+  sha256: d2ceb5da4b8746dc4eb4a054657ea1efe3854cd4f15b026eda3a23c3158df24b
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:20Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/m04a-cli-327-install.txt
+  method: uv pip install spec-kitty-cli==3.2.7; uv pip freeze
+  sha256: cceb36bf42315f696e6b8b865972bcecd7ff29f03f2f29f17b6b61ad9153b328
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:25Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/m04a-cli-head-install.txt
+  method: uv pip install dist-head/spec_kitty_cli-4.0.0rc9-py3-none-any.whl; uv pip freeze
+  sha256: 282ee23c7ca96899d095dd7ec19848dd433b48a2dfc52b90792d211bff7028e0
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:27Z'
+- id: E5
+  kind: executed
+  reference: evidence/D1/pypi-download.txt
+  method: pip download --no-deps <spec>; sha256sum
+  sha256: 436c229f0deede18c67ac1a7fcc884f2dd3aa1978550de065a27e2176e675996
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:07:31Z'
+scope:
+  covered: wheel and sdist of 3.2.7 and 4.0.0rc8; fallback wheel of spec-kitty-services 4.0.0rc8
+  not_covered: other release candidates
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: checked whether rc8 and head pins differ on any external surface
+  result: they do not (built-in commit, read-service tag, events and tracker ranges identical)
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- deployability
+- compatibility
+candidate_invariants: []
+open_questions:
+- Why the rc8 closure contains mcp and its dependencies while the head closure does not was not traced.

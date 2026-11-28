@@ -1,0 +1,43 @@
+finding_id: F-C2-028
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core (fine components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Share of code commits touching specify_cli/cli falls from 470/947 (49.6%) in T1 to 1,096/3,026 (36.2%) in T3; specify_cli/consolidation is touched by 432/3,026 (14.3%) in T3; charter/offering by 204/947 (21.5%) in T1 and 203/3,026 (6.7%) in T3.
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/component-touch-counts-per-period.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: c58eea4d88f2e6ba94149ae30b84f38a086251ead62fbb7d3cff1bc35f2fcce5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Touch counts per component and period.
+  not_covered: Content moved out of src/ (built-in doctrine moved to packs/ after T1 is no longer a code change).
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether charter/offering's drop coincides with doctrine content leaving src/.
+  result: rename-map.txt shows at least 468 doctrine files renamed from src/doctrine to packs/built-in during the window (missions 193, tactics 122, toolguides 31, directives 29, styleguides 22, procedures 22, agent_profiles 19, root 14, paradigms 13, assets 3), so part of the drop is content leaving src/.
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,77 @@
+finding_id: F-B2-011
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: M03a
+  deviation: 'The events Gradle build did not run in this environment (attempt 1: dependency verification refused a plugin marker POM served by the environment''s Maven Central mirror; attempts 2 and 3 without the mirror: HTTP 429 from repo.maven.apache.org). No class files, no jdeps, no ArchUnit run: every number here is derived from source text. The architecture tests were not run. Violations were looked for statically, and only for the project-package part of the rules.'
+subject:
+  component: enforced architecture model (ArchUnit)
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'The repository enforces its Java structure through 35 ArchRule declarations in 14 test-source files across 4 modules (mission-status-api 9 files, command-cli 4, event-log 2, domain-model 1), 59 JUnit test methods. A static check of the project-internal package rules found 0 violating package edges: 0 of 70 edges under org.speckitty.missionstatus against rules 1b, 2b, 3, 4, 5a, 5b, 6, 12a, 12c and 14, and 0 of 57 edges from org.speckitty.commandcli against the onion layering, the application-to-read-service ban and the config rule. Recorded exceptions number 4: rule 7 carves out three packages (adapter.out.ledger, adapter.out.statuslog and the filesystem adapter itself, with a scope test for the first two), and command-cli''s onion rule ignores every dependency whose origin is a config package.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-arch-rule-files.csv
+  method: python3 script-arch_rule_inventory.txt /home/user/spec-kitty-events ...
+  sha256: 2e3aac94585f41c3e8813c6f96c3199524ceab36d205f962019d25bd5ace7ac5
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:37Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-static-rule-check.json
+  method: python3 script-events_static_rule_check.txt events-static-main-package-edges.csv events-static-rule-check.json
+  sha256: 375bedaac34503f4999929c706dc1ed30fef5b04776361cd3b82010b0cd769bd
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:12:30Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/events-static-rule-check-commandcli.json
+  method: inline Python over events-static-main-package-edges.csv
+  sha256: 6ddd1cfde6f1516d1550c8ba0da5860835dcc79fce402826f6e1b700ee0bda37
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:52Z'
+- id: E4
+  kind: document-claim
+  reference: service/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:141-244
+  method: 'read at head: the fourteen numbered rules'
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E5
+  kind: document-claim
+  reference: service/command-cli/src/test/java/org/speckitty/commandcli/architecture/ArchitectureRulesTest.java:63-76
+  method: 'read at head: ignoreDependency(configuration, alwaysTrue)'
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Project-package dependency rules, from import statements of main sources.
+  not_covered: 'Rules about JDK and framework types (file APIs, Spring, JSON, threads, process creation: rules 1c, 2c, 7, 8, 9, 10, 13), rule 11 (test classes), event-log and domain-model boundary tests, and anything visible only in class files. A passing build at head on the repository''s own CI is not evidence gathered here.'
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Enumerated every package edge and tested it against each rule predicate; listed any edge from adapter.in to adapter.out and from non-config to config.
+  result: No violating edge found. This does not show the unexecuted rules hold.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,51 @@
+finding_id: F-A1-014
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: event ordering
+  repository: spec-kitty/spec-kitty-events; spec-kitty/spec-kitty
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05; 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'events ADR-0001 records ordering option C (Lamport clock with (time,id) tiebreak and fallback) as decided on 2026-10-15, states the shipped total order already implements it, schedules the reducer switch post-GA and says it ''does not mirror'' the core amendment (:282-293); core ADR 2026-02-09-3 Amendment 2026-10-22 states Lamport-primary is a post-GA direction that ''needs its own ADR before it is built'' and that #6117 decision 1 does not apply to 4.0.0 (:151-166).'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-events:docs/adr/0001-cloudevents-envelope.md:268-295 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  method: git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:docs/adr/0001-cloudevents-envelope.md | sed -n '268,295p'
+  sha256: 05ad409b58085b9fde241970258f1755e46cb01416a4bdbada61c91c2b87396c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:151-166 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md | sed -n '151,166p'
+  sha256: 97dde1e5507830eb8c2eb81a9e7f46c684c5c06aa7c12b634fe92a814ba2b2b8
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: both records
+  not_covered: contracts/total-order.md (code-adjacent)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched core 4.x ADRs for a newer ordering ADR
+  result: none found; ADR 2026-10-01-2 Amendment 2026-10-30 restates wall-clock ordering
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

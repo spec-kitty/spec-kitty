@@ -1,0 +1,64 @@
+finding_id: F-G2-002
+workstream: G - Expressing invariants as checks (G2, full implementation knowledge)
+classification: observation
+view: observed
+prereg:
+  measure: I1
+  deviation: null
+subject:
+  component: charter service Gradle modules (service/*)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'The main-scope Gradle project dependency graph of the 16 service modules (api/implementation/compileOnly/runtimeOnly project() dependencies) is acyclic (0 cycles). Adding test-scope dependencies gives 1 cycle: packs -testImplementation-> pack-validation -api-> packs. Against the recorded baseline (the ''Depends on'' column of docs/architecture/hexagonal-service.md), 5 of the main-scope module edges are absent from the table: activations->charter-api, packs->charter-api, packs->missions, packs->profiles, packs->routing (the last three are recorded elsewhere in the same document and in settings.gradle.kts comments citing ADR-0037/ADR-0080). At package level, grouping by the package root ai.speckitty.charter.<slice> yields one 5-slice SCC (activations, missions, packs, profiles, routing), which disappears (0 SCCs) when grouped by slice plus ring (domain/application/infra.<x>); 2 package-level SCCs exist, both within packs (packs.domain with .graph and .rules; packs.infra.storage with
+  .markdown), of 78 packages.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/charter_java_checks.json
+  method: git archive 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a | tar -x -C charter; python3 -I check_g2_java.txt charter out
+  sha256: 0a0e045f2082908a0cb91daa46c588f55446a0b7e8aeaa2fa5b38bbb8a42fc8b
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+  observed_at: '2026-11-28T09:10:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_java.txt
+  method: check script (stored as .txt)
+  sha256: ad07924738e9396f6dee4f0d414882b24db1f2a61cedeacea814cf0639d0e92c
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+  observed_at: '2026-11-28T09:10:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/G2/charter_cross_slice_package_edges.csv
+  method: aggregation of charter_java_edges.csv (full file kept in scratch, sha256 c047e12775e7c818f223fcee7ff42412e8a8691fd016bb9047644467d24a4436)
+  sha256: be05232047b98ddc4261d23ba6585cb95653be035818b922b92bc86d6ffd06d9
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+  observed_at: '2026-11-28T09:10:00Z'
+scope:
+  covered: service/*/build.gradle.kts project() dependency lines; 1,003 main Java source files; the documented module table.
+  not_covered: Generated sources (charter-api is generated at build time and absent from the tree), build-logic convention plugins, contracts/ and client-java modules, test source sets for package-level graphs, cycles that ArchUnit would see through reflection or generics only.
+  population: 16 service modules; 78 main-source packages; 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Searched for an ArchUnit slices().beFreeOfCycles() rule or a freeze store (grep ''Cycles|cycle|freeze|FreezingArchRule'' over service/**/*.java; find archunit*.properties): none. Regrouped package edges by slice+ring to test whether the slice-level SCC is an artefact of edge modules sharing a package root.'
+  result: No cycle rule or frozen baseline exists in the Java repository; the slice-level SCC is produced by the -edge modules sharing package roots with their domain modules (missions-edge uses ai.speckitty.charter.missions) and vanishes at ring granularity. Gradle itself refuses project cycles within one configuration, so main-scope module cycles cannot occur in a building tree.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- maintainability
+candidate_invariants:
+- The Gradle main-scope module graph is acyclic and every module edge appears in the documented module table.
+open_questions:
+- Which document is authoritative for module edges when the table and the prose of hexagonal-service.md disagree?

@@ -1,0 +1,44 @@
+finding_id: F-D1-002
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: first-deliverable (pin and lock surface)
+  deviation: null
+subject:
+  component: integration pins (all repositories)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Pin-to-head distance on 2026-11-28, per surface: core->open-packs built-in 665 commits / 25 days; core->open-packs internal 646 / 35; core->events read service 114 / 27 (one service tag behind: rc.1 pinned, rc.2 exists); core->doc-kitty toolkit 144 / 13; open-packs->charter 178 / 8; charter->open-packs 344 / 13; events->core 4369 / 29; doc-kitty->charter contract 182 / 8; doc-kitty->open-packs corpus 53 / 4. The four consumers of open-packs trees (core built-in, core internal, charter, doc-kitty) pin four different open-packs commits. Released wheel 4.0.0rc8 carries the same external pins as core head (only the companion pin differs) and is 1209 commits behind head.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: commit and day distances for every commit/tag pin whose target repository is one of the five primary clones
+  not_covered: e2e-testing pin (target not measured); distances count all reachable commits, not first-parent
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: checked whether any pin equals its target's head
+  result: none does; closest are doc-kitty->open-packs (53 commits) and the two charter-tag pins that equal the newest tag of their line (open-packs->charter service-v0.1.0-rc.3; doc-kitty->contract-packs-v0.1.0-rc.2)
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+candidate_invariants: []
+open_questions: []

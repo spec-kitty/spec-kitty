@@ -1,0 +1,60 @@
+finding_id: F-B2-012
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: M03c
+  deviation: null
+subject:
+  component: modules without an enforced structural rule
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: Of 17,131 Java main lines, 944 (5.5%) are in a module no architecture rule covers (java-binding, package ai.speckitty.events.cloudevents; its build declares no ArchUnit dependency). The Python package spec_kitty_events (18,399 main lines) and the Python tooling under contracts/ (6,254) and scripts/ (8,493) have no test or lint rule that states an intended import structure. Counting all three languages' main code in the repository (54,423 non-blank lines), 16,187 (29.7%) is in modules with an enforced structural rule.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-arch-rule-files.csv
+  method: python3 script-arch_rule_inventory.txt ...
+  sha256: 2e3aac94585f41c3e8813c6f96c3199524ceab36d205f962019d25bd5ace7ac5
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:37Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-events.csv
+  method: python3 script-loc.txt ...
+  sha256: 824bdae161e0ef054bd252a00db248454fd0bdc3e94d10a999eb98d9c13c98d1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:20Z'
+- id: E3
+  kind: document-claim
+  reference: java/build.gradle.kts:23-31
+  method: 'read at head: dependencies of java-binding'
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: All Gradle modules, the Python package, contracts/ tools and scripts/.
+  not_covered: Rule strength. Contract and schema conformance gates are not structural rules and are not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep for import-linter, importlinter, pytestarch, grimp and ast.parse in tests/, scripts/ and pyproject.toml; read the tests that use ast.
+  result: No import-structure gate. tests/test_local_only_removed.py asserts one removed name stays absent; the other ast users are conformance and corpus tests.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

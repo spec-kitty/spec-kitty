@@ -1,0 +1,60 @@
+finding_id: F-D2-014
+workstream: D2 - Independence of the Java services
+classification: observation
+view: observed
+prereg:
+  measure: M04e
+  deviation: null
+subject:
+  component: 'mission-status projection: two implementations'
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Two implementations of the mission-status projection exist and both met the same corpus here. Core's test tree holds a Python reference ('oracle', tests/contract/_mission_status_*.py, importing specify_cli.status.reducer and tail_reader); its conformance test regenerated the goldens of the pinned fixtures and passed 53 of 53 tests, including the byte-for-byte comparison of every generated file. The released Java binary answered the same goldens byte for byte for the 33 bodies replayed (F-D2-003). The fixture manifest labels the goldens 'python-golden' and lists the constructs where Python and Java regular expressions differ.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04e-core-oracle-conformance.txt
+  method: PYTHONPATH=src:. python -m pytest tests/contract/test_mission_status_conformance.py -q -n0 -p no:cacheprovider
+  sha256: a7e8388924d112690d08e582d9004aad0958c5fea3ab7e87e3c245a926c4c00c
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; pytest; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04a-replay-rc1-native.json
+  method: python3 replay_smoke.py <fixtures rc.1> <smoke goldens at 2f5e0394> <bundle mission-status/openapi.yaml> out -- mission-status-api-0.1.0-rc.1-linux-x64
+  sha256: 1582048a305af9e598eda412f06ec10440064e9dd14d45d3bf6175a0b655da14
+  exit_code: 0
+  environment: python3 3.13; native binary sha256 e78c8311...; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a7:.github/workflows/ci-nightly.yml:2434-2444
+  method: git show; a nightly job compares the pinned binary with the Python oracle over the repository corpus
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: The Python side over all pinned fixture trees; the Java side over the 14 trees of the published replay set.
+  not_covered: The artifact-conformance cases and 28 fixture trees were not replayed against the Java binary; the nightly whole-corpus comparison was not run.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a golden on which the two sides disagree.
+  result: None in what was run. The Python reference is test code and is not shipped as a service; core reads status in-process through its own modules.
+relations: []
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- verifiability
+candidate_invariants: []
+open_questions: []

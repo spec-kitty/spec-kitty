@@ -1,0 +1,50 @@
+finding_id: F-G2-012
+workstream: G - Expressing invariants as checks (G2, full implementation knowledge)
+classification: observation
+view: observed
+prereg:
+  measure: I6
+  deviation: 'Four attempts: two lost to the Gradle daemon being killed (host memory pressure, then session interruption), one failed because a source archive has no .git; the fourth used a git clone with --max-workers=2 and a 1536 MB heap.'
+subject:
+  component: charter service build (spec-kitty-charter, Gradle verifyAll)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'In a git clone of the charter repository at head, with no spec-kitty-open-packs sibling, without running syncPacks, and with every library resolved from the Maven Central mirror, ''./gradlew verifyAll'' succeeds (BUILD SUCCESSFUL, 249 actionable tasks, 45 min 33 s with 2 workers): 16,177 JUnit tests, 0 failures, 0 errors, 10 skipped (all for environment assumptions: golden-update flags, running as root, not on GitHub Actions), including HexagonalArchitectureTest 99/99. The same build from a non-git source archive fails at contracts:checkPacksChangelog, which reads git tags. verifyAll produces library jars only; no runnable distribution was installed or started (java -jar on the pack-doctor jar reports no main manifest attribute).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/I6_charter_gradle.txt
+  method: git clone --shared /home/user/spec-kitty-charter; git checkout 06cdfbe9; ./gradlew verifyAll --continue --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=512m'; JUnit XML aggregation
+  sha256: e84127fbca59c7e5fd9abe9b36636f5b08eaae004a7a57e06818c61caeef99aa
+  exit_code: 0
+  environment: Gradle 9.8.1 (wrapper), Temurin 25.0.5, CPython 3.13.18 (XML aggregation)
+  observed_at: '2026-11-28T12:10:03Z'
+scope:
+  covered: verifyAll over all subprojects and build-logic, in one checkout form.
+  not_covered: Release tasks (service-release assets, native images), the deployable boot jar, starting the service, mutation testing (excluded from verifyAll by design), packs/internal and packs/qa trees (not synced).
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Ran without the open-packs sibling to expose any hidden source dependency; inspected all 10 skipped tests for an absent-input reason.
+  result: No test skipped or failed for want of another repository's source; the only checkout-form dependency is git history.
+relations:
+- type: supports
+  target: F-G2-004
+- type: supports
+  target: F-G2-008
+analyst:
+  profile: architect-alphonso
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- buildability
+- independence
+candidate_invariants:
+- The charter repository builds and passes verifyAll from its own git checkout plus published artefacts.
+open_questions: []

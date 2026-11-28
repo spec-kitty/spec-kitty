@@ -3,51 +3,26 @@ doc_status: draft
 updated: '2026-11-28'
 ---
 
-# Status of the investigation
+# Status
 
-**Interrupted on 2026-11-28.** Seven workstream agents stopped when the account's weekly usage limit was reached (reset announced for 2026-12-01 16:00 UTC). Nothing in this folder is final. No synthesis, review, evaluation or report has been started.
+| Stage | State |
+|---|---|
+| 0. Predictions of the outside observer | Not yet returned. No finding has been disclosed to the observer. |
+| 1. Investigation | Complete. 18 workstreams, 414 finding records (393 observations, and 21 interpretation records held back from the first phase of the synthesis), 24 mutation patches. |
+| 2. Synthesis | Running: two synthesisers in parallel, a third after them. Input is the evidence-first packet in `synthesis/input/`. |
+| 3. Adversarial review | Not started. |
+| 4. Post-hoc evaluation | Not started. |
+| 5. Dialectical review | Not started. |
+| 6. Report | Not started. |
 
-## Workstreams
+Nothing in this folder is final until stages 3 to 5 are complete.
 
-| Workstream | State | Findings |
-|---|---|---|
-| A1 recorded intent | complete | 38 |
-| A2 terminology | complete | 20 |
-| B1 core Python structure | complete | 27 |
-| B3 documented relationships against the observed graph | complete | 13 |
-| C evolution and change coupling | complete | 33 |
-| C2 blind replication of C | complete | 32 |
-| E1 assurance inventory and experiment PX-01 | complete | 35 |
-| E2 mutation author | complete | 7, with 24 patches |
-| G1 invariant checks from public information | complete | 12 |
-| H06a answers from documentation | complete | 21 |
-| H06b check of those answers | complete | 13 |
-| B2 Java services and doc-kitty structure | interrupted | partial evidence only |
-| CX comparison of C and C2 | interrupted | 13 findings written, no report, unverified |
-| D1 integration surface and independence, Python side | interrupted | partial evidence only |
-| D2 independence of the Java services | interrupted | partial evidence only |
-| E3 gate runner for the mutations | interrupted | partial evidence only |
-| F allocation of execution responsibilities | interrupted | partial evidence only |
-| G2 invariant checks with implementation knowledge | interrupted | 10 findings written, no report, unverified |
+## Finding records per workstream
 
-Files under `evidence/` and `findings/` of an interrupted workstream are unfinished and unreviewed, and their manifests are unchecked. They must not be cited until the workstream is resumed and completes.
+A1 38, A2 20, B1 27, B2 35, B3 13, C 33, C2 32, CX 13, D1 31, D2 22, E1 35, E2 7, E3 19, F 28, G1 12, G2 15, H06a 21, H06b 13.
 
-## What is not yet measurable
+## Limits and declared breaches
 
-- H04 (independence matrix): depends on D1 and D2.
-- H07 (execution responsibilities): depends on F.
-- H08 (invariant expressibility): depends on G2.
-- Mutation detection and scenario AS-06: depend on E3.
-- Replication status of workstream C: depends on CX.
-- The Java part of H03: depends on B2.
+These are listed in `synthesis/coordinator-procedure-notes.txt`. In short: the events Gradle build never succeeded in this environment, so everything that needed it is not assessable; one cited repository (`spec-kitty-go`) is not attached; an account usage limit interrupted seven workstreams, which were resumed; four workstreams declared procedure breaches and two were briefed incompletely by the coordinator.
 
-## Known limits recorded so far
-
-- Memory: several builds and the layer-rules gate of core were stopped by the container's memory limit while agents ran side by side. These are limits of the environment, to be re-run serially.
-- Briefing gaps by the coordinator: H06b was not given the question texts; A2 was not given the definitions of the outside terms.
-- Declared procedure breaches: B3 saw part of the observed graph before fixing its mapping rules; H06a had agent-guidance files in context during its documentation-only run.
-- Each workstream's own deviations are in its report under `workstream-reports/`.
-
-## To resume
-
-Resume the seven interrupted workstreams from their briefs in `dispatch/` (their scratch work may be lost if the container was reclaimed; the briefs are sufficient to restart). Then run the two memory-blocked checks serially, then the stages in `04-approval-and-dispatch.md`: synthesis, adversarial review, post-hoc evaluation, dialectical review, report.
+The coordinator has not read the workstreams' conclusions and gives no reading of the results here.

@@ -1,0 +1,61 @@
+finding_id: F-B2-029
+workstream: B2 - Observed structure, Java services and doc-kitty
+classification: observation
+view: observed
+prereg:
+  measure: shared schemas or contracts duplicated between repositories
+  deviation: null
+subject:
+  component: vendored packs contract
+  repository: spec-kitty/doc-kitty
+  revision: 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  revision_kind: head
+claim: '7 packs-contract files are defined in both the charter repository (contracts/packs/) and doc-kitty (src/lib/packs/contract/). At both heads 4 of 7 are byte-identical (policy, pack-manifest, preset and pack-document schemas) and 3 differ: pack-descriptor.schema.json (line similarity 0.976), file-kinds.yaml (0.918) and conformance/classifier-cases.yaml (0.794). The doc-kitty copy carries a lock naming the charter commit and tag it was taken from and a SHA-256 per file. Two more exact copies exist as doc-kitty test fixtures: one schema from core (tactic.schema.yaml) and one from the events package (decision_input_answered_payload.schema.json).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-identical.csv
+  method: python3 script-dup_schemas.txt dup-schemas
+  sha256: f908a7ad5b083bca15dfb3556a6cd4d292a5983d911f2654f9a6e618989830e6
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:24Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-same-name.csv
+  method: same
+  sha256: 976131d49fa40016a62bfb577ec77f1956adde1d00ee8159c50fca51c122457a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:24Z'
+- id: E3
+  kind: document-claim
+  reference: doc-kitty src/lib/packs/contract/contract.lock.json:1-15
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: 2,228 schema and contract files across the five repositories, matched by SHA-256, canonical JSON hash and basename.
+  not_covered: Schemas embedded in source code (Pydantic models, Java records) and files renamed between repositories.
+  population: 2,228 tracked files selected by name or path (events 1,389, charter 686, core 103, doc-kitty 49, open-packs 1)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for copies with equal canonical JSON but different bytes (reformatted copies).
+  result: 'None: every cross-repository match is byte-exact or differs in content.'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- contract clarity
+- evolvability
+candidate_invariants: []
+open_questions: []

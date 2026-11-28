@@ -1,0 +1,69 @@
+finding_id: F-B1-018
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: exception leakage
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Exception leakage at head: 542 exception classes are defined in src/. Of 3,770 `except` clauses and `raise` statements that name one of them, 1,651 (43.8%) are in a different component from the class definition: 1,499 catches and 152 raises. 259 of the 542 classes (47.8%) are caught or raised by name outside their defining component, over 231 ordered component pairs. The largest pairs (defined in -> used in, caught/raised): mission_runtime -> specify_cli.cli 50/43; charter.activation -> specify_cli.cli 53/4; kernel -> specify_cli.cli 52/1; specify_cli.missions -> specify_cli.cli 48/1; charter.offering -> charter.activation 36/4; specify_cli.coordination -> specify_cli.cli 39/0; specify_cli.task_utils -> specify_cli.cli 24/14. The most widely used classes are kernel.git.runner.GitCommandError (188 sites) and mission_runtime.resolution.ActionContextError (140).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/exception-leakage-summary-head.json
+  method: python3 exceptions.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 519cea9c2467a577e0a7868676c250bcebb049b176bfc0dda849af3c14f0e7bc
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/exception-leakage-pairs-head.csv
+  method: python3 exceptions.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 1f8aa0b25b4e02393a14067da413589f5c547ab219f286092d68f395a5a68df2
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/exception-leakage-sites-head.csv
+  method: python3 exceptions.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 391fd4f60f079fd591178f6951984ad8eca34425279f8fb639a742f9f1fe1f4f
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/script-exceptions.txt
+  method: authored by the analyst (copy of scratch scripts/exceptions.py)
+  sha256: 1110c1c5766f6e2bc81b0d0d297d6478a3b3acda1258c3bb35119df7d49e4a1b
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+scope:
+  covered: All class definitions, `except` clauses and `raise` statements in the 1,490 modules; names resolved through import statements with re-exports followed up to 8 hops.
+  not_covered: 10,062 named except/raise expressions exist in total; those naming builtin or third-party exceptions, or names the resolver cannot follow (assignment aliases, star imports), are not in the 3,770. A catch of a base class that also catches a foreign subclass, isinstance checks and exception classes passed as values are not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked how much of the cross-component use flows downward to the root layer (a kernel exception caught above it) as opposed to sideways or upward.
+  result: '306 of the 1,651 sites use a kernel-defined class from another top-level package. 61 sites are upward against the layer order: specify_cli-defined classes caught or raised in runtime (37) and mission_runtime (24).'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- modifiability
+candidate_invariants: []
+open_questions: []

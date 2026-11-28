@@ -1,0 +1,59 @@
+finding_id: F-C2-023
+workstream: C2 - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: recurrence (fix refixed within 14 days)
+  deviation: '''Same files'' is not defined in the brief; three overlap rules are reported instead of one.'
+subject:
+  component: core (fix commits)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Fix-class commits (rules R2/R6) followed within 14 days by another fix-class commit touching at least one of the same src files: T1 428/541 (79.1%), T2 631/956 (66.0%), T3 1,331/1,880 (70.8%). With >=50% file overlap: 306 (56.6%), 498 (52.1%), 1,041 (55.4%). With an identical src file set: 82 (15.2%), 297 (31.1%), 538 (28.6%).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/recurrence-summary.json
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: af690d1b0a4c90aa4fcbbeec8badd54802a8aedeb8316c6de0ff90c905624013
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/fix-refixed-within-14d-compact.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out (compact copy; full file sha256 07408c9e... kept in scratch)
+  sha256: 35ec87f736c79d6a735bf217a3ff53d2e7fd4626f3148d109909dba270d32a19
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/fix-refixed-exact-fileset-summary.json
+  method: exact-fileset variant
+  sha256: 78064fbb1c6788efa70ec66631ce4b2bc0d3650aa7f54f5a831d7c05686bedde
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+  observed_at: '2026-11-28T10:30:00Z'
+scope:
+  covered: Pairs of fix-class commits by file overlap and time; no semantic check that the second fix corrects the first.
+  not_covered: Whether the later fix addresses the earlier fix's defect (only the purposive chains in F-C2-025 are read).
+  population: 3,611 fix-class corrective code commits
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Tightened the overlap rule twice to see how much of the rate is hotspot co-location.
+  result: 'The rate falls from 66-79% (>=1 file) to 15-31% (identical file set): most of the loose rate is co-location in shared hotspot files.'
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,51 @@
+finding_id: F-A2-017
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: Op / invocation
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '''Op'' is status ''candidate'' (Applicable 3.x) in core docs/context (planning-and-tracking.md:96) and ''active'' in the open-packs foundation glossary (:1982). Op and ''invocation'' name one record (kitty-ops/<invocation_id>.jsonl, ops-vs-missions.md). In events, ''op'' is also a Zeitgeist transport envelope field (harness_observation.py:8) and OpsInvocation names ''operations tooling ... invoked outside a mission run'', one ''invocation attempt'' (ops_invocation.py:1-10). No glossary relates these.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: row D20
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-events@646e330:src/spec_kitty_events/ops_invocation.py:1
+  method: read docstring
+  sha256: null
+  exit_code: null
+  environment: null
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Glossary entries and module docstrings.
+  not_covered: Whether core ever emitted OpsInvocation.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched events glossary for Op/invocation entries.
+  result: None.
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

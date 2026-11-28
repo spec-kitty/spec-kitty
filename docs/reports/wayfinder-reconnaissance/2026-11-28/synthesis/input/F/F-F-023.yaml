@@ -1,0 +1,53 @@
+finding_id: F-F-023
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: supplementary single case
+  deviation: null
+subject:
+  component: this investigation as a unit of execution
+  repository: spec-kitty/spec-kitty
+  revision: 4388800275 (working tree)
+  revision_kind: head
+claim: 'Single case, not generalisable. Running this investigation''s 6+ parallel executors used none of core''s execution-unit identities: the research Mission holds 0 work packages and no lanes.json, 0 Ops were opened for workstreams, and executor start, model choice, liveness, cancellation and result collection were held by the external agent tool. Core''s surfaces were used for governance context (profile show, charter context) and Mission scaffold creation only.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/ops-log-checks.txt
+  method: commands listed
+  sha256: 911d390f93ac67cae88ca27f922a79625476146a4b22bf279c4d9516231d473f
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/F/ops-log-corroboration.csv
+  method: entries 4,5,8,9
+  sha256: 9ca5159531c4d33fa7a2837b464c39651d99c082da54f19d0a9255814f38758f
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: Root checkout state on 2026-11-28
+  not_covered: Other workstreams' practice beyond what the log states
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for Op records, WP files, lanes.json or run index entries for the Mission
+  result: None
+relations:
+- type: supports
+  target: F-F-003
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

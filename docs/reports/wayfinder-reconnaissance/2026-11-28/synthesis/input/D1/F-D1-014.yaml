@@ -1,0 +1,52 @@
+finding_id: F-D1-014
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04d
+  deviation: The brief asks for the lowest and the highest admitted events/tracker versions; the ranges admit one published version each, so the matrix collapses to one combination per core build. Core's tests refuse an installed wheel (see F-D1-014), so for 4.0.0rc8 the named checks ran from the v4.0.0rc8 source export inside a venv built from the rc8 wheel's dependency set, not against the wheel's own modules.
+subject:
+  component: core test harness
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Core''s test suite cannot be pointed at an installed wheel: with pytest''s pythonpath cleared so that specify_cli resolves to site-packages, every one of the 13 named files ends in INTERNALERROR ''specify_cli imported from outside this checkout'' (exit 3) on both the rc8 wheel and the head wheel. The guard (tests/_support/import_origin.py) states it has no opt-out. The checks that cover the events/tracker seam therefore exercise the source tree, never the distributed artefact.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04d-attempt1-wheel-import_rc8-wheel_events-11.3.0_tracker-0.5.2.txt
+  method: python -m pytest -o pythonpath= <file> in a venv holding the rc8 wheel
+  sha256: 3ede2450bc6cca37c356f50157f7ca0f4b552d3af059b14b39a5515167efb2da
+  exit_code: 3
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:49:50Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04d-attempt1-wheel-import_EXPLORATORY_head-wheel_events-11.5.0-unreleased.txt
+  method: same with the head wheel
+  sha256: d9f4d21f03b7d01e2b91fa3604c1e924af648ccc228a7ef092df123d594c2cb9
+  exit_code: 3
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:50:36Z'
+scope:
+  covered: 13 files x 2 wheels
+  not_covered: core's own wheel-install CI lanes (clean-install-verification) were not read or run
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for an environment switch or marker that lets a test run against an installed distribution
+  result: none in tests/_support/import_origin.py; its docstring says a lane that tests an installed wheel must still run under pythonpath=src
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- testability
+candidate_invariants: []
+open_questions: []

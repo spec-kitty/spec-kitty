@@ -1,0 +1,51 @@
+finding_id: F-C-027
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: narrative-chains
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: T3 change chains (purposive)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Four chains chosen by hand in T3 (tag: purposive). #6164 (removal of the hosted, sync and drain surfaces, 2026-10-14): 14 citing code commits from 2026-10-13 to 2026-11-20, 6 fix-subject, 24 components. #5668 (approval-stamp bound, 2026-10-05): 5 commits to 2026-10-17, 4 fix-subject, 9 components. #4941 (clock-ahead approval): 4 commits from 2026-09-26 to 2026-11-03, the code fix on 2026-10-15 raising the events dependency pin. #7747 (one landing proof for lanes, 2026-11-24): 17 commits in three days, 15 fix-subject, 6 components.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/narrative-chains-summary.csv
+  method: same
+  sha256: 98005cc29a8468f6e7470cc317ba08f623db2a14617cb25a2fcd35f23bbbb2be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/narrative-chains.csv
+  method: inline selection by reference number over commits.csv and commit bodies (purposive)
+  sha256: 8e86839b7bcb378cf70720abfc919174ba15abe155a6bfadde655cadd5c740fb
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Code commits whose subject or body cites the reference number.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: purposive, 4 chains
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a T3 chain whose corrections stop at the first change.
+  result: None among the four chosen; they were chosen because they have followers, so they say nothing about how common such chains are (see F-C-024 for rates).
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

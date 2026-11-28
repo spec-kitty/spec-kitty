@@ -1,0 +1,59 @@
+finding_id: F-E1-026
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: M05a
+  deviation: null
+subject:
+  component: superseded-migrations table
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The superseded-migrations table holds 12 entries at head; all 12 were added between 2026-10-25 and 2026-11-28 (7 in the first two days, the latest on 2026-11-28), none was removed, and 10 carry an issue reference in their comment.
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head); row superseded-migrations
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: history-derived
+  reference: evidence/E1/ledger-entries-compact.csv
+  method: first_seen of the 12 entries
+  sha256: 9ea34640822e171a63223bfb5b8560c6f5ad404d5ddaaa54a1992b9744b381f2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: document-claim
+  reference: src/specify_cli/upgrade/supersession.py:29-64 at 5c4fc5a79d
+  method: the table
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: History of the one file.
+  not_covered: Whether each successor migration covers all effects of the migration it replaces.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the table existed in another file before 2026-10-25.
+  result: The module docstring dates the mechanism to an ADR amendment of 2026-10-25; no earlier table found.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

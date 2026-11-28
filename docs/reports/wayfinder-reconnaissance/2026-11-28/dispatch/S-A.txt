@@ -1,0 +1,14 @@
+# Synthesis brief S-A: hypothesis assessment, coupling, deviations, assurance
+
+Profile: synthesizer-sam. Scratch id: ws-SA. Read R/dispatch/SYNTH-COMMON.txt first.
+
+Phase-1 file: R/synthesis/S-A-phase1.md (your own reading per hypothesis, written before phase 2).
+Differences file: R/synthesis/S-A-differences.md.
+
+Produce:
+
+1. R/synthesis/hypothesis-assessment.md (may run to 4,000 words). For each of H01 to H08: the criteria quoted from section 6 of the pre-registration; each measure with its value, denominator, revision and the finding ids; whether the support criterion and the contradiction criterion are met; the verdict (supported, contradicted, inconclusive, not assessable); the strongest evidence against your verdict; what was not measured; any deviation or declared breach that touches it. For H01 report deterioration and cause separately, report the convergence apart, and report the comparison for the periods before and after the window. Report the blind replication (C against C2) measure by measure with the 10% rule. Report the experiment PX-01 and its outcome. Report the acceptance scenarios of section 8 one by one: demonstrated, partly, not demonstrated, not assessable, with finding ids.
+2. R/synthesis/hypothesis-finding-map.csv: finding_id, hypothesis or scenario, role (supports, contradicts, context), decisive (yes or no). The findings on which a verdict rests are the decisive ones; the review will reproduce every one of them.
+3. R/synthesis/coupling-and-deterioration.md: what the measured series show about coupling and its change over time, by period, per the discontinuity rules.
+4. R/synthesis/deviation-catalogue.md: every observed departure of implementation from recorded intent, each with the record, the observation, whether a recorded exception covers it, and the view. A conflict between a recorded decision and a proposal is not a deviation; list those apart.
+5. R/synthesis/assurance-gaps.md: what the existing gates check and do not check, the mutation results per class (E2 against E3, including not assessable cells), and the detection routes for the sampled cross-component fixes.

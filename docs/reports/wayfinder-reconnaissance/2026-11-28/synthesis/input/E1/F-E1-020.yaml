@@ -1,0 +1,51 @@
+finding_id: F-E1-020
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: M05c
+  deviation: null
+subject:
+  component: tracking references on ledger entries
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '420 of 3,357 file-ledger entries (12.5%) carry an issue reference, an ADR reference or a retirement condition in their own text or attached comment; without the two lint baselines it is 336 of 1,092 (30.8%: 308 with an issue, 47 with an ADR, 49 with a retirement condition). Per ledger the share ranges from 0% (charter.activation boundary baseline, built-in pack provenance baseline, coverage baselines, mypy quarantine, global-state allowlists) to 100% (inline meta reads, mission-type reader exemptions, widened dead symbols, deferred OS-detection exemptions). At ledger level, the header of 17 of the 28 non-empty file ledgers names an issue, 5 name an owner and 4 a retirement condition. Inline markers: 44 of 429 (10.3%) outside the noqa scan.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head); columns share_with_ref, with_issue, with_adr, with_retirement_condition, header_*
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/ledger-totals.json
+  method: aggregation
+  sha256: 212ac343335d6a1bc7b6fb21c7e834c50d21d0ee688ba17a12122dcd54eeced2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Keyword and pattern matching on each entry's own fields, its attached comment block and, for the dead-symbol allowlist, its category record.
+  not_covered: A reference held only in the ledger header or in _baselines.yaml is counted at ledger level, not per entry. The patterns can miss a reference written in another form and can match a number that is not an issue.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Read 60 sampled entries by hand (the two samples of the exception-governance finding) and compared with the automatic flags.
+  result: Three automatic flags were wrong in the 60 (two rationale misses on exemption lines, one false retirement match on a test name); the hand reading is used for the sample finding.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

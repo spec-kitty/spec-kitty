@@ -1,0 +1,69 @@
+finding_id: F-E3-006
+workstream: E3 gate runner for controlled mutations
+classification: observation
+view: observed
+prereg:
+  measure: E3 detection counts overall, by subtlety and by repository
+  deviation: Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n 4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt.
+subject:
+  component: 24 E2 mutations against the frozen gate set
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Overall: 16 of 24 mutations detected (16 of 23 assessable); 15 by a gate per-change CI selects for the diff, 1 only by a local tool, 0 only by lint or type checks; 7 not detected; 1 not assessable. 15 of the 16 detecting failures name the violation. By subtlety: blatant 7/8, moderate 4/8, subtle 5/7 assessable (5/8 overall). By repository: spec-kitty 11/15, spec-kitty-charter 2/4, spec-kitty-events 2/3 assessable (2/4 overall), spec-kitty-open-packs 1/1. By kind of detecting check: 11 by an architectural gate (AST scan, pytestarch or ArchUnit), 3 by behaviour tests of the touched module, 1 by content-drift checks, 1 by an unwired contract tool.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/detection.csv
+  method: drivers in evidence/E3/script-*.txt
+  sha256: 03f998275495744b04d38db44f85ce6814f4acdd45b37181345cba495d4c701b
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/E3/detection-counts.txt
+  method: python tally over detection.csv
+  sha256: f1add3603ff7d30ede1b154c63b54ff20262b9bd0e02178ab7a98225202c9893
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/E3/gate-selection.json
+  method: scripts/ci/gate_selection.py select_gates/select_modules/select_battery_gates(mode=pr) on each core patch path set (script-select.txt)
+  sha256: 5db581e3bf3ba686a220080359f0297fe1b30925fad559ed85e55d4d16e144ea
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+  observed_at: '2026-11-28T13:35:00Z'
+scope:
+  covered: All 24 mutations; 4 repositories.
+  not_covered: 244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes. M-OB-5 and the Gradle side of M-IC-3.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 24 of 24
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether any mutation counted as detected relied on a baseline-red gate, and whether any undetected mutation was caught by lint or types only.
+  result: None of either. mypy raised a new no-any-return error on M-PI-2, M-RD-2 and M-RD-3, all three also caught by an architectural gate.
+relations:
+- type: refines
+  target: F-E3-002
+- type: refines
+  target: F-E3-003
+- type: refines
+  target: F-E3-004
+- type: refines
+  target: F-E3-005
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions: []

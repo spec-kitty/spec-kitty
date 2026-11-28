@@ -1,0 +1,68 @@
+finding_id: F-H06b-011
+workstream: H06b - Checking documentation answers against code
+classification: observation
+view: observed
+prereg:
+  measure: H06b per-question check (correct against code; contradicting source)
+  deviation: The brief gives the 20 answers but not the question texts, and the files that hold them are outside the permitted inputs. Each question was inferred from its answer. The check therefore tests the answer's claims, not whether the answer addresses the question asked.
+subject:
+  component: exceptions to architectural gates
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Question 18 (run 1), on exceptions to architectural gates: the documentation-only answer is ''partly correct'' against code at head and a contradicting documentation source was ''not found''. Code: Ratchet exists (tests/architectural/test_ratchet_baselines.py: growth fails, shrink is reported). Not as stated (''every mutable allowlist governed by a baseline ... naming an issue, an owner and a drain date''): _baselines.yaml has 30 leaves and no structured issue/owner/drain keys; 5 of 30 name an owner, 3 of 30 a drain, 9 of 30 an issue number, 15 of 30 carry an inline justification; 86 of 379 gate modules define an allowlist-like constant; shrink is recorded as a report property, not a warning (evidence/H06b/code-checks-log.txt Q18). Cited source authoritative under the repositories'' own rule: yes (spec-kitty/docs/architecture/README.md:32-50 (docs/architecture + docs/adr authoritative; reader-facing docs lose; module boundaries owned by code, the enforced pair)). Run 2 (changed):
+  ''partly correct'' against code, contradicting source ''not found''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/H06b/code-checks-log.txt
+  method: bash evidence/H06b/script-code-checks.txt <dir holding `git archive 5c4fc5a79d` of spec-kitty> > code-checks-log.txt
+  sha256: 903bf91a4bf36adf41d93d13c573242c3b236977bfda2fb2634f09fefacc501f
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/H06b/contradiction-searches-log.txt
+  method: 'bash evidence/H06b/script-contradiction-searches.txt <same dir> > contradiction-searches-log.txt (frame: 1365 markdown files in docs/ trees, root READMEs and charters of the five primary repositories at head)'
+  sha256: 32a44a0a65ef8830962436f681daf84dccead76a1b9ccb44662db7c8bc5ee211
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/H06b/checks.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: 838e697f9d33e7d5d73c0b994b12cae0be7611f3e6b4b07cf3edae47aea6fd62
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/H06b/checks-run2.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: bb875fb6d58fabeeef7f977f107520ab8f5c93e3dc39b0b542d1b98586b2991c
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+scope:
+  covered: Run-1 answer 18 of 20 and, where it changed, run-2 answer 18; code and build of spec-kitty at head and the cited revisions of sibling repositories at their heads.
+  not_covered: Clauses of the answer that state a plan (not checkable against code); documentation outside the search frame (changelogs, reports, investigations, kitty-specs).
+  population: 20 run-1 answers
+  sample: 1 answer (all 20 were checked; this record carries one)
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'For the code column: looked for the code path that would make the answer fully right (gate allowlists, callers, build output) before reading the answer''s reasoning. For the contradiction column: grep patterns listed under ''Q18'' in contradiction-searches-log.txt over 1365 markdown files, then read each cited line and its status frontmatter.'
+  result: The answer's claims that hold are listed in the claim. No incompatible documentation source was found in the frame.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,68 @@
+finding_id: F-F-017
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: interruption and recovery
+  deviation: null
+subject:
+  component: interruption knowledge per holder
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'What each holder can tell about a unit that stopped mid-way, and the documented and tested recovery: (1) work package status: last lane and actor from status.events.jsonl, claim PID liveness and last lane commit time (stale_detection.py); recovery `implement --recover` (lanes/recovery.py, never advances past in_progress; tests/specify_cli/lanes/test_recovery.py passed). (2) consolidation: state.json with pre-mutation snapshot; `consolidate --resume/--abort` with single rollback authority (test_resume_frozen_anchors.py, test_consolidate_abort_rollback.py, test_single_rollback_authority.py passed). (3) Op: open record without completed line; `doctor ops` lists it, `--close-stale` closes after 24 h (test_doctor_ops.py, test_lifecycle_abandoned_7346.py passed; executed). (4) external provider: run-state file; resume adopts orphaned claimed/in_progress/for_review/in_review WPs (orchestrator tests/test_resume_orphaned.py passed; e2e resume/abort test passed). (5) the executor process itself:
+  nothing beyond the recorded shell PID; no holder records what it was doing.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/core-tests-summary.txt
+  method: named core tests
+  sha256: a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c
+  exit_code: 0
+  environment: core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src
+  observed_at: '2026-11-28T10:04:56Z'
+- id: E2
+  kind: executed
+  reference: evidence/F/orch-unit-tests.txt
+  method: orchestrator unit tests (90 passed)
+  sha256: c97f8eaadf3de928431b867a288bb3c084f0fe5ec4d16430b8dae9891e269154
+  exit_code: 0
+  environment: spec-kitty-orchestrator 8be32b1; uv venv; Python 3.11; pytest 9.2.0
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/F/orch-e2e-summary.txt
+  method: orchestrator e2e vs core head
+  sha256: e765f16de3f9c717e089616d11b8ae147d596ca341eb820b245bf47da6bc1e0c
+  exit_code: 1
+  environment: spec-kitty-orchestrator 8be32b1 + core 5c4fc5a
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: Four holders with code and tests
+  not_covered: next run interruption (run_lock, StaleAdvancePlan) not tested here; agent tool session recovery
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for any record of the executor's in-flight progress (WorkObservation producer, heartbeat writer) in core
+  result: None; progress narrative vocabulary exists only as spec-kitty-events contracts (F-F-015)
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

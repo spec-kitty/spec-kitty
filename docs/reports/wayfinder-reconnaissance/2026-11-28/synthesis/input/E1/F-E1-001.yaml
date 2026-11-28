@@ -1,0 +1,53 @@
+finding_id: F-E1-001
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-1 gate inventory
+  deviation: null
+subject:
+  component: automated architecture, contract and boundary checks
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The gate inventory holds 481 rows across the five primary repositories: spec-kitty 347 (310 generated, one per tests/architectural/**/test_*.py file, plus 37 curated rows for checks outside that directory), spec-kitty-charter 62, spec-kitty-events 55, spec-kitty-open-packs 8, doc-kitty 9. Of the 310 core architectural gate files a keyword rule over the file name assigns 135 to boundary (single owner / seam / routing), 47 to CI integrity, 32 to test hygiene, 21 to contract, 20 to docs and records, 18 to import direction, 15 to terminology, 12 to packaging and 10 to other.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/gates.csv
+  method: python3 script-gates_all.txt <scratch> gates.csv (script in evidence/E1; reads shared clones of the five repositories at head)
+  sha256: 3a271e2cbe8dcde839fcdcf00dcf437b6bd0697243301a808f3313742ba66a2d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/script-gates_all.txt
+  method: the generating script; the keyword rule is the RULES table in it
+  sha256: e7c77c9a51ee45255c7e79df3debe7c3b2e6ff01ac97034860f6c13fb7ceb0f5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: 'Every test_*.py under tests/architectural in core (310 of 310). Outside it and in the other four repositories: rows curated by hand from workflow files, Gradle build scripts and test file names.'
+  not_covered: 'Curated rows are not exhaustive: a functional test that also pins a boundary is not listed unless its name matches the patterns in the script. Charter rows are one per matching test file, so the 59 ArchUnit rules of HexagonalArchitectureTest are one row. The protects column for generated rows is a keyword rule, not a reading of each test.'
+  population: 310 architectural gate files in core; curated rows elsewhere
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for architecture checks outside the inventory by searching the four other repositories for ArchUnit, allow-list, parity, conformance and closure tests and for lint or dependency rules in build scripts.
+  result: 'Found and added: charter ModuleDependencyAllowlist (Gradle), Checkstyle register, contract lint and oasdiff compatibility; events ArchUnit tests in four modules. No import-linter or dependency-cruiser configuration exists in any of the five repositories.'
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- maintainability
+- analysability
+candidate_invariants: []
+open_questions: []

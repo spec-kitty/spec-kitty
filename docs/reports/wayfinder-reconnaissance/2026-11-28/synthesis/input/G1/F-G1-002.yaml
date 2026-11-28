@@ -1,0 +1,63 @@
+finding_id: F-G1-002
+workstream: G1 - Expressing invariants as checks (public information only)
+classification: observation
+view: observed
+prereg:
+  measure: I1/charter
+  deviation: No recorded baseline readable under the constraint; the previous service release tag was used as the baseline.
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'I1 check ran (1.0 s per tree). Baseline substituted: tag service-v0.1.0-rc.3 (cb9b1542, 2026-11-20). Gradle module graph (16 modules, 50 production-configuration edges at head): 0 cycles at head and baseline. Counting every configuration (53 edges) there is 1 two-module cycle (pack-validation, packs; the back edge is a testImplementation dependency), present in both. Ring-level package graph (45 slice.ring nodes, 160 edges, main sources): 0 cycles in both. Slice-name graph (11 names): 1 cycle of 5 names (activations, missions, packs, profiles, routing) in both. New cycles relative to baseline: 0 at every level.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/I1_charter_head_vs_rc3.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out> ; same on git-archive of service-v0.1.0-rc.3; set difference
+  sha256: 5d3e7925c0aa1951e413c273ae4b7ae90d00db34ea67bd9820989e1161822275
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-I1_cycles.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: abf23292e4583175486a3bbc9b9b1a31ea46ab0e659bb0883f0837744033317e
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/G1/charter-rc3-I1_cycles.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of service-v0.1.0-rc.3> <out>
+  sha256: f869e611fc8b8e0b6322cdf10d6716ee0e22de94bb00a946b860fd8896841e31
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: service/* build.gradle.kts project() dependencies; import statements of 1,003 main Java files in 14 modules with main sources.
+  not_covered: Test sources; reflection; Spring wiring by type; contracts/ and client-java/ modules; class-level cycles; fully qualified names used without import.
+  population: 16 Gradle modules; 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for cycles at three granularities (module, slice name, slice.ring) and with test configurations included.
+  result: Only the slice-name level and the all-configurations module level show a cycle; both are unchanged from the baseline. The slice-name cycle spans modules that share a package name (for example profiles and profiles-edge), which the published module table describes.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants:
+- No cycle in the Gradle production module graph
+- No cycle between slice.ring packages
+open_questions:
+- Is a test-configuration back edge (packs -> pack-validation) inside the meaning of 'dependency cycle'?

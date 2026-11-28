@@ -1,0 +1,60 @@
+finding_id: F-F-002
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: M07b
+  deviation: Brief asks to commit the list before classifying; the envelope forbids commits by workstreams. The list was written to evidence/F/coordination-responsibilities.txt at 09:05:36Z, before any classification, for the coordinator to commit.
+subject:
+  component: mission-coordination responsibilities (15)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Of the 15 pre-registered mission-coordination responsibilities (C01-C15), locus core runtime 14 and another ecosystem component 1 (C04 ordering of status events, held by spec-kitty-events' diary reducer called through status.reducer); state verified by execution 15/15 (0 delegated, 0 out of scope, 0 missing; denominator 15). Exception attestations (C14) and resume (C15) are reachable only from the host CLI, not from orchestrator-api.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/coordination-responsibilities.txt
+  method: written before classification
+  sha256: ba6c5eda77617cf4707e3f8fb190166c155b9a8f477e168a7731a41b0ac2782c
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/F/m07b-coordination-classification.csv
+  method: classification table
+  sha256: d7525be98e448ddaaf37b5e5b1f81cd93c0a4727644ec572cc475d73061c5c22
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/F/core-tests-summary.txt
+  method: named core test files; 1182 passed
+  sha256: a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c
+  exit_code: 0
+  environment: core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src
+  observed_at: '2026-11-28T10:04:56Z'
+scope:
+  covered: Named test files per responsibility (core-tests-summary.txt)
+  not_covered: Heavy e2e consolidation scenarios beyond test_single_branch_consolidate_e2e.py
+  population: 15 responsibilities (pre-registered list)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for any coordination responsibility a record delegates outside core (orchestrator-api docs, multi-agent-orchestration.md: ''The host, not either agent, decides which lane transitions are legal'')'
+  result: None delegated; external providers are told to call the host for every state change
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- The contrast with F-F-001 (12/14 vs 15/15) is a measured difference in allocation, not a quality judgement.

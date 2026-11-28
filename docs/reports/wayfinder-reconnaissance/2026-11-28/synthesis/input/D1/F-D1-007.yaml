@@ -1,0 +1,53 @@
+finding_id: F-D1-007
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: distribution-contents
+  deviation: null
+subject:
+  component: built-in pack provisioning
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'A source checkout of core head does not work until the built-in pack is fetched: with packs/built-in absent, charter.offering.pack_paths.built_in_root() raises BuiltInPackMissing naming `make sync-packs`. Sync succeeds with no network when the cache holds the pinned commits (both trees placed, --check ok) and fails closed with PACK_SYNC_UNAVAILABLE (exit 1) when the cache is empty, offline or online-without-network. An installed wheel needs none of this: `charter pack path built-in` resolves to site-packages/packs/built-in inside an empty network namespace. The wheel build itself fetches or verifies the tree through hatch_build.py.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04f-packs-offline.txt
+  method: fresh `git clone --shared` at 5c4fc5a7; `unshare -n python scripts/sync_packs.py --pack all --offline|--check`; repeated with an empty XDG_CACHE_HOME; then python -c built_in_root()
+  sha256: e220409785ecb6f41d71c864e809a7b373b9c767a9a37fe96e4980004f2fa22f
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:55:44Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04f-absence-services-and-status.txt
+  method: unshare -n spec-kitty charter pack list / pack path built-in with the 4.0.0rc8 wheel in a fresh project
+  sha256: 4dbb0b3bd4049b1972e9427678005ec973369bc6f97c1ebb121f13a5c89e2e2d
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:56:02Z'
+scope:
+  covered: sync script offline/online/empty-cache; runtime resolution in checkout and wheel
+  not_covered: '`make sync-services` (service extras) was not exercised; lane/coordination worktree placement'
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: tried to obtain the pack with no cache and no network to see whether any fallback tree exists
+  result: 'none: exit 1 with PACK_SYNC_UNAVAILABLE both times'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- operability
+- deployability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,53 @@
+finding_id: F-B1-020
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: CLI leakage
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'CLI libraries outside the CLI adapter at head: 59 of the 1,296 modules outside specify_cli.cli import typer, rich or click (typer 39 modules, rich 33, click 4), spread over 19 of the 73 other components. Four of them are outside specify_cli altogether: charter.activation.synthesizer.errors, glossary.checkpoint, glossary.observation and runtime.next.runtime_bridge_retrospective. Inside the adapter, 147 of 194 modules import one of the three.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/cli-library-imports-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: a73f238db5d7b9dbb2f09f27d85a932a4c4815719c8a4cee596f794e607e56cd
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/cli-library-imports-summary-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 0e6d9fead7ad9196bfb165eddf2bbf323cfa34dd69138b355c395e5d7c7efa4a
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: Every static import of the top-level names typer, rich, click in the 1,490 modules; the CLI adapter layer is taken to be the component specify_cli.cli.
+  not_covered: specify_cli/__init__.py and other root modules of specify_cli (the Typer application assembly) are counted outside the adapter because they are not under specify_cli/cli/. Use of a console object received as a parameter is not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Separated load-time from function-level and TYPE_CHECKING imports to see whether the imports outside the adapter are mostly deferred.
+  result: 18 of the 19 components have at least one load-time import of one of the three libraries; only runtime has function-level imports alone (2 records). The split per component and library is in cli-library-imports-head.csv.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,51 @@
+finding_id: F-F-025
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: M07a
+  deviation: null
+subject:
+  component: handover between executors
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Handover is state-level only. Core records a claim by another identity (forced or takeover) as a further implementer beside the implementer of record (status/review_roles.py:253-276) and orchestrator-api resolve-workspace (1.2.0) lets another orchestrator resume a for_review WP without allocating; spec-kitty-orchestrator keeps fallback_agents_tried and passes review feedback to re-implementation. No repository transfers an in-flight executor's context or session.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/F/unit-identifiers.csv
+  method: rows Retry/attempt (provider)
+  sha256: 022d75ea93b57dfc4dd4d3db5c2c58ce0ae18d3f0d78330a212b8c1329d65990
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: status/review_roles.py, orchestrator state.py
+  not_covered: Agent tool session export
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep handoff|handover|reassign in status and agent commands
+  result: Only lane-transition 'review handoff' (in_progress->for_review) and reassignment slots
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

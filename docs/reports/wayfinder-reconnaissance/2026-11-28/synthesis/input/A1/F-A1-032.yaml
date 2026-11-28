@@ -1,0 +1,67 @@
+finding_id: F-A1-032
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M2 documented dependency model (pins)
+  deviation: null
+subject:
+  component: pin graph
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+claim: 'Records describe pins in both directions between repository pairs: core pins open-packs built-in/internal (charter.md:470-471) and core''s pin file says open-packs'' own built-in.source.yaml records the opposite anchor core -> open-packs (packs/built-in.source.yaml:1-3); core pins the events read service (charter.md:400-403) and events service CI pins a core SHA test-only (events charter.md:70); open-packs pins a charter release (open-packs charter.md:22-27) while charter ADR-0008 had charter CI run against a pinned open-packs commit, replaced by charter-owned example packs in ADR-0070 (2026-11-11).'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty:packs/built-in.source.yaml:1-13 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:packs/built-in.source.yaml | sed -n '1,13p'
+  sha256: 01993a4728ea7938a87fe50327567846918feb25a2932727a80edd1a5ca7e6e2
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-events:.kittify/charter/charter.md:70-70 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  method: git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:.kittify/charter/charter.md | sed -n '70,70p'
+  sha256: 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-open-packs:.kittify/charter/charter.md:22-27 @ f9a557510dc7ff04597a0b8aba87f736e25f785e
+  method: git -C /home/user/spec-kitty-open-packs show f9a557510dc7ff04597a0b8aba87f736e25f785e:.kittify/charter/charter.md | sed -n '22,27p'
+  sha256: c9e7571c51e2baf7d2936ebd273295d4cb60cb60cc8bb6f7da33e01ee05bf847
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-charter:docs/adr/0070-charter-tests-own-example-packs-not-open-packs-content.md:1-30 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  method: git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0070-charter-tests-own-example-packs-not-open-packs-content.md | sed -n '1,30p'
+  sha256: 5778c2b6f101592aec0ff8f2bef9cd3bb62a505f5f7986fa34c83e6e04c4b158
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: pin statements in records
+  not_covered: the pin files' actual values (workstream D)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn 'pin' in the five charters and the cross-repo ADRs
+  result: the listed pairs; doc-kitty records a vendored contract snapshot rather than a pin of core
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

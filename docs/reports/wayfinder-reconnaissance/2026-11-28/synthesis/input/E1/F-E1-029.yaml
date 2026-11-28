@@ -1,0 +1,63 @@
+finding_id: F-E1-029
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: PX-01
+  deviation: null
+subject:
+  component: producer of the source_documented event
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The gathering guard counts rows of type "source_documented" in the Mission's mission-events.jsonl. In src/ at head that string occurs only in the reader and the guard. The one call site of the mission event writer writes MissionNextInvoked. The tests that pass this guard write the rows into the file by hand. The step prompt tells the agent to "follow your harness's event-emission mechanism" and names no command; no document under docs/ outside reports and archive names one. The guard of the later step output waits in the same way for a gate_passed row named publication_approved, and no writer of it was found either.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: git grep -n source_documented -- src; git grep -n "emit_event(" -- src; git grep for gate_passed / publication_approved; git grep of tests and docs
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: src/runtime/next/runtime_bridge_composition.py:347-409 and runtime_bridge_cores.py:576-587 at 5c4fc5a79d
+  method: reader functions and guards
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: document-claim
+  reference: packs/built-in/missions/mission-steps/research/gathering/prompt.md at open-packs a79c36318b (core-pin)
+  method: the instruction text
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The whole src/ tree, tests/, docs/ and the pinned built-in pack.
+  not_covered: A producer outside this repository (an agent harness or another package) was not searched; the supplementary repositories were not searched.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Searched history for a producer that existed earlier: git log -S of the string in src/.'
+  result: 12 commits touch the string; the hits at head are readers only. Whether an earlier revision had a writer was not traced.
+relations:
+- type: refines
+  target: F-E1-028
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants:
+- Every event type a runtime guard waits for has a producer reachable through a documented command.
+open_questions:
+- Was a producer removed with the mission-DSL v1 runtime on 2026-09-07, or did none ever exist?

@@ -1,0 +1,51 @@
+finding_id: F-A2-015
+workstream: A2 Terminology and concept map
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: routing disambiguation
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Core''s Routing entry (orchestration.md:830-842) names 6 live governed senses, 1 retired sense and 3 out-of-scope senses. Of the governed senses, the 5 that name an owner all resolve at head (placement: mission_runtime/resolution.py PlacementSeam; branch-target: docs/architecture/branch-target-routing.md; commit: coordination/commit_router.py commit_for_mission; dispatch/profile: invocation/router.py ActionRouter; model/task: src/charter/offering/model_task_routing/); scope routing names no owner, as the entry says. The out-of-scope significance-bands owner (significance.py make_routing_bands) also resolves. The charter service adds a use not in core''s entry: the activatable artifact kind routing_catalog (model-task routing catalog, ADR-0080).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: 'section V1: git cat-file -t and git grep at core head'
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/code-identifiers.txt
+  method: charter service identifiers (routing)
+  sha256: dadd3af209601126abe5edf0149b24e9f648d469e18876c6c3f7eb18a124787e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+  observed_at: '2026-11-28T09:33:57Z'
+scope:
+  covered: Owners named in the Routing entry.
+  not_covered: Whether each named owner is the sole owner of its sense.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked each named path and symbol for existence at head.
+  result: All exist.
+relations: []
+analyst:
+  profile: lexical-larry
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

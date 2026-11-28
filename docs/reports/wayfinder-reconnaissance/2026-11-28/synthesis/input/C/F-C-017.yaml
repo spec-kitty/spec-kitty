@@ -1,0 +1,43 @@
+finding_id: F-C-017
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01g
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: authorship of sampled changes
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Separate column, not a measure of supervision: the pull request author account is of type User for 39 of 39 (T1), 28 of 39 (T2) and 38 of 40 (T3) sampled commits and of type Bot for 0, 11 and 2. The commit message carries an agent trailer (co-author line naming a model, Agent: or session line) for 17 of 40, 32 of 40 and 29 of 40. Distinct pull request author accounts in the sample: 4, 5 and 7.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01g-review-sample.csv
+  method: python3 script-m01g.txt, then inline-steps.txt step 8 (GitHub REST read on 2026-11-28)
+  sha256: f56c2b80bc1ed8ab989f8ae68c2b4e99d330502a9f3e0cc1fd01dbabb2c68a6e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: 947 / 1,809 / 3,026 code commits
+  sample: 40 per period
+  seed: 20261128
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether Bot-authored pull requests are confined to one line.
+  result: The 11 Bot-authored cases in T2 are all on the EXPERIMENTAL line (integration bot account); the 2 in T3 are on the converged line.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

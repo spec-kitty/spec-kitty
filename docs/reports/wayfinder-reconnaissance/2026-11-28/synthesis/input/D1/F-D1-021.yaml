@@ -1,0 +1,54 @@
+finding_id: F-D1-021
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: packs
+  deviation: null
+subject:
+  component: pack validation
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e and core-pin a79c36318b7a506ca2ab26d74705c5e3e406004f
+  revision_kind: head
+claim: 'Packs vs a released CLI. `spec-kitty charter pack validate` from the 4.0.0rc8 wheel (no core source tree) accepts 5 of 5 packs at the open-packs commit core pins (a79c3631) and 0 of 19 packs at open-packs head (f9a55751); the head wheel gives the same 5/5 and 0/19; the 3.2.7 wheel has no such command (24 of 24 exit 2). Errors at head are schema errors from core''s own models (e.g. foundation: 47 schema_invalid; built-in: pack.yaml ''Extra inputs are not permitted''). In its own repository the same head trees pass validation against the charter repository''s schemas at the pinned charter commit (20 packs, 0 violations) with no core involved; that script''s header states that compatibility with core''s pack validator is no longer a requirement.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/packs-validate-results.csv
+  method: 'for each pack directory of open-packs at a79c3631 and at f9a55751 (git archive): spec-kitty charter pack validate <dir> --json with the 4.0.0rc8 wheel, the head wheel and the 3.2.7 wheel'
+  sha256: e04c148a9cc35e73ce2499753696909add6b56804ad2a6b02f96d85fbd1f2183
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04b-openpacks.txt
+  method: env -u GITHUB_TOKEN scripts/ci/validate-packs.sh
+  sha256: e80a1895b1d4037be1fb25cc2ce78c53488b97b1ec4411a78318ccfa11f09c48
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: every pack directory at both revisions x 3 CLI versions (72 runs)
+  not_covered: the charter service's composition/registration check; packs/internal at core's internal pin ecda7b00
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for any head pack that core's validator still accepts
+  result: none of 19
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- compatibility
+- interoperability
+candidate_invariants:
+- Two validators (core's and the charter repository's) currently disagree on every pack at open-packs head.
+open_questions: []

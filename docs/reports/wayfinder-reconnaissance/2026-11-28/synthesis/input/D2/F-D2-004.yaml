@@ -1,0 +1,77 @@
+finding_id: F-D2-004
+workstream: D2 - Independence of the Java services
+classification: observation
+view: observed
+prereg:
+  measure: M04a
+  deviation: null
+subject:
+  component: charter service (released artefact)
+  repository: spec-kitty/spec-kitty-charter
+  revision: service-v0.1.0-rc.3 (commit cb9b15426d17c402b06204185a17ebfbc65f22ff)
+  revision_kind: released
+claim: 'Core pins no charter service artefact (pins/ holds only read-service.source.yaml), so there is no core digest to verify. The released rc.3 artefacts match their SHA256SUMS (3 of 3 downloaded) and match the digests spec-kitty-open-packs pins in charter.lock.yaml. The linux-x64 native binary started from the release asset over the 19 pack directories of open-packs head and answered through its contract: GET /api/v1/offering 200 (19 packs: 7 built-in level, 12 org level), 401 without the bearer token, POST /api/v1/activations 201, then GET of the activation, its packs and its effective artifacts 200; the created activation was stored as 1 file under the service''s own configuration root. open-packs'' own check script, run unchanged against the pinned rc.3 jar, printed 46 ''ok'' lines and exited 0 (composition, registration of every pack through PUT, and 10 expected refusals of 5 invalid fixtures).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc3-sha256sums-check.txt
+  method: sha256sum -c SHA256SUMS --ignore-missing
+  sha256: f602173428b430e46a56268a75bf30d50a5b5dd81b1f52d5e5a72172184b2fa0
+  exit_code: 0
+  environment: sha256sum; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc3-native-run.txt
+  method: CHARTER_WORKTREE_TOKEN=<random> spec-kitty-charter-service-0.1.0-rc.3-linux-x64 --server.port=N --configRootLocation <root>; curl with bearer token; diff served contract vs released contract asset
+  sha256: 338ece9dfb97bcd82fcdd34b3d4a38ca52515bb0057dafcafdfce4f5cd0d6d6e
+  exit_code: 0
+  environment: native binary sha256 8f45a298...; curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc3-activation-probe.txt
+  method: same binary; POST /api/v1/activations then GET the activation, its packs and artifacts
+  sha256: 24a7e613f01768619507fb2e825eaef4ef98acb5b91e2fee9bdda1fa189093a3
+  exit_code: 0
+  environment: native binary; curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04a-openpacks-charter-service-check-rc3.txt
+  method: CHARTER_CONTRACT_DIR=<charter contracts/packs at cb9b1542> python scripts/ci/charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.3.jar
+  sha256: aac78c1e9b3b4608a292434a462d98dfa5fe9e8f38e54eb3c05cfde5185cdaa5
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Temurin JDK 25.0.5; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E5
+  kind: executed
+  reference: evidence/D2/release-assets-charter.json
+  method: gh api "repos/spec-kitty/spec-kitty-charter/releases?per_page=50" --jq (same)
+  sha256: c31880f9cc2cdf838db8d89f47336799c0dcd9f311f3a83f7fb11d44380b7488
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: The linux-x64 native binary and the jar of rc.3; open-packs head as the consumer.
+  not_covered: Other platforms; the container profile; the pack-check jar was verified by digest only. Attestation not verified. The packs contract was read from the charter repository at the pinned commit through CHARTER_CONTRACT_DIR instead of over the network.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for an operation that fails or needs a second component to run.
+  result: 'None among those tried. The contract document the rc.3 service serves differs from the released contract-charter-v0.2.0-rc.3 asset in exactly one line: info.version reads 0.2.0-SNAPSHOT in the service and 0.2.0-rc.3 in the asset; the response header Charter-Contract-Version also reads 0.2.0-SNAPSHOT.'
+relations: []
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- interoperability
+- deployability
+candidate_invariants: []
+open_questions: []

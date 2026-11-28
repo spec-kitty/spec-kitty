@@ -1,0 +1,45 @@
+finding_id: F-C-016
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: M01g
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement. The gh CLI (REST) was used instead of the GitHub MCP tools; both are read-only. Pull requests of EXPERIMENTAL-line commits were found by SHA search because the commit-to-pulls endpoint returns none for them.
+subject:
+  component: review of pull requests
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Of 40 sampled code commits per period, a pull request was found for 39 (T1), 39 (T2) and 40 (T3). A GitHub review by an account other than the pull request author exists for 5 of 40 in T1 (4 with an approval, all by human accounts), 0 of 40 in T2 and 0 of 40 in T3. All 120 cases were assessable; the 14 EXPERIMENTAL-line pull requests were read from the archived repository.
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01g-review-sample.csv
+  method: python3 script-m01g.txt, then inline-steps.txt step 8 (GitHub REST read on 2026-11-28)
+  sha256: f56c2b80bc1ed8ab989f8ae68c2b4e99d330502a9f3e0cc1fd01dbabb2c68a6e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Reviews recorded only in commit messages, Mission review-cycle artifacts or chat; whether a comment is a review; pull requests are counted per sampled commit (34, 34 and 36 distinct pull requests).
+  population: 947 / 1,809 / 3,026 code commits
+  sample: 40 per period
+  seed: 20261128
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Counted comments by other accounts on the same pull requests, since a review may be given outside the review object.
+  result: 'Sampled commits whose pull request has an issue comment by another human account: 3 (T1), 9 (T2), 15 (T3); by a bot account: 28, 6, 9; inline review comments by another account: 1, 0, 0. Commit and pull request text often names reviews by agent squads; these leave no review object and are not counted.'
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- auditability
+candidate_invariants: []
+open_questions:
+- Where is the record of an independent review kept for changes whose pull request has no review object?

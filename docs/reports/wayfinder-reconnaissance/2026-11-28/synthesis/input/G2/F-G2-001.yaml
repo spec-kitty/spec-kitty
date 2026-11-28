@@ -1,0 +1,71 @@
+finding_id: F-G2-001
+workstream: G - Expressing invariants as checks (G2, full implementation knowledge)
+classification: observation
+view: observed
+prereg:
+  measure: I1
+  deviation: null
+subject:
+  component: core Python top-level packages (kernel, charter, glossary, runtime, mission_runtime, specify_cli)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'At the six-package level the runtime import graph (TYPE_CHECKING imports excluded) has 2 strongly connected components: {mission_runtime, runtime, specify_cli} and {charter, glossary}. Of the 304 upward import rows that close these cycles, 303 (117 mission_runtime->specify_cli, 186 runtime->specify_cli) target specify_cli subpackages named in the two recorded allowed-exception ledgers in tests/architectural/test_layer_rules.py (10 and 22 subpackages); 1 row is in no recorded ledger: a literal-string dynamic import import_module("glossary.attachment") at src/charter/offering/missions/glossary_hook.py:115, which forms the charter<->glossary cycle. At the second-package level (190 packages) there are 3 SCCs of sizes 85, 4 and 2; no recorded baseline exists at that level, so ''new'' cannot be judged there.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/core_checks.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json
+  sha256: 43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_core.txt
+  method: check script (stored as .txt)
+  sha256: aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+- id: E3
+  kind: executed
+  reference: evidence/G2/core_L1_edge_counts.csv
+  method: aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)
+  sha256: 84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+  observed_at: '2026-11-28T09:12:00Z'
+- id: E4
+  kind: executed
+  reference: evidence/G2/core_existing_gates_full_run.txt
+  method: PYTHONPATH=src:. pytest -n0 -rA on five named architectural gate files in the scratch copy at head (command at the top of the file)
+  sha256: 3053814a5d596164510a7ab6791f3785fc568aa8bde6e86e64acfd2cd33327e8
+  exit_code: 1
+  environment: pytest 9.0.3, CPython 3.11.15 (dev venv)
+  observed_at: '2026-11-28T11:32:00Z'
+scope:
+  covered: All 1,490 .py files under src/ (1,468 with at least one import), static, module-level and function-local imports, relative imports resolved, literal-string import_module/__import__/find_spec calls.
+  not_covered: Computed dynamic imports, imports executed through plugin entry points, tests/ and scripts/; historical revisions (no comparison with an earlier revision was made; 'new' is relative to the recorded ledgers only).
+  population: 1,490 source files; 304 upward import rows; 190 second-level packages
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for any recorded baseline of cycles beyond the two ledgers: grep for cycle/circular in tests/architectural/*.py and *.yaml; read the pytestarch LayerRule tests and _baselines.yaml caps (10 and 22). Re-ran the check including TYPE_CHECKING imports.'
+  result: 'No cycle baseline exists other than the two ledgers (and the console ledger for consolidation->cli.console). Running the existing gates at head (evidence/G2/core_existing_gates_full_run.txt): the ledger tests and test_charter_does_not_import_its_dependents[glossary] all PASS, so the existing gate set does not see the dynamic charter->glossary edge my check reports. The charter->glossary edge is described in a test docstring (''outside this assertion ... tracked in #7171; this check introduces no exception'') but has no ledger row; pytestarch''s static graph does not see literal-string imports. Including TYPE_CHECKING imports gives the same 2 SCCs.'
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- maintainability
+candidate_invariants:
+- Every edge that closes a component-level cycle is a row in a recorded, size-capped ledger, including literal-string dynamic imports.
+open_questions:
+- Is the 85-member second-level SCC (which includes specify_cli.cli, mission_runtime.<root> and runtime.next) intended to have a baseline?

@@ -1,0 +1,62 @@
+finding_id: F-B3-008
+workstream: B3 documented relationships against the observed component graph
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read.
+subject:
+  component: documented may-depend relationships and their use
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Documented but unused, and must-not observed. All 8 documented may-depend top-level pairs carry at least one observed import (charter->kernel 124; glossary->charter 3, ->kernel 9; specify_cli->kernel 595, ->charter 424, ->mission_runtime 200, ->runtime 40, ->glossary 15). At subcomponent level 1 of 12 documented target components is unused: nothing in glossary imports charter.offering. Use is uneven: of 67 specify_cli components, 55 import kernel, 31 mission_runtime, 27 charter, 12 runtime and 4 glossary. Documented must-not relationships that are observed: the 2 ledgered pairs only (runtime -> specify_cli, mission_runtime -> specify_cli; F-B3-004, F-B3-005); the 5 strict must-not rules have no observed edge (F-B3-003).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B3/documented-may-usage.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: b27bb0757a812f74c3a8e61b1406a8ee783b43f5e45e12f31e0ff4215a4ac8ef
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B3/d-subgroups-and-usage.json
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: e49f2943a81e3618e64456f9a61047cd8173ce0833485cf2a46e1d2c27c5d402
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B3/edge-classification-top-level.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: 7d9cc6b1167ab28242ea5e49949e6d821630ce3ae627988746b4066d1d2b15fc
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+  observed_at: '2026-11-28T09:47:00Z'
+scope:
+  covered: The three documented may-depend rows that resolve to observed components (8 top-level pairs, 12 target components) and all must-not rows that resolve.
+  not_covered: Documented relationships outside the observed table.
+  population: 8 documented may-depend pairs; 12 target components; 7 resolvable must-not rules
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each documented may-depend pair, looked for a zero-weight case at both granularities.
+  result: One zero at subcomponent level (glossary -> charter.offering); none at top level.
+relations:
+- type: supports
+  target: F-B3-003
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

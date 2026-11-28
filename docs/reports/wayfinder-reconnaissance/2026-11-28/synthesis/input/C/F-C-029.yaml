@@ -1,0 +1,59 @@
+finding_id: F-C-029
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: population-rules
+  deviation: null
+subject:
+  component: component rename map
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The rename map resolves historical paths to 99 component names (98 touched since 2026-01): 4 top-level packages, 4 charter components, and specify_cli subpackages, of which 21 no longer exist at head and keep their historical name (among them sync 302 code commits all-time, dashboard 165, zeitgeist_client 106, auth 78). 16 directory rules were applied, including doctrine to charter/offering, constitution to charter, six former charter subpackages to charter/activation, specify_cli/merge to consolidation, specify_cli/next to runtime and specify_cli/glossary to glossary.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/rename-map.csv
+  method: python3 script-build.txt (as build.py)
+  sha256: 7333c2a4968b6f03f15f48de31e4d4be715b7a334851ff4030b6808c48084c05
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/components.csv
+  method: python3 script-build.txt
+  sha256: 29433d6d8d30d07ac09f826b5b3d8c41e7e785d96f2f207e9de7be1294946861
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/script-build.txt
+  method: script source, stored as text
+  sha256: 8b51915cc939a9f827cf601a308910cd63a0616a92fa1affc923756dff6545f6
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Files whose content moved without a detectable rename; doctrine content moved out of src/ into packs/ stays attributed to charter/offering.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked the map against git rename detection for directories it does not cover.
+  result: All directory flows with three or more renamed files are covered; renames of __init__.py and py.typed are ignored on purpose because git pairs unrelated copies of them.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

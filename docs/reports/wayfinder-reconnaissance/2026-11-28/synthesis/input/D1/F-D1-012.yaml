@@ -1,0 +1,53 @@
+finding_id: F-D1-012
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: events <-> core coupling
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'M04c (across repositories). spec-kitty-events at head carries a reverse coupling to core''s source tree: service/core-pin.json and 3 generator scripts pin core commit 512567ee (4369 commits behind core head) and refuse another core HEAD; 12 non-spec files reference core paths (src/specify_cli/...), including 6 package modules (status.py, diary.py, lifecycle.py, mission_next.py, project_lifecycle.py, conformance/validators.py) and CI jobs that check out core at that SHA. COMPATIBILITY.md states that validate_transition() ''admits exactly the unforced edges of core''s lane machine (src/specify_cli/status/wp_state.py at 512567ee)''. In the other direction core reads no file of the installed events package by path (0 hits).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04b-events.txt
+  method: uv run pytest tests/unit/test_validate_transition_core_edges.py (part of the 314 passed)
+  sha256: 55dd53be55cb1b8e35ca57fc55b73161cea06dd9ac3413c11c6e4c7ebd68fdd5
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: grep for 'specify_cli/' and the 40-hex core SHA in events (non kitty-specs files)
+  not_covered: whether core's lane machine at head still equals the one at 512567ee (not diffed)
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for a core->events file-path read (importlib.resources.files('spec_kitty_events'), __file__, site-packages paths)
+  result: none in core src
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions:
+- Has core's wp_state.py edge set changed between 512567ee and head?

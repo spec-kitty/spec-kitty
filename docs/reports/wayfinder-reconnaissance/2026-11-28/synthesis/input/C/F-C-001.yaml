@@ -1,0 +1,44 @@
+finding_id: F-C-001
+workstream: C - Evolution and change coupling
+classification: observation
+view: observed
+prereg:
+  measure: volume-denominators
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt before measurement.
+subject:
+  component: core history
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Non-merge commits per period: T1 2,806 (950 code, 33.9%), T2 4,427 pooled (1,816 code, 41.0%; pre-fork 2,231/831, public 796/279, experimental 1,400/706), T3 10,051 (3,027 code, 30.1%). Merge commits: T1 160, T2 600 (596 on the experimental line), T3 91. Changed lines under src/ in code commits (bulk excluded): T1 438,385, T2 439,951, T3 476,670.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/volume-denominators.csv
+  method: python3 script-analyze.txt
+  sha256: 83ba94775c13e9d382993e9b371b835a93eafd0aa3e86dd8f570c4cb96334809
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Recounted code commits per month and line from commits.csv and compared the sum of the three T2 segments with the pooled row.
+  result: Segments sum to the pooled row (831+279+706=1,816); monthly rows sum to the period rows where the windows coincide. No contradiction found.
+relations: []
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

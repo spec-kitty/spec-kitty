@@ -1,0 +1,69 @@
+finding_id: F-F-009
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: observed
+prereg:
+  measure: orchestrator-api contract
+  deviation: null
+subject:
+  component: orchestrator-api vs host CLI
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'orchestrator-api consolidate-mission takes 5 options (mission, target, strategy, push, origin-check) against 33 distinct options on `spec-kitty consolidate`; the API has no resume, abort, dry-run, attestation (--attest-*), --dependency-ref, retention (--keep-*/--delete-branch), --release-branch or --retarget. The API states this itself: consolidation.py:580 and :635 append ''attestation is done with `spec-kitty consolidate` (CLI only)''. Its stale-lane failure text (1.31.0) prints a re-review route made of host CLI commands (`spec-kitty agent action implement ... --incorporate`, `move-task`, `spec-kitty consolidate`; lanes/stale_check.py:273-294), which host-boundary-rules.md Anti-pattern 2 tells external systems not to call. The API also has no verb for Op/dispatch, implement --recover, doctor or review-feedback capture.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/oa-verb-options.txt
+  method: spec-kitty orchestrator-api <verb> --help (4 verbs)
+  sha256: 27843aabcdcf115a18e4d79a9ddfe6a37ff8398549bd1980561599862d6852b8
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: executed
+  reference: evidence/F/cli-consolidate-options.txt
+  method: spec-kitty consolidate --help | grep -oE '--[a-z-]+' | sort -u
+  sha256: 48eb52a6ba99f1275b90b22e0f0f59fb6572fe9692f48a07392ea552c878cb5c
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E4
+  kind: document-claim
+  reference: src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md:87-98 at 5c4fc5a
+  method: sed -n 87,98p
+  sha256: null
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: consolidate, accept, transition, start-implementation verbs; 27-verb list
+  not_covered: Design-phase verbs compared with their CLI counterparts
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for API flags or verbs carrying attestation, resume, abort or incorporate
+  result: None; consolidation.py imports the CLI module specify_cli.cli.commands.consolidate (line 286) and reuses it
+relations: []
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- interoperability
+- operability
+candidate_invariants: []
+open_questions: []

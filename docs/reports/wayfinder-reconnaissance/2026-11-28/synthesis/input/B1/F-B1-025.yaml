@@ -1,0 +1,45 @@
+finding_id: F-B1-025
+workstream: B1 - Observed structure, core Python
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'During the bootstrap probes the CLI wrote into the user''s home directory: after the commands `spec-kitty --version`, `--help`, `agent profile list`, `charter context --action review --json` and `agent tasks status` had run in the clone with HOME pointed at an empty scratch directory, that directory held .agents, .claude, .cursor, .kilocode, .qwen, .kittify, .local and .spec-kitty-cold-install (for example .kilocode/skills/spk-*/SKILL.md).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B1/boot-00-sequence.txt
+  method: 'written by the analyst: summary of the boot-* sequence'
+  sha256: 9563edbf72c1b82011783ebf7426f4757667d448771d38415f9780f2198b92f0
+  exit_code: null
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+scope:
+  covered: One sequence of five read-style commands in one clone.
+  not_covered: Which of the five commands performed the writes was not isolated; the content written was not inventoried.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked that the directories were not present before the commands (the scratch HOME was created empty, and uv was given its cache elsewhere).
+  result: The scratch HOME was empty before step 02 apart from uv's own .cache and .local entries; .local may be uv's.
+relations: []
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- installability
+candidate_invariants: []
+open_questions:
+- Which command writes the skill directories, and under which condition (first run only?).

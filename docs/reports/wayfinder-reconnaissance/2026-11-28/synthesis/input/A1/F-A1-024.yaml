@@ -1,0 +1,67 @@
+finding_id: F-A1-024
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: charter service operations and pack distribution
+  repository: spec-kitty/spec-kitty; spec-kitty/spec-kitty-charter
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533; 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: Core ADR 2026-10-03-1 says the CLI-started per-worktree charter service 'is limited to read operations' (:426-428) and core's charter describes built-in reaching consumers as a pinned, fetched tree in the wheel with consumer runtime fetch deferred (charter.md:468-477); charter repo ADRs define a service that accepts pack registration writes (ADR-0065 D1 PUT /packs/{packId}), has local and hosted deployment options (ADR-0034), and resolves built-in through the service from its published open-packs ref, superseding vendoring (ADR-0005:31, 79-80). The records do not state whether these describe different stages.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty:docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md:424-431 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md | sed -n '424,431p'
+  sha256: 8e0e8d8338ba62fc8cd8766aee99774f345cc3c7c20fcea436938f3d13e0b520
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:468-477 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '468,477p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-charter:docs/adr/0005-service-registers-and-distributes-packs.md:28-82 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  method: git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0005-service-registers-and-distributes-packs.md | sed -n '28,82p'
+  sha256: 47f49f333b7b54a6a6a28ac4316f37eeb2b3a472bafcd7982d91d6f28bca3a53
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-charter:docs/adr/0065-pack-registration-replaces-the-whole-pack.md:120-135 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  method: git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0065-pack-registration-replaces-the-whole-pack.md | sed -n '120,135p'
+  sha256: d2f346bdc2435e23368563f1c45495bb434665b005830d95f92a8b377bdfe0a4
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: cited records
+  not_covered: charter repo plans/roadmap stage mapping
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: read charter ADR-0010, ADR-0055 and core 2026-10-03-1 for a stage that enables writes or service-side pack distribution in core
+  result: core 2026-10-03-1 names write migration as stage 5 (compile first); no stage named for service-side pack distribution in core
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

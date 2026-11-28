@@ -1,0 +1,69 @@
+finding_id: F-F-005
+workstream: F - allocation of execution responsibilities
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M07a
+  deviation: null
+subject:
+  component: allocation of agent execution
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Recorded intent at head places running agents outside core: docs/architecture/multi-agent-orchestration.md:18-21 says external providers such as spec-kitty-orchestrator run agents and call orchestrator-api, and that core provides no `spec-kitty orchestrate`; ADR 2026-06-02-1 (lines 23, 37) and ADR 2026-06-02-2 (lines 25, 39) place agent invokers in the external spec-kitty-orchestrator package. The charter''s Collaboration Strategy says the SkyKitty fleet is switched off and that the operator delegates execution to a governed orchestrator.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: docs/architecture/multi-agent-orchestration.md:18-21 at 5c4fc5a
+  method: git show 5c4fc5a:docs/architecture/multi-agent-orchestration.md | sed -n 15,22p
+  sha256: null
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E2
+  kind: document-claim
+  reference: docs/adr/3.x/2026-06-02-1-pi-agent-skill-only-support.md:23,37 at 5c4fc5a
+  method: git show 5c4fc5a:<path> | grep -n 'belongs in the external'
+  sha256: null
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E3
+  kind: document-claim
+  reference: .kittify/charter/charter.md (Collaboration Strategy) at 5c4fc5a
+  method: grep -n SkyKitty .kittify/charter/charter.md
+  sha256: null
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+  observed_at: '2026-11-28T09:40:00Z'
+scope:
+  covered: core docs/architecture, docs/adr/3.x, charter
+  not_covered: Planning-repo decisions beyond a keyword search
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched core docs and ADRs for a record placing dispatch, supervision or cancellation inside core (grep orchestrat|spawn|executor|supervis)
+  result: None found; the only in-core execution primitive is the context-only invocation executor
+relations:
+- type: supports
+  target: F-F-001
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

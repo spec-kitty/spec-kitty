@@ -1,0 +1,60 @@
+finding_id: F-H06b-002
+workstream: H06b - Checking documentation answers against code
+classification: observation
+view: observed
+prereg:
+  measure: H06b per-question check (correct against code; contradicting source)
+  deviation: The brief gives the 20 answers but not the question texts, and the files that hold them are outside the permitted inputs. Each question was inferred from its answer. The check therefore tests the answer's claims, not whether the answer addresses the question asked.
+subject:
+  component: ordering of work-package status events
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Question 2 (run 1), on ordering of work-package status events: the documentation-only answer is ''correct'' against code at head and a contradicting documentation source was ''found''. Code: status.reducer.reduce calls spec_kitty_events.diary.reduce_parsed (src/specify_cli/status/reducer.py:205); materialize_snapshot calls spec_kitty_events.status.reduce, a re-export of diary.reduce (reducer.py:401; events 11.3.0 status.py:222); _order_transitions sorts by (effective at, lift flag, seq, event_id) (events 11.3.0 diary.py:1808-1846); no lamport read on the status path (evidence/H06b/code-checks-log.txt Q2). Sources that disagree: spec-kitty-events/docs/architecture/ordering-and-reduction.md:22-26 (doc_status active: timestamp is never used to order a stream; ordering is owned by (lamport_clock, node_id)); spec-kitty-events/docs/api/envelope/README.md:34,55; same ADR, unamended body spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:42 and :136 (Lamport primary; a Lamport
+  reducer honours the ADR) versus the cited Amendment at :151-166. Cited source authoritative under the repositories'' own rule: yes (spec-kitty/docs/architecture/README.md:32-50 (docs/architecture + docs/adr authoritative; reader-facing docs lose; module boundaries owned by code, the enforced pair); spec-kitty/docs/architecture/README.md:106-107 (a later ADR supersedes an earlier one explicitly) (the Amendment 2026-10-22 is an explicit amendment inside the same Accepted ADR)).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/H06b/code-checks-log.txt
+  method: bash evidence/H06b/script-code-checks.txt <dir holding `git archive 5c4fc5a79d` of spec-kitty> > code-checks-log.txt
+  sha256: 903bf91a4bf36adf41d93d13c573242c3b236977bfda2fb2634f09fefacc501f
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/H06b/contradiction-searches-log.txt
+  method: 'bash evidence/H06b/script-contradiction-searches.txt <same dir> > contradiction-searches-log.txt (frame: 1365 markdown files in docs/ trees, root READMEs and charters of the five primary repositories at head)'
+  sha256: 32a44a0a65ef8830962436f681daf84dccead76a1b9ccb44662db7c8bc5ee211
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/H06b/checks.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: 838e697f9d33e7d5d73c0b994b12cae0be7611f3e6b4b07cf3edae47aea6fd62
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+  observed_at: '2026-11-28T09:35:48Z'
+scope:
+  covered: Run-1 answer 2 of 20 and, where it changed, run-2 answer 2; code and build of spec-kitty at head and the cited revisions of sibling repositories at their heads.
+  not_covered: Clauses of the answer that state a plan (not checkable against code); documentation outside the search frame (changelogs, reports, investigations, kitty-specs).
+  population: 20 run-1 answers
+  sample: 1 answer (all 20 were checked; this record carries one)
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'For the code column: looked for the code path that would make the answer fully right (gate allowlists, callers, build output) before reading the answer''s reasoning. For the contradiction column: grep patterns listed under ''Q2'' in contradiction-searches-log.txt over 1365 markdown files, then read each cited line and its status frontmatter.'
+  result: No clause of the answer was found wrong against code. Each contradicting passage was read at its line; none carries a superseded marker at the cited lines unless stated.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

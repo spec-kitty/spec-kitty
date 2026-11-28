@@ -1,0 +1,52 @@
+finding_id: F-E1-032
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+classification: observation
+view: observed
+prereg:
+  measure: E1-9 acceptance at Mission level
+  deviation: null
+subject:
+  component: checks of accept
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The 13 checks found in the accept path (origin freshness, owned-file evidence and review independence, dirty tree, work-package endings, readiness and metadata, unchecked tasks, clarification markers, required artifacts, path conventions, branch agreement, acceptance matrix with negative invariants, non-work-package facts, and the re-judging of deferred invariants after consolidation) all read the Mission's own artifacts, its status events, or the tree and remote of the same repository. 0 of 13 read another repository, a pin file, a lockfile, a contract of another component or an architectural gate result.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/acceptance-checks.csv
+  method: read of src/specify_cli/acceptance/*.py and src/specify_cli/cli/commands/accept.py at head, with file:line per check
+  sha256: 7360df4acce8d8694fbd680307ebb61060410021d86ba88b7e59231b4d0e3406
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: supporting searches
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: src/specify_cli/acceptance/ (6 modules), cli/commands/accept.py and consolidation/wp_evidence.py.
+  not_covered: The orchestrator-api accept path was not traced separately. Negative invariants are authored per Mission and could in principle name any path in the repository; their content across Missions was not surveyed.
+  population: null
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched the acceptance and review code for pins/, source.yaml, uv.lock, tests/architectural, spec_kitty_events, spec_kitty_tracker, pytest, ruff, mypy and contract paths.
+  result: Hits are comments, a contracts/ artifact waiver for the Mission's own contracts folder, and a warning-level check of installed typer/click versions against uv.lock in mission review.
+relations: []
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- functional suitability
+candidate_invariants: []
+open_questions: []

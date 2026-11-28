@@ -1,0 +1,76 @@
+finding_id: F-A1-003
+workstream: A1 recorded intent (components, decisions, authority)
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M4 source-authority map (ecosystem-level statement)
+  deviation: null
+subject:
+  component: cross-repository authority
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+claim: 'No record in the five primary repositories or the planning repository states a general precedence order among the repositories. Cross-repository authority is stated pairwise per subject in 8 records: charter ADR-0015 (charter repo canonical for charter structure, contracts and pack schemas; consumers including core adapt, :51-58); core ADR 2026-10-03-1 Amendment 2026-10-19 (core governs seam routing only; offering internals decided in spec-kitty-charter, :384-390); events ADR-0002 and events charter.md:90-92 (events repo owns the services and contracts; services never depend on core); open-packs charter.md:15-20 (charter repo owns pack logic incl. activation; core is assembler); doc-kitty ADR-0082 D1 and ADR-0079 (doc-kitty reads producers'' published contracts only); core charter.md:536-540 (PR process delegated to planning PROGRAM.md 5-9); events charter.md:72 (PROGRAM.md section 2 governs package distribution during the programme).'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/source-authority-map.csv
+  method: hand-compiled; row repository=ecosystem lists the search
+  sha256: f27d669111a03760eb5b290519cfff298fca01605ee332b21ad33ba492331155
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-charter:docs/adr/0015-charter-repository-is-canonical-for-charter-structure.md:49-60 @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  method: git -C /home/user/spec-kitty-charter show 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a:docs/adr/0015-charter-repository-is-canonical-for-charter-structure.md | sed -n '49,60p'
+  sha256: 85754239bc40ac9579bd71cd224f5943a43bcad6b49745bbf9259cc7f252ced6
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md:378-395 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md | sed -n '378,395p'
+  sha256: 8e0e8d8338ba62fc8cd8766aee99774f345cc3c7c20fcea436938f3d13e0b520
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-open-packs:.kittify/charter/charter.md:15-27 @ f9a557510dc7ff04597a0b8aba87f736e25f785e
+  method: git -C /home/user/spec-kitty-open-packs show f9a557510dc7ff04597a0b8aba87f736e25f785e:.kittify/charter/charter.md | sed -n '15,27p'
+  sha256: c9e7571c51e2baf7d2936ebd273295d4cb60cb60cc8bb6f7da33e01ee05bf847
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+- id: E5
+  kind: document-claim
+  reference: spec-kitty-events:.kittify/charter/charter.md:70-92 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  method: git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:.kittify/charter/charter.md | sed -n '70,92p'
+  sha256: 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+  observed_at: '2026-11-28T09:30:00Z'
+scope:
+  covered: charters, READMEs, ADR trees, core docs/architecture and docs/context, PROGRAM.md, GOAL.md
+  not_covered: planning docs/ folder beyond README/PROGRAM/GOAL/decisions; supplementary repos
+  population: 6 repositories (5 primary + planning)
+  sample: null
+  seed: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grep -rn -i 'ecosystem|precedence|prevail|wins|on conflict' over the five charters, READMEs, core docs/architecture/README.md, docs/context, planning PROGRAM.md/GOAL.md/README.md/decisions/README.md
+  result: no ecosystem-wide ordering found; only the pairwise statements listed
+relations: []
+analyst:
+  profile: curator-carla
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Is there an intended ecosystem-level authority order (for example a product-line charter) that is not recorded in these repositories?
