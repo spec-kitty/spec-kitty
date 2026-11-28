@@ -8,7 +8,7 @@ date: '2026-10-04'
 updated: '2026-11-26T00:00:00Z'
 ---
 
-**Status:** Accepted. Amendment 2026-11-25 proposed (#7860).
+**Status:** Accepted. Amendment 2026-11-25 accepted 2026-11-28 (#7860; [operator ruling on PR #7894](https://github.com/spec-kitty/spec-kitty/pull/7894#issuecomment-7244324247)).
 
 **Date:** 2026-10-04
 
@@ -430,9 +430,9 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 
 **Confirmation.** `tests/consolidation/test_effective_stamp_rewritten_lane.py` (a `lane_head` in the clone but off a rewritten lane refuses `not_on_lane`; an absent `lane_head` still falls back), `tests/consolidation/test_approval_bound_effective_stamp.py` (two real clones: the review claim's sync merge, the approval through `emit_status_transition`, the integrator's clone passing; two merge-creating syncs keeping X, and an implementer commit between them moving the record to it; a non-merge commit after X refusing `LANE_MOVED_AFTER_APPROVAL`; the absent-object remedy; the rewritten-lane control; tier 2 ending at the effective stamp; a no-op sync recording nothing) and `tests/status/test_lane_head_presync_stamp.py` (the reading: merges only, a non-merge commit in between, no ref, a tip reached only through a second parent, a git failure; the single and batch stamps).
 
-## Amendment 2026-11-25 (Proposed): a default Mission's planning evidence window runs on its Mission branch (#7860)
+## Amendment 2026-11-25 (Accepted 2026-11-28): a default Mission's planning evidence window runs on its Mission branch (#7860)
 
-*Proposed. The operator accepts or amends it on the pull request.*
+*Accepted 2026-11-28: [operator ruling on PR #7894](https://github.com/spec-kitty/spec-kitty/pull/7894#issuecomment-7244324247).*
 
 Operator rulings on [#7860](https://github.com/spec-kitty/spec-kitty/issues/7860), Mission `planning-lane-write-branch-01M8A725`: 2026-11-25 (A', "guidance only", and the window start), 2026-11-26 (owned-files patterns need two literal leading segments) and 2026-11-27 (R1: a planning lane with any work package not approved credits nothing; R2: each approved work package is credited only from its own claim). Companion: ADR 2026-11-06-3, Amendment 2026-11-25 (the planning lane's write branch).
 
