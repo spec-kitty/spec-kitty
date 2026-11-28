@@ -64,6 +64,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -325,6 +326,59 @@ def _unresolved_start(exc: ClaimCommitUnresolved, mission_branch: str, event_id:
     )
 
 
+def _newest_forced_approval(events: Sequence[Any], wp_id: str) -> Any | None:
+    """*wp_id*'s newest recorded move into ``approved`` that is no review approval (an operator's forced move, never an attestation), or ``None``.
+
+    The fallback bound of :func:`planning_approval_end`: the documented remedy for a dropped
+    planning work package forces it to ``approved`` and attests it, and no review is recorded.
+    Taking that recorded operator act as the end still bounds the credit (later changes never
+    count); a review approval, when there is one, always decides first.
+    """
+    newest: Any | None = None
+    for event in events:
+        if event.wp_id != wp_id or str(event.to_lane) != "approved" or is_migration_actor(getattr(event, "actor", "")):
+            continue
+        if not _is_no_implementation_attestation(event):
+            newest = event
+    return newest
+
+
+def planning_approval_end(repo_root: Path, lanes_manifest: LanesManifest, wp_id: str, events: Sequence[Any] | None) -> str:
+    """The commit on the Mission branch that introduced *wp_id*'s newest approval, the end of its credit window (#7860 review M1).
+
+    The planning lane has no approval stamp, so this is its approval bound: a change to an owned
+    path after the commit that recorded the approval is never approved authorship. The approval is
+    the one the code lanes' bound reads (``approved_bound.newest_approval_event``: not the
+    ``approved -> done`` restamp, not a migration event, not a forced move that records no review);
+    with none, the newest forced move into ``approved`` (:func:`_newest_forced_approval`). Looked up
+    on the live Mission branch, like the window start (:func:`_planning_window_start`): the commit
+    that introduced an event does not change when the branch moves, and an approval recorded after
+    the run froze its coordination base (a resume after the printed remedy) is still found.
+    Raises :class:`PlanningWindowUnresolved` when the log is unreadable, no approval is recorded,
+    the shape is not the Mission-branch window, or no single commit introduced the approval.
+    """
+    import mission_runtime
+
+    from specify_cli.consolidation.approved_bound import newest_approval_event
+
+    if events is None:
+        raise PlanningWindowUnresolved(IMPLEMENTATION_UNREADABLE, "the status event log could not be read")
+    mission_branch = _planning_window_end(repo_root, lanes_manifest)
+    if mission_branch is None:
+        raise PlanningWindowUnresolved(EVIDENCE_WINDOW_UNCOMPUTABLE, f"the planning lane of {lanes_manifest.mission_slug} does not write to the Mission branch")
+    approval = newest_approval_event(events, wp_id) or _newest_forced_approval(events, wp_id)
+    if approval is None:
+        raise PlanningWindowUnresolved(EVIDENCE_WINDOW_UNCOMPUTABLE, f"no approval is recorded for {wp_id}")
+    event_id = str(approval.event_id)
+    surface = mission_runtime.StatusRef(repo_root=repo_root, ref=mission_branch, events_relpath=f"kitty-specs/{lanes_manifest.mission_slug}/status.events.jsonl")
+    try:
+        end: str = mission_runtime.commit_introducing_status_event(surface, wp_id, event_id, rev=mission_branch)
+    except mission_runtime.ClaimCommitUnresolved as exc:
+        code = IMPLEMENTATION_UNREADABLE if exc.reason == "git_unavailable" else EVIDENCE_WINDOW_UNCOMPUTABLE
+        raise PlanningWindowUnresolved(code, f"no single commit on {mission_branch} introduced the approval {event_id} of {wp_id} ({exc})") from exc
+    return end
+
+
 def planning_evidence_window(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -526,10 +580,47 @@ def read_wp_ownership(
     ``[]``), which keeps the pre-#7149 ``IMPLEMENTATION_MISSING`` verdict. *owned* threads the
     validated owned-checkout fact to the one ``tasks/`` read (:func:`_wp_task_dir`, #7099).
     """
-    from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
+    tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
+    return _ownership_in_tasks_dir(tasks_dir, set(wp_ids))
+
+
+def read_wp_ownership_at_ref(repo_root: Path, mission_slug: str, wp_ids: Iterable[str], ref: str) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
+    """The wanted work packages' authored ownership globs as committed at *ref*, and why each other one is unresolved.
+
+    The same reader as :func:`read_wp_ownership` over the ``kitty-specs/<slug>/tasks/WP*.md`` files
+    committed at *ref* (copied into a scratch directory), never the working tree: an uncommitted
+    edit cannot change what a verdict credits (#7860 review M2). A *ref* whose ``tasks/`` tree
+    cannot be listed or whose task file cannot be read leaves the affected work packages
+    unresolved (fail closed).
+    """
+    from specify_cli.consolidation.git_probes import _read_git_blob_bytes
+    from specify_cli.core.git_ops import run_command
 
     wanted = set(wp_ids)
-    tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
+    rel = f"kitty-specs/{mission_slug}/tasks"
+    ret, out, err = run_command(["git", "ls-tree", "--name-only", ref, f"{rel}/"], capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        return {}, dict.fromkeys(wanted, f"the tasks directory could not be listed at {ref} ({(err or '').strip()})")
+    with tempfile.TemporaryDirectory(prefix="wp-ownership-") as scratch:
+        tasks_dir = Path(scratch) / "tasks"
+        tasks_dir.mkdir()
+        for entry in out.splitlines():
+            name = entry.rsplit("/", 1)[-1]
+            if not (name.startswith("WP") and name.endswith(".md")):
+                continue
+            blob = _read_git_blob_bytes(repo_root, ref, entry)
+            if blob is not None:
+                (tasks_dir / name).write_bytes(blob)
+            else:
+                (tasks_dir / name).write_bytes(b"")  # an unreadable committed file stays visible as an unreadable one
+        resolved, reasons, _dir = _ownership_in_tasks_dir(tasks_dir, wanted)
+    return resolved, {wp: reason.replace(str(tasks_dir), f"{ref}:{rel}") for wp, reason in reasons.items()}
+
+
+def _ownership_in_tasks_dir(tasks_dir: Path, wanted: set[str]) -> tuple[dict[str, tuple[str, ...]], dict[str, str], Path]:
+    """:func:`read_wp_ownership`'s reader over one ``tasks/`` directory."""
+    from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
+
     try:
         wp_files = wp_task_files(tasks_dir)
     except OSError as exc:
@@ -1306,6 +1397,8 @@ __all__ = [
     "PLANNING_WINDOW_RECOVERY",
     "planning_window_restart",
     "PlanningWindowUnresolved",
+    "planning_approval_end",
+    "read_wp_ownership_at_ref",
     "absent_lane_window_cause",
     "branch_ref_absent",
     "evaluate_evidence",

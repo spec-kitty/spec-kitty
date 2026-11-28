@@ -39,6 +39,7 @@ pytestmark = [pytest.mark.git_repo]
 
 #: The real window-start reader, kept before the autouse stub replaces it (R2 unit tests below).
 _REAL_WINDOW_STARTS = planning_walk._planning_window_starts
+_REAL_WINDOW_ENDS = planning_walk._planning_window_ends
 
 _SLUG = "auth-01M8EEEE"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
@@ -70,6 +71,12 @@ def _reader(on_mission_branch: bool) -> object:
     return _read
 
 
+def _ends_at_the_tip(repo_root: Path, _manifest: LanesManifest, wp_ids: tuple[str, ...], _events: object) -> dict[str, str]:
+    """Each approved planning work package's window ends at the Mission branch tip (its approval is the last commit)."""
+    tip = git_out(repo_root, "rev-parse", _MISSION_BRANCH).strip() if (repo_root / ".git").exists() else "tip"
+    return dict.fromkeys(wp_ids, tip)
+
+
 @pytest.fixture(autouse=True)
 def _windows_start_at_the_pin(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each approved planning work package's window starts at the planning pin unless a test says otherwise (R2)."""
@@ -79,6 +86,8 @@ def _windows_start_at_the_pin(monkeypatch: pytest.MonkeyPatch) -> None:
         return dict.fromkeys(wp_ids, manifest.planning_commit_sha)
 
     monkeypatch.setattr(planning_walk, "_planning_window_starts", _read)
+
+    monkeypatch.setattr(planning_walk, "_planning_window_ends", _ends_at_the_tip)
 
 
 # ---------------------------------------------------------------- the walk range
@@ -202,7 +211,7 @@ def _ownership(monkeypatch: pytest.MonkeyPatch, owned: dict[str, tuple[str, ...]
     """Stub the planning work packages' ``owned_files`` read; returns the ids each call asked for."""
     asked: list[tuple[str, ...]] = []
 
-    def _read(_repo_root: Path, _slug: str, wp_ids: tuple[str, ...]) -> dict[str, tuple[str, ...]]:
+    def _read(_repo_root: Path, _slug: str, wp_ids: tuple[str, ...], _ref: str) -> dict[str, tuple[str, ...]]:
         asked.append(tuple(wp_ids))
         return {wp: owned[wp] for wp in wp_ids if wp in owned}
 
@@ -221,7 +230,7 @@ def test_the_scope_is_each_approved_work_packages_owned_files(monkeypatch: pytes
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "done"}}
 
-    assert planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)}
+    assert planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states, "coord") == {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)}
     assert asked == [("WP02", "WP03")]
 
 
@@ -229,7 +238,7 @@ def test_the_scope_is_each_approved_work_packages_owned_files(monkeypatch: pytes
 def test_no_approved_work_package_gives_an_empty_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,)})
 
-    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _PLANNING, {"WP02": {"lane": "in_progress"}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _PLANNING, {"WP02": {"lane": "in_progress"}}, "coord")
     assert asked == []
 
 
@@ -239,7 +248,7 @@ def test_an_unreadable_approved_ownership_gives_an_empty_scope(monkeypatch: pyte
     _ownership(monkeypatch, {"WP02": (_OWNED,)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "done"}}
 
-    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states, "coord")
 
 
 @pytest.mark.unit
@@ -247,25 +256,7 @@ def test_a_whole_tree_pattern_makes_the_whole_scope_unusable(monkeypatch: pytest
     _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("src/**",)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
 
-    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
-
-
-@pytest.mark.integration
-def test_the_ownership_reader_returns_only_resolved_work_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """The reader delegates to the evidence axis' one ``owned_files`` read and drops every unresolved id."""
-    from specify_cli.consolidation import wp_evidence
-
-    seen: list[tuple[str, ...]] = []
-
-    def _read(repo_root: Path, slug: str, feature_dir: Path, wp_ids: tuple[str, ...]) -> tuple[dict[str, tuple[str, ...]], dict[str, str], Path]:
-        seen.append(tuple(wp_ids))
-        assert (repo_root, slug) == (tmp_path, _SLUG)
-        return {"WP02": (_OWNED,)}, {"WP03": "unreadable"}, tmp_path
-
-    monkeypatch.setattr(wp_evidence, "read_wp_ownership", _read)
-
-    assert planning_walk._planning_ownership(tmp_path, _SLUG, ("WP02", "WP03")) == {"WP02": (_OWNED,)}
-    assert seen == [("WP02", "WP03")]
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states, "coord")
 
 
 # ---------------------------------------------------------------- real git
@@ -367,7 +358,7 @@ def test_scoped_commits_keep_touching_commits_and_name_the_whole_ones(tmp_path: 
 
 
 @pytest.mark.integration
-def test_an_unreadable_commit_is_dropped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_unreadable_commit_refuses_the_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, _pin, shas = _mission(tmp_path)
 
     def _broken(_repo: Path, _sha: str) -> list[str]:
@@ -375,8 +366,8 @@ def test_an_unreadable_commit_is_dropped(tmp_path: Path, monkeypatch: pytest.Mon
 
     setattr_reconciliation_family(monkeypatch, "changed_paths_of", _broken)
 
-    scoped = planning_walk._scoped_commits(repo, [shas["owned"]], planning_walk._PlanningScope((((_OWNED,), frozenset({shas["owned"]})),)), _SLUG)
-    assert scoped.touching == [] and scoped.whole == frozenset()
+    with pytest.raises(GitProbeError, match="git show failed"):
+        planning_walk._scoped_commits(repo, [shas["owned"]], planning_walk._PlanningScope((((_OWNED,), frozenset({shas["owned"]})),)), _SLUG)
 
 
 @pytest.mark.integration
@@ -539,6 +530,8 @@ def _starts(monkeypatch: pytest.MonkeyPatch, starts: dict[str, str] | None) -> N
         return None if starts is None else {wp: starts[wp] for wp in wp_ids if wp in starts}
 
     monkeypatch.setattr(planning_walk, "_planning_window_starts", _read)
+    # A window ends at the Mission branch tip unless a test says otherwise (:func:`_ends`).
+    monkeypatch.setattr(planning_walk, "_planning_window_ends", _ends_at_the_tip)
 
 
 @pytest.mark.unit
@@ -547,7 +540,7 @@ def test_any_non_approved_planning_work_package_empties_the_scope(monkeypatch: p
     """R1: the claim admits by path, not by author, so a lane holding a non-approved work package authors nothing, even with disjoint ownership."""
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("docs/other/x.md",)})
 
-    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}, "WP03": {"lane": state}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}, "WP03": {"lane": state}}, "coord")
     assert asked == []
 
 
@@ -555,7 +548,7 @@ def test_any_non_approved_planning_work_package_empties_the_scope(monkeypatch: p
 def test_a_planning_work_package_with_no_status_row_empties_the_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("docs/other/x.md",)})
 
-    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}}, "coord")
 
 
 def _r1_mission(tmp_path: Path) -> tuple[Path, str, str, str]:
@@ -612,6 +605,71 @@ def test_an_owned_change_made_before_the_claim_is_not_credited_one_after_it_is(t
     assert late in claim.shas and early not in claim.shas
     assert {path for path, _blob in claim.blobs} == {"curation/pkg/late.py"}
     assert not claim.deletions
+
+
+def _ends(monkeypatch: pytest.MonkeyPatch, ends: dict[str, str] | None) -> None:
+    """Stub each approved planning work package's window end (the commit that introduced its newest approval)."""
+
+    def _read(_repo_root: Path, _manifest: LanesManifest, wp_ids: tuple[str, ...], _events: object) -> dict[str, str] | None:
+        return None if ends is None else {wp: ends[wp] for wp in wp_ids if wp in ends}
+
+    monkeypatch.setattr(planning_walk, "_planning_window_ends", _read)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("ends_known", [True, False])
+def test_an_owned_change_made_after_the_approval_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ends_known: bool) -> None:
+    """Review M1: credit ends at the commit that introduced the approval; a later owned change is un-attributable, an unprovable end credits nothing."""
+    repo, pin, _early, claim_commit, late = _r2_mission(tmp_path)
+    approval = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n{}\n{}\n{}\n"}, "chore: approve WP02")
+    after = _commit(repo, {"curation/pkg/after_approval.py": "A = 1\n"}, "an owned change after the approval")
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,)})
+    _starts(monkeypatch, {"WP02": claim_commit})
+    _ends(monkeypatch, {"WP02": approval} if ends_known else None)
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_PKG,), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
+
+    assert after not in claim.shas
+    assert "curation/pkg/after_approval.py" not in {path for path, _blob in claim.blobs}
+    # An un-attributable later change to the path taints it: nothing of that file is credited either.
+    assert (late in claim.shas) is ends_known
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("outcome", ["no_reader", "unresolved", "proven"])
+def test_window_ends_need_a_reader_and_a_provable_approval_commit(monkeypatch: pytest.MonkeyPatch, outcome: str) -> None:
+    from specify_cli.consolidation import wp_evidence
+
+    def _end(_root: Path, _manifest: LanesManifest, wp_id: str, events: object) -> str:
+        if outcome == "unresolved":
+            raise wp_evidence.PlanningWindowUnresolved(wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE, "no review approval is recorded")
+        return f"approved-{wp_id}"
+
+    monkeypatch.setattr(wp_evidence, "planning_approval_end", _end)
+    events = None if outcome == "no_reader" else _window_events
+
+    got = _REAL_WINDOW_ENDS(Path(), _manifest(), ("WP02", "WP03"), events)
+
+    assert got == ({"WP02": "approved-WP02", "WP03": "approved-WP03"} if outcome == "proven" else None)
+
+
+@pytest.mark.integration
+def test_owned_files_are_read_as_committed_at_the_judged_tip_never_the_working_tree(tmp_path: Path) -> None:
+    """Review M2: an uncommitted widening of a task file's owned_files cannot widen the credit; an unreadable committed file is unresolved."""
+    repo, _pin, _shas = _mission(tmp_path)
+    tasks = repo / "kitty-specs" / _SLUG / "tasks"
+
+    def _task(wp: str, owned: str) -> str:
+        return f"---\nwork_package_id: {wp}\ntitle: {wp}\ndependencies: []\nowned_files:\n  - {owned}\n---\n# {wp}\n"
+
+    tip = _commit(repo, {f"kitty-specs/{_SLUG}/tasks/WP02-a.md": _task("WP02", _PKG), f"kitty-specs/{_SLUG}/tasks/WP03-b.md": "not frontmatter\n"}, "tasks")
+    (tasks / "WP02-a.md").write_text(_task("WP02", "curation/**"), encoding="utf-8")  # uncommitted widening
+    (tasks / "WP04-c.md").write_text(_task("WP04", "docs/a/x.md"), encoding="utf-8")  # uncommitted extra file
+
+    assert planning_walk._planning_ownership(repo, _SLUG, ("WP02", "WP03", "WP04"), tip) == {"WP02": (_PKG,)}
+    assert planning_walk._planning_ownership(repo, _SLUG, ("WP02",), "no-such-ref") == {}
 
 
 def _r2_merge_mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:

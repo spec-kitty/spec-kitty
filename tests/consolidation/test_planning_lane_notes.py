@@ -58,11 +58,19 @@ def _events() -> list[object]:
 @pytest.fixture
 def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """The Mission-branch window applies; ownership and window starts read from ``knobs`` (patched on the authorship module)."""
-    knobs: dict[str, object] = {"window": ("pin0000", "coord0000"), "owned": dict(_OWNED), "unproven": set(), "scope": None, "opener": True, "taint": []}
+    knobs: dict[str, object] = {
+        "window": ("pin0000", "coord0000"),
+        "owned": dict(_OWNED),
+        "unproven": set(),
+        "unended": set(),
+        "scope": None,
+        "opener": True,
+        "taint": [],
+    }
 
     monkeypatch.setattr(planning_walk, "_planning_lane_mission_branch_window", lambda *_args: knobs["window"])
 
-    def _ownership(_root: Path, _slug: str, wp_ids: tuple[str, ...]) -> dict[str, tuple[str, ...]]:
+    def _ownership(_root: Path, _slug: str, wp_ids: tuple[str, ...], _ref: str) -> dict[str, tuple[str, ...]]:
         owned = knobs["owned"]
         assert isinstance(owned, dict)
         return {wp: owned[wp] for wp in wp_ids if wp in owned}
@@ -73,6 +81,13 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         assert isinstance(unproven, set)
         return None if any(wp in unproven for wp in wp_ids) else dict.fromkeys(wp_ids, "claim0")
 
+    def _ends(_root: Path, _manifest: LanesManifest, wp_ids: tuple[str, ...], events: object) -> dict[str, str] | None:
+        assert events is _events
+        unended = knobs["unended"]
+        assert isinstance(unended, set)
+        return None if any(wp in unended for wp in wp_ids) else dict.fromkeys(wp_ids, "approval0")
+
+    monkeypatch.setattr(planning_walk, "_planning_window_ends", _ends)
     monkeypatch.setattr(planning_walk, "_planning_ownership", _ownership)
     monkeypatch.setattr(planning_walk, "_planning_window_starts", _starts)
     monkeypatch.setattr(planning_walk, "_planning_scope", lambda *_args: knobs["scope"])
@@ -259,6 +274,16 @@ def test_an_absent_opener_is_named_with_one_reopen(shape: dict[str, object]) -> 
     implement = f"`spec-kitty agent action implement WP03 --agent <agent> --mission {_SLUG}`"
     assert note.count(reopen) == 1 and note.count(implement) == 1
     assert "no window-opening (claim) status event is recorded for WP03" in note
+
+
+def test_an_unproven_approval_commit_is_named_with_its_remedy(shape: dict[str, object]) -> None:
+    """Review M1: a lane whose approval commit cannot be proven credits nothing, and the note says why."""
+    shape["unended"] = {"WP03"}
+
+    (note,) = _notes()
+
+    assert "the commit that introduced the review approval of WP03 on the Mission branch cannot be proven" in note
+    assert "Commit the status events of the approval" in note
 
 
 _REOPEN_X = "`spec-kitty agent tasks move-task WP09 --to planned --review-feedback-file <file> --mission m`"
@@ -482,7 +507,7 @@ def test_no_note_keeps_the_hint_unchanged() -> None:
 def test_a_note_covers_the_write_scope_and_the_readable_owned_files(shape: dict[str, object]) -> None:
     lane = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), ("kitty-specs/x/research/**",), (), (), 0)
 
-    assert planning_lane_scope._note_patterns(Path(), _manifest(), lane) == ("curation/pkg/**", "docs/notes/x.md", "kitty-specs/x/research/**")
+    assert planning_lane_scope._note_patterns(Path(), _manifest(), lane, "coord0000") == ("curation/pkg/**", "docs/notes/x.md", "kitty-specs/x/research/**")
 
 
 def test_a_note_covers_the_walk_commits_that_change_a_path_in_its_scope(monkeypatch: pytest.MonkeyPatch) -> None:
