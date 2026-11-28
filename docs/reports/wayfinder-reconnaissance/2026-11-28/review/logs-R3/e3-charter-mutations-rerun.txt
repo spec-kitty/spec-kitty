@@ -1,0 +1,106 @@
+# R3 re-run of charter mutations, own clone at 06cdfbe948, own GRADLE_USER_HOME, 1 GB heap, 2 workers
+## M-IC-2-contracts
+Here are the highlights of this release:
+ - Java 27 support
+ - Maven mirror settings reuse
+ - Linked problem locations in build output
+For more details see https://docs.gradle.org/9.8.1/release-notes.html
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders
+> Task :build-logic:extractPrecompiledScriptPluginPlugins
+> Task :build-logic:generateScriptPluginAdapters
+> Task :build-logic:pluginDescriptors
+> Task :build-logic:processResources
+> Task :build-logic:compilePluginsBlocks
+> Task :build-logic:generatePrecompiledScriptPluginAccessors
+> Task :build-logic:compileKotlin
+> Task :build-logic:classes
+> Task :build-logic:jar
+> Task :contracts:compileJava
+> Task :contracts:installOasdiff
+> Task :contracts:installVacuum
+> Task :contracts:verifyOasdiff
+> Task :contracts:verifyVacuum
+> Task :contracts:classes
+> Task :contracts:checkContractChangelogFragments
+37 changelog fragments are well formed.
+> Task :contracts:bundleContract
+Bundled contracts/charter/openapi.yaml into charter-openapi.yaml (sha256 376aec3089b7b313163ee863b3f026010af622e831c82e4523e727214f4f61c7)
+> Task :contracts:checkContractCompatibility
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+> Task :contracts:checkClosedResponseObjects
+All 2213 response schemas are closed.
+> Task :contracts:checkRefusalExamples
+All 617 refusal examples and 659 response descriptions name raised refusal codes only.
+> Task :contracts:lintContract
+The charter contract passes all 23 lint rules.
+[Incubating] Problems report is available at: file://<scratch>/rv-R3/co-spec-kitty-charter/build/reports/problems/problems-report.html
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+BUILD SUCCESSFUL in 4m 29s
+20 actionable tasks: 20 executed
+Configuration cache entry stored.
+exit=0 secs=270
+## M-PI-6-arch
+> Task :charter-api:classes
+> Task :charter-api:jar
+> Task :web-transport:compileJava
+> Task :web-transport:classes
+> Task :web-transport:jar
+> Task :packs:compileJava
+> Task :activations:compileJava
+> Task :pack-validation:compileJava
+> Task :pack-doctor:compileJava
+> Task :packs:compileTestFixturesJava
+> Task :pack-doctor:classes
+> Task :pack-doctor:jar
+> Task :pack-validation:classes
+> Task :pack-validation:jar
+> Task :packs:classes
+> Task :packs:jar
+> Task :packs:testFixturesClasses
+> Task :packs:testFixturesJar
+> Task :activations:classes
+> Task :activations:jar
+> Task :missions-edge:compileJava
+> Task :artifacts-edge:compileJava
+> Task :artifacts-edge:classes
+> Task :artifacts-edge:jar
+> Task :profiles-edge:compileJava
+> Task :missions-edge:classes
+> Task :missions-edge:jar
+> Task :profiles-edge:classes
+> Task :profiles-edge:jar
+> Task :routing-edge:compileJava
+> Task :routing-edge:classes
+> Task :routing-edge:jar
+> Task :deployable:compileJava
+> Task :deployable:classes
+> Task :deployable:compileTestJava
+> Task :deployable:testClasses
+> Task :deployable:test
+[Incubating] Problems report is available at: file://<scratch>/rv-R3/co-spec-kitty-charter/build/reports/problems/problems-report.html
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+BUILD SUCCESSFUL in 17m 39s
+59 actionable tasks: 47 executed, 12 up-to-date
+Configuration cache entry stored.
+exit=0 secs=1060
+## M-PI-6: JUnit result
+<testsuite name="ai.speckitty.charter.deployable.HexagonalArchitectureTest" tests="99" skipped="0" failures="0" errors="0" timestamp="2026-11-28T14:27:05.913Z"  time="20.783">
+(the XML above was read at 14:29Z, before the M-RD-6 run rewrote it: tests=99 failures=0 errors=0)
+## M-RD-6-arch
+HexagonalArchitectureTest > SLICE_RINGS FAILED
+    Method <ai.speckitty.charter.activations.domain.Revision.require(java.lang.String)> calls method <ai.speckitty.charter.activations.application.MalformedPreconditionException.notAWildcard(java.lang.String)> in (Revision.java:61)
+HexagonalArchitectureTest > ONION_DEPENDS_INWARD FAILED
+    Method <ai.speckitty.charter.activations.domain.Revision.require(java.lang.String)> calls method <ai.speckitty.charter.activations.application.MalformedPreconditionException.notAWildcard(java.lang.String)> in (Revision.java:61)
+1656 tests completed, 2 failed
+> Task :deployable:test FAILED
+BUILD FAILED in 9m 12s
+exit=1 secs=553
+clean after all runs: clean=0

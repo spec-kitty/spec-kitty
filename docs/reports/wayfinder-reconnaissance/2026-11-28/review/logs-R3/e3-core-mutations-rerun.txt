@@ -1,0 +1,350 @@
+# R3 re-run of core mutations, own clone of core at 5c4fc5a79d, own venv (uv sync --frozen --all-extras), packs synced; one pytest process at a time, -n0 unless stated
+# part 1: baselines and 8 detected mutations, each applied alone
+## baseline tests/architectural/test_layer_rules.py
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+........................................................................ [ 90%]
+........                                                                 [100%]
+============================== slowest durations ===============================
+36.72s setup    tests/architectural/test_layer_rules.py::TestLayerCoverage::test_no_unregistered_src_packages
+9.87s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+9.68s setup    tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+9.19s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+8.80s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+5.80s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+5.73s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+1.80s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+1.17s call     tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+1.14s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+(230 durations < 1s hidden.)
+80 passed in 221.57s (0:03:41)
+exit=0 secs=255
+## baseline tests/architectural/test_events_tracker_public_imports.py
+$ .venv/bin/python -m pytest tests/architectural/test_events_tracker_public_imports.py -n0 -p no:cacheprovider -q -rf
+.                                                                        [100%]
+============================== slowest durations ===============================
+8.41s call     tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_names
+(2 durations < 1s hidden.)
+1 passed in 9.17s
+exit=0 secs=10
+## baseline tests/architectural/test_runtime_charter_activation_boundary.py
+$ .venv/bin/python -m pytest tests/architectural/test_runtime_charter_activation_boundary.py -n0 -p no:cacheprovider -q -rf
+...                                                                      [100%]
+============================== slowest durations ===============================
+4.39s call     tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+(8 durations < 1s hidden.)
+3 passed in 5.15s
+exit=0 secs=7
+## baseline tests/architectural/test_status_events_writes_gate.py
+$ .venv/bin/python -m pytest tests/architectural/test_status_events_writes_gate.py -n0 -p no:cacheprovider -q -rf
+............................                                             [100%]
+============================== slowest durations ===============================
+18.83s setup    tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+5.00s call     tests/architectural/test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer
+(82 durations < 1s hidden.)
+28 passed in 24.93s
+exit=0 secs=27
+## baseline tests/agent/test_envelope_unit.py
+$ .venv/bin/python -m pytest tests/agent/test_envelope_unit.py -n0 -p no:cacheprovider -q -rf
+...................                                                      [100%]
+============================== slowest durations ===============================
+(57 durations < 1s hidden.)
+19 passed in 2.96s
+exit=0 secs=5
+## M-PI-1 alone: tests/architectural/test_events_tracker_public_imports.py
+$ .venv/bin/python -m pytest tests/architectural/test_events_tracker_public_imports.py -n0 -p no:cacheprovider -q -rf
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_cli_never_imports_private_events_or_tracker_names ____________
+tests/architectural/test_events_tracker_public_imports.py:103: in test_cli_never_imports_private_events_or_tracker_names
+    assert _private_imports(corpus) == []
+E   AssertionError: assert ['/tmp/claude...llback_event'] == []
+E     
+E     Left contains one more item: '<scratch>/rv-R3/co-spec-kitty/src/specify_cli/status/reducer.py:17 -> spec_kitty_events.diary._is_rollback_event'
+E     Use -v to get more diff
+============================== slowest durations ===============================
+7.62s call     tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_names
+(2 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_names
+1 failed in 8.34s
+exit=1 secs=9
+## M-PI-2 alone: tests/architectural/test_runtime_charter_activation_boundary.py
+$ .venv/bin/python -m pytest tests/architectural/test_runtime_charter_activation_boundary.py -n0 -p no:cacheprovider -q -rf
+.F.                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_external_consumers_add_no_new_activation_internal_reach _________
+tests/architectural/test_runtime_charter_activation_boundary.py:243: in test_external_consumers_add_no_new_activation_internal_reach
+    assert not new, (
+E   AssertionError: New reach into a charter.activation INTERNAL from an external consumer. Route
+E     the access through the activation seam `charter.activation.api` instead (grow the
+E     seam with an identity re-export if the symbol is missing, tabled in
+E     tests/architectural/test_charter_activation_api_reexport.py). A lazy import is not
+E     exempt. New file/module pairs:
+E       - src/specify_cli/charter_activate.py -> charter.activation._io
+E   assert not [('src/specify_cli/charter_activate.py', 'charter.activation._io')]
+============================== slowest durations ===============================
+4.42s call     tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+(8 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+1 failed, 2 passed in 5.38s
+exit=1 secs=6
+## M-RD-1 alone: tests/architectural/test_layer_rules.py
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+_________ TestKernelIsolation.test_kernel_does_not_import_specify_cli __________
+tests/architectural/test_layer_rules.py:505: in test_kernel_does_not_import_specify_cli
+    ).assert_applies(evaluable)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.11/site-packages/pytestarch/query_language/layered_architecture_rule.py:267: in assert_applies
+    self._rule.assert_applies(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/query_language/rule.py:212: in assert_applies
+    matcher.match(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/rule_assessment/rule_check/rule_matcher.py:59: in match
+    raise AssertionError(self._create_rule_violation_message(rule_violations))
+E   AssertionError: "src.kernel.site_urls" (layer "kernel") imports "specify_cli.version_utils" (layer "specify_cli").
+============================== slowest durations ===============================
+9.35s setup    tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+8.93s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+8.70s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+8.66s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+2.52s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+2.31s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+1.26s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+1.26s call     tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+1.19s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+(231 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_specify_cli
+1 failed, 79 passed in 45.60s
+exit=1 secs=47
+## M-RD-2 alone: tests/architectural/test_layer_rules.py
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+=================================== FAILURES ===================================
+_________ TestCharterBoundary.test_charter_does_not_import_specify_cli _________
+tests/architectural/test_layer_rules.py:555: in test_charter_does_not_import_specify_cli
+    ).assert_applies(evaluable)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.11/site-packages/pytestarch/query_language/layered_architecture_rule.py:267: in assert_applies
+    self._rule.assert_applies(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/query_language/rule.py:212: in assert_applies
+    matcher.match(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/rule_assessment/rule_check/rule_matcher.py:59: in match
+    raise AssertionError(self._create_rule_violation_message(rule_violations))
+E   AssertionError: "src.charter.hasher" (layer "charter") imports "specify_cli.core.constants" (layer "specify_cli").
+============================== slowest durations ===============================
+9.17s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+7.38s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+7.09s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+7.00s setup    tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+2.62s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+2.37s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+1.90s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+1.51s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+(232 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_specify_cli
+1 failed, 79 passed in 41.34s
+exit=1 secs=42
+## M-RD-3 alone: tests/architectural/test_layer_rules.py
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+........................................................................ [ 90%]
+.....F..                                                                 [100%]
+=================================== FAILURES ===================================
+__ TestRuntimeSpecifyCliLedger.test_runtime_specify_cli_imports_within_ledger __
+tests/architectural/test_layer_rules.py:1163: in test_runtime_specify_cli_imports_within_ledger
+    assert not offenders, (
+E   AssertionError: runtime imports specify_cli subpackages outside the documented allowed-exception ledger (_RUNTIME_ALLOWED_SPECIFY_CLI):
+E       runtime/next/prompt_builder.py imports specify_cli.text_sanitization
+E     Invert the dependency (preferred). A sanctioned ledger expansion also requires a justified independent _baselines.yaml update. Note: specify_cli.cli / specify_cli.next are hard-forbidden (TestRuntimeBoundary) and must NOT be added.
+E   assert not ['runtime/next/prompt_builder.py imports specify_cli.text_sanitization']
+============================== slowest durations ===============================
+9.68s setup    tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+8.13s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+7.95s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+7.86s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+2.05s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+1.88s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+1.34s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+1.27s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+1.01s call     tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+(231 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+1 failed, 79 passed in 42.45s
+exit=1 secs=43
+## M-RD-5 alone: tests/architectural/test_layer_rules.py
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+___________ TestKernelIsolation.test_kernel_does_not_import_charter ____________
+tests/architectural/test_layer_rules.py:494: in test_kernel_does_not_import_charter
+    ).assert_applies(evaluable)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.11/site-packages/pytestarch/query_language/layered_architecture_rule.py:267: in assert_applies
+    self._rule.assert_applies(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/query_language/rule.py:212: in assert_applies
+    matcher.match(evaluable)
+.venv/lib/python3.11/site-packages/pytestarch/rule_assessment/rule_check/rule_matcher.py:59: in match
+    raise AssertionError(self._create_rule_violation_message(rule_violations))
+E   AssertionError: "src.kernel.glossary_runner" (layer "kernel") imports "charter.offering.artifact_kinds" (layer "charter").
+============================== slowest durations ===============================
+8.88s setup    tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+8.37s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+7.48s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+7.18s call     tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+2.04s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+1.80s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+1.73s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+1.65s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+1.20s call     tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+(231 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+1 failed, 79 passed in 41.76s
+exit=1 secs=44
+## M-OB-1 alone: tests/architectural/test_status_events_writes_gate.py
+$ .venv/bin/python -m pytest tests/architectural/test_status_events_writes_gate.py -n0 -p no:cacheprovider -q -rf
+=================================== FAILURES ===================================
+_________________________ test_no_out_of_store_writes __________________________
+tests/architectural/test_status_events_writes_gate.py:350: in test_no_out_of_store_writes
+    assert not violations, (
+E   AssertionError: status.events.jsonl is written outside specify_cli.status.store:
+E       specify_cli.mission_brief:310 Path.open(feature_dir / 'status.events.jsonl', 'a') [ledger allows 0, found 1]
+E     
+E     Route the write through the status FSM (emit_status_transition / BookkeepingTransaction); raw appends go through store.py behind status/_unsafe.py (FR-010/FR-011).
+E   assert not [WriteSite(module='specify_cli.mission_brief', lineno=310, kind='Path.open', mode='a', path_expr="feature_dir / 'status.events.jsonl'", path_text='status.events.jsonl')]
+_________________________ test_store_writes_are_found __________________________
+tests/architectural/test_status_events_writes_gate.py:369: in test_store_writes_are_found
+    assert {site.module for site in tree_scan.events_writes if site.key not in ALLOWED_OUT_OF_STORE_WRITE_SITES} == {STORE_MODULE}
+E   AssertionError: assert {'specify_cli...status.store'} == {'specify_cli.status.store'}
+E     
+E     Extra items in the left set:
+E     'specify_cli.mission_brief'
+E     Use -v to get more diff
+============================== slowest durations ===============================
+16.59s setup    tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+4.37s call     tests/architectural/test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer
+(82 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+FAILED tests/architectural/test_status_events_writes_gate.py::test_store_writes_are_found
+2 failed, 26 passed in 21.96s
+exit=1 secs=27
+## M-IC-4 alone: tests/agent/test_envelope_unit.py
+$ .venv/bin/python -m pytest tests/agent/test_envelope_unit.py -n0 -p no:cacheprovider -q -rf
+F.F................                                                      [100%]
+=================================== FAILURES ===================================
+__________________ TestMakeEnvelope.test_make_envelope_shape ___________________
+tests/agent/test_envelope_unit.py:25: in test_make_envelope_shape
+    assert set(env.keys()) == {
+E   AssertionError: assert {'command', '...success', ...} == {'command', '...success', ...}
+E     
+E     Extra items in the left set:
+E     'request_id'
+E     Extra items in the right set:
+E     'correlation_id'
+E     Use -v to get more diff
+__________ TestMakeEnvelope.test_make_envelope_unique_correlation_ids __________
+tests/agent/test_envelope_unit.py:53: in test_make_envelope_unique_correlation_ids
+    assert env1["correlation_id"] != env2["correlation_id"]
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'correlation_id'
+============================== slowest durations ===============================
+(57 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_shape
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_unique_correlation_ids
+2 failed, 17 passed in 2.08s
+exit=1 secs=4
+DONE clean=0
+
+# part 2: three mutations the investigator found undetected, applied together
+M-PI-3 applied
+M-PI-5 applied
+M-OB-4 applied
+ src/specify_cli/drg_writers/registry.py |  7 +++++++
+ src/specify_cli/events/decision_log.py  |  7 +++++++
+ src/specify_cli/services/resolution.py  | 11 +++++++++--
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+## batch U (M-PI-3 + M-PI-5 + M-OB-4 applied together): frozen 66-file architectural set
+$ .venv/bin/python -m pytest <66 files of gate-set.txt> -n 2 --dist loadfile -p no:cacheprovider -q -rf
+7.16s call     tests/architectural/test_runtime_charter_doctrine_boundary.py::test_source_scan_rejects_direct_import_forms[from charter.offering.drg.org_pack_config import resolve_org_dirs-lazy-specify_cli]
+7.09s call     tests/architectural/test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer
+6.99s call     tests/architectural/test_runtime_charter_doctrine_boundary.py::test_source_scan_rejects_direct_import_forms[from charter import offering as implementation-top-level-runtime]
+6.94s call     tests/architectural/test_acceptance_matrix_write_seam.py::test_write_seam_census_has_concrete_floor
+6.94s call     tests/architectural/test_runtime_charter_doctrine_boundary.py::test_source_scan_rejects_direct_import_forms[from charter.offering.drg.org_pack_config import resolve_org_dirs-top-level-runtime]
+6.80s call     tests/architectural/test_runtime_charter_doctrine_boundary.py::test_source_side_no_new_offering_laundering
+6.65s call     tests/architectural/test_home_owner_never_wins.py::test_the_owner_and_the_probe_are_the_only_members_of_their_two_files
+6.53s call     tests/architectural/test_drg_writer_discovery.py::test_model_dump_gate_is_green_against_the_real_src_tree
+6.38s call     tests/architectural/test_runtime_charter_doctrine_boundary.py::test_metadata_exception_rejects_root_member_import[drg as implementation-doctrine]
+6.34s call     tests/architectural/test_shared_package_boundary.py::test_production_never_imports_retired_vendored_events
+6.33s call     tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+5.85s call     tests/architectural/test_no_production_worktree_guard_bypass.py::test_no_production_caller_bypasses_worktree_guard
+5.59s call     tests/architectural/test_drg_writer_discovery.py::test_dict_literal_gate_is_green_against_the_real_src_tree
+5.12s call     tests/architectural/test_single_mission_surface_resolver.py::test_raw_handle_reinjection_is_caught
+4.71s call     tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget
+4.71s call     tests/architectural/test_no_shipped_layer_label.py::test_public_json_surface_has_no_shipped_layer_label[charter lint --json]
+4.40s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+4.22s setup    tests/architectural/test_decisions_lock_single_owner.py::test_only_the_owner_breaks_the_rule[builds a DECISION_LOCK_TIMEOUT refusal]
+3.99s call     tests/architectural/test_no_production_worktree_guard_bypass.py::test_mission_create_and_next_share_structured_ownership_refusals[OWNERSHIP_NESTED]
+3.84s call     tests/architectural/test_home_owner_behaviour.py::test_the_owner_is_a_member_of_the_behaviour_class_the_guard_walks
+3.78s call     tests/architectural/test_help_startup_third_party_imports.py::test_help_loads_no_call_time_only_library
+3.71s call     tests/architectural/test_mutation_ownership_routing.py::test_pinned_routed_module_set_is_complete
+3.27s call     tests/architectural/test_home_owner_never_wins.py::test_the_exempt_set_is_a_subset_of_the_discovered_class
+3.26s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+3.00s call     tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+2.87s call     tests/architectural/test_home_owner_never_wins.py::test_only_probe_a_is_a_class_member_so_probe_b_costs_no_slot
+2.85s call     tests/architectural/test_home_owner_never_wins.py::test_the_recomputation_can_tell_a_wrong_key_apart
+2.75s call     tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+2.55s call     tests/architectural/test_no_shipped_layer_label.py::test_charter_pack_validate_has_no_shipped_layer_label
+1.94s call     tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+1.70s call     tests/architectural/test_lifted_root_no_checklist_surface.py::test_no_checklist_command_string_in_scan_roots
+1.56s call     tests/architectural/test_no_shipped_layer_label.py::test_public_json_surface_has_no_shipped_layer_label[agent profile list --json]
+1.50s call     tests/architectural/test_no_production_worktree_guard_bypass.py::test_mission_create_and_next_share_structured_ownership_refusals[OWNERSHIP_BROKEN_POINTER]
+1.42s call     tests/architectural/test_no_production_worktree_guard_bypass.py::test_mission_create_and_next_share_structured_ownership_refusals[OWNERSHIP_FOREIGN]
+1.26s call     tests/architectural/test_charter_sole_door_offering_service.py::test_raw_census_finds_the_unified_builders_own_constructions
+1.22s call     tests/architectural/test_mutation_ownership_routing.py::test_every_destructive_literal_is_allowlisted
+1.15s call     tests/architectural/test_mutation_ownership_routing.py::test_removing_an_allowlist_entry_reproduces_a_gate_failure
+1.00s call     tests/architectural/test_cold_import_status_boundary.py::test_cold_import_keeps_status_orchestration_out[specify_cli.task_utils.support]
+(3786 durations < 1s hidden.)
+1295 passed, 2 xfailed, 2 errors in 649.15s (0:10:49)
+exit=1 secs=652
+## batch U: dead-symbol gate (outside the frozen set)
+$ .venv/bin/python -m pytest tests/architectural/test_no_dead_symbols.py -n0 -p no:cacheprovider -q -rf
+    assert not messages, "\n\n".join(messages)
+E   AssertionError: Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following public symbols have no other src/ caller, no intra-module reference, and no T013 structural auto-exemption:
+E       - specify_cli.drg_writers.registry::node_violates_layer_rule
+E       - specify_cli.events.decision_log::issued_step_of_run
+E       - specify_cli.services.resolution::repin_commit
+E     
+E     Fix options (in order of preference):
+E       1) Wire the symbol from a runtime caller.
+E       2) If declared in __all__, remove it from __all__ (it stays in the module as an unexported internal) -- otherwise, if it is a widened-in (non-__all__) name, mark it underscore-private.
+E       3) Delete the symbol entirely if it is truly dead.
+E       4) If declared in __all__, add a `(module, name)` entry to `tests/architectural/dead_symbol_allowlist.yaml` with category and rationale (and issue where the category requires it). If it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).
+E     
+E   assert not ["Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following publ... it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).\n"]
+_____________ test_m11c_gate_reads_the_widened_section_it_is_given _____________
+tests/architectural/test_no_dead_symbols.py:2397: in test_m11c_gate_reads_the_widened_section_it_is_given
+    assert evaluate(ALLOWLIST.widened_qualified) == ([], []), "control: the committed widened section is clean"
+E   AssertionError: control: the committed widened section is clean
+E   assert (['specify_cl..._commit'], []) == ([], [])
+E     
+E     At index 0 diff: ['specify_cli.drg_writers.registry::node_violates_layer_rule', 'specify_cli.events.decision_log::issued_step_of_run', 'specify_cli.services.resolution::repin_commit'] != []
+E     Use -v to get more diff
+============================== slowest durations ===============================
+94.30s call     tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+56.18s call     tests/architectural/test_no_dead_symbols.py::test_bite_k_full_keyability_hand_and_auto_exempt
+38.68s call     tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+(108 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+FAILED tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+2 failed, 35 passed in 191.19s (0:03:11)
+exit=1 secs=196
+## baseline: dead-symbol gate at head
+84.27s call     tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+57.52s call     tests/architectural/test_no_dead_symbols.py::test_bite_k_full_keyability_hand_and_auto_exempt
+1.02s call     tests/architectural/test_no_dead_symbols.py::test_auto_exempt_disjoint_from_hand_allowlist
+(107 durations < 1s hidden.)
+37 passed in 238.82s (0:03:58)
+exit=0 secs=240
+DONE clean=0
