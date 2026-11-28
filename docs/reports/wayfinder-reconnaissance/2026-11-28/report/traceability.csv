@@ -1,0 +1,69 @@
+section,statement,kind,source_files,finding_ids
+Executive summary,"414 finding records from 18 workstreams",method,05-status.md,
+Executive summary,"141 of 162 sampled findings reproduced (87.0%); 0 not reproduced",method,evaluation/validity-evaluation.md section 2,
+Executive summary,"Verdict counts: synthesis 3 supported / 1 contradicted / 4 inconclusive; review 2 / 2 / 4 (tabulated from the ledger)",conclusion,evaluation/verdict-ledger.csv,
+Executive summary,"0 unrecorded violations of the enforced layering in 8,332 module edges",conclusion,synthesis/hypothesis-assessment.md H03,F-B1-010
+Executive summary,"2 of 20 questions meet all three conditions; 0 answers incorrect; 12 fully correct; contradicting source for 10",conclusion,synthesis/hypothesis-assessment.md H06; review/verdict-challenge.md section 6,F-H06b-013
+Executive summary,"Planted violations: 16 of 23 against the frozen set; 20 of 23 against per-change CI (reviewer's figure)",conclusion,review/repro-R3.md section 2; synthesis/assurance-gaps.md section 3,F-E3-006;F-E3-002
+Executive summary,"0 of 6 incompatible-contract mutations caught by a compatibility or version check",conclusion,synthesis/assurance-gaps.md 2.3,F-E3-015;F-E3-013
+Executive summary,"0 of 13 acceptance checks look beyond the Mission's repository",conclusion,synthesis/assurance-gaps.md 2.5,F-E1-032
+Executive summary,"H01 not confirmed: one measure +14% to +15%, two fell; support out of reach; granularity-free variant under 5% (exploratory)",conclusion,synthesis/hypothesis-assessment.md H01; review/verdict-challenge.md section 1; evaluation/validity-evaluation.md section 3,F-B1-001;F-B1-004;F-C-008
+Executive summary,"Exceptions listed and mostly flat or shrinking; reverse dependency 5 of 6 detected",conclusion,synthesis/assurance-gaps.md,F-E1-018;F-E3-003
+Executive summary,"Research Mission stalls at step 3 of 6; compatibility checks pass with no baseline; verb removed with version unchanged",conclusion,synthesis/deviation-catalogue.md A3; synthesis/assurance-gaps.md 2.3,F-E1-028;F-E3-013;F-F-007
+Executive summary,"521 decision records in six repositories; no ecosystem-wide precedence",conclusion,synthesis/knowledge-model.md section 1,F-A1-026;F-A1-003
+Executive summary,"Two verdicts overturned in review; H07 does not show maturity; H02 and H04 not measured well enough",conclusion,review/verdict-challenge.md Outcome; evaluation/validity-evaluation.md sections 3 and 9,
+Executive summary,"Predictions not returned; comparison pending",method,05-status.md; evaluation/validity-evaluation.md section 8,
+Executive summary,"Decision: recorded model inside specify_cli (77.6% of source lines); both dialectic parties name it",decision,synthesis/open-human-decisions.md F3; dialectic/dialectic-record.md section 8,F-B1-013
+Executive summary,"Decision: rulings A5 and A4 flip H05 and H08",decision,synthesis/open-human-decisions.md A4 A5; review/verdict-challenge.md sections 5 and 8; review/synthesis-challenge.md O-01,
+Executive summary,"Decision: order of work and smallest shape; full scope not warranted (both parties)",decision,dialectic/disagreements.csv D07 D09 D16; synthesis/open-human-decisions.md F1 F2,
+Executive summary,"Decision: which of nine executed observations become tracker issues; not checked against trackers",decision,synthesis/open-human-decisions.md section E; 00-rulings-and-deviations.md D-3,
+Part A,"Pack validation 5 of 5 at core's pin and 0 of 19 at head",conclusion,synthesis/knowledge-model.md section 2,F-D1-021
+Part A.1,"Verdict table H01 to H08 and PX-01: synthesis, review, evaluation",conclusion,evaluation/verdict-ledger.csv,
+Part A.2,"H01 figures; 9.8% and 10.6% from the first in-window point; reviewer's extractor +13.4% and +14.2%",conclusion,evaluation/verdict-ledger.csv; evaluation/validity-evaluation.md section 3; review/repro-R2.md,F-B1-001;F-B1-004;F-C-008;F-C2-010
+Part A.2,"H02 figures; acceptance on 430 of 858 Missions; 16 of 24 blame candidates (review's count)",conclusion,synthesis/hypothesis-assessment.md H02; review/repro-R1.md; evaluation/verdict-ledger.csv,F-C-018;F-C-019;F-C-020;F-C-021;F-C2-018
+Part A.2,"H03: 24.7%; 464 or 465 of 656 edges where no record speaks; 84.4% across top-level packages",conclusion,evaluation/verdict-ledger.csv; synthesis/hypothesis-assessment.md H03,F-B3-002;F-B1-010;F-B1-011
+Part A.2,"H04: 34 claimed cells 9 / 22 / 1 / 2; second document 43 cells; single-judge readings",conclusion,review/verdict-challenge.md section 4; review/wording-items.csv L-001,F-A1-029;F-D2-016;F-D2-017
+Part A.2,"H05: 12.5%; 22 of 30 and 16 of 30 with headers; 24 of 27 flat or shrinking",conclusion,review/verdict-challenge.md section 5; evaluation/verdict-ledger.csv,F-E1-020;F-E1-018;F-E1-025
+Part A.2,"H07: 12 of 14 against 15 of 15; 11 of 11 or 10 of 11; 10 of 14 gap 28.6 points",conclusion,evaluation/verdict-ledger.csv; evaluation/validity-evaluation.md section 3; review/repro-R1.md,F-F-001;F-F-002
+Part A.2,"H08: core Python agree for 2 of 6; charter Java 4 of 5 assessable; consistent count 2 or 4",conclusion,review/verdict-challenge.md section 8; synthesis/knowledge-model.md section 4,F-G1-001;F-G2-001;F-G2-015
+Part A.2,"Convergence reported apart: 60 fewer modules and 44,144 fewer source lines than the public line's last commit",conclusion,synthesis/hypothesis-assessment.md H01 Convergence; review/synthesis-challenge.md C-03,F-B1-002;F-C-012
+Part A.2,"Causal sub-measure does not replicate; corrective commits touch fewer components",conclusion,synthesis/hypothesis-assessment.md H01 Cause; evaluation/validity-evaluation.md section 5,F-CX-006;F-C-006;F-C2-008
+Part A.3,"H07 measure leaves out three responsibilities no record places",conclusion,evaluation/validity-evaluation.md section 3,F-F-001;F-F-012;F-F-024
+Part A.3,"Caps lowered by 164 and raised by 44; 231 pairs match exactly; 0 violations in 136 Java architecture tests",conclusion,synthesis/assurance-gaps.md section 5; dialectic/position-B.md section 2,F-E1-019;F-G2-003;F-B2-005
+Part A.4,"Table of departures no check reported, with reproduction marks",conclusion,synthesis/deviation-catalogue.md A3; synthesis/assurance-gaps.md; review/repro-R1-results.csv; review/repro-R3-results.csv,F-E1-028;F-E1-029;F-E1-030;F-E3-013;F-E3-015;F-F-007;F-F-008;F-E1-010;F-E1-012;F-E1-032;F-E1-004
+Part A.4,"Catalogue counts 14 / 8 / 8; 77 of 89 rules not traced",conclusion,synthesis/deviation-catalogue.md Counts and Not covered,
+Part A.5,"Mutations per class; 66 of 310 gate files; 20 of 23 flagged; four detections by patch shape",conclusion,synthesis/assurance-gaps.md section 3; review/repro-R3.md,F-E3-002;F-E3-003;F-E3-006
+Part A.5,"Blind replication 342 of 463 (73.9%)",method,evaluation/validity-evaluation.md section 5,F-CX-004;F-CX-008
+Part B,"H03 shows silence not breach",interpretation,dialectic/dialectic-record.md section 2; evaluation/validity-evaluation.md section 3,F-B3-002;F-B3-003
+Part B,"Knowledge exists and is mostly right; selection and corpus-size cautions",interpretation,synthesis/knowledge-model.md section 1; review/verdict-challenge.md section 11; evaluation/validity-evaluation.md section 3,F-H06b-013
+Part B,"H08 difference follows where core keeps exception lists; not re-run with lists as data",interpretation,review/verdict-challenge.md section 11; evaluation/validity-evaluation.md section 3 and 9,F-G2-015;F-G1-003;F-G1-005
+Part B,"Enforced pair is the intent of record; review sees no conflict with the brief",interpretation,synthesis/knowledge-model.md section 4; review/synthesis-challenge.md W-02,F-A1-001
+Part B,"Core records, prepares and gates; three responsibilities unplaced",interpretation,synthesis/open-human-decisions.md B6; review/wording-items.csv L-019,F-F-027;F-F-005;F-F-012;F-F-024
+Part B,"4 of 7 undetected mutations on rules the author found ambiguous",interpretation,synthesis/assurance-gaps.md 3.2,F-E2-002;F-E2-004;F-E2-006
+Part B,"Copies with a pin lag; copies without one drift; no census",interpretation,review/synthesis-challenge.md W-01; review/wording-items.csv L-018,F-A1-021;F-B2-021;F-H06b-009
+Part B,"Conflicts between recorded decisions and the brief are not violations (B1 to B7)",interpretation,synthesis/open-human-decisions.md section B; 00-rulings-and-deviations.md R4,F-A1-027;F-A1-033
+Part C,"Nine needs; registers K1 to K4 with supporting observations; K5 to K7 weaker",recommendation,synthesis/knowledge-model.md sections 1 and 3,F-A1-026;F-A1-027;F-A1-030;F-B3-007;F-D1-001;F-E1-008;F-D2-010;F-E1-014;F-E1-025
+Part C,"Four shapes A to D with trade-offs; evidence does not choose",recommendation,synthesis/knowledge-model.md section 5; dialectic/disagreements.csv D16,F-B2-020;F-G2-015
+Part C,"Four views; revision binding; local against ecosystem checks; 45-minute build check",recommendation,synthesis/knowledge-model.md sections 2 and 3,F-D1-021;F-G2-012
+Part C,"Exception fields: rationale 30 of 30, owner 2, approval 1",recommendation,synthesis/knowledge-model.md section 4,F-E1-025;F-E1-024
+Part C,"A register reveals, it does not stop; no acceptance authority",recommendation,synthesis/knowledge-model.md section 4; dialectic/rebuttal-B.md; synthesis/open-human-decisions.md F4,F-E1-032
+Part C,"Upkeep cost unknown; AS-10 desk only",recommendation,synthesis/knowledge-model.md section 6; evaluation/verdict-ledger.csv AS-10,
+Part D,"23 points: 8 conceded (5 by A, 3 by B), 9 narrowed, 6 open (tabulated)",conclusion,dialectic/disagreements.csv,
+Part D,"Agreements reached without pressure",conclusion,dialectic/dialectic-record.md section 2,
+Part D,"Disagreement table D01 to D12 in the parties' terms with settling evidence",conclusion,dialectic/disagreements.csv; dialectic/dialectic-record.md sections 4 and 7,
+Part D,"Parallel rebuttals: D02, D11, D12 unanswered by A",method,dialectic/dialectic-record.md sections 0 and 5,
+Part D,"Questions nobody could answer",conclusion,dialectic/dialectic-record.md section 6,
+Part E.1,"Reproduction table; 101 of 162 re-executed; 391 hashes; what the rate does not support; A2 1 of 5",method,evaluation/validity-evaluation.md section 2,
+Part E.1,"55 statements traced 38 / 11 / 6; 52 challenge items (8 major); 57 wording items (5 major)",method,review/synthesis-challenge.md Counts; review/wording-review.md,
+Part E.2,"Coverage limits and what was not measured",method,synthesis/coordinator-procedure-notes.txt; evaluation/validity-evaluation.md sections 3 and 7; evaluation/verdict-ledger.csv,F-D2-002;F-D1-015;F-D1-003
+Part E.3,"Controls 11 held / 8 in part / 1 not held / 1 not checked; rulings 5 held / 7 in part (tabulated); 20 deviations; none invalidates",method,evaluation/process-evaluation.md sections 1 2 and 6; evaluation/process-deviations.csv,
+Part E.3,"Coordinator's failures: steering, briefing gaps, blind arms, record keeping, environment, prior exposure",method,evaluation/process-evaluation.md sections 3 5 and 6; evaluation/process-deviations.csv PD-01 to PD-20; 00-rulings-and-deviations.md section 4,
+Part E.4,"Outside observer: packet, pending comparison, blindness rests on confirmation",method,02-prediction-packet.md; 05-status.md; evaluation/validity-evaluation.md section 8,
+Part F,"Decision table A1 to F7",decision,synthesis/open-human-decisions.md; review/synthesis-challenge.md O-01 O-02 O-03,
+Open risks,"Seven risks; no issue filed; not checked against trackers",decision,00-rulings-and-deviations.md D-3; synthesis/open-human-decisions.md section E; dialectic/dialectic-record.md section 6,F-E1-028;F-E3-015;F-F-007;F-A1-036
+Appendix,"Method; three departures from the debrief procedure",method,dispatch/REPORT.txt; 00-rulings-and-deviations.md; 04-approval-and-dispatch.md,
+Appendix,"Inspected revisions, pins and released artefacts; thirteen supplementary repositories",method,01-pre-registration.md section 1; operations-log.txt,
+Appendix,"Deliverables 1 to 12 and their files",method,synthesis/,
+Appendix,"Scenario table AS-01 to AS-12",conclusion,evaluation/verdict-ledger.csv,
+Appendix,"Corrected figures quoted from the later stage",method,review/repro-R1.md; review/repro-R3.md; review/synthesis-challenge.md D-01,F-C-021;F-E3-006;F-F-001
+Appendix,"Caveats: prior exposure; operations log a single case",method,00-rulings-and-deviations.md section 4; evaluation/validity-evaluation.md section 7,

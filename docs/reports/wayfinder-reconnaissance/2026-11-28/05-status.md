@@ -5,24 +5,37 @@ updated: '2026-11-28'
 
 # Status
 
-| Stage | State |
-|---|---|
-| 0. Predictions of the outside observer | Not yet returned. No finding has been disclosed to the observer. |
-| 1. Investigation | Complete. 18 workstreams, 414 finding records (393 observations, and 21 interpretation records held back from the first phase of the synthesis), 24 mutation patches. |
-| 2. Synthesis | Running: two synthesisers in parallel, a third after them. Input is the evidence-first packet in `synthesis/input/`. |
-| 3. Adversarial review | Not started. |
-| 4. Post-hoc evaluation | Not started. |
-| 5. Dialectical review | Not started. |
-| 6. Report | Not started. |
+| Stage | State | Where |
+|---|---|---|
+| 0. Predictions of the outside observer | Not yet returned. The coordinator disclosed no finding to the observer. All findings are on a pushed branch, so blindness rests on the architect's handling. | `02-prediction-packet.md` |
+| 1. Investigation | Complete. 18 workstreams, 414 finding records (393 observations, 21 interpretations), 24 mutation patches. | `findings/`, `evidence/`, `workstream-reports/` |
+| 2. Synthesis | Complete. Three synthesisers, evidence-first. | `synthesis/` |
+| 3. Adversarial review | Complete. 162 findings sampled: 141 reproduced, 15 with a difference, 5 wider than their evidence, 1 mislabelled, 0 not reproduced. Two hypothesis verdicts overturned. | `review/` |
+| 4. Post-hoc evaluation | Complete. Process and validity. | `evaluation/` |
+| 5. Dialectical review | Complete. 23 points: 8 conceded, 9 narrowed, 6 open. | `dialectic/` |
+| 6. Report | Complete, as a draft for the architect. Markdown source here; the PDF is handed over and not committed. | `report/` |
 
-Nothing in this folder is final until stages 3 to 5 are complete.
+The verdicts of stages 2, 3 and 4 are kept side by side in `evaluation/verdict-ledger.csv`. Where they differ, the architect decides.
 
 ## Finding records per workstream
 
 A1 38, A2 20, B1 27, B2 35, B3 13, C 33, C2 32, CX 13, D1 31, D2 22, E1 35, E2 7, E3 19, F 28, G1 12, G2 15, H06a 21, H06b 13.
 
-## Limits and declared breaches
+## Limits, breaches and the coordinator's own failures
 
-These are listed in `synthesis/coordinator-procedure-notes.txt`. In short: the events Gradle build never succeeded in this environment, so everything that needed it is not assessable; one cited repository (`spec-kitty-go`) is not attached; an account usage limit interrupted seven workstreams, which were resumed; four workstreams declared procedure breaches and two were briefed incompletely by the coordinator.
+- Coverage limits and breaches declared by five workstreams (B3, H06a, F, C, E3): `synthesis/coordinator-procedure-notes.txt`.
+- The process evaluation lists 20 deviations, most of them not declared by the coordinator, among them steering in four briefs and blind arms that were not blind: `evaluation/process-evaluation.md`, `evaluation/process-deviations.csv`.
 
-The coordinator has not read the workstreams' conclusions and gives no reading of the results here.
+## Changes to evidence after the review
+
+After the review had checked all hashes, the repository's terminology gate failed on two evidence files that quote a retired term from repository text: `evidence/A2/other-glossary-index.txt` and `evidence/C2/change-chains-purposive.txt`. The coordinator inserted a `~` inside each occurrence, as the scrub tool does for other retired phrases, and replaced the two recorded SHA-256 values wherever they appear (four files). No other content changed. The reviewers' hash checks refer to the files before this change.
+
+## Repositories attached late
+
+`spec-kitty/spec-kitty-design` at `19fb6a224c` was cloned read-only for the report's fonts and logo only. It is not a subject of the investigation.
+
+## Still open
+
+- The outside observer's predictions, and the comparison with the results.
+- The decisions listed in `synthesis/open-human-decisions.md`.
+- `spec-kitty-go` is not attached.

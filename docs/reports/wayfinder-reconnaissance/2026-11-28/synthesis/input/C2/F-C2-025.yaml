@@ -16,7 +16,7 @@ evidence:
   kind: history-derived
   reference: evidence/C2/change-chains-purposive.txt
   method: listing from commits.jsonl; file creation from git log --diff-filter=A
-  sha256: ac932d8b4dfc3eba6a946550e821a13ef92a8f5cc50068f49a6751a3f8e6511f
+  sha256: d254b7f0fe8bd197bcbc9d6f64788f626782f0868db28e415b7cf274609149b9
   exit_code: 0
   environment: git 2.43.0; Python 3.13.18
   observed_at: '2026-11-28T10:30:00Z'

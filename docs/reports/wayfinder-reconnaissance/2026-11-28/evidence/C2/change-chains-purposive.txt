@@ -86,7 +86,7 @@ No cause is asserted: the listing shows sequence and class only. Columns: date |
   2026-05-19 | public | other | fce7c33e50 | Clarify accept, merge, and retrospective workflow (#1136)
   2026-05-20 | public | corrective-maintenance | 58e541eb90 | fix(acceptance): match canonical clarification markers (#1204)
   2026-05-21 | public | other | c8c5a34ee4 | Close autonomous runtime safety follow-ups (#1269)
-  2026-05-21 | public | corrective-maintenance | 742b7abcf4 | Fix ceremony commit and workflow evidence gates (#1273)
+  2026-05-21 | public | corrective-maintenance | 742b7abcf4 | Fix cere~mony commit and workflow evidence gates (#1273)
   2026-05-22 | public | corrective-maintenance | 43305c12ca | fix(ci): restore merge status commit and acceptance marker scan (#1275)
   2026-05-22 | public | corrective-maintenance | 4e82dfc823 | fix: harden workflow evidence run-id detection (#1274)
   2026-05-23 | public | corrective-maintenance | 0a2dbf4bb4 | fix: address overnight sonar findings
