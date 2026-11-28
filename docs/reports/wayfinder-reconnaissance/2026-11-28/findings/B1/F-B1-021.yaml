@@ -1,0 +1,86 @@
+finding_id: F-B1-021
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: bootstrap and build dependencies
+  deviation: null
+subject:
+  component: build and packaging (hatch_build.py, packs/built-in.source.yaml)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Building core from a git checkout fetches content from another repository: in a fresh clone at head, `uv
+  sync --frozen --all-extras` (exit 0) created packs/built-in during the editable build of spec-kitty-cli, through
+  the hatch build hook, and created a pack cache keyed by the open-packs commit a79c36318b7a pinned in packs/built-in.source.yaml.
+  With that cache emptied, the tree removed and SPEC_KITTY_PACK_OFFLINE=1, the same build fails (exit 1) with PACK_SYNC_UNAVAILABLE;
+  with the cache present it succeeds offline (exit 0). packs/internal and the service binaries were not fetched
+  by the build.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B1/boot-01-uv-sync.txt
+  method: uv sync --frozen --all-extras
+  sha256: 7a197b63d57fca12bc12e18c21728d4fb855cc874503da45c83294478db67b06
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable
+    clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E2
+  kind: executed
+  reference: evidence/B1/boot-20-offline-build-empty-cache.txt
+  method: SPEC_KITTY_PACK_OFFLINE=1 XDG_CACHE_HOME=<empty dir> uv sync --frozen --all-extras --offline --reinstall-package
+    spec-kitty-cli   (packs/built-in absent, pack cache empty)
+  sha256: 86ac51050ebaae4632b68bd3073d1e457e95e8a1650e31cd503b62d57ac73fab
+  exit_code: 1
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable
+    clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E3
+  kind: executed
+  reference: evidence/B1/boot-21-offline-build-warm-cache.txt
+  method: SPEC_KITTY_PACK_OFFLINE=1 XDG_CACHE_HOME=<cache populated by step 01> uv sync --frozen --all-extras --offline
+    --reinstall-package spec-kitty-cli   (packs/built-in absent)
+  sha256: 2b5d64ed6c1f92bd271f3ba61fc237d51aee7a63c0727d42cd405ed1b4a56ba0
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable
+    clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+- id: E4
+  kind: executed
+  reference: evidence/B1/boot-00-sequence.txt
+  method: 'written by the analyst: summary of the boot-* sequence'
+  sha256: 9563edbf72c1b82011783ebf7426f4757667d448771d38415f9780f2198b92f0
+  exit_code: null
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable
+    clone; Linux 6.18
+  observed_at: '2026-11-28T09:28:59Z'
+scope:
+  covered: One disposable clone at head, one host, editable install through uv.
+  not_covered: A build from an sdist, a wheel install from PyPI (head is unpublished), `make sync-packs`, `make
+    sync-services`, and Windows or macOS.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Tested the opposite: that the package builds with no access to the pack source, by repeating the build
+    offline with an empty pack cache.'
+  result: It does not; the build hook raises PACK_SYNC_UNAVAILABLE. It does build offline once the cache holds the
+    pinned commit.
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- installability
+- reliability
+candidate_invariants: []
+open_questions: []

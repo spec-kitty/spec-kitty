@@ -1,0 +1,65 @@
+finding_id: F-E1-014
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: E1-3 chain from governance to gate
+  deviation: null
+subject:
+  component: rule-to-gate chains
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Of 12 rules sampled by seed (6 of 39 list items in the charter's two Architecture sections, 6 of the 50 directives
+  bound for the review action), 4 chains reach a recorded exception path, 1 ends at an automated gate with no exception
+  path found, 6 end at the step instruction with no gate that checks the rule, and 1 rule grants a permission and
+  has nothing to gate. Of the 6 that end at the instruction, 2 have a gate on the same topic that does not cite
+  the rule.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/governance-chain.csv
+  method: 'traced by hand per rule: charter text, charter context output per action, action index files of the pinned
+    built-in pack, step prompts, git grep of tests, src and workflows for the rule id'
+  sha256: 7ba65dbcbd372f0a0420c5f26f1943cc401d5c0f12daef9e8b86346afd350852
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/chain-sample.json
+  method: python random.Random(20261128).sample over each frame; frames and draws recorded in the file
+  sha256: 27c54735f9d3efea9efd255db5b954e69d3e0291d5b4cad089fe286f83dcc2ff
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The 12 sampled rules.
+  not_covered: The other 77 rules of the two frames. Review practice (whether reviewers check ungated rules) is
+    not observable from the repository.
+  population: '89 rules: 39 list items in charter.md lines 378-567 and 50 directives'
+  sample: 12 (6 + 6, stratified)
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each rule with no gate found, searched tests/, src/ and .github/ for the rule id in both spellings
+    and for a gate on the same topic.
+  result: Two topic-level gates found and recorded (pack schema validation for DIRECTIVE_018; nightly security scans
+    for DIR-008); neither cites the rule.
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- analysability
+candidate_invariants: []
+open_questions: []

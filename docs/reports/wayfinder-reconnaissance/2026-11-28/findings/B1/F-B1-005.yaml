@@ -1,0 +1,81 @@
+finding_id: F-B1-005
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: cc58393e0a73447685be7d3f906c1bc77dbee6b4
+  revision_kind: historical
+claim: 'The size of the largest all-imports SCC is not smooth across the series: it is 501 of 1,198 modules at 2026-07
+  month end, 152 at 2026-08 (public), 509 of 1,325 at P5, 511 of 1,336 at 2026-09 month end (merged) and 187 at
+  P6. At P5 six single module edges each reduce the largest SCC from 509 to 249 modules or fewer when removed alone,
+  and at 2026-07 eight single edges each reduce it from 501 to 264 or fewer; three of the six and five of the eight
+  are imports inside a function body. At head no single edge reduces the 201-module SCC by 50 or more.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/scc-bridge-cc58393e0a.json
+  method: python3 scc_bridge.py <sha>
+  sha256: 8e8c269ff4cc53b9403ac16692447b1b510a21ece693b18bc765e0c02470c076
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/scc-bridge-bb2020fea9.json
+  method: python3 scc_bridge.py <sha>
+  sha256: 6a608fb6ff170884b6d91cd7d64d53ce54ae4ea1850a7278b6068c2efcfca75b
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/scc-bridge-5c4fc5a79d.json
+  method: python3 scc_bridge.py <sha>
+  sha256: a354b64297aed8597fc33ea1b7596464648dd4c2146ac2ef58df29bde57fe757
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+scope:
+  covered: Single-edge removal over every edge inside the largest SCC at P5 (2,498 edges), 2026-07 (2,105) and head
+    (1,052).
+  not_covered: Removal of pairs or sets of edges; other revisions.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the jumps are measurement noise by looking for the specific edges that carry them and
+    reading the import sites.
+  result: The edges are real statements, for example `runtime.next.runtime_bridge_io` importing the `specify_cli`
+    root package inside a function (P5) and `charter.synthesizer.synthesize_pipeline` importing `specify_cli` inside
+    a function (2026-07), each closing a path through `specify_cli` -> `specify_cli.cli.commands`.
+relations:
+- type: refines
+  target: F-B1-003
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Which changes between P5 and P6 removed the bridging edges was not traced to commits.

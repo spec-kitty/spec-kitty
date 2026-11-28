@@ -1,0 +1,64 @@
+finding_id: "F-G2-010"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "I5"
+  deviation: null
+subject:
+  component: "charter service file-system writes"
+  repository: "spec-kitty/spec-kitty-charter"
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: "head"
+claim: "Of 95 file-system write API sites in main sources (Files.write/move/copy/delete/createDirectories/..., FileOutputStream, write StandardOpenOptions), 77 are in the storage, archive or fetch adapter rings (packs.infra.storage 57, activations.infra.storage 10, packs.infra.archive 5, packs.infra.fetch 5) and 18 are elsewhere: 10 in packs.application.OwnerOnly (staging directories and owner-only modes, documented as 'what the service writes to disk before it is stored') and 8 in packdoctor.PackDoctorMain (atomic write of a user-requested report file). On reading, none of the 18 writes the activation documents or the pack store. No packs class writes under activations or the reverse was found."
+evidence:
+  - id: "E1"
+    kind: "executed"
+    reference: "evidence/G2/charter_java_checks.json"
+    method: "git archive 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a | tar -x -C charter; python3 -I check_g2_java.txt charter out"
+    sha256: "0a0e045f2082908a0cb91daa46c588f55446a0b7e8aeaa2fa5b38bbb8a42fc8b"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+  - id: "E2"
+    kind: "static-derived"
+    reference: "evidence/G2/check_g2_java.txt"
+    method: "check script (stored as .txt)"
+    sha256: "ad07924738e9396f6dee4f0d414882b24db1f2a61cedeacea814cf0639d0e92c"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+  - id: "E3"
+    kind: "executed"
+    reference: "evidence/G2/charter_cross_slice_package_edges.csv"
+    method: "aggregation of charter_java_edges.csv (full file kept in scratch, sha256 c047e12775e7c818f223fcee7ff42412e8a8691fd016bb9047644467d24a4436)"
+    sha256: "be05232047b98ddc4261d23ba6585cb95653be035818b922b92bc86d6ffd06d9"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+scope:
+  covered: "Comment-stripped main sources; ring classification by package."
+  not_covered: "Writes through libraries (e.g. git subprocess in packs.infra.fetch.git), test fixtures, the Python scripts (scripts/packs/sync_packs.py writes packs/open-packs.lock.yaml and is the only writer of that pin file found by grep)."
+  population: "95 write API sites"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Listed every non-owner-ring site and read each; grep for 'open-packs.lock.yaml' across *.py, *.java, *.kts (2 files: build.gradle.kts registers syncPacks, scripts/packs/sync_packs.py writes)."
+  result: "No write of owned state outside its storage ring was found."
+relations: []
+confidence: "medium"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "integrity"
+candidate_invariants:
+  - "Only <slice>.infra.storage writes a slice's persisted documents."
+open_questions: []

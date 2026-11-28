@@ -1,0 +1,45 @@
+finding_id: F-B1-027
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The built-in pack is a load-time dependency of the Python package, not only a data dependency of commands:
+  one module-level read makes more than half of the modules unimportable when the fetched tree is absent, and the
+  tree itself arrives through a build hook that needs the network or a warm cache.'
+evidence: []
+scope:
+  covered: Head, source checkout, editable install.
+  not_covered: Installed wheels, where the tree is shipped inside the wheel.
+  population: null
+  sample: null
+  seed: null
+interpretation: In the five independence dimensions, the pack content is separate in source and distribution (another
+  repository, pinned by commit) while the Python package is coupled to it at import time. The two observations do
+  not say whether that coupling is intended.
+derived_from:
+- F-B1-021
+- F-B1-022
+counterevidence: []
+disconfirmation:
+  search: Checked the derived findings for a condition under which the package imports without the tree.
+  result: None observed in a source checkout; with the tree present every module imports.
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- installability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,29 @@
+                                                                                                                                                                
+ Usage: spec-kitty next [OPTIONS]                                                                                                                               
+                                                                                                                                                                
+ Decide and emit the next agent action for the current mission.                                                                                                 
+                                                                                                                                                                
+ Agents call this command repeatedly in a loop.  The system inspects the                                                                                        
+ mission state machine, evaluates guards, and returns a deterministic                                                                                           
+ decision with an action and prompt file.                                                                                                                       
+                                                                                                                                                                
+ Examples:                                                                                                                                                      
+     spec-kitty next --mission 034-my-feature --json                            # query mode                                                                    
+     spec-kitty next --agent claude --mission 034-my-feature --result success --json                                                                            
+     spec-kitty next --agent codex --mission 034-my-feature                                                                                                     
+     spec-kitty next --agent gemini --mission 034-my-feature --result failed --json                                                                             
+     spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json                                                             
+     spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json                            
+                                                                                                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --agent                   <str>   Agent name (required for advancing mode)                                                                                   │
+│ --result                  <str>   Result of previous step: success|failed|blocked. If omitted, returns current state without advancing (query mode).         │
+│ --mission                 <str>   Mission slug                                                                                                               │
+│ --json                            Output JSON decision only                                                                                                  │
+│ --answer                  <str>   Answer to a pending decision                                                                                               │
+│ --decision-id             <str>   Decision ID (required if multiple pending)                                                                                 │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane        │
+│                                   worktrees and coordination worktrees.                                                                                      │
+│ --help            -h              Show this message and exit.                                                                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+

@@ -1,0 +1,151 @@
+# Static anchors in core at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 (git show <rev>:<path> | grep -n -E <pattern>)
+### src/specify_cli/invocation/executor.py :: pattern=Does NOT spawn any LLM call|def invoke\(|_new_ulid\(\)  #|write_started\(record\)|catalog pick is deliberately NOT written
+440:    Does NOT spawn any LLM call. Returns synchronously.
+495:    def invoke(
+508:        IMPORTANT: Does NOT spawn any LLM call. Returns synchronously.
+521:        invocation_id = _new_ulid()  # uses codebase-standard ulid library
+548:        # payload; its catalog pick is deliberately NOT written to the record,
+569:        self._writer.write_started(record)  # raises InvocationWriteError → non-zero exit
+
+### src/specify_cli/invocation/writer.py :: pattern=^EVENTS_DIR =|^OP_CLOSURES_RELATIVE_PATH
+28:EVENTS_DIR = "kitty-ops"
+31:OP_CLOSURES_RELATIVE_PATH = Path(EVENTS_DIR) / OP_CLOSURES_FILENAME
+
+### src/specify_cli/invocation/adapters.py :: pattern=Nothing registers a factory today
+56:    Nothing registers a factory today (#3030 FR-032) — the seam exists but
+
+### src/specify_cli/status/adapters.py :: pattern=^def register_|^def fire_
+150:def register_status_fanout_handler(cb: StatusFanOutHandler) -> None:
+165:def register_lifecycle_fanout_handler(cb: LifecycleFanOutHandler) -> None:
+175:def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
+217:def fire_status_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+279:def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+318:def fire_lifecycle_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+
+### src/specify_cli/orchestrator_api/envelope.py :: pattern=^CONTRACT_VERSION|^MIN_PROVIDER_VERSION|BANNED_FLAGS: frozenset|"--full-auto"|"--yolo"|"--dangerously-skip-permissions"|_REQUIRED_POLICY_FIELDS = 
+244:CONTRACT_VERSION = "1.31.0"
+245:MIN_PROVIDER_VERSION = "0.1.0"
+250:BANNED_FLAGS: frozenset[str] = frozenset(
+252:        "--full-auto",
+253:        "--yolo",
+255:        "--dangerously-skip-permissions",
+261:_REQUIRED_POLICY_FIELDS = (
+
+### src/specify_cli/orchestrator_api/consolidation.py :: pattern=renamed from ``merge-mission``|def consolidate_mission|has no attestation flag|from specify_cli.cli.commands import consolidate as merge_command
+286:    from specify_cli.cli.commands import consolidate as merge_command
+571:    """The lane-check refusal for this command's envelope: ``consolidate-mission`` has no attestation flag.
+580:    return f"{refusal}\nconsolidate-mission has no attestation flag: attestation is done with `spec-kitty consolidate` (CLI only), not with this command."
+635:        f"{refusal}\n{command} has no attestation flag: attestation is done with `spec-kitty accept` or `spec-kitty consolidate` (CLI only), not with this command."
+1043:# #3080 (post-plan A4): renamed from ``merge-mission`` for canonical-word
+1049:def consolidate_mission(
+
+### src/specify_cli/orchestrator_api/wp_lifecycle.py :: pattern=policy_metadata=policy_dict|policy_metadata_recorded
+657:            policy_metadata=policy_dict,
+688:        "policy_metadata_recorded": True,
+762:            policy_metadata=policy_dict,
+792:        "policy_metadata_recorded": True,
+949:                policy_metadata=policy_dict,
+977:        "policy_metadata_recorded": policy_dict is not None,
+
+### src/specify_cli/core/stale_detection.py :: pattern=heartbeat|def _is_claiming_process_alive|LIVE_CLAIM_PROCESS_REASON =
+8:Uses git/jj commit timestamps as a "heartbeat" - if no commits for a threshold
+34:LIVE_CLAIM_PROCESS_REASON = "live_claim_process"
+231:def _is_claiming_process_alive(shell_pid: str | None, shell_pid_baseline: str | None = None) -> bool:
+
+### src/specify_cli/status/doctor.py :: pattern=def check_stale_claims|claimed_threshold_days: int|in_progress_threshold_days: int
+222:def check_stale_claims(
+226:    claimed_threshold_days: int = 7,
+227:    in_progress_threshold_days: int = 14,
+
+### src/specify_cli/status/models.py :: pattern=shell_pid: int \| None|shell_pid_created_at|Resolved-binding group
+771:    **Resolved-binding group (FR-013, C-008)**: ``role``, ``agent_profile``,
+793:    shell_pid: int | None = None
+794:    shell_pid_created_at: str | None = None
+819:    # ``agent``/``shell_pid``/``shell_pid_created_at`` (the claim triple,
+838:        "shell_pid_created_at",
+
+### src/specify_cli/cli/commands/agent/workflow_executor.py :: pattern=shell_pid = str\(os.getppid\(\)\)|shell_pid = os.getppid\(\)
+908:    shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+1109:    shell_pid = os.getppid()
+2070:    shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+
+### src/specify_cli/status/resolved_binding.py :: pattern=RESOLVED_MODEL_ABSENT =|genuinely dispatch-resolved
+3:The *genuinely dispatch-resolved* runtime identity — which profile the registry
+36:RESOLVED_MODEL_ABSENT = "__resolved_model_absent__"
+44:    """The genuinely dispatch-resolved runtime identity for one claim pick-up.
+
+### src/specify_cli/cli/commands/agent/workflow.py :: pattern=def _validate_op_claim_correlation|Dispatch Op work package does not match
+1601:def _validate_op_claim_correlation(
+1619:            "Dispatch Op work package does not match claim target: "
+
+### src/specify_cli/lanes/recovery.py :: pattern=Recovery is conservative|_RECOVERY_CEILING =|def scan_recovery_state|def run_recovery
+7:Recovery is conservative: it never advances WP status past in_progress.
+46:_RECOVERY_CEILING = Lane.IN_PROGRESS
+52:    Recovery is conservative: it never advances a WP past IN_PROGRESS.
+632:def scan_recovery_state(
+924:def run_recovery(
+
+### src/specify_cli/cli/commands/implement.py :: pattern="--recover"
+391:    recover: bool = typer.Option(False, "--recover", help="Recover from crashed implementation session"),
+
+### src/specify_cli/doctor/ops.py :: pattern=def close_stale_ops|def close_stale_lifecycle_records
+234:def close_stale_ops(
+343:def close_stale_lifecycle_records(repo_root: Path, *, threshold_hours: float, now: datetime) -> list[SweepLifecycleEntry]:
+
+### src/specify_cli/cli/commands/doctor.py :: pattern="--close-stale"|default 24
+1081:            "--close-stale",
+1089:            help="Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.",
+
+### src/specify_cli/session_presence/open_ops.py :: pattern=Surfaces orphaned Ops|_CLOSE_CMD =
+3:Surfaces orphaned Ops — work that was opened via ``spec-kitty dispatch`` but
+26:_CLOSE_CMD = "spec-kitty profile-invocation complete --invocation-id {invocation_id} --outcome <done|failed|abandoned>"
+
+### src/specify_cli/lanes/stale_check.py :: pattern=def _incorporate_route|--incorporate
+273:def _incorporate_route(lane: ExecutionLane, handle: str, siblings: tuple[SiblingLane, ...]) -> str:
+276:    Re-entering the first WP claims it again; ``--incorporate`` (WP08) merges each sibling lane at its
+286:        lines.append(f"{implement} --incorporate {sibling.lane_id} {agent}")
+326:    WP, ``implement <WP> --incorporate <sibling lane>`` (which merges the sibling at
+
+### src/runtime/next/_internal_runtime/engine.py :: pattern=run_id = uuid4\(\).hex
+219:    run_id = uuid4().hex
+
+### src/specify_cli/core/mission_creation_scaffold.py :: pattern=Add scaffold for mission
+277:            message=f"Add scaffold for mission {mission_slug_formatted}",
+
+### src/specify_cli/review/pre_review_gate.py :: pattern=os.killpg|start_new_session=True
+336:        os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+434:        start_new_session=True,
+
+### docs/architecture/multi-agent-orchestration.md :: pattern=external providers such as|does not provide .spec-kitty orchestrate|One worktree per WP|merge-mission|maps to internal .doing
+18:- external providers such as `spec-kitty-orchestrator` run agents and call
+21:This replaces in-core orchestration commands. The core CLI does not provide `spec-kitty orchestrate`.
+34:2. One worktree per WP.
+54:Automated coordination is run by external providers such as `spec-kitty-orchestrator`.
+95:- `merge-mission`
+118:- API `in_progress` maps to internal `doing`.
+
+### docs/adr/3.x/2026-06-02-1-pi-agent-skill-only-support.md :: pattern=belongs in the external|not supported without
+23:* An orchestrator invoker (`PiInvoker`) belongs in the external `spec-kitty-orchestrator` package, not in this CLI.
+50:* `spec-kitty next --agent pi` is not supported without `spec-kitty-orchestrator`.
+
+### docs/adr/4.x/2026-10-07-2-governed-planning-application-seam.md :: pattern=explicitly excludes|cooperative API writers
+29:The Python transport remains a compatible extension of its existing versioned envelope. Its delivery profile maps the proposed `spec-kitty.orchestrator/2` semantics to implemented commands. It explicitly excludes GapDB atomic journal transactions, runtime epochs/fences/leases, immutable Go WorkRevision generations, durable operation replay, native asynchronous operations, watches, remote serving and tracker publication.
+33:The submission lock serializes cooperative API writers only. Existing CLI/manual writers can be detected by changed content, but do not join a universal atomic journal. Files and Git commit effects precede host-local receipt persistence; failures report materialized/committed or reconciliation-required outcomes honestly. Receipts live in the Git common directory, are shared across linked worktrees, and are not portable to another clone. Missing/corrupt receipts refuse while the separate persistent enabled marker remains present. Both files are trusted host metadata; deleting both or moving to another clone does not preserve this provenance history.
+
+### docs/development/agent-fleet.md :: pattern=switched off|last run was
+20:> **Status (2026-10-19): the fleet is switched off.** The `CI Fleet Verdict` workflow
+21:> (`.github/workflows/ci-fleet-verdict.yml`) is disabled; its last run was 2026-09-26.
+
+### .kittify/charter/charter.md :: pattern=SkyKitty|Delegate to preserve context|Model discipline
+28:> Updated: 2026-10-19 — the autonomous agent fleet (SkyKitty) is switched off (#6503):
+225:- **Model discipline.** Match model strength to the task: the strongest model for hard
+229:- **Delegate to preserve context.** Use subagents for work that can run in an isolated
+251:agents working in session. The autonomous agent fleet (**SkyKitty**) is switched off; see
+252:[The SkyKitty agent fleet](../../docs/development/agent-fleet.md) for its former roles.
+
+### src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md :: pattern=The orchestrator is$|then responsible for creating the worktree|host can enforce safety|Never mix the two|The agent was launched by
+54:- The agent was launched by `spec-kitty next` or a slash command
+109:returns the computed `workspace_path` and `prompt_path`. The orchestrator is
+110:then responsible for creating the worktree at that path. Manual worktree
+211:- Never mix the two interfaces for the same actor
+

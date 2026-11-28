@@ -1,0 +1,67 @@
+finding_id: F-B1-012
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03a
+  deviation: 'The permitted single run of tests/architectural/test_layer_rules.py did not complete: the process
+    was killed by the sandbox memory cgroup (exit 137) at about 2.0 GB RSS, on the first run, on one retry, and
+    on a run restricted to the tests that do not build the pytestarch graph (killed during collection). Instead,
+    the gate''s own helper functions were imported from the test module and executed directly in the disposable
+    clone. The five pytestarch LayerRule assertions (kernel and charter and glossary rules) were therefore not executed;
+    they are compared against the extractor''s graph only.'
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: charter.offering.missions.glossary_hook (line 115, inside a function) loads glossary.attachment with import_module("glossary.attachment").
+  The enforced model forbids charter -> glossary as a LayerRule over the static import graph, and the rule's docstring
+  states that this dynamic import is outside the assertion. It is the only string-literal dynamic import at head
+  that crosses a pair the layer rules forbid (1 of 6 literal dynamic import sites in src/).
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/m03a-enforced-model-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events
+    11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 4edd5985dae32fba53e57efa3eb6d37c64cfe707758a391c636c538d56a3aa30
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: document-claim
+  reference: tests/architectural/test_layer_rules.py:558-564 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git show 5c4fc5a79d:tests/architectural/test_layer_rules.py | sed -n 558,564p
+  sha256: null
+  exit_code: 0
+  environment: git 2.43.0
+  observed_at: '2026-11-28T09:12:00Z'
+scope:
+  covered: String-literal first arguments of import_module, __import__ and find_spec in all 1,490 modules.
+  not_covered: Dynamic imports with a computed module name; entry-point or plugin loading.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for further dynamic crossings of forbidden pairs among all literal dynamic import sites.
+  result: None. The other five literal sites are specify_cli -> charter (1), specify_cli -> runtime (1), two loads
+    of spec_kitty_events, and one inside runtime.
+relations:
+- type: refines
+  target: F-B1-010
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

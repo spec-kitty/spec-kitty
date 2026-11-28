@@ -1,0 +1,65 @@
+finding_id: "F-G2-004"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "I2"
+  deviation: null
+subject:
+  component: "charter service slices (ai.speckitty.charter.<slice>)"
+  repository: "spec-kitty/spec-kitty-charter"
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: "head"
+claim: "Of 200 cross-slice references in main sources (excluding the shared kernel, web and generated api packages and the two composition roots deployable and packdoctor), 0 reach another slice's infra.* package (rule A, private adapters). Under the strict documented rule (only the <slice>.infra.<other> adapter package may name another slice, and only its application or domain ring), with the two documented exceptions encoded (packs.infra.storage storing the profiles/missions/routing kinds; pack-validation over packs/profiles/missions domains), 6 references in 1 package pair remain: ai.speckitty.charter.artifacts.infra.packs -> ai.speckitty.charter.routing.domain. Whether these fall under the documented clause 'with the domain values that ring's answers expose' cannot be decided without type-flow analysis."
+evidence:
+  - id: "E1"
+    kind: "executed"
+    reference: "evidence/G2/charter_java_checks.json"
+    method: "git archive 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a | tar -x -C charter; python3 -I check_g2_java.txt charter out"
+    sha256: "0a0e045f2082908a0cb91daa46c588f55446a0b7e8aeaa2fa5b38bbb8a42fc8b"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+  - id: "E2"
+    kind: "static-derived"
+    reference: "evidence/G2/check_g2_java.txt"
+    method: "check script (stored as .txt)"
+    sha256: "ad07924738e9396f6dee4f0d414882b24db1f2a61cedeacea814cf0639d0e92c"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+  - id: "E3"
+    kind: "executed"
+    reference: "evidence/G2/charter_cross_slice_package_edges.csv"
+    method: "aggregation of charter_java_edges.csv (full file kept in scratch, sha256 c047e12775e7c818f223fcee7ff42412e8a8691fd016bb9047644467d24a4436)"
+    sha256: "be05232047b98ddc4261d23ba6585cb95653be035818b922b92bc86d6ffd06d9"
+    exit_code: 0
+    environment: "CPython 3.13.18 regex/AST-free source scan of Java 25 sources"
+    observed_at: "2026-11-28T09:10:00Z"
+scope:
+  covered: "import statements and fully qualified ai.speckitty.charter.* references in 1,003 main Java files."
+  not_covered: "Test sources, reflection, Spring wiring by type, generated charter-api sources, transitive exposure of domain types through application answers."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Listed every cross-slice reference by slice.ring pair before encoding exceptions (597 under the strictest reading, dominated by infra.api -> generated api.model) and read hexagonal-service.md for each pair class; compared rule names with HexagonalArchitectureTest (ACTIVATIONS_NAME_PACKS_ONLY_FROM_ADAPTER, ARTIFACTS_*)."
+  result: "All other strict-rule hits were explained by documented shared packages or documented exceptions. HexagonalArchitectureTest contains named per-slice rules for the same constraint; it was not run to completion here because the Gradle run is reported under I6."
+relations: []
+confidence: "medium"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "modularity"
+  - "replaceability"
+candidate_invariants:
+  - "A slice names another slice only from its <slice>.infra.<other> adapter, and only that slice's application ring or exposed domain values."
+open_questions: []

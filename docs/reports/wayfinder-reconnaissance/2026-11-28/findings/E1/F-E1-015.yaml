@@ -1,0 +1,65 @@
+finding_id: F-E1-015
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: E1-3 chain from governance to gate
+  deviation: null
+subject:
+  component: what a step is told to apply
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The charter context for the actions specify, plan, implement and review lists all 50 directives by id and
+  summary for every action. The action index files of the pinned built-in pack name 2 (specify), 3 (plan), 3 (tasks),
+  12 (implement) and 6 (review) directives. None of the 6 sampled Architecture-section rule texts occurs in the
+  context text of the four actions; that text carries the one-line governing principle "Architectural alignment"
+  and pointers to charter.md and docs/adr/.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E1/static-searches.txt
+  method: spec-kitty charter context --action <a> --json for six actions in the PX-01 clone; presence of phrases
+    checked with python; last two blocks before the out-of-matrix census
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: packs/built-in/missions/software-dev/actions/*/index.yaml at open-packs a79c36318b (core-pin)
+  method: directives lists
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Six actions (specify, plan, tasks, implement, review, accept) on one checkout with packs synced at the
+    pins.
+  not_covered: The context an agent receives through spec-kitty next prompts beyond the charter block; the tasks
+    and accept contexts were in compact mode (4,992 characters) because of load order, so their phrase checks are
+    not comparable.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched the full context text of each action for a distinctive phrase of each sampled rule.
+  result: No phrase found in any of the four bootstrap-mode texts.
+relations:
+- type: supports
+  target: F-E1-014
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

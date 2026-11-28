@@ -1,0 +1,19 @@
+                                                                                                                                                                
+ Usage: spec-kitty dispatch [OPTIONS] {request}                                                                                                                 
+                                                                                                                                                                
+ Dispatch a request to a governed Op (canonical surface).                                                                                                       
+                                                                                                                                                                
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ *    request      <str>  Natural language request. The router picks the best profile. [required]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --profile                 <str>   Optional profile ID. Bypasses the router — use when the request is ambiguous.                                              │
+│ --json                            Output JSON payload                                                                                                        │
+│ --brief                           Emit routing and orientation metadata only: replace the embedded governance text with its digest and the exact command     │
+│                                   that fetches it. Use after this session has already read the full text for the resolved profile and action.                │
+│ --dry-run                         Route the request and return the routing signal without opening an Op or writing anything.                                 │
+│ --owned-checkout          <path>  Keep this Op's record in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout,    │
+│                                   coordination worktrees and lane worktrees. A record already in another checkout is closed where it lives.                  │
+│ --help            -h              Show this message and exit.                                                                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+

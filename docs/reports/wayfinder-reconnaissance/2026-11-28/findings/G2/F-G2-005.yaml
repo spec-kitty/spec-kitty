@@ -1,0 +1,65 @@
+finding_id: "F-G2-005"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "I3"
+  deviation: null
+subject:
+  component: "core Python layers below specify_cli"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: "head"
+claim: "229 distinct import sites in 27 files of the lower layers import the core CLI layer package specify_cli: 139 sites in 20 runtime files and 90 sites in 7 mission_runtime files (9 of the 229 are TYPE_CHECKING-only), spanning 22 specify_cli subpackages; 0 sites from kernel, charter or glossary; 0 sites into specify_cli.cli (the command-line package itself). Every runtime/mission_runtime site targets a subpackage named in the recorded allowed-exception ledgers (see F-G2-001)."
+evidence:
+  - id: "E1"
+    kind: "executed"
+    reference: "evidence/G2/core_checks.json"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json"
+    sha256: "43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E2"
+    kind: "static-derived"
+    reference: "evidence/G2/check_g2_core.txt"
+    method: "check script (stored as .txt)"
+    sha256: "aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E3"
+    kind: "executed"
+    reference: "evidence/G2/core_L1_edge_counts.csv"
+    method: "aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)"
+    sha256: "84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+scope:
+  covered: "All src/ files; definition of 'core CLI layer' = the specify_cli top-level package (the landscape's top layer); also reported for the narrower specify_cli.cli package."
+  not_covered: "Library repositories other than the Java subject (spec-kitty-events, spec-kitty-tracker Python packages were not scanned by this check); whether the 22 imported subpackages are domain or adapter code."
+  population: "229 sites; 27 source files; 6 top-level packages"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Counted with and without TYPE_CHECKING imports and with lazy (function-local) imports; checked kernel/charter/glossary separately including literal-string dynamic imports."
+  result: "kernel, charter and glossary have no specify_cli import of any form; runtime and mission_runtime depend on specify_cli at 229 sites, all inside the two ledgers."
+relations: []
+confidence: "high"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "modularity"
+  - "layering"
+candidate_invariants:
+  - "No module below specify_cli imports specify_cli outside the ledgered subpackages, and none imports specify_cli.cli."
+open_questions: []

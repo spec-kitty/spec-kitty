@@ -1,0 +1,48 @@
+                                                                                                                                                                                                        
+ Usage: spec-kitty orchestrator-api [OPTIONS] COMMAND [ARGS]...                                                                                                                                         
+                                                                                                                                                                                                        
+ Machine-contract API for external orchestrators (JSON-first)                                                                                                                                           
+                                                                                                                                                                                                        
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                                                                                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ contract-version      Return the current API contract version.                                                                                                                                       │
+│ mission-state         Return the full state of a mission (all WPs, lanes, dependencies).                                                                                                             │
+│ list-ready            List WPs that are ready to start (planned and all deps approved or done).                                                                                                      │
+│ resolve-workspace     Read-only: resolve a WP's lane workspace_path + prompt_path (+ lane fields).                                                                                                   │
+│ start-implementation  Composite transition: planned->claimed->in_progress (idempotent).                                                                                                              │
+│ start-review          Transition a WP from for_review to in_review (reviewer claims review).                                                                                                         │
+│ transition            Emit a single lane transition for a WP.                                                                                                                                        │
+│ append-history        Append a history entry via an ``InnerStateChanged`` ``note`` annotation.                                                                                                       │
+│ accept-mission        Accept a mission after all WPs are approved or done.                                                                                                                           │
+│ consolidate-mission   Consolidate a lane-based mission into target.                                                                                                                                  │
+│ specify               Create a mission scaffold, matching the host CLI's enriched ``specify --json`` contract.                                                                                       │
+│ plan                  Scaffold plan.md for a mission -- an unenriched pass-through of ``setup_plan``.                                                                                                │
+│ tasks                 Finalize WP task metadata -- an unenriched pass-through of ``finalize_tasks``.                                                                                                 │
+│ check-prerequisites   Read-only mission-prerequisite context for ``/spec-kitty.analyze`` (FR-004).                                                                                                   │
+│ record-analysis       Persist an ``/spec-kitty.analyze`` report, verified against disk (FR-005).                                                                                                     │
+│ open-decision         Open a new Decision Moment ledger entry, or return idempotently if one                                                                                                         │
+│                       already exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.                                                                                                     │
+│ resolve-decision      Resolve a decision with a concrete final answer (FR-007). Wraps                                                                                                                │
+│                       ``decisions/service.py.resolve_decision`` 1:1.                                                                                                                                 │
+│ defer-decision        Defer a decision for later resolution (FR-008). Wraps                                                                                                                          │
+│                       ``decisions/service.py.defer_decision`` 1:1.                                                                                                                                   │
+│ cancel-decision       Cancel a decision (deemed no longer relevant) (FR-009). Wraps                                                                                                                  │
+│                       ``decisions/service.py.cancel_decision`` 1:1.                                                                                                                                  │
+│ answer-decision       Resolve a ``spec-kitty next`` ``decision_required`` moment (FR-013,                                                                                                            │
+│                       Mechanism B) with full CLI event/lifecycle-log parity (FR-014, operator                                                                                                        │
+│                       ruling SPEC-FRESH2-001). See the module comment block above this                                                                                                               │
+│                       function for the full five-step composite and the response-shape                                                                                                               │
+│                       contract.                                                                                                                                                                      │
+│ design-status         Read-only design-phase status query (FR-010) -- mirrors ``list-ready``'s                                                                                                       │
+│                       no-state-transition, no-event-emission, no-``--policy`` contract for the                                                                                                       │
+│                       design pipeline instead of the WP loop.                                                                                                                                        │
+│ artifact-read         Read bounded canonical content and its exact revision (absent is explicit).                                                                                                    │
+│ artifact-submit       Submit design content through host placement, validators and commit authority.                                                                                                 │
+│ design-validate       Check current canonical prerequisites without completing a lifecycle step.                                                                                                     │
+│ design-context        Read bounded resolved templates, governance and required interview slots.                                                                                                      │
+│ interview-record      Record incremental interview answers through the existing decision service.                                                                                                    │
+│ next                  Query or advance exactly the same authority and lifecycle as native next.                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+

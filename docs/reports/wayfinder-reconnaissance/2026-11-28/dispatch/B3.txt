@@ -1,0 +1,15 @@
+Workstream B3 - Documented relationships against the observed component graph
+Id: B3. Profile: architect-alphonso (scope: evaluate and measure, not decide). Action for charter context: review.
+
+Goal: measure M03b: the share of observed cross-component import edges in core Python at head that correspond to a relationship the ecosystem's records document.
+
+Inputs you may read from other workstreams, and only these: evidence/A1/documented-relationships.csv, evidence/A1/component-catalogue.csv, evidence/A1/units-without-recorded-internal-structure (whatever file carries that list in evidence/A1), evidence/B1/component-edges-head.csv, evidence/B1/rename-map.csv. The documented table was frozen before the observed graph existed and its author never saw the graph. Do not read either workstream's findings or reports.
+
+Method (write the mapping rules down in evidence/B3/mapping-rules.txt BEFORE joining the two tables):
+1. Map each documented component name to the observed component names (package paths). Record every mapping and every documented component or observed component that has no counterpart.
+2. For each observed cross-component edge classify: (a) explicitly allowed by a documented relationship, (b) allowed only by a general documented rule (e.g. a layer chain that permits a higher layer to use a lower one), (c) explicitly forbidden by a documented relationship, (d) not covered: no record speaks to this pair. Report by edge count and by import weight, for all imports and for load-time imports.
+3. M03b = share of edges in (a) or (b). Report it at two granularities: top-level packages only, and the full component set including second-level subpackages. Report (c) and (d) separately with the top pairs by weight.
+4. Documented relationships with no observed edge (documented but unused), and documented "must-not" relationships that are observed.
+5. Sensitivity: how much the result moves if rule (b) is not counted as documentation.
+
+Findings: one observation with M03b at each granularity and variant, one per category (c) pair, one for (d) with its size, one for unmapped names, plus exploratory ones if warranted. Cap 15.

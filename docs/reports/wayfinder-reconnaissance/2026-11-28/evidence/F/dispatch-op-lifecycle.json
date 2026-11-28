@@ -1,0 +1,84 @@
+{
+ "commands": [
+  "python -m specify_cli dispatch --json --profile analyst-annie 'Probe: open an Op to observe what is recorded'",
+  "python -m specify_cli doctor ops --json",
+  "python -m specify_cli profile-invocation complete --invocation-id 01M8GQ2SXRWJ8B78YWETZK5HHT --outcome abandoned --json"
+ ],
+ "location": "disposable clone of core at 5c4fc5a, branch ws-f-scratch",
+ "dispatch_payload_without_governance_text": {
+  "invocation_id": "01M8GQ2SXRWJ8B78YWETZK5HHT",
+  "profile_id": "analyst-annie",
+  "profile_friendly_name": "Analyst Annie",
+  "action": "review",
+  "governance_context_hash": "92c1dd8b4a6c0a17",
+  "governance_context_available": true,
+  "router_confidence": null,
+  "recommendation": {
+   "task_type": "code-review",
+   "objective": "quality_first",
+   "override_mode": "advisory",
+   "candidates": [
+    {
+     "model_id": "claude-opus-4-6",
+     "source": "catalog",
+     "score": 0.7230000000000001,
+     "rationale": "Strongest adversarial-review and code-truth verification.",
+     "effort": null
+    }
+   ],
+   "model_tier": null
+  },
+  "empty_charter_fallback": false,
+  "alternatives": [],
+  "status": "open",
+  "close_contract": {
+   "command": "spec-kitty profile-invocation complete --invocation-id 01M8GQ2SXRWJ8B78YWETZK5HHT --outcome <done|failed|abandoned>",
+   "outcomes": [
+    "done",
+    "failed",
+    "abandoned"
+   ],
+   "evidence_flag": "--evidence",
+   "artifact_flag": "--artifact",
+   "commit_flag": "--commit"
+  }
+ },
+ "op_record_lines_request_text_removed": [
+  {
+   "event": "started",
+   "invocation_id": "01M8GQ2SXRWJ8B78YWETZK5HHT",
+   "profile_id": "analyst-annie",
+   "action": "review",
+   "actor": "claude",
+   "mode_of_work": "task_execution",
+   "governance_context_hash": "92c1dd8b4a6c0a17",
+   "governance_context_available": true,
+   "started_at": "2026-11-28T09:17:12.282026+00:00"
+  },
+  {
+   "event": "completed",
+   "invocation_id": "01M8GQ2SXRWJ8B78YWETZK5HHT",
+   "completed_at": "2026-11-28T09:17:44.158621+00:00",
+   "outcome": "abandoned",
+   "closed_by": "agent"
+  }
+ ],
+ "doctor_ops_exit_code": 1,
+ "doctor_ops_output": [
+  {
+   "path": "kitty-ops/01M7HF59C2J0YNVA24N42VQNYF.jsonl"
+  },
+  {
+   "path": "kitty-ops/01M8GQ2SXRWJ8B78YWETZK5HHT.jsonl"
+  }
+ ],
+ "complete_output": {
+  "result": "success",
+  "invocation_id": "01M8GQ2SXRWJ8B78YWETZK5HHT",
+  "outcome": "abandoned",
+  "evidence_ref": null,
+  "artifact_links": [],
+  "commit_link": null
+ },
+ "commit_after_close": "2b5785f1e2 op(analyst-annie): review [01M8GQ2S] (created by the CLI in the disposable clone)"
+}

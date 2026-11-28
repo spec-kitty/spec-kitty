@@ -1,0 +1,1 @@
+{"contract_version": "1.31.0", "command": "orchestrator-api.unknown", "timestamp": "2026-11-28T09:06:41.279285+00:00", "correlation_id": "corr-c6f65389758e44b38b32260869b7c851", "success": false, "error_code": "USAGE_ERROR", "data": {"message": "No such command 'merge-mission'. Did you mean 'accept-mission'?"}}

@@ -1,0 +1,66 @@
+finding_id: "F-G2-003"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "I2"
+  deviation: null
+subject:
+  component: "core Python declared public surfaces (mission_runtime root, specify_cli.status facade, charter seams)"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: "head"
+claim: "Measured against the public surfaces declared in core's own gates: (a) mission_runtime package-root rule: 0 runtime imports of a mission_runtime submodule from outside the package; (b) charter seam (charter root, charter.<module> facades, charter.offering.api, charter.activation.api): 454 import rows in 82 files reach a non-seam charter module (426 into charter.activation.*, 28 into charter.offering.*); the 231 distinct (file, module) activation pairs equal the 231 rows of the recorded shrink-only baseline tests/architectural/charter_activation_boundary_baseline.yaml (0 new, 0 stale), and all 10 distinct charter.offering targets appear in the reached_classification of charter_offering_public_surface.yaml; (c) specify_cli.status facade: 58 rows in 13 files import a status submodule other than the facade, of which 7 files use the sanctioned door specify_cli.status._unsafe and the remainder are files named in the gate's exemption sets or are in mission_runtime (2 rows, outside the gate's scan roots); (d) underscore-private convention: 131 rows in 58 files import an underscore-prefixed module or name across a top-level package boundary (most frequent: specify_cli.missions._read_path_resolver 46, kernel._safe_re 15, runtime.next._internal_runtime.* 35); 0 of 125 imports of spec_kitty_events / spec_kitty_tracker reach an underscore-prefixed name."
+evidence:
+  - id: "E1"
+    kind: "executed"
+    reference: "evidence/G2/core_checks.json"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json"
+    sha256: "43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E2"
+    kind: "static-derived"
+    reference: "evidence/G2/check_g2_core.txt"
+    method: "check script (stored as .txt)"
+    sha256: "aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E3"
+    kind: "executed"
+    reference: "evidence/G2/core_L1_edge_counts.csv"
+    method: "aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)"
+    sha256: "84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+scope:
+  covered: "Runtime imports (TYPE_CHECKING excluded) of all src/ files; four surface rules; comparison with two recorded baselines."
+  not_covered: "Attribute access through a public module to private objects (e.g. module._name after a public import), re-exports, kernel/glossary/runtime/specify_cli surfaces other than by underscore convention (no declared surface exists for them), and the status-facade gate's exemption semantics beyond file names."
+  population: "27,569 import-name rows; 454 charter non-seam rows; 125 external-contract imports"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Reproduced the charter.activation gate predicate independently and compared pair by pair with its baseline; checked whether mission_runtime TYPE_CHECKING imports would change (a): they are excluded by the gate as well; checked whether 'charter.activation' root import is treated as internal by the gate (it is, as in my rule)."
+  result: "Exact agreement with the activation baseline (231/231). The underscore-private rule has no counterpart gate; part of its hits fall inside ledgered upward edges (mission_runtime -> specify_cli.missions._read_path_resolver is the ledgered 'missions' row), so the convention and the declared ledgers disagree on what is private."
+relations: []
+confidence: "high"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "modularity"
+  - "replaceability"
+candidate_invariants:
+  - "Cross-component imports name only a declared seam module; underscore-prefixed names are never imported across a top-level package."
+open_questions:
+  - "Is the underscore convention a declared surface rule anywhere in recorded intent?"

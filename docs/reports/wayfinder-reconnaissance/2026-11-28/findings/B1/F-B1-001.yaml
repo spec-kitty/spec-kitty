@@ -1,0 +1,92 @@
+finding_id: F-B1-001
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01a
+  deviation: The brief asks for both lines in the 2026-09 monthly point. Both lines end before the month does (public
+    2026-09-04, EXPERIMENTAL 2026-09-05), so the 2026-09 public and EXPERIMENTAL rows are P3a and P3b, and a third
+    row (M2026-09-merged, f4dc26694c) carries the month end of the merged line.
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Cross-component import edges per 1,000 physical lines of non-test Python under src/ (component names mapped
+  through the rename map) are, at P0..P7: P0 3.316 (90 edges / 27141 lines); P1 6.26 (1664 edges / 265826 lines);
+  P2 6.867 (2033 edges / 296060 lines); P3a 7.541 (3197 edges / 423962 lines); P3b 7.598 (2886 edges / 379818 lines);
+  P4 7.739 (3022 edges / 390507 lines); P5 8.094 (3558 edges / 439604 lines); P6 8.988 (4009 edges / 446024 lines);
+  P7 9.249 (4855 edges / 524936 lines). Per 1,000 code lines (non-blank, non-comment) the same series runs from
+  4.315 to 12.078. An edge is a distinct (importing module, imported module) pair whose components differ. The monthly
+  series is in series.csv.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/rename-map.csv
+  method: curated by the analyst from rename-detection.csv and the component-set differences
+  sha256: c2217953bb5963e3c0d1f5cfcd220555cf6c9bc5e093ee7096a9ed623792acb6
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/points.csv
+  method: git rev-list --first-parent -1 --before='<month end> 23:59:59 +0000' <line tip>; git log -1 --format=%H
+    <point>
+  sha256: 32094e0e12bada059375e0eac02df5a5ca1b9e05675ea8fc193de378f75e6da2
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/script-extract.txt
+  method: authored by the analyst (copy of scratch scripts/extract.py)
+  sha256: 36d6230e3d58c7ec0f84ffd2bd777b245001d2a8609ae187b34a98026ea9c25c
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+scope:
+  covered: 'P0..P7 (nine revisions incl. P3a and P3b), the convergence merge result, and 14 monthly rows 2026-01..2026-11
+    (2026-08 and 2026-09 on both lines, 2026-09 also merged); 21 distinct revisions. Unit as applied: modules that
+    sit directly in the root of specify_cli or charter form one component each, named ''specify_cli'' and ''charter''.
+    Test exclusion as applied: files under a tests/ or test/ directory and conftest.py; a test_*.py file elsewhere
+    is kept.'
+  not_covered: Dynamic imports (importlib with a string; 0 to 8 literal sites per revision are listed in series.csv,
+    computed names are invisible), attribute access after `import pkg`, and implicit execution of parent packages
+    are not edges. Non-Python assets are not counted.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Recomputed the ratio three other ways to see whether the direction depends on the definition: without
+    the rename map (raw component names), per code line instead of per physical line, and with load-time edges only;
+    and cross-checked the extractor''s edge set against grimp 3.20 at head and P1.'
+  result: 'All variants rise between P0 and P7 (raw 3.316 -> 9.249; code-line 4.315 -> 12.078; load-time-only cross-component
+    edges 3,112 of 4,855 at head). The raw and mapped forms differ at most by 0.139 (2026-07: 7.089 raw vs 6.950
+    mapped) and are equal from 2026-08 on. grimp gives the identical module and edge sets at head (1,490 modules,
+    8,332 edges, 0 differences). The series is not monotonic month to month: 2026-05 (5.705) is below 2026-04 (5.885).'
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- modifiability
+candidate_invariants: []
+open_questions: []

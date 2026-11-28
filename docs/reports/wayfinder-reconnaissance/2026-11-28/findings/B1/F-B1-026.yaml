@@ -1,0 +1,50 @@
+finding_id: F-B1-026
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The layer order kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli holds at load time
+  for mission_runtime and partly for runtime because their upward imports are deferred: 29 of the 30 mission_runtime
+  -> specify_cli module edges and 48 of the 98 runtime -> specify_cli module edges exist only inside function bodies
+  or TYPE_CHECKING blocks, and the two packages still sit in the same 60-component cycle as specify_cli when all
+  imports are counted (48-component cycle at load time, which includes runtime and mission_runtime).'
+evidence: []
+scope:
+  covered: Head only.
+  not_covered: Whether the deferral is intended as the mechanism is a matter of recorded intent, not examined here.
+  population: null
+  sample: null
+  seed: null
+interpretation: Read together, the layer-level edge counts, the ledger contents and the component cycle say that
+  the two lower layers are not below specify_cli in the import graph; the ledgers record that state rather than
+  a set of isolated exceptions. This is a reading of three measurements, not a new measurement.
+derived_from:
+- F-B1-009
+- F-B1-011
+- F-B1-007
+counterevidence: []
+disconfirmation:
+  search: Looked in the derived findings for a count that contradicts the reading (a lower layer with no path back
+    from specify_cli).
+  result: kernel, charter (all three components) and glossary have no path to specify_cli in the all-imports closure;
+    the reading applies to runtime and mission_runtime only.
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

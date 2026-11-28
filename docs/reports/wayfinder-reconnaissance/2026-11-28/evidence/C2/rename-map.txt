@@ -1,0 +1,97 @@
+C2 rename map: historical src paths -> components at core head 5c4fc5a (applied by component() in script-extract.txt)
+
+Components at head: kernel, glossary, runtime, mission_runtime (top-level, undivided); specify_cli/<subpackage> and
+charter/<subpackage> for every second-level directory present at head; specify_cli/(root) and charter/(root) for
+modules directly in the package directory.
+
+Rules (first match wins):
+  src/doctrine/**, src/doctrine.py           -> charter/offering
+  src/constitution/<sub>/**                  -> charter/<sub> if <sub> exists at head, else charter/(root)
+  src/constitution/*.py                      -> charter/(root)
+  src/charter/{synthesizer,context_renderers,neutrality,evidence,corpus,packs}/** -> charter/activation
+  src/charter/<file> (root file absent at head root but present in charter/activation) -> charter/activation
+  src/specify_cli/merge/**                   -> specify_cli/consolidation
+  src/specify_cli/next/**                    -> runtime
+  src/specify_cli/glossary/**                -> glossary
+  src/specify_cli/doctrine/**                -> specify_cli/charter_packs
+  src/specify_cli/constitution/**, src/specify_cli/charter/** -> specify_cli/charter[retired]
+  src/specify_cli/charter_lint/**            -> specify_cli/charter_runtime
+  src/specify_cli/doctrine_synthesizer/**    -> specify_cli/charter_pack_synthesizer
+  src/specify_cli/<sub>/** with <sub> absent at head and not listed above -> specify_cli/<sub>[retired]
+     (sync, spec_kitty_events (vendored), dashboard, auth, zeitgeist_client, saas_client, live_work,
+      team_projection, saas, delivery, orchestrator, event_journal, widen, scripts, render, proof,
+      charter_preflight, charter_freshness)
+
+Evidence for the mapped renames: cross-component R-status renames in non-merge commits since 2025-12-31
+(git log --since=2025-12-31 --no-merges -M --diff-filter=R --name-status 5c4fc5a79d), aggregated
+source-component -> destination directory (count of renamed files):
+    193  src/doctrine/missions -> packs/built-in/missions
+    166  src/doctrine/skills -> src/charter/offering
+    122  src/doctrine/templates -> src/charter/offering
+    122  src/doctrine/tactics -> packs/built-in/tactics
+     96  src/charter/(root) -> src/charter/activation
+     48  src/charter/synthesizer -> src/charter/activation
+     34  src/doctrine/drg -> src/charter/offering
+     31  src/doctrine/toolguides -> packs/built-in/toolguides
+     30  src/charter/context_renderers -> src/charter/activation
+     29  src/doctrine/directives -> packs/built-in/directives
+     24  src/doctrine/missions -> src/charter/offering
+     24  src/doctrine/schemas -> src/charter/offering
+     23  src/doctrine/(root) -> src/charter/offering
+     23  src/specify_cli/glossary -> src/glossary/(root)
+     22  src/specify_cli/merge -> src/specify_cli/consolidation
+     22  src/doctrine/procedures -> packs/built-in/procedures
+     22  src/doctrine/styleguides -> packs/built-in/styleguides
+     21  src/specify_cli/next -> src/runtime/next
+     19  src/doctrine/agent_profiles -> src/charter/offering
+     19  src/doctrine/agent_profiles -> packs/built-in/agent_profiles
+     17  src/doctrine/mission_step_contracts -> src/doctrine/missions
+     14  src/doctrine/(root) -> packs/built-in/(root)
+     13  src/doctrine/paradigms -> packs/built-in/paradigms
+     13  src/constitution/(root) -> src/charter/(root)
+     12  src/specify_cli/doctrine -> src/specify_cli/charter_packs
+     11  src/specify_cli/missions -> src/doctrine/missions
+     11  src/specify_cli/dossier -> tests/dossier/(root)
+     10  src/doctrine/directives -> src/charter/offering
+     10  src/doctrine/model_task_routing -> src/charter/offering
+     10  src/doctrine/paradigms -> src/charter/offering
+     10  src/doctrine/procedures -> src/charter/offering
+     10  src/doctrine/shared -> src/charter/offering
+     10  src/doctrine/styleguides -> src/charter/offering
+     10  src/doctrine/tactics -> src/charter/offering
+     10  src/specify_cli/constitution -> src/specify_cli/charter
+      8  src/charter/corpus -> src/charter/activation
+      8  src/charter/evidence -> src/charter/activation
+      8  src/charter/neutrality -> src/charter/activation
+      8  src/doctrine/spdd_reasons -> src/charter/offering
+      8  src/doctrine/toolguides -> src/charter/offering
+      8  src/specify_cli/charter_lint -> src/specify_cli/charter_runtime
+      6  src/charter/packs -> src/charter/activation
+      6  src/doctrine/assets -> src/charter/offering
+      6  src/doctrine/glossary_packs -> src/charter/offering
+      5  src/specify_cli/doctrine -> src/charter/offering
+      4  src/specify_cli/doctrine_synthesizer -> src/specify_cli/charter_pack_synthesizer
+      4  src/doctrine/import_candidates -> src/charter/offering
+      4  src/doctrine/workflows -> src/charter/offering
+      3  src/specify_cli/dashboard -> scripts/docs/glossary_page
+      3  src/doctrine/assets -> packs/built-in/assets
+      2  src/specify_cli/doctrine -> src/charter/activation
+      2  src/doctrine/skills -> .agents/skills/spec-kitty-charter-doctrine
+      2  src/specify_cli/constitution -> src/charter/(root)
+      2  src/constitution/(root) -> src/specify_cli/charter
+      1  src/specify_cli/cli -> src/charter/activation
+      1  src/charter/activation -> src/charter/offering
+      1  src/specify_cli/dashboard -> src/specify_cli/diagnostics
+      1  src/specify_cli/(root) -> src/specify_cli/requirement_mapping
+      1  src/specify_cli/git -> src/kernel/(root)
+      1  src/doctrine/glossary_packs -> packs/built-in/glossary_packs
+      1  src/specify_cli/(root) -> src/specify_cli/upgrade
+      1  src/specify_cli/core -> src/mission_runtime/(root)
+      1  src/doctrine/directives -> kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/tasks
+      1  src/doctrine/styleguides -> kitty-specs/layered-doctrine-org-layer-01KRNPEE/tasks
+      1  src/doctrine/tactics -> kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/tasks
+      1  src/doctrine/toolguides -> kitty-specs/wp-prompt-governance-payload-01KRR8HS/tasks
+      1  src/specify_cli/(root) -> src/specify_cli/acceptance
+      1  src/doctrine/_reference -> tests/unit/(root)
+      1  src/specify_cli/spec_kitty_events -> kitty-specs/shared-package-boundary-cutover-01KQ22DS/tasks
+      1  src/specify_cli/spec_kitty_events -> tests/contract/spec_kitty_events_consumer

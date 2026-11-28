@@ -1,0 +1,62 @@
+finding_id: F-B1-024
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: dependencies on external packages
+  deviation: null
+subject:
+  component: core imports of spec_kitty_tracker
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'spec_kitty_tracker at head: 23 import records in 4 modules, all in the one component specify_cli.tracker,
+  and all 23 inside function bodies (0 at load time). Against the locked 0.5.2 package: 11 names from the package
+  root and in its `__all__`; 11 from submodules without `__all__` (models 8, context 2, errors 1) with the name
+  in the root `__all__`; 1 (SubprocessCommandRunner from spec_kitty_tracker.connectors.cli_runner, imported by specify_cli.tracker.gateway)
+  not in the root `__all__`. No underscore-prefixed module or name.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/external-package-imports-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events
+    11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 2a43a0616cf8bcc9f13cd8b82d5aeda6eda66217df5db9fb7081ba68f208390a
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/external-package-imports-summary-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events
+    11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 55dda3e315c0fe347f3ddddec5904303d22d9f77f50ed561342b26efe3876f5f
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: Every static import and string-literal dynamic import of spec_kitty_tracker in src/ at head; `__all__`
+    read from the installed spec_kitty_tracker 0.5.2.
+  not_covered: As F-B1-023.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched all 1,490 modules for any import of the package outside specify_cli.tracker.
+  result: None.
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

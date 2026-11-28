@@ -1,0 +1,69 @@
+finding_id: F-E1-018
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M05b
+  deviation: Gross additions and removals are reported per ledger in ledgers.csv; the claim gives net change because
+    30 ledgers were created inside the range and their initial fill would be counted as additions.
+subject:
+  component: change of ledgers between 2026-09-07 and 2026-11-28
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of the 57 file ledgers, 27 existed on 2026-09-07 and 30 were created after it. The 27 existing ones went
+  from 3,261 to 2,530 entries (6 shrinking, 18 flat, 3 growing); without the two lint baselines, 25 ledgers went
+  from 279 to 265. The 30 new ones hold 827 entries at head (16 non-empty). Shrinking: formatter exclude list 2,691
+  to 1,929, inert schema slots 47 to 36, mypy quarantine 55 to 46, charter path literals 49 to 40, inline meta reads
+  7 to 2, shim registry 1 to 0. Growing: per-file lint ignores 291 to 336, doc-kitty URL baseline 9 to 29, mission-type
+  reader exemptions 3 to 4. Flat: both layer-rule outbound ledgers (22 and 10 subpackages). Marker scans excluding
+  noqa went from 247 to 429.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent /
+    git grep / git blame over shared clones at head); per-commit entry sets on first-parent history of each file
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: history-derived
+  reference: evidence/E1/ledger-totals.json
+  method: aggregation
+  sha256: 212ac343335d6a1bc7b6fb21c7e834c50d21d0ee688ba17a12122dcd54eeced2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: First-parent history of each ledger file on origin/main between the last commit before 2026-09-07T00:00Z
+    (core 3a4f92b414) and head.
+  not_covered: A ledger that moved from code into a file, or from one file to another, appears as created with its
+    full size (16 non-empty new ledgers); how many of their 827 entries describe constructs that already existed
+    before 2026-09-07 was not measured. Charter has no commit before the start date. For the runtime layer ledger
+    the added and removed counts are a parsing artefact and were set aside; its cap went 23 to 22.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared the per-file counts with the independent caps in _baselines.yaml where both exist.
+  result: Consistent for inert slots (47 to 36), layer ledgers (10 to 10, 23 to 22) and the charter.activation baseline
+    (231); the dead-symbol cap is 231 while the file holds 225 entries (the gate fails on growth only).
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

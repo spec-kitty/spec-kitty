@@ -1,0 +1,65 @@
+finding_id: "F-G2-007"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "I4"
+  deviation: null
+subject:
+  component: "core Python lower layers and specify_cli outside specify_cli/cli"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: "head"
+claim: "Outside the CLI layer (specify_cli/cli/** plus specify_cli/__init__.py and __main__.py), runtime imports of argument-handling libraries (argparse, click, typer), presentation libraries (rich, questionary, prompt_toolkit, tabulate) or specify_cli.cli.*: in the lower layers 8 sites in 4 of 366 files (charter/activation/synthesizer/errors.py rich x3; glossary/checkpoint.py:371 typer; glossary/observation.py rich x2; runtime/next/runtime_bridge_retrospective.py:157 rich.prompt); kernel and mission_runtime 0. Inside specify_cli outside specify_cli/cli: 154 sites in 65 of 908 files with imports (48 argument-library, 41 presentation-library, 65 imports of specify_cli.cli.*, chiefly specify_cli.cli.console)."
+evidence:
+  - id: "E1"
+    kind: "executed"
+    reference: "evidence/G2/core_checks.json"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json"
+    sha256: "43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E2"
+    kind: "static-derived"
+    reference: "evidence/G2/check_g2_core.txt"
+    method: "check script (stored as .txt)"
+    sha256: "aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+  - id: "E3"
+    kind: "executed"
+    reference: "evidence/G2/core_L1_edge_counts.csv"
+    method: "aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)"
+    sha256: "84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
+    observed_at: "2026-11-28T09:12:00Z"
+scope:
+  covered: "Import-based signals only; denominators are files with at least one import per zone (kernel 45, charter 247, glossary 22, runtime 36, mission_runtime 16, specify_cli non-cli 908, specify_cli/cli 194)."
+  not_covered: "print()/sys.exit calls, exit-code handling, help text and CLI-shaped strings in domain code; whether specify_cli subpackages are 'domain components' at all (the documented model calls specify_cli the adapter/application layer)."
+  population: "1,468 files with imports"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked the existing consolidation->cli boundary gate (test_layer_rules.py console ledger) which sanctions specify_cli.cli.console for 16 consolidation files; looked for presentation libraries under other import spellings (from rich import ...)."
+  result: "The console ledger accounts for part of the 65 specify_cli.cli imports; no gate covers rich/typer imports in charter, glossary or runtime."
+relations: []
+confidence: "high"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "separation-of-concerns"
+  - "testability"
+candidate_invariants:
+  - "No module under kernel, charter, glossary, runtime or mission_runtime imports typer, click, argparse or rich."
+open_questions: []

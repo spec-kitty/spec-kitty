@@ -1,0 +1,34 @@
+# Orchestrator-api verb rename merge-mission -> consolidate-mission and contract version (history-derived)
+$ git log -1 --format='%H %ci %s' f5c15f9f88
+f5c15f9f880c3d1410759762e97ac42f8e4d9ebc 2026-09-28 01:21:18 +0200 feat(consolidate): rename lane-consolidation `merge`→`consolidate` (#3080)
+$ git show f5c15f9f88^:src/specify_cli/orchestrator_api/envelope.py | grep -n '^CONTRACT_VERSION'
+42:CONTRACT_VERSION = "1.6.0"
+$ git show f5c15f9f88:src/specify_cli/orchestrator_api/envelope.py | grep -n '^CONTRACT_VERSION'
+42:CONTRACT_VERSION = "1.6.0"
+$ git show f5c15f9f88^:src/specify_cli/orchestrator_api/commands.py | grep -n 'name="merge-mission"\|name="consolidate-mission"'
+2129:@app.command(name="merge-mission")
+$ git show f5c15f9f88:src/specify_cli/orchestrator_api/commands.py | grep -n 'name="merge-mission"\|name="consolidate-mission"'
+2133:@app.command(name="consolidate-mission")
+$ git show 5c4fc5a:src/specify_cli/orchestrator_api/envelope.py | grep -n -i 'merge-mission\|renamed'
+49:# minor bump rather than additive-only; no field is removed or renamed.
+76:# failure and no field is removed or renamed. The failure ``data`` also carries
+90:# and no field is removed or renamed.
+113:# a minor bump; no field is removed or renamed.
+120:# so a minor bump; no field is removed or renamed.
+127:# so a minor bump; no field is removed or renamed.
+134:# renamed.
+141:# ``event_lamport`` on idempotent calls, so a minor bump; no field is removed or renamed.
+149:# minor bump; no envelope field or ``error_code`` is added, removed or renamed.
+158:# ``error_code`` on existing verbs, so a minor bump; no field is removed or renamed.
+# Version-history comment lines that mention the rename: none above means no ledger entry for it.
+$ git log --format='%h %ci %s' f5c15f9f88..5c4fc5a -- src/specify_cli/orchestrator_api/envelope.py | wc -l
+33
+# Current consumers still naming merge-mission (static):
+$ grep -n 'merge-mission' spec-kitty-orchestrator@8be32b1:src/spec_kitty_orchestrator/host/client.py
+399:            "merge-mission",
+$ grep -n 'merge_mission' spec-kitty-orchestrator@8be32b1:src/spec_kitty_orchestrator/loop.py (call sites)
+(no call site in loop.py)
+$ grep -n '"merge-mission"' spec-kitty-mcp@a6bdf6b:src/tools.zig
+739:        return client.invoke(allocator, io, "merge-mission", argv.items);
+$ grep -n 'merge-mission' core@5c4fc5a:docs/architecture/multi-agent-orchestration.md
+95:- `merge-mission`

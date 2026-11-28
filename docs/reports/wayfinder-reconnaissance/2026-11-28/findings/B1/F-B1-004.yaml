@@ -1,0 +1,72 @@
+finding_id: F-B1-004
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01b
+  deviation: The brief asks for both lines in the 2026-09 monthly point. Both lines end before the month does (public
+    2026-09-04, EXPERIMENTAL 2026-09-05), so the 2026-09 public and EXPERIMENTAL rows are P3a and P3b, and a third
+    row (M2026-09-merged, f4dc26694c) carries the month end of the merged line.
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Variant (ii), imports executed at module load only (excluding `if TYPE_CHECKING:` blocks and imports inside
+  function bodies): modules in a cycle are, at P0..P7: P0 0/110 (0.00%), largest SCC 0; P1 10/1000 (1.00%), largest
+  SCC 10; P2 9/1070 (0.84%), largest SCC 9; P3a 9/1311 (0.69%), largest SCC 9; P3b 9/1251 (0.72%), largest SCC 9;
+  P4 11/1257 (0.88%), largest SCC 9; P5 11/1325 (0.83%), largest SCC 9; P6 10/1331 (0.75%), largest SCC 8; P7 10/1490
+  (0.67%), largest SCC 8. At head there are 2 load-time SCCs: 8 modules of specify_cli.cli.commands.charter (the
+  package and seven submodules) and the pair specify_cli.status.emit / specify_cli.status.transition_pipeline. Neither
+  spans more than one component.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/module-sccs-head.json
+  method: python3 (inline) scc over common.edges() of raw-<head>.json; see script-common.txt
+  sha256: 73df46c32f02d18d830d220b03cf0bf28c86593669828073d264565d08fedd02
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: P0..P7 (nine revisions incl. P3a and P3b), the convergence merge result, and 14 monthly rows 2026-01..2026-11
+    (2026-08 and 2026-09 on both lines, 2026-09 also merged); 21 distinct revisions.
+  not_covered: Dynamic imports (importlib with a string; 0 to 8 literal sites per revision are listed in series.csv,
+    computed names are invisible), attribute access after `import pkg`, and implicit execution of parent packages
+    are not edges. Non-Python assets are not counted. A load-time edge is counted only to the named module, not
+    to the parent packages Python executes first.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Tested whether the low load-time figure is an artefact of ignoring parent-package execution: added, for
+    every load-time edge, an edge to each parent package of the target that is not also a parent of the importer,
+    and recomputed (columns expl_loadpkg_* in series.csv, exploratory).'
+  result: With implicit parent-package edges the head figure is 24 modules in cycles, largest SCC 11 (1.6% of modules);
+    the maximum over all points is 27 modules (P5). The figure stays below 2% of modules at every point.
+relations:
+- type: refines
+  target: F-B1-003
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,44 @@
+finding_id: F-E1-035
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: direction of the exception population
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Interpretation of the M05b findings; no new observation.
+evidence: []
+scope:
+  covered: The ledgers of the census.
+  not_covered: See the cited findings.
+  population: null
+  sample: null
+  seed: null
+interpretation: The count of recorded exceptions rose over the range mainly because new gates registered existing
+  constructs in new ledgers (30 ledgers created, 827 entries), while the ledgers that existed at the start shrank
+  or stayed flat with three exceptions. The census cannot tell a newly recorded old construct from a newly created
+  one, so "growing" at ledger level does not by itself mean that more transitional code was written.
+derived_from:
+- F-E1-018
+- F-E1-019
+- F-E1-016
+counterevidence: []
+disconfirmation:
+  search: See the cited findings.
+  result: See the cited findings.
+relations: []
+confidence: low
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,63 @@
+finding_id: F-E1-030
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: PX-01
+  deviation: null
+subject:
+  component: location of the source register
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The gathering guard looks for source-register.csv directly in the Mission directory (the expected-artifacts
+  manifest gives the path pattern "source-register.csv", and the blocked decision reports kitty-specs/<mission>/source-register.csv),
+  while the gathering prompt, the research spec and plan templates and the mission-types glossary page name research/source-register.csv.
+  A register written where the prompt says does not satisfy the guard.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E1/px01-command-log.txt
+  method: 'the blocked decision: guard_failure_paths'
+  sha256: 66d59f638723e7c1de0db02158cab4c59d5c78cb0e917f06204d84830452b92e
+  exit_code: 1
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: grep of expected-artifacts.yaml and the gathering prompt in the pinned pack; git grep source-register
+    in src/runtime and docs/context
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The run and the pinned pack text.
+  not_covered: Whether a file at the Mission root would clear this half of the guard was not tried (no workaround,
+    by instruction).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for code that also accepts the research/ subfolder.
+  result: gather_artifact_presence checks (read_dir / tag).is_file() for the bare tag; no subfolder lookup found.
+relations:
+- type: refines
+  target: F-E1-028
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,43 @@
+# cmd1: grep -rnI -E 'specify_cli|spec_kitty_cli|spec-kitty-cli|pip install spec-kitty|uv tool install spec-kitty|spec-kitty (charter|agent|upgrade|init|next|dispatch|doctor)|/home/user/spec-kitty/|../spec-kitty/' --exclude-dir={kitty-specs,docs,.kittify,site,kitty-ops} . | grep -v 'spec-kitty-charter|spec-kitty-open-packs|spec-kitty-events'  (revision 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a)
+      3 ./AGENTS.md
+      1 ./contracts/charter/examples/Artifact.skill-wrapper.yaml
+      1 ./contracts/charter/examples/MissionStep.activation-implement.yaml
+      1 ./contracts/charter/examples/MissionStep.specify.yaml
+      2 ./contracts/charter/scenarios/effective-mission-types.feature
+      2 ./contracts/charter/scenarios/mission-types.feature
+      2 ./contracts/charter/scenarios/skills.feature
+      1 ./contracts/packs/schemas/charter.schema.json
+      6 ./scripts/packs/core_verdicts.py
+      2 ./scripts/packs/path_corpus.py
+      2 ./service/artifacts-edge/src/test/java/ai/speckitty/charter/artifacts/infra/api/SkillBodiesTest.java
+      2 ./service/missions-edge/src/test/java/ai/speckitty/charter/missions/infra/api/MissionTypeControllerTest.java
+      2 ./service/packs/src/test/java/ai/speckitty/charter/packs/infra/storage/DomainRoundTripTest.java
+      1 ./service/packs/src/test/java/ai/speckitty/charter/packs/infra/storage/GlossaryAndSkillSchemaTest.java
+      1 ./service/packs/src/test/java/ai/speckitty/charter/packs/infra/storage/SkillYamlTest.java
+     14 ./service/packs/src/testFixtures/resources/example-packs/built-in/glossaries/spec-kitty-core.glossary.yaml
+      9 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/software-dev.mission-type.yaml
+      4 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/accept.prompt.md
+      6 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/analyze.prompt.md
+     21 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/charter.prompt.md
+      1 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/discovery.prompt.md
+     17 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/implement.prompt.md
+      1 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/plan.guidelines.md
+     15 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/plan.prompt.md
+      2 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/retrospect.prompt.md
+      3 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/review.guidelines.md
+     15 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/review.prompt.md
+     25 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/specify.prompt.md
+      6 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/tasks-finalize.prompt.md
+      3 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/tasks-outline.prompt.md
+      7 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/tasks-packages.prompt.md
+      2 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/tasks.guidelines.md
+     12 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/steps/tasks.prompt.md
+      1 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/templates/spec-template.md
+      8 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/templates/task-prompt-template.md
+      2 ./service/packs/src/testFixtures/resources/example-packs/built-in/missions/software-dev/templates/tasks-template.md
+      1 ./service/packs/src/testFixtures/resources/example-packs/built-in/procedures/adversarial-squad-deployment.procedure.yaml
+      1 ./service/packs/src/testFixtures/resources/example-packs/org-base/skills/triage-status.skill.yaml
+      1 ./service/packs/src/testFixtures/resources/planted/core-verdicts.json
+# exit=0
+# cmd2: grep -rn 'path_corpus|core_verdicts|spec-kitty-cli|specify_cli' .github build-logic gradle *.kts service/*/build.gradle.kts contracts/build.gradle.kts
+# exit=1 (1 = no match)

@@ -1,0 +1,96 @@
+finding_id: F-E1-024
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: E1-7 exception governance
+  deviation: null
+subject:
+  component: how an exception is meant to be handled
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Recorded rules differ by repository. Core: "Exceptions discussed case-by-case. Strong justification required";
+  a baseline entry names an issue, an owner and a drain date; growing a cap needs a justification comment on the
+  changed line in the same pull request; an ADR adds that a transient allowlist needs an issue, a named owner and
+  an exit date. Charter: exceptions to hand-written gates live in one suppressions register with rule, file, reason
+  and sunset; a risk exception names scope, reason, approver and sunset or review date. Events: exceptions need
+  explicit maintainer approval and a documented follow-up. doc-kitty: a genuine exception to a gate is recorded
+  as an ADR. open-packs: no rule found. No repository records who approves an allowlist entry other than through
+  review of the pull request.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: .kittify/charter/charter.md:702-706,763-774 at 5c4fc5a79d
+  method: Exception Handling; Burn-down Policy
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: tests/architectural/_baselines.yaml:1-16 at 5c4fc5a79d
+  method: per-PR edit policy
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: document-claim
+  reference: docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md at 5c4fc5a79d
+  method: decision
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-charter config/checkstyle/suppressions.xml:5-16 and .kittify/charter-packs/directive/002-risk-appetite-directive.directive.yaml
+    at 06cdfbe948
+  method: register rules
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E5
+  kind: document-claim
+  reference: spec-kitty-events .kittify/charter/charter.md:115 at 646e330b89; doc-kitty .kittify/charter/charter.md:90-93
+    at 1acc49fbe2
+  method: exception sentences
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E6
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: sed and grep of the cited lines
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Charters, the ratchet file header, one ADR, and a keyword search of the four other repositories.
+  not_covered: ADRs of the other repositories were searched by keyword only.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched open-packs for any sentence on exceptions, suppressions or sunsets.
+  result: No hit outside pack content.
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

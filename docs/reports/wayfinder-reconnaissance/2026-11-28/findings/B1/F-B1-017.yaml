@@ -1,0 +1,86 @@
+finding_id: F-B1-017
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: shared mutable state and filesystem conventions
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Anchor literals at head: the directory name ".kittify" is defined as a module-level string constant in 25
+  modules across 12 components (and across kernel, charter, runtime and specify_cli), and "kitty-specs" in 9 modules;
+  298 of 1,490 modules in 45 of 74 components contain a non-docstring string literal with ".kittify", 117 modules
+  in 26 components one with "kitty-specs", and 19 modules in 11 components one with ".spec-kitty". The per-user
+  directory helpers (user_state_dir, user_cache_dir, user_config_dir) are called at 12 sites: 6 in kernel, 2 in
+  specify_cli.compat, and 1 each in charter.offering, runtime, specify_cli.core and specify_cli.upgrade.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/shared-paths-summary-head.json
+  method: python3 shared_state.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+    out/head
+  sha256: 20268b40a59f6ddb6b3386cfa281d18caab80b7ba9efc8d88bf2897e5e5e11b0
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/state-anchor-literals-by-component-head.csv
+  method: python3 anchors.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+    out/head
+  sha256: cba068f461c5a29ac23ed8b2d5123939ceca5d719e28966e902794bb54abc7a0
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/state-anchor-literals-summary-head.json
+  method: python3 anchors.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+    out/head
+  sha256: 8248b6e84b8a67ea470c2bd200a58a8dbdfc858bfc332bf6911be2f1260885cf
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/user-dir-call-sites-head.csv
+  method: python3 anchors.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+    out/head
+  sha256: f5da8b5fcfefede25b6fdfd7f0d675326b63814af3f27440df3f9c75ea9382db
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+scope:
+  covered: All string constants (docstrings excluded) and all call expressions in the 1,490 modules.
+  not_covered: Whether each literal is used as a filesystem path or as message text was not separated in the literal
+    counts.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a single owning definition of the directory names that the other components import instead
+    of redefining.
+  result: 'No single definition is imported by the others: 25 modules each assign the literal ".kittify" to a module-level
+    name of their own (one of them in kernel, one in specify_cli.core), and 9 modules do the same for "kitty-specs"
+    (one of them specify_cli.core.constants.KITTY_SPECS_DIR).'
+relations:
+- type: refines
+  target: F-B1-016
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

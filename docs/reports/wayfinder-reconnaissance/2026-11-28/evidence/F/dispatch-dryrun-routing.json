@@ -1,0 +1,59 @@
+{
+ "command": "PYTHONPATH=<clone>/src python -m specify_cli dispatch --dry-run --json <request>",
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "sample": "purposive, 4 requests",
+ "results": [
+  {
+   "request": "Analyse the structural architecture of the execution responsibilities across the repository and report findings",
+   "profile_id": "researcher-robbie",
+   "action": "analyze",
+   "router_confidence": "canonical_verb",
+   "alternatives": [
+    "architect-alphonso",
+    "paula-patterns",
+    "retrospective-facilitator"
+   ],
+   "recommendation_override_mode": "advisory",
+   "status": "dry_run",
+   "governance_context_hash": "419349e4715e1a83"
+  },
+  {
+   "request": "structural analysis of the codebase dependency graph",
+   "profile_id": "planner-priti",
+   "action": "plan",
+   "router_confidence": "domain_keyword",
+   "alternatives": [
+    "researcher-robbie"
+   ],
+   "recommendation_override_mode": "advisory",
+   "status": "dry_run",
+   "governance_context_hash": "a95bd914fc3c4984"
+  },
+  {
+   "request": "measure module coupling and produce a structural analysis report",
+   "profile_id": "researcher-robbie",
+   "action": "analyze",
+   "router_confidence": "canonical_verb",
+   "alternatives": [
+    "generic-agent",
+    "implementer-ivan",
+    "java-jenny",
+    "python-pedro"
+   ],
+   "recommendation_override_mode": "advisory",
+   "status": "dry_run",
+   "governance_context_hash": "419349e4715e1a83"
+  },
+  {
+   "request": "run a static structural analysis of the import graph and summarise",
+   "profile_id": "researcher-robbie",
+   "action": "analyze",
+   "router_confidence": "domain_keyword",
+   "alternatives": [],
+   "recommendation_override_mode": "advisory",
+   "status": "dry_run",
+   "governance_context_hash": "419349e4715e1a83"
+  }
+ ],
+ "files_written_by_dry_run": 0
+}

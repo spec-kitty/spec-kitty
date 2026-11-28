@@ -1,0 +1,81 @@
+finding_id: F-B1-003
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01b
+  deviation: The brief asks for both lines in the 2026-09 monthly point. Both lines end before the month does (public
+    2026-09-04, EXPERIMENTAL 2026-09-05), so the 2026-09 public and EXPERIMENTAL rows are P3a and P3b, and a third
+    row (M2026-09-merged, f4dc26694c) carries the month end of the merged line.
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Variant (i), all imports: the share of modules that sit in an import cycle of more than one module, and
+  the largest strongly connected component (SCC) as a share of all modules, are at P0..P7: P0 22.7% in a cycle (25/110),
+  largest SCC 20 = 18.2%; P1 23.7% in a cycle (237/1000), largest SCC 173 = 17.3%; P2 27.3% in a cycle (292/1070),
+  largest SCC 209 = 19.5%; P3a 28.8% in a cycle (378/1311), largest SCC 154 = 11.8%; P3b 27.1% in a cycle (339/1251),
+  largest SCC 143 = 11.4%; P4 28.8% in a cycle (362/1257), largest SCC 175 = 13.9%; P5 43.9% in a cycle (581/1325),
+  largest SCC 509 = 38.4%; P6 31.9% in a cycle (424/1331), largest SCC 187 = 14.1%; P7 33.1% in a cycle (494/1490),
+  largest SCC 201 = 13.5%. At head the 494 cyclic modules form 15 SCCs; the three largest have 201, 190 and 60 modules.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/module-sccs-head.json
+  method: python3 (inline) scc over common.edges() of raw-<head>.json; see script-common.txt
+  sha256: 73df46c32f02d18d830d220b03cf0bf28c86593669828073d264565d08fedd02
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:30:47Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/crosscheck-grimp-5c4fc5a79d.json
+  method: venv/bin/python crosscheck_grimp.py extracts/<head> <head>
+  sha256: c560abf2180d38a0a161fb826a07efd9c37ce9c05d11bc9737eab58d1caf7cc7
+  exit_code: 0
+  environment: grimp 3.20; networkx 3.7; CPython 3.13.18
+  observed_at: '2026-11-28T09:28:36Z'
+scope:
+  covered: P0..P7 (nine revisions incl. P3a and P3b), the convergence merge result, and 14 monthly rows 2026-01..2026-11
+    (2026-08 and 2026-09 on both lines, 2026-09 also merged); 21 distinct revisions. Module graph = distinct module
+    pairs from every `import` / `from ... import` statement, including those inside functions and `if TYPE_CHECKING:`
+    blocks.
+  not_covered: Dynamic imports (importlib with a string; 0 to 8 literal sites per revision are listed in series.csv,
+    computed names are invisible), attribute access after `import pkg`, and implicit execution of parent packages
+    are not edges. Non-Python assets are not counted.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for an extractor or algorithm error that would inflate cycles: compared the module set, edge set
+    and SCC sizes with grimp 3.20 + networkx 3.7 at head and at P1, and re-ran the SCC computation with networkx
+    on the extractor''s own edges.'
+  result: 'Head: identical (1,490 modules, 8,332 edges, 494 modules in cycles, largest SCC 201). P1: grimp omits
+    4 files that are not in a package (scripts and a hyphenated directory) and their 11 edges; cycle counts are
+    identical (237, largest 173).'
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants: []
+open_questions: []

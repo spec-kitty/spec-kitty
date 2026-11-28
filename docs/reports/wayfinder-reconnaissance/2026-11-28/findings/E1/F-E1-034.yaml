@@ -1,0 +1,43 @@
+finding_id: F-E1-034
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: reach of ungated rules
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Interpretation of F-E1-014 and F-E1-015; no new observation.
+evidence: []
+scope:
+  covered: The 12 sampled rules and the four action contexts.
+  not_covered: See the cited findings.
+  population: null
+  sample: null
+  seed: null
+interpretation: For the sampled rules that have no automated gate, the remaining mechanism is the step instruction,
+  and that instruction reaches an agent as an id in a list of 50 for most of them, not as rule text scoped to the
+  action. Whether such rules are applied then depends on the agent following a pointer; the repository gives no
+  way to observe that.
+derived_from:
+- F-E1-014
+- F-E1-015
+counterevidence: []
+disconfirmation:
+  search: See the cited findings.
+  result: See the cited findings.
+relations: []
+confidence: low
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

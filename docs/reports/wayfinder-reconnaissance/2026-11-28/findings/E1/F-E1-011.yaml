@@ -1,0 +1,65 @@
+finding_id: F-E1-011
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: events suite job
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: The job suite of the events workflow ci.yml clones spec-kitty-planning at its default branch without a pin
+  and runs bin/ci-run.sh from it; the job is not among the four required checks.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: .github/workflows/ci.yml:118-129 at 646e330b89
+  method: steps "Sibling checkouts" and "Run the suite"
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: sed -n 122,129p .github/workflows/ci.yml
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: executed
+  reference: evidence/E1/rulesets-live-2026-11-28.json
+  method: gh api (read-only), reduced
+  sha256: 675449c5d4c48162f2be940f1b7d2ac9546d0f2b8197c3a35de0a8ab073d706f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The workflow file.
+  not_covered: What the script selects for this repository was not traced.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a pinned ref on the planning clone.
+  result: 'None: git clone -q of the default branch.'
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

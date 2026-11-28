@@ -1,0 +1,56 @@
+finding_id: F-E1-017
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M05a
+  deviation: null
+subject:
+  component: equivalents in the other four repositories
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'Outside core, the machine-readable exception surface is small and mostly inline: spec-kitty-charter has
+  one suppressions register with 0 entries, 59 @SuppressWarnings annotations, 2 NOSONAR comments and 0 @Disabled
+  tests; spec-kitty-events has 53 @SuppressWarnings, 6 @Disabled tests, 1 xfail marker and 16 type-ignore or noqa
+  comments; spec-kitty-open-packs has 36 noqa or type-ignore comments; doc-kitty has 15 eslint-disable comments,
+  6 ts-ignore or ts-expect-error comments, 13 skipped, fixme or todo tests and a URL baseline of 29 entries.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent /
+    git grep / git blame over shared clones at head); rows of the four repositories
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: git grep for the listed markers over tracked files at each head.
+  not_covered: Suppressions expressed in tool configuration files of these repositories (for example Error Prone
+    or ESLint rule overrides) were not parsed.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Read the charter suppressions register header to see whether inline suppressions are meant to exist.
+  result: The header says exceptions to the hand-written gates live in the register and "those gates are never relaxed
+    in source"; 59 @SuppressWarnings annotations exist in Java sources. Which of them relax a gate the register
+    covers was not determined.
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Which of the 59 @SuppressWarnings annotations in charter concern checks the register is meant to hold?

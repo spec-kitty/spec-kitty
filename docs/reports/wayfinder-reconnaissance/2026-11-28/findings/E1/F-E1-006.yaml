@@ -1,0 +1,70 @@
+finding_id: F-E1-006
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: E1-2 CI as an assurance surface
+  deviation: null
+subject:
+  component: charter statement about enforcement on GitHub
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The core charter at head states that nothing on GitHub enforces the pull-request workflow ("there is no branch
+  protection or required review ... nothing requires them to pass"), while three active rulesets exist on the repository,
+  two on main, created 2026-11-01, requiring a pull request, linear history and three status checks.
+evidence:
+- id: E1
+  kind: document-claim
+  reference: .kittify/charter/charter.md:536-540 at 5c4fc5a79d
+  method: section "Programme PR Workflow"; quoted in static-searches.txt
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: executed
+  reference: evidence/E1/rulesets-live-2026-11-28.json
+  method: gh api (read-only), reduced
+  sha256: 675449c5d4c48162f2be940f1b7d2ac9546d0f2b8197c3a35de0a8ab073d706f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E3
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: sed -n 532,540p .kittify/charter/charter.md at head
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: The one charter section and the live rulesets of spec-kitty/spec-kitty.
+  not_covered: Other documents that describe enforcement (CLAUDE.md describes branch protection and required checks)
+    were not reconciled line by line.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence:
+- CLAUDE.md "Branches and CI" at the same revision describes enforcement as live.
+disconfirmation:
+  search: Looked in the same charter for a later statement that corrects the section.
+  result: None in the charter; CLAUDE.md at the same revision says GitHub branch protection and review requirements
+    enforce the workflow, which agrees with the rulesets and disagrees with the charter section.
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- analysability
+candidate_invariants: []
+open_questions: []

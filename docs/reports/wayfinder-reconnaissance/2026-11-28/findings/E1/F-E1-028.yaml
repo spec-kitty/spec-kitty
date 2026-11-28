@@ -1,0 +1,65 @@
+finding_id: F-E1-028
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: PX-01
+  deviation: null
+subject:
+  component: research mission type, runtime guard of step gathering
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'PX-01 outcome: stalls at a guard with no documented producer. A research Mission created with the documented
+  command and advanced with spec-kitty next passed scoping and methodology and stopped at gathering, the third of
+  six steps: after the source register and evidence log were authored and committed, next returned kind "blocked",
+  exit 1, with two guard failures: "Required artifact missing: source-register.csv" and "Insufficient sources documented
+  (need >=3)".'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E1/px01-command-log.txt
+  method: 21 commands in a disposable clone at core head with a scratch HOME; wrapper script-px01-run.txt logs command,
+    output and exit code
+  sha256: 66d59f638723e7c1de0db02158cab4c59d5c78cb0e917f06204d84830452b92e
+  exit_code: 1
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: executed
+  reference: evidence/E1/px01-summary.txt
+  method: summary of the run with the sequence and exit codes
+  sha256: 484d34bdab1674d06857abd09e944f599aa5dd823e5ad6faa744aecedbfb226c
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: One run, one Mission, topology single_branch, agent name claude, packs synced at core's pins.
+  not_covered: The steps synthesis, output and accept were not reached. No workaround was tried, by instruction.
+    Other mission types and topologies were not run.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for a documented way to pass the guard before recording the stall: the step prompt, the step contract,
+    the CLI help tree, docs/ and the source tree.'
+  result: None found; see the two findings that refine this one.
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- functional suitability
+- operability
+candidate_invariants: []
+open_questions: []

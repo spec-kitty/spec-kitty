@@ -1,0 +1,63 @@
+finding_id: F-B1-002
+workstream: B1 - Observed structure, core Python
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01a
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 2554bd13adc289d3457681308645fe52619bca0e
+  revision_kind: historical
+claim: 'At the convergence, the merge result 2554bd13ad has a src/ tree identical to its second parent P3b (git
+  diff --stat over src/ is empty), so every structural measure of the merge result equals P3b: 1,251 modules, 379,818
+  lines, 2,886 cross-component edges, 7.598 edges per 1,000 lines. The first parent P3a measured 1,311 modules,
+  423,962 lines, 3,197 edges, 7.541 per 1,000 lines. Relative to P3a the merge result has 60 fewer modules and 44,144
+  fewer lines.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/extract-log.txt
+  method: 'for sha in points: git archive <sha> src pyproject.toml | tar -x; python3 extract.py extracts/<sha> out/raw-<sha>.json'
+  sha256: 064d8dee413d46bd46d98abc1715b7c64d2014f6b32495117d54b7e8f49d0c4d
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+  observed_at: '2026-11-28T09:28:36Z'
+scope:
+  covered: P3a, P3b and the merge commit, src/ only.
+  not_covered: Files outside src/ (tests, docs, packs) were not compared. No trend is drawn across the merge.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the merge commit introduced any src/ change of its own relative to either parent by extracting
+    all three trees and comparing module and import-record counts, and by `git diff --stat 2554bd13ad f57b06dd87
+    -- src`.
+  result: No difference to P3b (same 1,251 modules and 17,380 import records; empty diff). The difference is entirely
+    to P3a.
+relations:
+- type: refines
+  target: F-B1-001
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

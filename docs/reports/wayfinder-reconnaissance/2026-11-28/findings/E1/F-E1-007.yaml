@@ -1,0 +1,62 @@
+finding_id: F-E1-007
+workstream: E1 - Assurance inventory, exceptions, and the research-mission experiment
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: E1-2 CI as an assurance surface
+  deviation: null
+subject:
+  component: test directories outside the per-change matrix
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The module registry lists 107 test directories in 32 out-of-matrix records; 4 of them name a per-PR home,
+  103 do not. 1,383 of the 4,369 tracked test files (31.7%) sit directly in one of those 103 directories; the largest
+  are tests/specify_cli/cli/commands (242 files), tests/integration (150) and tests/specify_cli (97). The registry
+  and the nightly workflow give them a nightly home.
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: 'last block: python over .github/ci-module-registry.yml out_of_matrix_test_dirs and git ls-files tests'
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core
+    head)
+  observed_at: 2026-11-28T09:40Z
+- id: E2
+  kind: document-claim
+  reference: .github/ci-module-registry.yml:898-1340 at 5c4fc5a79d
+  method: the out-of-matrix inventory with its reasons
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+  observed_at: 2026-11-28T09:40Z
+scope:
+  covered: Tracked files matching tests/**/test_*.py, attributed by their own directory.
+  not_covered: Some files in these directories are also selected per PR by a marker-routed job (corpus, contract
+    tools, one packaging test); that overlap was not measured per file, so 31.7% is an upper bound for "never run
+    per PR".
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for per-PR jobs that run out-of-matrix directories by path.
+  result: Found three by path (tests/docs, tests/e2e, tests/architectural, all recorded with per_pr_home) and marker-routed
+    jobs that can select files inside directories listed without one.
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- testability
+candidate_invariants: []
+open_questions: []
