@@ -5,15 +5,15 @@ updated: '2026-11-28'
 
 # 9. Outstanding decisions for the architect
 
-Consolidator K4, profile `architect-alphonso`; its verb "decide" yields to the envelope. Decision ids D1 to D16 are those of `06-capability-dispositions.md` section 2, unchanged. D17 to D22 are added here because the inputs raise them and no id covered them. `04`, `06`, `08` are the deliverables of this folder; CH is `challenge/candidate-challenge.md`; "steelman S6" is an item of `challenge/steelman.md`. Tags: [read] and [executed] are mine at head; [relayed] is checked by an input. Mechanism ids (M1.1) and capability ids (C07) are those of `06`.
+Consolidator K4, profile `architect-alphonso`; its verb "decide" yields to the envelope. Decision ids D1 to D16 are those of `06-capability-dispositions.md` section 2, unchanged. D17 to D27 are added here: D17 to D22 because the inputs raise them, D23 to D27 because a step of `07-remediation-roadmap.md` (T1 to T15, probes P1 to P10) waits for a ruling that no id covered. `04`, `06`, `07`, `08` are the deliverables of this folder; CH is `challenge/candidate-challenge.md`; "steelman S6" is an item of `challenge/steelman.md`. Tags: [read] and [executed] are mine at head; [relayed] is checked by an input.
 
 ## 1. Conclusion
 
-1. **Twenty-two decisions are open. Three gate most of the deletion.** D1 (the record may leave the target tree), D2 (the tool may push it) and D3 (approved work is integrated on approval) together decide whether topologies, the coordination branch, execution lanes and consolidation are replaced as a set, or only tidied. That set is about 96,000 lines in five packages (CH [relayed]).
-2. **Three more decide how, not what.** D17 authorises the experiments that raise the confidence of D3, D4, D10 and D16. D15 decides whether recorded decisions are superseded as sets. D22 decides whether the break belongs to 4.0.0.
-3. **Every decision has a default.** If no ruling is given, the recommended architecture proceeds on the defaults in section 2. No default removes a capability rated core or important.
-4. **Four defaults contradict something recorded** and are challenges under R1: D4 (the recorded "no Python fallback writer"), D13 (squash as default), D15 (amendment as practice), D9 (upgrade from every version).
-5. **One fact would change several defaults and nobody has it**: how many users hold Missions in flight, or read the on-disk log, outside the repositories examined (D1, D8).
+1. **Twenty-seven decisions are open. Three gate most of the deletion.** D1 (the record may leave the target tree), D2 (the tool may push it) and D3 (approved work is integrated on approval) together decide whether topologies, the coordination branch, execution lanes and consolidation are replaced as a set, or only tidied. That set is about 96,000 lines in five packages (CH [relayed]).
+2. **Four more decide how, not what.** D23 decides whether the guards apply to the programmatic API before API 2.0 exists; it gates T5, the first step that changes a public contract. D17 authorises the probes that raise the confidence of D3, D4, D10 and D16. D15 decides whether recorded decisions are superseded as sets. D22 decides whether the break belongs to 4.0.0.
+3. **Every decision has a default** (section 2). No default removes a capability rated core or important.
+4. **Five defaults challenge something recorded** (R1): D4 ("no Python fallback writer"), D13 (squash as default), D15 (amendment as practice), D9 (upgrade from every version), D24 (shipped migrations are never edited).
+5. **One fact would change several defaults and nobody has it**: who holds Missions in flight or reads the on-disk log outside these repositories (D1, D8).
 
 ## 2. The decisions in order of what they unblock
 
@@ -22,69 +22,77 @@ Consolidator K4, profile `architect-alphonso`; its verb "decide" yields to the e
 | 1 | D1 | May the live Mission record leave the target tree, onto a ref | yes | M1.1 to M1.3, M1.6, M3.3, M3.4, M4.1; every later step |
 | 2 | D2 | May the tool push the record and the commits its events name | yes, `sync: auto` | M4.1, M4.2, C32 |
 | 3 | D3 | Is approved work integrated on approval, or at acceptance | on approval | M1.4, M1.5, M7.1, C07, C08, C11 |
-| 4 | D17 | Are the reversible experiments and the reading pass authorised | yes, in disposable clones and at the desk | confidence of D3, D4, D10, D16; the size of the roadmap |
-| 5 | D15 | Are the consolidation, topology, coordination and migration-ledger records superseded as sets | supersede | all of M1, M7, M8 |
-| 6 | D22 | Does the breaking set land before 4.0.0 general availability | yes | the timing of D5, D8, D9, D11; every transitional end |
-| 7 | D8 | Missions in flight: land on the old CLI, or a bounded import | no import | M8.6; when M1.1 and M7.1 can be deleted |
-| 8 | D9 | Upgrade floor and removal of `migrate` | floor 3.2.x | M8.1 to M8.3 |
-| 9 | D4 | Record writer for 4.0: Python library in process, or the Java service | library | M3.2, M4.4, M7.7 |
-| 10 | D5 | Six states before the record contract reaches 1.0 | yes | M3.1 |
-| 11 | D18 | Is "a human accepted the named tip, unreviewed commits listed" an acceptable landing guarantee | yes | M7.1, M7.2, M7.5 |
-| 12 | D6 | Does 4.0.0 wait for the charter system's compile | wait | M5.1, M5.5 |
-| 13 | D11 | API 2.0 of about 8 verbs, breaking both known clients once | yes | M6.2 |
-| 14 | D12 | Acceptance: interactive unless a standing delegation, or an asserted actor | interactive | C10 |
-| 15 | D7 | Is exclusion the only narrowing | no: also `only:` per pack, opt-in kinds | M5.2, M5.6 |
-| 16 | D19 | Must a clone work without the charter system installed | yes: the bundle is committed | the delivery form of M5.1 |
-| 17 | D13 | Default landing strategy | merge commit | M7.6, M1.8 |
-| 18 | D10 | Is the list of 17 tools a commitment; which tool features stay | rows; features by desk check | M6.3, M6.4, C02 |
-| 19 | D16 | One record ref per repository, or per Mission | per repository | the layout of M4.1 |
-| 20 | D20 | Are the constraints of `08` adopted, including those that need a register | yes, with each roadmap step | nothing is blocked; nothing is protected without it |
-| 21 | D14 | Optional capabilities C20, C26, C28, C31 and `--commit-to-target` | C26, C28 kept; C20, C31 reduced; flag given up | M1.11, M5.7 |
-| 22 | D21 | Is event consumption by other systems (C25) a 4.0 need; who owns the preserved registrants | no; remove the seam once the ref is readable | M4.3 |
+| 4 | D23 | Do the guards apply to every door at once, changing API 1.x behaviour, before API 2.0 | yes; warnings for one release candidate | T5, and through it T6 and T7 |
+| 5 | D17 | Are the reversible experiments and the reading pass authorised | yes, in disposable clones and at the desk | confidence of D3, D4, D10, D16; the size of the roadmap |
+| 6 | D15 | Are the consolidation, topology, coordination and migration-ledger records superseded as sets | supersede | all of M1, M7, M8 |
+| 7 | D22 | Does the breaking set land before 4.0.0 general availability | yes | the timing of D5, D8, D9, D11; every transitional end |
+| 8 | D8 | Missions in flight: land on the old CLI, or a bounded import | no import | M8.6; when M1.1 and M7.1 can be deleted |
+| 9 | D25 | Until when is the last release with `consolidate` supported | until 4.1.0 | the end of the D8 arrangement |
+| 10 | D9 | Upgrade floor and removal of `migrate` | floor 3.2.x | M8.1 to M8.3 |
+| 11 | D24 | Is a baseline cut of shipped migrations a retirement that DIRECTIVE_044 permits | yes | T14 |
+| 12 | D4 | Record writer for 4.0: Python library in process, or the Java service | library | M3.2, M4.4, M7.7 |
+| 13 | D27 | Do custom mission types in the old formats and workflow files stop loading | yes, with a converter in the charter system | T10 |
+| 14 | D5 | Six states before the record contract reaches 1.0 | yes | M3.1 |
+| 15 | D18 | Is "a human accepted the named tip, unreviewed commits listed" an acceptable landing guarantee | yes | M7.1, M7.2, M7.5 |
+| 16 | D6 | Does 4.0.0 wait for the charter system's compile | wait | M5.1, M5.5 |
+| 17 | D11 | API 2.0 of about 8 verbs, breaking both known clients once | yes | M6.2 |
+| 18 | D12 | Acceptance: interactive unless a standing delegation, or an asserted actor | interactive | C10 |
+| 19 | D7 | Is exclusion the only narrowing | no: also `only:` per pack, opt-in kinds | M5.2, M5.6 |
+| 20 | D19 | Must a clone work without the charter system installed | yes: the bundle is committed | the delivery form of M5.1 |
+| 21 | D13 | Default landing strategy | merge commit | M7.6, M1.8 |
+| 22 | D10 | Is the list of 17 tools a commitment; which tool features stay | rows; features by desk check | M6.3, M6.4, C02 |
+| 23 | D16 | One record ref per repository, or per Mission | per repository | the layout of M4.1 |
+| 24 | D20 | Are the constraints of `08` adopted, including those that need a register | yes, with each roadmap step | nothing is blocked; nothing is protected without it |
+| 25 | D14 | Optional capabilities C20, C26, C28, C31 and `--commit-to-target` | C26, C28 kept; C20, C31 reduced; flag given up | M1.11, M5.7 |
+| 26 | D21 | Is event consumption by other systems (C25) a 4.0 need; who owns the preserved registrants | no; remove the seam once the ref is readable | M4.3 |
+| 27 | D26 | What are RACI and significance scoring for (M2.6) | keep untouched until stated | their removal in T10 or T15 |
 
 ## 3. Each decision
 
-Each block gives the options, what the evidence says, and the consequences for users and data (R16). "Blocks" and the default are in the table above.
+Options, evidence, and consequences for users and data (R16). What each blocks and its default are in the table above.
 
 ### D1. The record leaves the target tree
 
 - **Options.** (a) One append-only file per Mission on `refs/heads/spec-kitty/record`, never checked out. (b) A tracked file on the Mission branch, written by commit. (c) As now: tracked files on branches that carry code.
-- **Evidence.** Four assessors named (c) independently as the cause of their mechanism's excess (`02` RC1). Both candidates chose (a) from opposite stances. The events repository has accepted commit by ref (`spec-kitty-events:docs/adr/0007-write-service-commits-coordination-status-by-ref.md` [read: present]); core's counterpart is Proposed [relayed CH]. (b) keeps default push and forge visibility, but the Mission tip moves on every event, so acceptance needs a definition of bookkeeping paths: a residue of the present gate (CH section 8).
+- **Evidence.** Four assessors named (c) independently as the cause of their mechanism's excess (`02` RC1). Both candidates chose (a) from opposite stances. The events repository has accepted commit by ref (`spec-kitty-events:docs/adr/0007-write-service-commits-coordination-status-by-ref.md` [read: present]); core's counterpart is Proposed [relayed CH]. (b) keeps default push, but the Mission tip moves on every event, so acceptance needs a definition of bookkeeping paths (CH section 8).
 - **Users and data.** `status.events.jsonl` and `status.json` are no longer written; a branch `spec-kitty/record` appears on the forge; an observer without the CLI reads JSONL there. Consumers: `fleet-kitty`, `spec-kitty-planning` (18 files name the log [relayed]; 21 by my `grep -rIl` [executed]), the hosted dossier, the read service's resolver, the orchestrator's scheduler, 12 pack prompts [relayed `04` section 12]. Landed Missions stay as text in history. Cost: one name map and one update per consumer.
-- **Would change it.** A documented journey that needs the live record in the target tree. None was found.
 
 ### D2. The tool pushes
 
 - **Premise to confirm.** Mission state is shared through git (C32), not through one store.
 - **Options.** (a) `sync: auto`, the tool pushes after each state-changing operation. (b) `manual` only. (c) D1 (b), which makes the question disappear.
-- **Evidence.** A plain `git push` leaves a branch that is not checked out behind [relayed CH, executed]. Today the tool pushes only under `consolidate --push` (`src/specify_cli/consolidation/phase_finalize.py:50` [read]). The charter forbids agents to push `origin/main` only (`.kittify/charter/charter.md:544` [read]); no recorded rule covers a push of another branch. Replay through the state machine is not built [relayed `04`].
+- **Evidence.** A plain `git push` leaves a branch that is not checked out behind [relayed CH, executed]. Today the tool pushes only under `consolidate --push` (`src/specify_cli/consolidation/phase_finalize.py:50` [read]). The charter forbids agents to push `origin/main` only (`.kittify/charter/charter.md:544` [read]); no recorded rule covers a push of another branch. Replay through the state machine is not built (P9).
 - **Users and data.** A network round trip per state-changing command; credential prompts in agent sandboxes; a forge rule on every branch may refuse the push. Under (b) the protection is a printed count of unshared events and a refusal at `accept` and `land`.
 
 ### D3. When approved work is integrated
 
 - **Options.** (a) On approval, into the Mission branch. (b) At acceptance. (c) Thin lanes, as the fallback.
-- **Evidence.** (a) was reached independently by both candidates. CH F1: approvals in two clones no longer commute. Answered by experiment: a join by merge keeps every approved commit an ancestor [relayed `04`, executed]. Under (b) approvals commute again, but a dependent work package needs a merge of its predecessors and every conflict reaches the human at once. Unknown: how often an integration conflict forces a second review.
+- **Evidence.** (a) was reached independently by both candidates. CH F1: approvals in two clones no longer commute. Answered by experiment: a join by merge keeps every approved commit an ancestor [relayed `04`, executed]. Under (b) approvals commute, but the dependency merge returns and every conflict reaches the human at once. Unknown: how often a conflict forces a second review; if often, (c), and about 20,000 lines of consolidation stay.
 - **Users and data.** An agent's approval moves a shared branch at once; the target moves only on `accept` and `land`. A cancel after approval is a revert. Attestations, `--dependency-ref` and 22 flags go; two recovery guides are rewritten [relayed `04` section 12]. No data migration.
-- **Would change it.** A pilot in which most Missions need a second review: then (c), and about 20,000 lines of consolidation stay.
 
 ### D17. Experiments and the reading pass
 
 - **Options.** Authorise all, a subset, or none. The mandate authorises no implementation; these run in disposable clones or at the desk.
-- **What they are.** A pilot Mission on work-package branches that counts re-reviews (D3). Push contention on one record ref (D16). A rule-by-rule comparison of the Java guards with core's (D4). A desk check of the tool row schema against the 17 tools (D10). Declarative step checks beside the Python guards. A module-by-module reading of `cli` and of about 79,000 lines no assessor covered (`06` X.1, X.3). A trial of constraints AC-01 and AC-07 on one package (`08`).
-- **Evidence.** The end-state size of core (about 147,000 lines) carries 79,000 lines unassessed (`04` section 8).
+- **What they are.** Probes P1 to P10 of `07` section 2: among them the pilot Mission that counts re-reviews (P4, D3), push contention on one record ref (P1, D16), the comparison of the Java guards with core's (P2, D4), the desk check of the tool rows (P3, D10), the reading pass over `cli` and about 79,000 unassessed lines (P5), and the question to users (P10, D1, D8). Added by `08`: a trial of constraints AC-01 and AC-07 on one package.
 - **Users and data.** None.
+
+### D23. Guards behind every door, on API 1.x (added; roadmap step T5)
+
+- **Options.** (a) From T5 the ownership, evidence, independence and pre-review guards apply to `move-task`, `agent status emit` and the API `transition` verb alike, and `consolidate-mission` calls the one landing executor; the API warns for one release candidate, then refuses. (b) The API keeps its present behaviour until API 2.0 (T9, D11). (c) Never: the API stays a lower-level door.
+- **Evidence.** The guards live in one command module (`src/specify_cli/cli/commands/agent/tasks_move_task_gates.py`, 1,703 lines [relayed `07`]); `status emit` and the API reach the pipeline without them [relayed M3]. The API lands with no claim, gate or rollback (`src/specify_cli/orchestrator_api/consolidation.py:586` [read]). D11 does not cover it: T5 comes four steps before API 2.0 and changes 1.x within its major version.
+- **Users and data.** `spec-kitty-orchestrator` calls `transition` without command guards [relayed steelman]; its transitions may refuse, and the pre-review gate may run tests where none ran. `spec-kitty-mcp` likewise. No data format changes; reversible by revert. Under (b), T6 and T7 move two rule sets, not one.
 
 ### D15. Supersede as sets
 
 - **Options.** (a) One new record per subject that supersedes the old ones. (b) Amend in place, as now. (c) Leave the records and mark them historical.
 - **Evidence.** Five landing records carry 41 amendment headings [relayed M7]; the migration-ledger record carries 8 (`docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md` [executed: `grep -c`]). R1 permits the challenge.
-- **Users and data.** None directly. Contributors and their agents read fewer special rules; `CLAUDE.md` shrinks with them.
+- **Users and data.** None directly; contributors and their agents read fewer special rules.
 
 ### D22. The release that carries the break
 
 - **Options.** (a) Every breaking change lands before 4.0.0 general availability; release candidates carry the old and the new Mission shape, no general release does. (b) 4.0.0 ships the present shape and the break waits for 5.0. (c) Split across 4.0 and 4.x.
-- **Evidence.** R7 names "the best possible 4.0". The contracts that change are below 1.0 [relayed `04`]. (c) breaks the same consumers twice.
-- **Users and data.** (a): release-candidate users meet one break. (b): every compatibility mechanism lives one more major version, and the record contract is broken after it reached 1.0.
+- **Evidence.** R7 names "the best possible 4.0". The contracts that change are below 1.0 [relayed `04`]. (c) breaks consumers twice.
+- **Users and data.** (a): release-candidate users meet one break. (b): every compatibility mechanism lives one more major version.
 
 ### D8. Missions in flight
 
@@ -96,26 +104,44 @@ Each block gives the options, what the evidence says, and the consequences for u
 
 - **Options.** Floor 3.2.x with a pinned stepping stone; floor 3.0; no floor, as now.
 - **Evidence.** 144 registered migrations [executed: `ls m_*.py`], 59 below 3.0 [relayed M8]. The start-up gate is a no-op: both bounds are 3 (`src/specify_cli/migration/schema_version.py:22-23` [read]). No documented need below 3.0 [relayed M8].
-- **Users and data.** A project below 3.2 upgrades in two commands. Four open-packs prompts name `migrate` [relayed M8]. The migration-ledger files become inert.
+- **Users and data.** A project below 3.2 upgrades in two commands. Four open-packs prompts name `migrate` [relayed M8].
+
+### D24. Baseline cut and DIRECTIVE_044 (added; roadmap step T14)
+
+- **Options.** (a) Rule that replacing the shipped migrations by a floor and one converter is a retirement, not an edit. (b) Keep the registry. (c) Amend the directive.
+- **Evidence.** The project's rule: "Do not edit a shipped migration", per `DIRECTIVE_044` (`CLAUDE.md`, Migration Ledger Model [read]). `07` T14 names this ruling beside D15 without an id.
+- **Users and data.** As D9. Under (b) 144 migrations and the ledger stay.
+
+### D25. End of support for the last release with `consolidate` (added; roadmap step T11)
+
+- **Options.** A date or version (default 4.1.0); or open-ended.
+- **Evidence.** Under D8 (a) a Mission in flight lands on that release. `07` section 6: "the architect dates the end of its support". Without a date the arrangement has no end (R17).
+- **Users and data.** A user with a Mission in flight after the date has no supported way to land it; the Mission's files stay readable.
+
+### D27. Custom mission types in the old formats (added; roadmap step T10)
+
+- **Options.** (a) One format; `.kittify/missions/<key>/mission.yaml` and workflow files stop loading; a converter in the charter system. (b) Keep a reader for the old formats until 4.1.0. (c) Keep both formats.
+- **Evidence.** Five definition generations are live (`02` section 3); nothing writes `workflow_id` [relayed M2]. Projects with custom types: unknown. `07` T10 touches persistent data and names no decision.
+- **Users and data.** Projects with custom types, organisation packs, the pack composer: one converter run per type.
 
 ### D4. The record writer
 
 - **Options.** (a) `spec_kitty_events` as a Python library in process (CA). (b) The Java write service (CB).
-- **Evidence.** The Python package checks edges, force and `review_ref` only [relayed CH]; reviewer independence is in core (`src/specify_cli/status/models.py:411` [read]). The Java service has three of four guards and no independence guard [relayed CH]. Its pin is not vendored: `pins/README.md:28` names the read service only [read]. Default (a) contradicts the recorded "no Python fallback writer" (`CLAUDE.md`, Shared Package Boundary [read]). The ref format is the same, so the choice is reversible.
+- **Evidence.** The Python package checks edges, force and `review_ref` only [relayed CH]; reviewer independence is in core (`src/specify_cli/status/models.py:411` [read]). The Java service has three of four guards and no independence guard [relayed CH]. Its pin is not vendored: `pins/README.md:28` names the read service only [read]. Default (a) contradicts the recorded "no Python fallback writer" (`CLAUDE.md`, Shared Package Boundary [read]). The choice is reversible: one ref format.
 - **Users and data.** (a): a pure-Python install; a guard change needs an events release. (b): a native process on every write, a launcher and a four-platform release matrix.
-- **Disagreement kept.** CA and CB differ; the guard comparison of D17 and a ruling on a non-Python writer for 4.0 settle it.
+- **Disagreement kept.** CA and CB differ; P2 and a ruling on a non-Python writer settle it.
 
 ### D5. Six states
 
 - **Options.** Six states, `blocked` as a flag, override as its own event; or nine lanes as now.
-- **Evidence.** Independent agreement of both candidates. A lane reached by force does not mean what it says, so landing re-reads history [relayed M3]. Steelman S15 and S16 are answered by "not finalized" and by an exclusive start.
+- **Evidence.** Independent agreement of both candidates. A lane reached by force does not mean what it says, so landing re-reads history [relayed M3].
 - **Users and data.** `claimed` and `done` vanish as names: the orchestrator's scheduler, step prompts, `lane.schema.json`. One name map. Cheap before the contract is 1.0, a breaking change after.
 
 ### D18. The landing guarantee (added)
 
 - **Options.** (a) Accept "a human accepted the named tip, with unreviewed commits listed". (b) Add a review requirement for commits made directly on the Mission branch. (c) Keep per-line proof, and with it lanes and about 30,000 lines.
-- **Evidence.** CH grades the loss major, argued (C11). The present proof is itself incomplete: 18 pinned residuals [relayed M7]. The merge-attribute guard is given up: a local merge driver can alter an integration merge, which is then listed, not refused (`04` section 10).
-- **Users and data.** An operator who relies on the gate to catch canceled content must read the acceptance listing. No data.
+- **Evidence.** CH grades the loss major, argued (C11). The present proof is itself incomplete: 18 pinned residuals [relayed M7]. The merge-attribute guard is given up: an altered integration merge is listed, not refused (`04` section 10).
+- **Users and data.** An operator who relies on the gate to catch canceled content must read the acceptance listing.
 
 ### D6. The charter switch
 
@@ -132,7 +158,7 @@ Each block gives the options, what the evidence says, and the consequences for u
 ### D12. Who accepts
 
 - **Options.** Interactive unless a named human recorded a standing delegation; an asserted actor; identity verified by a host (not designed here).
-- **Evidence.** Human in Charge is carried by mechanism at three points only, and the actor is a caller-asserted string [relayed M6, M7]. A terminal check is a recorded act, not proof of a human.
+- **Evidence.** The actor is a caller-asserted string [relayed M6, M7]. A terminal check is a recorded act, not proof of a human.
 - **Users and data.** An unattended pipeline records a delegation once. An agent can no longer accept in a non-interactive session.
 
 ### D7. Narrowing
@@ -144,8 +170,8 @@ Each block gives the options, what the evidence says, and the consequences for u
 ### D19. A committed bundle (added)
 
 - **Options.** The compiled bundle is committed and built-ins are precompiled in the wheel; or it is not committed and every clone and CI job needs the charter system.
-- **Evidence.** `04` assumes "yes" without a ruling. The manifest must hash outputs too, or a hand edit passes (CH C18).
-- **Users and data.** Committed: a bundle diff in every rules change, reviewable. Not committed: a Java tool on every contributor's machine.
+- **Evidence.** `04` assumes "yes" without a ruling; `07` T12 follows it.
+- **Users and data.** Committed: a reviewable bundle diff in every rules change. Not committed: a Java tool on every machine.
 
 ### D13. Landing strategy
 
@@ -156,24 +182,23 @@ Each block gives the options, what the evidence says, and the consequences for u
 ### D10. Agent tools
 
 - **Options.** Rows for all 17 with features decided by a desk check; two open formats only; keep the renderers.
-- **Evidence.** Three tool-named renderers and eight provider modules exist; the row schema is unproven [relayed CH]. Steelman S5 holds.
+- **Evidence.** Three tool-named renderers and eight provider modules exist; the row schema is unproven [relayed CH].
 - **Users and data.** A tool that fails the desk check keeps a renderer or is dropped by ruling. Without user-global installs, a user's other projects on an older CLI lose global commands: announced, not solved.
 
 ### D16. Record granularity
 
 - **Options.** One ref per repository with one file per Mission; or one ref per Mission.
 - **Evidence.** Replay per file works mechanically [relayed `04`, executed]. Contention is unmeasured (D17).
-- **Users and data.** One extra forge branch against one per Mission. Cheap to change before the contract is 1.0.
+- **Users and data.** One extra forge branch against one per Mission.
 
 ### D20. The constraints and the knowledge capability (added)
 
 - **Options.** (a) All 27 constraints of `08`, registers in core, a cross-repository index for two. (b) Only the 18 a check decides alone. (c) None until the remediation is done.
-- **Evidence.** The present gates pass with all ten patterns present; no check can decide whether a new mechanism duplicates an old one (`08` sections 1 and 4).
-- **Users and data.** None for users. Contributors keep a few register files; a release can fail on a transitional entry that reached its end.
+- **Evidence.** The present gates pass with all ten patterns present (`08` section 1).
+- **Users and data.** None for users; a release can fail on a transitional entry that reached its end.
 
 ### D14. Optional capabilities
 
-- **Options.** Per item: keep, reduce, drop.
 - **Evidence.** C26 is rated important with journeys J2 and J5; CA's reduction rested on a false premise [relayed CH]. C31 has no journey [relayed CH]. C28 was not assessed, and the README's promise for it is unmet (`needs/needs-and-journeys.md` section 4 [read]).
 - **Users and data.** A user of `--commit-to-target` lands through `land`. A reopen becomes a new Mission that cites the old one.
 
@@ -181,19 +206,25 @@ Each block gives the options, what the evidence says, and the consequences for u
 
 - **Options.** Remove the produce seam once the ref is readable; or keep it.
 - **Evidence.** No registrant in core's `src` [executed: no call of a `register_*_handler`]; registrants are preserved in `event-router`, 11 files [relayed CH]. Steelman S17: a read surface must exist first.
-- **Users and data.** The owner of the hosted surfaces turns registrants into readers of the ref.
+- **Users and data.** The registrants' owner turns them into readers of the ref; `07` T11 waits for that owner's agreement.
+
+### D26. RACI and significance scoring (added; roadmap step T10)
+
+- **Options.** State the intent and keep; or state that there is none and remove.
+- **Evidence.** No built-in type uses them; steelman S36: decide the intent before deleting [relayed `03`:D9.7]. `07` T10 keeps them "until their intent is decided".
+- **Users and data.** None known.
 
 ## 4. Dependencies between the decisions
 
 - D2 and D16 have a subject only if D1 is (a).
 - D3 presumes D1: with status in the tree, integration on approval would move the status file on every approval.
-- D5 comes before the record is first written to the ref, or the name map is applied twice.
 - D8 and D9 follow D22: the floor and the import are counted from the release that breaks.
 - D18 follows D3: under thin lanes an attribution rule returns, and D18 (c) is the consequence.
 - D19 follows D6.
+- D23 comes before D5 and D4 in time: T5 precedes T6 and T7. D25 has a subject only if D8 is (a).
 
 ## 5. Limits
 
-- The defaults are those of `06`; I changed none. D17 to D22 are my additions and carry my defaults.
-- The ranking is a judgement of how many dispositions wait, read from `06` sections 2 to 4. I did not read `05` or `07`, written in parallel; a roadmap step may order two neighbours differently.
-- Decision-material and unknown: users with Missions in flight; readers of the on-disk log outside these clones; whether a non-Python writer is required for 4.0. Settled by experiment: everything under D17.
+- The defaults are those of `06`; I changed none. D17 to D27 are my additions. The defaults of D23 and D27 are the ones `07` assumes; the others are mine.
+- The ranking is a judgement of how many dispositions and roadmap steps wait, read from `06` sections 2 to 4 and `07` section 1. I read `07` after writing; `05` not at all.
+- Unknown and decision-material: users with Missions in flight; readers of the on-disk log outside these clones; projects with custom types. P10 asks.

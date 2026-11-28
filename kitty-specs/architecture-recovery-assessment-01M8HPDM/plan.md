@@ -22,7 +22,7 @@ A recommended simplified architecture for Spec Kitty 4.0, the obstructions to it
 
 ## Decisions
 
-The decisions that need the architect are D1 to D22 in `09-open-decisions.md`, in the order of how much each unblocks, each with the default the roadmap assumes.
+The decisions that need the architect are D1 to D27 in `09-open-decisions.md`, in the order of how much each unblocks, each with the default the roadmap assumes.
 
 ## Sequencing
 
