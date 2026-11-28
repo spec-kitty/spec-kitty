@@ -1,0 +1,29 @@
+$ python launch_write_service.py (investigator's script, cwd = clone with the rehearsal pin)
+{
+ "ensure": "ready",
+ "ensure_seconds": 5.73,
+ "host": "127.0.0.1",
+ "port_is_int": true,
+ "pid_alive": true,
+ "process_name": "command-cli-0.1.0-rc.2-linux-x64",
+ "process_ppid_is_this_python": true,
+ "endpoint_dir_files": [
+  "endpoint.json",
+  "service.lock",
+  "service.log"
+ ],
+ "second_ensure_reused_same_pid": true,
+ "service_version": "0.1.0-rc.2",
+ "health": "ready"
+}
+$ service status
+  macos-arm64: missing (command-cli-0.1.0-rc.2-macos-arm64)
+  windows-x64: missing (command-cli-0.1.0-rc.2-windows-x64.exe)
+  contract_tools: missing (contract-tools-0.1.0-rc.2.tar.gz)
+  contracts: missing (contract-bundles-0.1.0-rc.2.tar.gz)
+  fixtures: missing (conformance-fixtures-0.1.0-rc.2.tar.gz)
+  instance: healthy (instance 01M8H89AVSRBWWFM14FBQTNRXV, port 35469)
+$ service stop
+stopped
+exit 0
+write-service processes left: 0

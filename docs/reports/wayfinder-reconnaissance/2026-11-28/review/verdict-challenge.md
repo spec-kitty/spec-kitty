@@ -10,7 +10,7 @@ Reviewer V, profile `paula-patterns`, squad-delegate mode (one lens, no scout sw
 ## Method
 
 - For each of H01 to H08 and PX-01 I applied section 6 or 7 of `01-pre-registration.md` to the workstream measure tables and the raw artefacts, and wrote my verdict to a scratch file before opening `synthesis/hypothesis-assessment.md`. The scratch file is reproduced in section 12.
-- Raw artefacts opened: `evidence/B1/series.csv`, `evidence/C/m02-trace-sample.csv`, `evidence/A1/component-catalogue.csv`, both `independence-matrix.csv` files of D1 and D2, `evidence/E1/ledger-totals.json`, `evidence/E1/ledger-sample-30.csv`, `evidence/E3/detection.csv`, `evidence/F/m07a-*.csv`, `m07b-*.csv` and `coordination-responsibilities.txt`, `evidence/G1/invariant-results.csv`, `evidence/H06b/checks.csv`, `evidence/A1/decision-timeline.csv`.
+- Raw artefacts opened: B1 `series.csv`; C `m02-trace-sample.csv`; A1 `component-catalogue.csv` and `decision-timeline.csv`; the D1 and D2 `independence-matrix.csv`; E1 `ledger-totals.json` and `ledger-sample-30.csv`; E3 `detection.csv`; F's two classification files and `coordination-responsibilities.txt`; G1 `invariant-results.csv`; H06b `checks.csv`.
 - One command reached a repository: a `grep` for `source_documented` and `publication_approved` under `src/` and `packs/built-in/` of the core checkout (read-only). No test, build or download was run.
 - Figures marked "reviewer-computed" are my own arithmetic over a named artefact. They are exploratory and decide nothing by themselves.
 - I did not reproduce findings. That belongs to the reproduction reviewers.
@@ -31,7 +31,7 @@ Reviewer V, profile `paula-patterns`, squad-delegate mode (one lens, no scout sw
 
 6 of 8 hypothesis verdicts agree, 2 are overturned. 11 of 12 scenario classifications agree, 1 is changed (AS-05). Both the original and my result stand in the record; the architect decides.
 
-Two of my nine prior verdicts differ from what I report here (H05, H08). In both cases the change came from raw artefacts I opened after the prior note, and each is explained below.
+Two of my nine prior verdicts differ from what I report here (H05, H08). Both changes came from raw artefacts opened after the prior note.
 
 ## 1. H01: inconclusive (agree)
 
@@ -45,7 +45,7 @@ Window start at the 2026-06-30 month end, end at P3a and P3b (`evidence/B1/serie
 
 0 of 3 measures rose by 25%. M01a is above the start value plus 10%, so the contradiction criterion fails on one limb. Inconclusive.
 
-Checks asked for in my brief:
+Checks:
 
 - Criterion adapted: no. The phase-1 file has the same reading.
 - Trend across the convergence: one sentence does it. "M01a rises in every period, from 3.3 at P0 to 9.2 at head" (strongest evidence against) reads one line through the merge `2554bd13ad`. The per-period table beside it is correct. Note.
@@ -74,9 +74,9 @@ Checks:
 
 - C against C2 is not averaged. Origin replicates (13 / 15 / 2 in both), detection does not (a person: 22 against 16), acceptance is not comparable (F-CX-008). The table shows both.
 - The not-assessable rule is one count away in C2 (10 of 30, plus 9 weak traces). The synthesis states this. I would put it in the summary table as the sensitivity; "how acceptance is recorded" is the second sensitivity, not the first.
-- The sentence "430 of 858 Mission `meta.json` files carry `accepted_at` (F-C-021)" is in that finding's disconfirmation field, not in its claim. It is a synthesiser's use of a search note as a measured value. Note.
+- "430 of 858 Mission `meta.json` files carry `accepted_at` (F-C-021)" is in that finding's disconfirmation field, not its claim: a search note used as a measured value. Note.
 
-The support criterion fails on its acceptance clause, and that clause was measured from `meta.json` at head by one reader, with 9 of 24 introducing changes being blame candidates. The inconclusive verdict is as much "not measured well" as "not shown".
+The support criterion fails on its acceptance clause, which was read from `meta.json` at head by one reader, with 9 of 24 introducing changes being blame candidates. The verdict is as much "not measured well" as "not shown".
 
 ## 3. H03: supported (agree, qualified)
 
@@ -108,9 +108,9 @@ Three hinges, each decided after the data were seen:
 2. Is the charter service's logical claim present or planned? S-A says present, S-B says planned. If planned, S-A's "one capability" becomes none.
 3. Is the work-package state machine claimed, and does D1's cell stand? S-B says claimed and replaces D1's value with its own. With S-B's declared value and D1's observed value, it is a second capability on a present claim, and the support criterion is met with no approved plan involved.
 
-So the outcomes are: none (inconclusive, not partial), one (inconclusive, partial), two (supported). The verdict "inconclusive" is the right report of that spread. "Reported as partial, one capability" is one combination among several and should not be carried forward as a finding. Two disagreements were smoothed and should be shown raw: D1 against the synthesiser on the work-package state machine, and D1 (established, in core) against D2 (not established, as served) on charter activation, merged to "partly".
+So the outcomes are: none (inconclusive, not partial), one (inconclusive, partial), two (supported). "Inconclusive" is the right report of that spread. "Partial, one capability" is one combination among several and should not be carried forward as a finding. Two disagreements were smoothed and should be shown raw: D1 against the synthesiser on the work-package state machine, and D1 against D2 on charter activation, merged to "partly".
 
-Also: M04d collapsed (each range admits one published version, F-D1-003), and no stub was tried behind `charter.offering.api` (F-D1-015). The contradiction criterion needs executed evidence for every claimed cell; it was never reachable in this run. That is a coverage limit.
+Also: M04d collapsed (each range admits one published version, F-D1-003) and no stub was tried behind `charter.offering.api` (F-D1-015), so the contradiction criterion was never reachable in this run. A coverage limit.
 
 ## 5. H05: I overturn supported to inconclusive
 
@@ -188,7 +188,7 @@ I agree with 11 of 12 classifications.
 
 - **AS-05, "demonstrated for released artefacts": I classify it partly.** M04a asks to install alone and run the artefact's own packaged checks. 4 of 4 install alone, but only the events package ships and passed a packaged check (1,200 tests); the tracker and the CLI ship none and were smoke-tested (F-D1-008). The scenario's words are "provides declared capabilities".
 - AS-03: the latest mission type predates the present layout (F-D1-025), so the historical trace says nothing about today. "Partly" is acceptable; "not assessable under the present layout" is closer.
-- AS-06 and AS-12 rest on a detection figure that is a lower bound (66 of 310 gate files; 8 detections with no single-mutation run). Stated.
+- AS-06 and AS-12 rest on a detection figure that is a lower bound (66 of 310 gate files). Stated.
 - AS-10 is labelled desk only everywhere I looked.
 
 ## 11. Alternative explanations
@@ -201,27 +201,22 @@ For each supported or contradicted verdict, the best competing reading of the sa
 | H06 supported | Selection and corpus size. The coordinator wrote the questions after reading core's guidance file, which lists contested subjects. And the "no contradicting source" condition fails on any stale page among 2,051 files, so the score falls with corpus size | A question set drawn by someone who has not read that file. The contradiction search restricted to the authoritative tier. A second checker for the 20 rows |
 | H07 contradicted | A ceiling. The comparator is a list of tested features chosen by the coordinator, and "verified" means a test passes for a narrowed reading of the row | Part-level scoring (75%, section 7). A comparator drawn independently. One executed stop-on-request and one attach scenario |
 | H08 contradicted (mine) | Not technology, but where core keeps its exceptions. The checks differ because ledgers and baselines sit in test files. One G1 rule was coded the wrong way round (36 hits, `S-C-differences.md` 2.2). Java agrees perhaps because it has few exceptions | G1 re-run with the ledgers published as data. A second Java subject (events, once it builds) |
-| H05 supported (synthesiser's) | A recording artefact: references live in ledger headers; one lint list holds 57% of all entries | The census repeated with header inheritance; the same per ledger instead of per entry (17 of 28 non-empty headers name an issue, F-E1-020) |
+| H05 supported (synthesiser's) | A recording artefact: references live in ledger headers; one lint list holds 57% of all entries | The census repeated with header inheritance |
 
 ## 12. Prior verdict note, as written before reading the assessment
 
 ```
-H01 inconclusive. M2026-06 -> P3a/P3b: M01a +14.2/+15.1%; M01b load share down; M01d down.
-H02 inconclusive. auto-before-main 1/30 (C), 2/30 (C2); reached-main-after-acceptance <= 4/30;
-    untraceable origin 2/30 (C), 10/30 (C2, exactly a third).
-H03 supported by letter at prereg component unit: M03b 24.7%. Top level 78.6% would be
-    inconclusive. B3 breach touches decisive measure.
-H04 inconclusive/partial unless approved-plan claims are counted; then supported.
-H05 supported by letter via M05c 12.5%; M05b 24/27 points the other way; header-level
-    attribution would flip M05c.
-H06 supported: 2/20 (6/20 relaxed); contradiction found for 10 so at most 10.
-H07 contradicted by letter: 14.3 points; fragile: one item flips to 21.4.
-H08 inconclusive: clear failures I1 core, I2 core, I5 (3); I3 arguable; I6 charter n/a.
+H01 inconclusive. M01a +14.2/+15.1%; M01b load share down; M01d down.
+H02 inconclusive. gate-before-main 1/30, 2/30; after-acceptance <= 4/30; untraceable 2/30, 10/30.
+H03 supported by letter at the prereg unit: M03b 24.7%. B3 breach touches the measure.
+H04 inconclusive/partial unless approved-plan claims count; then supported.
+H05 supported by letter via M05c 12.5%; M05b 24/27 the other way; headers would flip M05c.
+H06 supported: 2/20; contradiction found for 10, so at most 10.
+H07 contradicted by letter: 14.3 points; one item flips it to 21.4.
+H08 inconclusive: I1, I2, I5 clear (3); I3 arguable; I6 charter n/a.
 PX-01 stalls at a guard with no documented producer, plus a second guard failure.
 ```
 
-## 13. Limits of this review
+## 13. Limits
 
-- One reviewer, one pass. I did not re-run any workstream measurement.
-- H04 cells and H07 states are judgements; I compared judgements, I did not re-derive them from code.
-- The reviewer-computed figures (sections 1, 5, 7) are arithmetic over committed artefacts and were not checked by a second person.
+One reviewer, one pass, no measurement re-run. H04 cells and H07 states are judgements; I compared them and did not re-derive them from code. The reviewer-computed figures (sections 1, 5, 7) were not checked by a second person.

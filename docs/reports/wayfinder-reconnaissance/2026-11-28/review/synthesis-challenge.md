@@ -16,9 +16,9 @@ Reviewer V, profile `paula-patterns`. This file covers the eleven synthesis docu
 
 ## Counts
 
-55 statements traced over 11 documents: 41 trace cleanly, 8 trace with a qualification, 6 do not hold as written.
+55 statements traced over 11 documents: 38 trace cleanly, 11 trace with a qualification, 6 do not hold as written.
 
-Items filed: 43 (7 major, 20 minor, 16 note). Of the 43, 9 concern `hypothesis-assessment.md` and are argued in `verdict-challenge.md`.
+Items filed in `challenge-items.csv`: 52 (8 major, 21 minor, 23 note). Of the 52, 13 concern `hypothesis-assessment.md` and its finding map and are argued in `verdict-challenge.md`; the other 39 are below.
 
 Finding ids cited in the final documents: 365 of 414 exist and resolve; 0 cited ids are unknown. 49 finding records are cited by no final document.
 
@@ -32,14 +32,14 @@ What I looked for and did not find:
 
 These matter more than any single document, because the report will be written from all of them.
 
-| # | Subject | One document | Another | Grade |
-|---|---|---|---|---|
-| X1 | H08, core Python agreement | `hypothesis-assessment.md`: three invariants differ, I3 arguable; verdict inconclusive | `quality-attributes-invariants-scenarios.md` 2.1 and `knowledge-model.md` 4: the two agents agree "only for I4 and I6", 2 of 6 | major |
-| X2 | H04, claimed cells | `hypothesis-assessment.md`: 34 claimed; 9 / 22 / 1 / 2 | `independence-and-contracts.md`: 43 claimed; 10 / 29 / 2 / 2 | major |
-| X3 | H04, charter service logical claim | S-A: a present claim, the one capability counted | S-B: both "not established" cells are tied to a cutover that has not happened | major |
-| X4 | H04, work-package state machine | S-A: D1's "not established"; "no catalogue row claims it" | S-B: declared "claimed"; cell "partly (disputed)" | major |
-| X5 | Recorded contradictions | `deviation-catalogue.md`: "A1 reports 18" | `open-human-decisions.md` and A1's file: 25 rows | minor |
-| X6 | doc-toolkit consumers | `knowledge-model.md`: four sites pin four versions | `independence-and-contracts.md`: three other sites, three versions; core pins a git commit | minor |
+| # | Subject | One document | Another | Grade | Filed as |
+|---|---|---|---|---|---|
+| X1 | H08, core Python agreement | `hypothesis-assessment.md`: three invariants differ, I3 arguable; verdict inconclusive | `quality-attributes-invariants-scenarios.md` 2.1 and `knowledge-model.md` 4: the two agents agree "only for I4 and I6", 2 of 6 | major | H-09, Q-01, O-01 |
+| X2 | H04, claimed cells | `hypothesis-assessment.md`: 34 claimed; 9 / 22 / 1 / 2 | `independence-and-contracts.md`: 43 claimed; 10 / 29 / 2 / 2 | major | H-07 |
+| X3 | H04, charter service logical claim | S-A: a present claim, the one capability counted | S-B: both "not established" cells are tied to a cutover that has not happened | major | H-07 |
+| X4 | H04, work-package state machine | S-A: D1's "not established"; "no catalogue row claims it" | S-B: declared "claimed"; cell "partly (disputed)" | major | I-01 |
+| X5 | Recorded contradictions | `deviation-catalogue.md`: "A1 reports 18" | `open-human-decisions.md` and A1's file: 25 rows | minor | D-01 |
+| X6 | doc-toolkit consumers | `knowledge-model.md`: four sites pin four versions | `independence-and-contracts.md`: three other sites, three versions; core pins a git commit | minor | X-06 |
 
 X1 to X4 are the grounds for the two overturned verdicts and for the H04 remark in `verdict-challenge.md`.
 
@@ -70,7 +70,7 @@ X1 to X4 are the grounds for the two overturned verdicts and for the H04 remark 
 
 - **Minor (D-01).** The count above.
 - **Note (D-02).** A3.12 lists one purposive Mission with materialisation drift among deviations with no recorded exception. The row says it is one case outside the seeded sample, where 12 of 12 agreed. It belongs in a list of open observations more than in a catalogue of departures.
-- **Note (D-03).** A3.11 sets a recorded rule (decision records are immutable) against a count from a heuristic regex (A1 deviation 5). The count is a lower bound; the rule text was read as a document-claim. Both sides are documents about documents; no code is involved, which the catalogue's own rule for part A asks for.
+- **Note (D-03).** A3.11 sets a recorded rule (decision records are immutable) against a count from a heuristic regex (A1 deviation 5). Both sides are documents about documents; part A's own rule asks for an observation of code, build or history.
 - The separation of approved plans (part C) and proposals (part D) from deviations follows ruling R4. I found no approved plan filed as a deviation.
 
 ## 3. `assurance-gaps.md`
@@ -86,7 +86,7 @@ X1 to X4 are the grounds for the two overturned verdicts and for the H04 remark 
 - **Minor (A-01).** "After the fact": of C's 22 detections by a person, 5 were inside the same pull request, before `main`. The detection route does not replicate between C and C2 (22 against 16). The sentence should say "by people", and keep "after reaching `main`" for the 15.
 - **Minor (A-02).** The summary table lists the missing core-to-charter-service check as an observed gap without the sentence that section 4.4 of `dependency-models.md` carries: it matches a pending approved plan. Under ruling R4 a plan not yet carried out is not a deficiency.
 - **Note (A-03).** 8 of the 11 core detections have no single-mutation run; they were attributed by the file a failure names in a batch of 13. Disclosed, but the per-class table does not mark which cells rest on batch attribution.
-- **Note (A-04).** The mirror tests that produced two IC detections were chosen by the gate runner after reading the mutation list. That is by design; the reader should know the selection was not blind to the target file.
+- **Note (A-04).** The mirror tests behind two IC detections were chosen by the gate runner after reading the mutation list; the selection was not blind to the target file.
 - **Note (A-05).** Left out: F-E1-011, an events workflow that runs a script from another repository's default branch without a pin.
 
 ## 4. `component-catalogue.md`
@@ -139,7 +139,7 @@ Five statements traced (attribute table rows for modularity, exception governanc
 
 - **Major (Q-01).** Section 2.1: "In core Python, only for I4 and I6." See X1. The page then reports H08 as inconclusive without noting that its own sentence meets the contradiction count.
 - **Minor (Q-02).** "The attributes the brief puts first have the most recorded rules and gates." Marked inference; no count of rules or gates per attribute exists in the packet.
-- **Note (Q-03).** The "knowledge integrity" row is grounded in 42 tag uses counted at synthesis. Tags were assigned by investigators who share one finding template; the count shows a habit of tagging as much as a property of the ecosystem.
+- **Note (Q-03).** The "knowledge integrity" row is grounded in 42 tag uses. Investigators share one finding template; the count shows a tagging habit as much as a property of the ecosystem.
 - **Note (Q-04).** QS-D ("0 of 19 packs at head validate") is given as the observed state of a proposed scenario. open-packs records that it ended compatibility with the as-is CLI on purpose (F-A1-015). The row should carry that, or it reads as a failure.
 
 ## 10. `knowledge-model.md`
@@ -162,7 +162,7 @@ The page states at the top that everything in it is a proposal and desk assessme
 
 ## Findings no final document cites
 
-49 of 414. Most are per-question H06a records, volume denominators and terminology rows. Four that bear on a conclusion: F-B3-008 (toward contradiction of H03), F-G2-013 (CLI package inside the largest cycle), F-E1-011 (unpinned cross-repository script), F-C-025 to F-C-027 with F-C2-025 (change chains). The full list can be regenerated by matching finding ids in `synthesis/*.md` and `*.csv` against `findings/`.
+49 of 414. Most are per-question H06a records, volume denominators and terminology rows. Four bear on a conclusion: F-B3-008 (toward contradiction of H03), F-G2-013, F-E1-011, and the change chains F-C-025 to F-C-027 with F-C2-025.
 
 ## Limits
 

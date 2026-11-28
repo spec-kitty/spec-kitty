@@ -1,0 +1,11 @@
+tag commit: 33f3ad46e9e33e895d4cd3a077d928d91b4f025f
+at 33f3ad46: path files 71, operationId lines 79, activations ops 34, packs schemas 27, packs files 31
+      6 delete:
+     57 get:
+      6 post:
+     10 put:
+lines with 501: 0
+served by rc.3 native in my run: info.version 0.2.0-SNAPSHOT (line 4 of /api/v1/openapi.yaml)
+events bundles info.version:  / 
+service-v0.1.0-rc.2 [('command-cli-0.1.0-rc.2-linux-x64', 94177544), ('mission-status-api-0.1.0-rc.2-linux-x64', 95815944)]
+service-v0.1.0-rc.1 [('mission-status-api-0.1.0-rc.1-linux-x64', 95815944)]
