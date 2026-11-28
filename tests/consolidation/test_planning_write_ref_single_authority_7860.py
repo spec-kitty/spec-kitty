@@ -47,7 +47,7 @@ from specify_cli.status.models import Lane
 from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, clear_workspace_resolution_caches, resolve_workspace_for_wp
 from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SLUG = "pin-01M8CCCC"
 _MISSION_ID = "01M8CCCCCCCCCCCCCCCCCCCCCC"

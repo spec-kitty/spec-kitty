@@ -40,7 +40,7 @@ from tests.lanes.test_planning_claim_base_7860 import (
     settled_default_mission,
 )
 
-pytestmark = [pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

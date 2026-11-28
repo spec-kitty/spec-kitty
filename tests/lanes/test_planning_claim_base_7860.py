@@ -44,7 +44,7 @@ from specify_cli.workspace.context import (
 )
 from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 SLUG = "pc-01M8CCCC"
 MISSION_ID = "01M8CCCCCCCCCCCCCCCCCCCCCC"
@@ -375,7 +375,6 @@ def test_the_gate_fails_closed_when_the_mission_branch_checkout_has_no_branch(tm
 # --- the agent claim path, end to end (review cycle 1, finding 1) --------------------------------
 
 
-@pytest.mark.integration
 @pytest.mark.timeout(900)
 def test_agent_action_implement_records_the_claim_base_and_the_gate_passes_owned_work(tmp_path: Path) -> None:
     """``agent action implement`` on a settled default Mission's planning WP records the base from the coordination worktree.

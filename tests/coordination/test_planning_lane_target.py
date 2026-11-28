@@ -18,7 +18,7 @@ from specify_cli.coordination import planning_commit
 from specify_cli.coordination.planning_commit import planning_lane_target
 from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SLUG = "fx-01M8AAAA"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
