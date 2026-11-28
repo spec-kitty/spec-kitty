@@ -1,0 +1,217 @@
+finding_id,hypothesis_or_scenario,role,decisive
+F-B1-001,H01,context,yes
+F-B1-004,H01,context,yes
+F-C-008,H01,contradicts,yes
+F-C2-010,H01,contradicts,yes
+F-CX-004,H01,contradicts,yes
+F-C-007,H01,contradicts,no
+F-C2-009,H01,contradicts,no
+F-C-005,H01,contradicts,no
+F-C2-007,H01,contradicts,no
+F-CX-003,H01,contradicts,no
+F-B1-003,H01,supports,no
+F-B1-005,H01,supports,no
+F-B1-002,H01 convergence,context,no
+F-C-012,H01 convergence,context,no
+F-C2-004,H01 convergence,context,no
+F-CX-011,H01 convergence,context,no
+F-C-022,H01 sibling control,context,no
+F-C2-026,H01 sibling control,context,no
+F-CX-009,H01 sibling control,context,no
+F-C-004,H01 cause M01e,context,no
+F-C-013,H01 cause M01e,context,no
+F-C2-005,H01 cause M01e,context,no
+F-C2-006,H01 cause M01e,context,no
+F-CX-002,H01 cause M01e,context,no
+F-C-014,H01 cause M01f,context,no
+F-C-015,H01 cause M01f,context,no
+F-C2-014,H01 cause M01f,context,no
+F-C2-015,H01 cause M01f,context,no
+F-CX-006,H01 cause M01f,context,no
+F-C-016,H01 cause M01g,context,no
+F-C2-016,H01 cause M01g,context,no
+F-CX-007,H01 cause M01g,context,no
+F-C-017,H01 cause M01g,context,no
+F-C-006,H01,context,no
+F-C2-008,H01,context,no
+F-C-030,H01,context,no
+F-C2-011,H01,context,no
+F-C-032,H01,context,no
+F-C2-032,H01,context,no
+F-CX-001,replication,context,no
+F-CX-005,replication,context,no
+F-CX-010,replication,context,no
+F-CX-012,replication,context,no
+F-CX-013,replication,context,no
+F-C-018,H02,context,yes
+F-C-019,H02,context,yes
+F-C-021,H02,context,yes
+F-C-020,H02,context,yes
+F-C2-018,H02,context,yes
+F-C2-019,H02,context,yes
+F-C2-020,H02,context,yes
+F-CX-008,H02,context,yes
+F-C2-017,H02,context,no
+F-C2-021,H02,context,no
+F-C-033,H02,context,no
+F-C2-033,H02,context,no
+F-E1-032,H02,supports,no
+F-E1-033,H02,supports,no
+F-B3-002,H03,supports,yes
+F-B1-010,H03,contradicts,yes
+F-B1-011,H03,contradicts,yes
+F-B3-001,H03,contradicts,no
+F-B3-009,H03,contradicts,no
+F-B3-003,H03,context,no
+F-B3-004,H03,context,no
+F-B3-005,H03,context,no
+F-B3-006,H03,context,no
+F-B3-007,H03,context,no
+F-B3-013,H03,context,no
+F-B1-013,H03,context,no
+F-B1-012,H03,supports,no
+F-G2-001,H03,supports,no
+F-B2-005,H03 Java,context,no
+F-B2-006,H03 Java,context,no
+F-B2-011,H03 Java,context,no
+F-B2-012,H03 Java,context,no
+F-B2-020,H03 Java,context,no
+F-E3-001,H03,context,no
+F-D1-027,H03,context,no
+F-A1-029,H04,context,yes
+F-D2-016,H04,supports,yes
+F-D2-017,H04,supports,yes
+F-D1-015,H04,supports,no
+F-D1-024,H04,supports,no
+F-D1-012,H04,supports,no
+F-B2-031,H04,supports,no
+F-D2-015,H04,supports,no
+F-D2-014,H04,supports,no
+F-D1-008,H04,contradicts,no
+F-D1-009,H04,contradicts,no
+F-D2-001,H04,contradicts,no
+F-D2-003,H04,contradicts,no
+F-D2-004,H04,contradicts,no
+F-D1-017,H04,contradicts,no
+F-D1-003,H04,context,no
+F-D1-005,H04,context,no
+F-D1-010,H04,context,no
+F-D1-011,H04,context,no
+F-D1-013,H04,context,no
+F-D1-016,H04,context,no
+F-D1-018,H04,context,no
+F-D1-020,H04,context,no
+F-D1-021,H04,context,no
+F-D1-022,H04,context,no
+F-D1-023,H04,context,no
+F-D1-028,H04,context,no
+F-D2-002,H04,context,no
+F-D2-005,H04,context,no
+F-D2-006,H04,context,no
+F-D2-008,H04,context,no
+F-D2-009,H04,context,no
+F-D2-010,H04,context,no
+F-D2-011,H04,context,no
+F-D2-012,H04,context,no
+F-D2-013,H04,context,no
+F-D2-020,H04,context,no
+F-A1-033,H04,context,no
+F-D1-031,H04,context,no
+F-D2-021,H04,context,no
+F-D2-022,H04,context,no
+F-E1-020,H05,supports,yes
+F-E1-018,H05,context,yes
+F-E1-016,H05,context,no
+F-E1-017,H05,context,no
+F-E1-019,H05,context,no
+F-E1-021,H05,context,no
+F-E1-026,H05,context,no
+F-E1-027,H05,context,no
+F-E1-035,H05,context,no
+F-E1-025,H05,contradicts,no
+F-H06b-013,H06,supports,yes
+F-H06b-001,H06,supports,no
+F-H06b-002,H06,supports,no
+F-H06b-003,H06,supports,no
+F-H06b-004,H06,supports,no
+F-H06b-005,H06,supports,no
+F-H06b-006,H06,supports,no
+F-H06b-007,H06,supports,no
+F-H06b-008,H06,supports,no
+F-H06b-009,H06,supports,no
+F-H06b-010,H06,supports,no
+F-H06b-011,H06,supports,no
+F-H06b-012,H06,supports,no
+F-H06a-021,H06,supports,no
+F-F-001,H07,contradicts,yes
+F-F-002,H07,contradicts,yes
+F-F-003,H07,supports,no
+F-F-011,H07,supports,no
+F-F-012,H07,supports,no
+F-F-024,H07,supports,no
+F-F-014,H07,supports,no
+F-F-027,H07,supports,no
+F-F-005,H07,context,no
+F-F-022,H07,context,no
+F-F-023,H07,context,no
+F-G1-001,H08,contradicts,yes
+F-G2-001,H08,contradicts,yes
+F-G1-003,H08,contradicts,yes
+F-G2-003,H08,contradicts,yes
+F-G1-009,H08,contradicts,yes
+F-G2-009,H08,contradicts,yes
+F-G1-005,H08,context,yes
+F-G2-005,H08,context,yes
+F-G1-007,H08,supports,yes
+F-G2-007,H08,supports,yes
+F-G1-011,H08,supports,yes
+F-G2-011,H08,supports,yes
+F-G1-002,H08,supports,yes
+F-G2-002,H08,supports,yes
+F-G1-004,H08,supports,yes
+F-G2-004,H08,supports,yes
+F-G1-006,H08,supports,yes
+F-G2-006,H08,supports,yes
+F-G1-008,H08,supports,yes
+F-G2-008,H08,supports,yes
+F-G1-010,H08,context,no
+F-G2-010,H08,context,no
+F-G1-012,H08,context,no
+F-G2-012,H08,context,no
+F-G2-015,H08,context,no
+F-E1-028,PX-01,supports,yes
+F-E1-029,PX-01,supports,yes
+F-E1-030,PX-01,supports,yes
+F-E1-031,PX-01,context,no
+F-D1-015,AS-01,contradicts,yes
+F-B3-011,AS-01,contradicts,yes
+F-G2-003,AS-01,contradicts,yes
+F-D2-003,AS-02,supports,yes
+F-D2-008,AS-02,supports,yes
+F-D2-012,AS-02,contradicts,yes
+F-D2-017,AS-02,contradicts,yes
+F-D1-024,AS-03,context,yes
+F-D1-025,AS-03,context,yes
+F-E1-031,AS-03,context,no
+F-D1-025,AS-04,context,yes
+F-D1-008,AS-05,supports,yes
+F-D2-003,AS-05,supports,yes
+F-D2-004,AS-05,supports,yes
+F-D2-002,AS-05,context,no
+F-E3-002,AS-06,context,yes
+F-E3-003,AS-06,context,yes
+F-E1-018,AS-07,supports,yes
+F-E1-020,AS-07,contradicts,yes
+F-E1-025,AS-07,contradicts,yes
+F-F-017,AS-08,context,yes
+F-D1-026,AS-09,supports,yes
+F-D1-020,AS-09,contradicts,no
+F-D2-011,AS-11,supports,yes
+F-D1-003,AS-11,contradicts,yes
+F-D1-021,AS-11,contradicts,yes
+F-D2-013,AS-11,contradicts,yes
+F-D1-013,AS-11,context,no
+F-E1-032,AS-12,contradicts,yes
+F-C-019,AS-12,contradicts,yes
+F-E3-006,AS-12,contradicts,yes
+F-E1-033,AS-12,contradicts,no
