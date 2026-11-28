@@ -1,0 +1,44 @@
+id,claim,reference,tag
+E01,README lists `spec-kitty next` as 'Ask Spec Kitty what the agent should do next',spec-kitty:README.md:159,read
+E02,"README promises guided specify/plan/tasks, parallel agents in isolated worktrees, slash commands or skills per tool",spec-kitty:README.md:52-62,read
+E03,"README: humans define intent, architecture and acceptance criteria; quick start still shows `/spec-kitty.merge --push`",spec-kitty:README.md:35; spec-kitty:README.md:140,read
+E04,README documents `dispatch` as loading governance context and opening an Op record,spec-kitty:README.md:77-84,read
+E05,README links an orchestrator quickstart and an external orchestrator runbook (executor start is delegated),spec-kitty:README.md:169-181,read
+E06,README FAQ lists the supported agent tools,spec-kitty:README.md:193-195,read
+E07,"Line counts: runtime/next 35 files 17,624; invocation 17/5,367; orchestrator_api 12/5,855; tool_surface 41/10,743; skills 23/6,486; session_presence 18/2,030; decisions 9/3,654; workflow*.py 6,196; implement*.py 3,237",command: find <dir> -name '*.py' -not -path '*__pycache__*' | xargs cat | wc -l (in spec-kitty/src),executed
+E08,"Test footprint: tests/next 17,298 lines; tests/runtime 34,034; tests/specify_cli/invocation 15,498; skills 12,185; tool_surface 17,378; orchestrator_api 8,422+3,677; next 7,164; skill text 5,838 lines",command: find tests/<dir> -name '*.py' | xargs cat | wc -l; cat src/charter/offering/skills/*/SKILL.md | wc -l,executed
+E09,Nine tool surface kinds,spec-kitty:src/specify_cli/tool_surface/enums.py:13-29,read
+E10,Seventeen tool keys in AI_CHOICES; five share .agents/skills,spec-kitty:src/specify_cli/core/config.py:17-36; spec-kitty:CLAUDE.md (Agent Skills Agents table),read
+E11,Decision store lives under the Mission directory,spec-kitty:src/specify_cli/decisions/store.py:76-83,read
+E12,Model routing recommendation is advisory and never fails dispatch,spec-kitty:src/specify_cli/invocation/executor.py:116-156,read
+E13,`--model` is refused on claims; the Op record carries no model,command: spec-kitty agent action implement --help,executed
+E14,"RACI and significance modules are marked internalized from spec-kitty-runtime 0.4.3; no built-in mission-runtime.yaml or mission.yaml mentions raci, significance or requires_inputs",spec-kitty:src/runtime/next/_internal_runtime/raci.py:7; spec-kitty:src/runtime/next/_internal_runtime/significance.py:16; command: grep -n 'raci\|significance\|requires_inputs' packs/built-in/missions/*/mission*.yaml,executed
+E15,"spec-kitty-orchestrator: 4,125 lines, 12 per-tool adapter modules, head 8be32b1 2026-10-23",spec-kitty-orchestrator:src/spec_kitty_orchestrator/agents/,executed
+E16,Core registers consolidate-mission and no merge-mission verb,spec-kitty:src/specify_cli/orchestrator_api/commands.py:612-637,read
+E17,spec-kitty-mcp fixtures carry contract_version 1.3.0; core CONTRACT_VERSION is 1.31.0,spec-kitty-mcp:src/tools.zig:1116; spec-kitty:src/specify_cli/orchestrator_api/envelope.py:244,read
+E18,"fleet-kitty describes its own dispatch, CI lanes and workers; no orchestrator-api call found in bin/ or agents/",fleet-kitty:README.md:1-12; command: grep -rn 'orchestrator-api' fleet-kitty/bin fleet-kitty/agents,executed
+E19,"Decision kinds step, decision_required, blocked, terminal, query; result values success, failed, blocked",spec-kitty:src/runtime/next/decision.py:51-85,read
+E20,"Run state (state.json, run.events.jsonl, frozen template) is under .kittify/runtime/, which is git-ignored",spec-kitty:.gitignore:64; spec-kitty:src/runtime/next/run_index.py:1-30; command: ls .kittify/runtime/runs/*,executed
+E21,Never-rewind gate and front phase apply to software-dev only and to a run 'not authoritative' for the board; result not applied to the non-authoritative run,spec-kitty:src/runtime/next/runtime_bridge.py:783-800; :1112-1123; :1125-1150,read
+E22,"decide_next_via_runtime: committed-authority pre-check, bootstrap, then four phases in fixed order",spec-kitty:src/runtime/next/runtime_bridge.py:1905-1967; spec-kitty:src/runtime/next/committed_authority.py:1-40,read
+E23,Composition dispatch routes through StepContractExecutor and ProfileInvocationExecutor; other route is called the legacy DAG handler,"spec-kitty:src/runtime/next/runtime_bridge_composition.py:119-144; spec-kitty:src/specify_cli/mission_step_contracts/executor.py:1-8,195",read
+E24,plan mission-runtime.yaml keeps a mission.steps mirror for legacy readers,"spec-kitty:packs/built-in/missions/plan/mission-runtime.yaml:10,20",read
+E25,"_GUARD_TABLES maps research, documentation, software-dev, plan to Python guard functions; unregistered families degrade to no guards",spec-kitty:src/runtime/next/runtime_bridge_cores.py:859-880,read
+E26,"_STATE_ALIASES maps other types' step names (discovery, scoping, methodology, gathering, synthesis, output ...) to software-dev command names",spec-kitty:src/runtime/next/decision.py:599-612,read
+E27,Guard branch on mission == 'software-dev' or wp_driven,spec-kitty:src/runtime/next/runtime_bridge_composition.py:509,read
+E28,"CONSUMER_SKILLS: frozen set of 14 command names, split into prompt-driven and CLI-driven",spec-kitty:src/specify_cli/shims/registry.py:24-88,read
+E29,Command-skill installer repeats the list and asserts equality with CONSUMER_SKILLS,spec-kitty:src/specify_cli/skills/command_installer.py:101-125,read
+E30,"Step directories per built-in type: documentation 8, plan 4, research 6, software-dev 12",command: ls packs/built-in/missions/mission-steps/*,executed
+E31,orchestrator-api start-implementation has its own dependency pre-flight and workspace resolution; comment calls it the equivalent of the CLI claim seam,spec-kitty:src/specify_cli/orchestrator_api/wp_lifecycle.py:547-612; :586; :300-405,read
+E32,orchestrator-api next and consolidate import the CLI command functions,spec-kitty:src/specify_cli/orchestrator_api/runtime_next.py:35; spec-kitty:src/specify_cli/orchestrator_api/consolidation.py:286,read
+E33,spec-kitty-orchestrator host client calls merge-mission,spec-kitty-orchestrator:src/spec_kitty_orchestrator/host/client.py:399,read
+E34,13 core modules outside migrations name the tool 'kilocode'; 30 migration modules reference get_agent_dirs_for_project or AGENT_DIRS; 155 migration modules in total,command: grep -rl 'kilocode' src --include='*.py' | grep -v '__pycache__\|/migrations/'; grep -rl 'get_agent_dirs_for_project\|AGENT_DIRS' src/specify_cli/upgrade/migrations,executed
+E35,"Session-presence writers: one hook writer (claude), four NullWriter tools (qwen, kilocode, auggie, q)",spec-kitty:src/specify_cli/session_presence/writers/registry.py:31-62,read
+E36,"Native agent primitive: 5 tools supported, 12 'no native agent primitive'",spec-kitty:src/specify_cli/tool_surface/profiles/capability_matrix.py:52-96,read
+E37,"spec-kitty-implement-review skill is 1,052 lines and carries per-tool dispatch tiers; spk-run-implement-review is 46 lines",spec-kitty:src/charter/offering/skills/spec-kitty-implement-review/SKILL.md:75; command: wc -l,executed
+E38,Slash commands are installed into user-global tool directories on every CLI startup,spec-kitty:src/specify_cli/runtime/agent_commands.py:1-18,read
+E39,generate_all_shims is called only from migration/rewrite_shims.py; its content generators are reused by the global installer,"spec-kitty:src/specify_cli/migration/rewrite_shims.py:198; spec-kitty:src/specify_cli/runtime/agent_commands.py:356,648",read
+E40,`spec-kitty ops` is the git reflog command; lifecycle.py describes itself as top-level lifecycle command shims,spec-kitty:src/specify_cli/cli/commands/ops.py:21-24; spec-kitty:src/specify_cli/cli/commands/lifecycle.py:1-5,read
+E41,"Status actor roles are implementer, reviewer, system; no human role; identity is supplied by the caller",spec-kitty:src/specify_cli/status/actor.py:53-65,read
+E42,Slash-command and other entry paths do not advance the run cursor (section 5.1),inferred from E20-E22 and from prompts that tell the agent to call `spec-kitty next` separately: spec-kitty:packs/built-in/missions/mission-steps/software-dev/specify/prompt.md:623-632,inferred
+E43,"kitty-ops/lifecycle holds 1,670 committed record files in core",command: ls kitty-ops/lifecycle | wc -l; git check-ignore kitty-ops/lifecycle (not ignored),executed
