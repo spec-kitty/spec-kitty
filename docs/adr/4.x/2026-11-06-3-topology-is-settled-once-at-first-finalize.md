@@ -10,7 +10,7 @@ updated: '2026-11-25T00:00:00Z'
 
 # A default Mission topology is settled once, by size, at the first finalize
 
-**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264). Amendment 2026-11-25 proposed (#7860).
+**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264). Amendment 2026-11-25 accepted 2026-11-28 (#7860; [operator ruling on PR #7894](https://github.com/spec-kitty/spec-kitty/pull/7894#issuecomment-7244324247)).
 
 **Date:** 2026-11-06
 
@@ -241,9 +241,9 @@ Operator rulings of 2026-11-22 (Decision Moments `specify.planning.lane_rule`, `
 
 Nothing else in this record changes.
 
-## Amendment 2026-11-25 (Proposed): a default Mission's planning lane writes to its Mission branch until it lands (#7860)
+## Amendment 2026-11-25 (Accepted 2026-11-28): a default Mission's planning lane writes to its Mission branch until it lands (#7860)
 
-*Proposed. The operator accepts or amends it on the pull request.*
+*Accepted 2026-11-28: [operator ruling on PR #7894](https://github.com/spec-kitty/spec-kitty/pull/7894#issuecomment-7244324247).*
 
 Operator rulings of 2026-11-25 on [#7860](https://github.com/spec-kitty/spec-kitty/issues/7860) (A', recorded on the issue), Mission `planning-lane-write-branch-01M8A725`. Related: [#7759](https://github.com/spec-kitty/spec-kitty/issues/7759).
 
