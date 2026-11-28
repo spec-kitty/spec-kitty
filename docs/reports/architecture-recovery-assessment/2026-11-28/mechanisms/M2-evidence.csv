@@ -18,7 +18,7 @@ Research guard reader cites retired mission_v1/guards.py as its model,spec-kitty
 Engine internalised from spec-kitty-runtime 0.4.3,spec-kitty:src/runtime/next/_internal_runtime/discovery.py:3-6,read
 Reserved built-in keys forbid overriding built-in types,spec-kitty:src/runtime/next/_internal_runtime/discovery.py:42-49,read
 Custom-mission contracts are synthesised in memory,spec-kitty:src/specify_cli/mission_loader/contract_synthesis.py:1-45,read
-Charter models record transient dual-home and S-B transition,spec-kitty:src/charter/offering/missions/models.py:38-43,read
+Charter models record transient dual-home and S-B transition,spec-kitty:src/charter/offering/missions/models.py:46-52; 180-184,read
 Fallback synthesises charter steps from mission-runtime.yaml,spec-kitty:src/charter/offering/missions/mission_step_repository.py:283-315,read
 Shipped workflow lives under src/charter/offering/workflows and ends in merge,spec-kitty:src/charter/offering/workflows/software-dev-default.workflow.yaml,read
 workflow_id is read from meta.json and written by no code,"spec-kitty:src/runtime/next/runtime_bridge_io.py:706; src/runtime/next/_internal_runtime/planner.py:201 (grep workflow_id over src)",executed

@@ -1,0 +1,71 @@
+claim,reference,tag
+status package is 52 files and 21397 lines,spec-kitty:src/specify_cli/status/ (find + wc -l),executed
+review 9326 lines; acceptance 6108 lines; runtime/next 17624 lines,spec-kitty:src/specify_cli/review/ ; acceptance/ ; src/runtime/next/ (wc -l),executed
+State machine module is 883 lines,spec-kitty:src/specify_cli/status/wp_state.py:1,executed
+Lane enum has genesis and uninitialized beside nine displayed lanes,spec-kitty:src/specify_cli/status/models.py:58,read
+genesis and uninitialized are non-display sentinels for absent state,spec-kitty:src/specify_cli/status/models.py:32,read
+Java port describes an 11-lane 29-edge machine ported from core,spec-kitty-events:service/command-cli/src/main/java/org/speckitty/commandcli/domain/authority/LaneMachine.java:10,read
+Events package defines Lane twice,spec-kitty-events:src/spec_kitty_events/status.py:236 ; src/spec_kitty_events/diary.py:152,read
+Core mirrors the package lanes into its own constants,spec-kitty:src/specify_cli/status_lanes.py:19,read
+A further lane constant and alias map in task_utils,spec-kitty:src/specify_cli/task_utils/support.py:29,read
+Force overrides edges and guards; genesis target and review_ref are not overridable,spec-kitty:src/specify_cli/status/wp_state.py:258,read
+State registry lists 62 state surfaces,spec-kitty:src/specify_cli/state/contract.py (grep -c 'StateSurface('),executed
+Registry entries for meta.json; status log; snapshot; WP frontmatter; activity log; tasks status block; review feedback,spec-kitty:src/specify_cli/state/contract.py:747,read
+Run index; run snapshot; run event log; frozen template; derived lifecycle view are separate surfaces,spec-kitty:src/specify_cli/state/contract.py:311,read
+Runtime state; derived views; workspaces are gitignored,spec-kitty:.gitignore:64,read
+status.json tracked for 817 Missions; lanes.json for 771,spec-kitty: git ls-files 'kitty-specs/*/status.json' | wc -l,executed
+859 meta.json; 855 status logs; 156 mission-events.jsonl; 61 wps.yaml on disk,spec-kitty:kitty-specs/ (find -maxdepth 2 | uniq -c),executed
+Run snapshot holds completed_steps and issued_step_id (the Mission cursor),spec-kitty:src/runtime/next/_internal_runtime/schema.py:476,read
+Live run snapshot has mission_id null while the index maps it,spec-kitty:.kittify/runtime/runs/67da82563806453c87cfdb62b42271c8/state.json,executed
+next overrides a stale run phase from finalized work-package state,spec-kitty:src/runtime/next/runtime_bridge_decision_mapping.py:92,read
+next short-circuits a landed Mission from the primary surface before starting a run,spec-kitty:src/runtime/next/runtime_bridge_decision_mapping.py:227,read
+Board-authority selector replaces state-to-action mapping for WP iteration,spec-kitty:src/runtime/next/runtime_bridge_decision_mapping.py:684,read
+mission-events.jsonl writer calls itself a Phase 1B provisional interface,spec-kitty:src/specify_cli/mission_v1/events.py:1,read
+MissionCreated uses mission_id or slug as aggregate_id,spec-kitty:src/specify_cli/status/lifecycle_events.py:674,read
+Other Mission lifecycle events use the slug as aggregate_id,spec-kitty:src/specify_cli/status/lifecycle_events.py:770,read
+Observed log with row 1 keyed by ULID and row 2 keyed by slug,spec-kitty:kitty-specs/architecture-recovery-assessment-01M8HPDM/status.events.jsonl:1,executed
+Lifecycle events share the status log and are skipped by the StatusEvent reader,spec-kitty:src/specify_cli/status/lifecycle_events.py:14,read
+Status log has seven or more writer families and several row shapes,spec-kitty:docs/architecture/event-ledger-writers-and-readers.md:44,read
+Doc says frontmatter lane is no longer written or read by active runtime code,spec-kitty:docs/architecture/status-model.md:49,read
+Lane mirror into frontmatter is active when status_phase >= 1,spec-kitty:src/specify_cli/status/emit.py:580,read
+Mirror function and its three call sites,spec-kitty:src/specify_cli/status/emit.py:640 ; :823 ; :879 ; :1207,read
+Coordination shell calls the same mirror,spec-kitty:src/specify_cli/coordination/status_transition.py:1147,read
+787 of 859 meta.json carry status_phase; 95 distinct meta.json keys on disk,spec-kitty:kitty-specs/*/meta.json (python3 Counter over keys),executed
+Doc concedes runtime-state eviction from WP files is half-delivered,spec-kitty:docs/architecture/status-model.md:53,read
+WPMetadata carries shell_pid; history; lane; legacy status,spec-kitty:src/specify_cli/status/wp_metadata.py:276 ; :284 ; :285 ; :317,read
+Frontmatter repeats merge_target_branch and execution_mode,spec-kitty:src/specify_cli/status/wp_metadata.py:235 ; :245,read
+lanes.json repeats mission_branch and target_branch,spec-kitty:kitty-specs/write-surface-coherence-01KVTVZS/lanes.json:5,read
+meta.json stores slug and mission_slug and mid8 together,spec-kitty:kitty-specs/architecture-recovery-assessment-01M8HPDM/meta.json,read
+Acceptance is recorded in meta.json,spec-kitty:src/specify_cli/mission_metadata.py:1080,read
+Landing signal is merged_at; log-derived fallback exists,spec-kitty:src/mission_runtime/landing.py:27 ; src/specify_cli/status/landing_evidence.py:1,read
+Acceptance matrix declares itself not authoritative,spec-kitty:src/specify_cli/acceptance/matrix.py:1,read
+Derived Mission lifecycle uses day thresholds for stale and abandoned,spec-kitty:src/specify_cli/status/lifecycle.py:270,read
+Topology settlement keys in meta.json,spec-kitty:src/specify_cli/meta_keys.py:14,read
+Status read door declares five sources by topology,spec-kitty:src/specify_cli/status/read_surface.py:74,read
+Flat write shell,spec-kitty:src/specify_cli/status/emit.py:882,read
+Transactional coordination write shell,spec-kitty:src/specify_cli/coordination/status_transition.py:1626,read
+Write-service protocol exists with no transport bound yet,spec-kitty:src/specify_cli/status/write_service_protocol.py:1,read
+Java read port lacks the approved-departure lift,spec-kitty:docs/architecture/status-model.md:38,read
+Pipeline-level guard for unnoted review exit; policy metadata stamping,spec-kitty:src/specify_cli/status/transition_pipeline.py:294 ; :201,read
+move-task command-level guards: owned source lane; owned implementation; independent approval,spec-kitty:src/specify_cli/cli/commands/agent/tasks_move_task.py:695 ; :1124 ; :1440,read
+move-task gate module is 1703 lines,spec-kitty:src/specify_cli/cli/commands/agent/tasks_move_task_gates.py:1,executed
+agent status emit goes through the MissionStatus aggregate without move-task guards,spec-kitty:src/specify_cli/cli/commands/agent/status.py:369,inferred
+Consolidation re-reads history to decide whether a forced approval counts,spec-kitty:src/specify_cli/consolidation/approved_bound.py:417,read
+force=True at 26 call sites in 16 files,spec-kitty:src (grep -rn 'force=True' specify_cli runtime),executed
+Single acceptable-ending authority,spec-kitty:src/specify_cli/status_lanes.py:53,read
+Local copies of the approved/done set,spec-kitty:src/specify_cli/review/artifacts.py:27 ; audit/classifiers/wp_files.py:16 ; release/changelog.py:16,read
+Dependencies parsed from frontmatter,spec-kitty:src/specify_cli/core/dependency_graph.py:103,read
+Dependencies parsed from tasks.md prose,spec-kitty:src/specify_cli/core/dependency_parser.py:272,read
+Dependencies also declared in wps.yaml,spec-kitty:src/specify_cli/core/wps_manifest.py:1,read
+Dependency readiness computed in core and re-resolved in emit,spec-kitty:src/specify_cli/core/dependency_graph.py:35 ; src/specify_cli/status/emit.py:423,read
+Status read call counts (resolve_status_read 35; read_events 57; materialize 54; get_wp_lane 20),spec-kitty:src (grep -rnE per symbol),executed
+Mission-number assignment package is 846 lines,spec-kitty:src/specify_cli/consolidation/mission_number/ (wc -l),executed
+Two removed commands still registered under agent status,spec-kitty: spec-kitty agent status --help,executed
+feature_dir occurs 4025 times in specify_cli,spec-kitty:src/specify_cli (grep -rn feature_dir | wc -l),executed
+StatusEvent reader still accepts feature_slug,spec-kitty:src/specify_cli/status/models.py:674,read
+Orchestrator start is a composite planned to claimed to in_progress,spec-kitty-orchestrator:src/spec_kitty_orchestrator/host/client.py:235,read
+Orchestrator API contract version 1.31.0,spec-kitty:src/specify_cli/orchestrator_api/envelope.py:244,read
+12 built-in pack files name move-task,spec-kitty:packs/built-in (grep -rl move-task | wc -l),executed
+fleet-kitty reads lanes and the status log,fleet-kitty:bin/merge-candidates.py ; docs/CONTROLLER-PLAYBOOK.md,read
+Cut-over eligibility treats the committed Mission corpus as a lock,spec-kitty:src/specify_cli/status/cutover_eligibility.py:1,read
+README states the need for lifecycle lanes and repo-native state,spec-kitty:README.md:13 ; :58 ; :61 ; :199,read
