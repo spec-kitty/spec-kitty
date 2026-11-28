@@ -1,0 +1,18 @@
+Detection counts (frozen gate set). Columns: total, assessable, detected (any tier), detected by a per-change CI gate
+-- by class
+PI: total=6 assessable=6 detected=3 per_change=3  rate_assessable=3/6 rate_overall=3/6
+RD: total=6 assessable=6 detected=5 per_change=5  rate_assessable=5/6 rate_overall=5/6
+OB: total=6 assessable=5 detected=3 per_change=3  rate_assessable=3/5 rate_overall=3/6
+IC: total=6 assessable=6 detected=5 per_change=4  rate_assessable=5/6 rate_overall=5/6
+-- by subtlety
+blatant: total=8 assessable=8 detected=7 per_change=7  rate_assessable=7/8 rate_overall=7/8
+moderate: total=8 assessable=8 detected=4 per_change=3  rate_assessable=4/8 rate_overall=4/8
+subtle: total=8 assessable=7 detected=5 per_change=5  rate_assessable=5/7 rate_overall=5/8
+-- by repository
+spec-kitty: total=15 assessable=15 detected=11 per_change=11  rate_assessable=11/15 rate_overall=11/15
+spec-kitty-charter: total=4 assessable=4 detected=2 per_change=2  rate_assessable=2/4 rate_overall=2/4
+spec-kitty-events: total=4 assessable=3 detected=2 per_change=1  rate_assessable=2/3 rate_overall=2/4
+spec-kitty-open-packs: total=1 assessable=1 detected=1 per_change=1  rate_assessable=1/1 rate_overall=1/1
+-- all: total=24 assessable=23 detected=16 per_change=15 local_only=1 not_detected=7 not_assessable=1
+names the violation among detected: 15/16
+Exploratory (outside the frozen set, not in the counts above): M-OB-2 is flagged by tests/architectural/test_charter_path_literal_authority.py.

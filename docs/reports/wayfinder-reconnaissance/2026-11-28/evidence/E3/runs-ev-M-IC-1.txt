@@ -1,0 +1,126 @@
+## logs/ev-M-IC-1/changelog-check.txt  full_bytes=60 full_sha256=7f53e3913f5fcd91b3346221ca559531d3d56b41dfb2a0908f0fd0a06ab5b5a2
+$ .venv/bin/python scripts/changelog.py check
+exit=0 secs=1
+## logs/ev-M-IC-1/changelog-guard.txt  full_bytes=60 full_sha256=6ce55f9761126a55d1668cb21bd41e4ad6ddd5ecbe8e34b2dfc0f85d7bc2990b
+$ .venv/bin/python scripts/changelog.py guard
+exit=0 secs=0
+## logs/ev-M-IC-1/conformance.txt  full_bytes=5099 full_sha256=e1c657e4e42088faa542237bececf502d1a1cb1cf575d89ae1403bf11afc0a81
+$ .venv/bin/python -m pytest --pyargs spec_kitty_events.conformance --no-cov -q -p no:cacheprovider
+=================================== FAILURES ===================================
+_________________ test_fixture_conformance[gate-passed-valid] __________________
+E               AssertionError: Payload for 'GatePassed' (fixture gate-passed-valid) failed model conformance:
+E                 Model: gate_label — Field required
+_________________ test_fixture_conformance[gate-failed-valid] __________________
+E               AssertionError: Payload for 'GateFailed' (fixture gate-failed-valid) failed model conformance:
+E                 Model: gate_label — Field required
+=========================== short test summary info ============================
+FAILED src/spec_kitty_events/conformance/test_pyargs_entrypoint.py::test_fixture_conformance[gate-passed-valid]
+FAILED src/spec_kitty_events/conformance/test_pyargs_entrypoint.py::test_fixture_conformance[gate-failed-valid]
+2 failed, 1356 passed in 10.81s
+exit=1 secs=17
+## logs/ev-M-IC-1/mirror.txt  full_bytes=11625 full_sha256=abdabfd78aa98d3db5ad34bd904ec4a669d20d5540a7ac56493a041fea60fdfa
+$ .venv/bin/python -m pytest tests/test_status_log.py tests/unit/test_gates.py tests/property/test_gates_determinism.py --no-cov -q -p no:cacheprovider
+=================================== FAILURES ===================================
+__________ TestGatePassedPayloadConstruction.test_valid_construction ___________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+____________ TestGatePassedPayloadConstruction.test_with_pr_number _____________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...c-123', 'pr_number': 42}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+________ TestGatePassedPayloadConstruction.test_pr_number_none_is_valid ________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...123', 'pr_number': None}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+__________ TestGateFailedPayloadConstruction.test_valid_construction ___________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GateFailedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+______________ TestFrozenImmutability.test_gate_passed_is_frozen _______________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+______________ TestFrozenImmutability.test_gate_failed_is_frozen _______________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GateFailedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+____________ TestSerializationRoundTrip.test_gate_passed_roundtrip _____________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...c-123', 'pr_number': 42}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+____________ TestSerializationRoundTrip.test_gate_failed_roundtrip _____________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GateFailedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+_________ TestSerializationRoundTrip.test_roundtrip_without_pr_number __________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+__________________ TestTypeDiscrimination.test_passed_is_base __________________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+__________________ TestTypeDiscrimination.test_failed_is_base __________________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GateFailedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+_______________ TestTypeDiscrimination.test_passed_is_not_failed _______________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+_______________ TestTypeDiscrimination.test_failed_is_not_passed _______________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GateFailedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+___________ TestEventIntegration.test_gate_payload_as_event_payload ____________
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for GatePassedPayload
+E       gate_label
+E         Field required [type=missing, input_value={'gate_name': 'ci/build',...id': 'delivery-abc-123'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/missing
+=========================== short test summary info ============================
+FAILED tests/unit/test_gates.py::TestGatePassedPayloadConstruction::test_valid_construction
+FAILED tests/unit/test_gates.py::TestGatePassedPayloadConstruction::test_with_pr_number
+FAILED tests/unit/test_gates.py::TestGatePassedPayloadConstruction::test_pr_number_none_is_valid
+FAILED tests/unit/test_gates.py::TestGateFailedPayloadConstruction::test_valid_construction
+FAILED tests/unit/test_gates.py::TestFrozenImmutability::test_gate_passed_is_frozen
+FAILED tests/unit/test_gates.py::TestFrozenImmutability::test_gate_failed_is_frozen
+FAILED tests/unit/test_gates.py::TestSerializationRoundTrip::test_gate_passed_roundtrip
+FAILED tests/unit/test_gates.py::TestSerializationRoundTrip::test_gate_failed_roundtrip
+FAILED tests/unit/test_gates.py::TestSerializationRoundTrip::test_roundtrip_without_pr_number
+FAILED tests/unit/test_gates.py::TestTypeDiscrimination::test_passed_is_base
+FAILED tests/unit/test_gates.py::TestTypeDiscrimination::test_failed_is_base
+FAILED tests/unit/test_gates.py::TestTypeDiscrimination::test_passed_is_not_failed
+FAILED tests/unit/test_gates.py::TestTypeDiscrimination::test_failed_is_not_passed
+FAILED tests/unit/test_gates.py::TestEventIntegration::test_gate_payload_as_event_payload
+14 failed, 142 passed in 2.42s
+exit=1 secs=5
+## logs/ev-M-IC-1/mypy.txt  full_bytes=106 full_sha256=38883123ff66d00bcada68e7f9bee954f440d0533bb3cf19aef1dfac70afa500
+$ .venv/bin/mypy src/spec_kitty_events --strict
+Success: no issues found in 71 source files
+exit=0 secs=1
+## logs/ev-M-IC-1/ruff-format.txt  full_bytes=77 full_sha256=7384364a348c06939a7868c292a29849fa8c6418df99b68fbbd8e86a4e57a016
+$ .venv/bin/ruff format --check .
+1383 files already formatted
+exit=0 secs=0
+## logs/ev-M-IC-1/ruff.txt  full_bytes=58 full_sha256=fd075d2f79bc102a7774411dc4291cc532b734b22ff18c81a64463c5b4ae80b7
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0 secs=0
+## logs/ev-M-IC-1/version-guard.txt  full_bytes=94 full_sha256=e0701240575584f279d958c60d91116b0fdd78d40151c226d5baca7e8925c7c8
+$ .venv/bin/python scripts/check_version_not_amended.py
+version-not-amended: ok
+exit=0 secs=0

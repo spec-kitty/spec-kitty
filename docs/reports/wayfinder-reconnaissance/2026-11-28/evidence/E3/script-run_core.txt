@@ -1,0 +1,35 @@
+"""Run the frozen core gate set in the disposable clone. usage: run_core.py <scratch> <label> [mutation-id ...]
+label=baseline runs on the unmodified tree for all core mutation ids' touched/mirror files."""
+import csv, json, subprocess, sys, time, os, hashlib
+S=sys.argv[1]; label=sys.argv[2]; ids=sys.argv[3:]
+R='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28'
+core=S+'/core'; logs=S+'/logs/'+label; os.makedirs(logs,exist_ok=True)
+rows={r['id']:r for r in csv.DictReader(open(R+'/evidence/E2/mutations.csv'))}
+mirror=json.load(open(S+'/mirror.json'))
+env=dict(os.environ,NO_COLOR='1',PWHEADLESS='1'); env.pop('FORCE_COLOR',None); env.pop('UV_CACHE_DIR',None)
+def run(name,cmd,timeout=3000):
+    t=time.time()
+    try:
+        p=subprocess.run(cmd,cwd=core,env=env,capture_output=True,text=True,timeout=timeout); rc=p.returncode; out=p.stdout+p.stderr
+    except subprocess.TimeoutExpired as e:
+        rc=124; out=(e.stdout or b'').decode(errors='replace') if isinstance(e.stdout,bytes) else str(e.stdout)
+    open(f'{logs}/{name}.txt','w').write('$ '+' '.join(cmd)+'\n'+out+f'\nexit={rc} secs={time.time()-t:.0f}\n')
+    return {'gate':name,'exit':rc,'secs':round(time.time()-t),'sha256':hashlib.sha256(open(f'{logs}/{name}.txt','rb').read()).hexdigest()}
+touched=[];mir=[]
+for i in ids:
+    if 'spec-kitty@' not in rows[i]['repository']: continue
+    touched+= [f.strip() for f in rows[i]['files_touched'].split(';') if f.strip().endswith('.py')]
+    mir+=mirror[i]['selected']
+touched=sorted(set(touched)); mir=sorted(set(mir))
+py='.venv/bin/python'; res=[]
+which=os.environ.get('E3_ONLY','layer,arch,ruff,format,mypy,mirror').split(',')
+N=os.environ.get('E3_N','4')
+if 'ruff' in which: res.append(run('ruff',['.venv/bin/ruff','check','--force-exclude',*touched]))
+if 'format' in which: res.append(run('ruff-format',['.venv/bin/ruff','format','--check','--force-exclude',*touched]))
+if 'mypy' in which: res.append(run('mypy',['.venv/bin/mypy',*touched]))
+if 'mirror' in which and mir: res.append(run('mirror',[py,'-m','pytest',*mir,'-n',N,'--dist','loadfile','-p','no:cacheprovider','-q','-rf']))
+if 'layer' in which: res.append(run('layer-rules-alone',[py,'-m','pytest','tests/architectural/test_layer_rules.py','-n0','-p','no:cacheprovider','-q','-rf']))
+if 'arch' in which:
+    arch=open(S+'/arch-set.txt').read().split()
+    res.append(run('arch',[py,'-m','pytest',*arch,'-n',N,'--dist','loadfile','-p','no:cacheprovider','-q','-rf']))
+json.dump(res,open(f'{logs}/summary.json','w'),indent=1); print(json.dumps(res))

@@ -1,0 +1,10 @@
+#!/bin/bash
+# Charter Java gates per mutation in the disposable clone; own GRADLE_USER_HOME; one Gradle process at a time.
+S=$1; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/spec-kitty-charter; export GRADLE_USER_HOME=$S/gradle-home
+g(){ n=$1; shift; s=$(date +%s); { echo "\$ ./gradlew --no-daemon $*"; timeout 3000 ./gradlew --no-daemon "$@"; echo "exit=$? secs=$(( $(date +%s)-s ))"; } > $S/logs/charter-$n.txt 2>&1; echo "charter-$n $(tail -1 $S/logs/charter-$n.txt) $(date -u +%T)" >> $S/logs/apply.log; }
+ARCH=":deployable:test --tests *HexagonalArchitectureTest"
+CON=":contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples --continue"
+for m in M-PI-4 M-PI-6 M-RD-6; do git apply $P/$m.patch.txt && g $m-arch $ARCH; git apply -R $P/$m.patch.txt; done
+g base-contracts $CON
+git apply $P/M-IC-2.patch.txt && g M-IC-2-contracts $CON; git apply -R $P/M-IC-2.patch.txt
+echo "charter clean=$(git status --porcelain --untracked-files=no | wc -l)" >> $S/logs/apply.log

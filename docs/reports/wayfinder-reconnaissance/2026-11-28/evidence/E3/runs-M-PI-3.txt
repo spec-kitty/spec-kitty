@@ -1,0 +1,13 @@
+## logs/M-PI-3/arch.txt  full_bytes=21930 full_sha256=6e38321379a0a6a23270f33faa61d09942ef2c70368310bfdf03076b7487723e
+$ .venv/bin/python -m pytest tests/architectural/test_acceptance_matrix_write_seam.py tests/architectural/test_anchor_lock_path_single_owner.py tests/architectural/test_bootstrap_import_purity.py tests/architectural/test_bridge_cores_import_boundary.py tests/architectural/test_charter_facades_reexport_offering.py tests/architectural/test_charter_no_specify_cli_import.py tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_charter_offering_public_surface.py tests/architectural/test_charter_sole_door_agent_profile_repository.py tests/architectural/test_charter_sole_door_hardcoded_paths.py tests/architectural/test_charter_sole_door_inner_reacharound.p
+==================================== ERRORS ====================================
+1295 passed, 2 xfailed, 2 errors in 260.50s (0:04:20)
+exit=1 secs=262
+## logs/M-PI-3/layer-rules-alone.txt  full_bytes=1510 full_sha256=c890d0f03960fd14ad9914cba82e9ac9feef3b417a063f072614d920013d707d
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+80 passed in 39.63s
+exit=0 secs=41
+## logs/M-PI-3/mirror.txt  full_bytes=503 full_sha256=83e37b7d9ef159f7e4341fd414327255e5aedd2226086070c0cffb8e25b36c35
+$ .venv/bin/python -m pytest tests/specify_cli/events/test_decision_log.py tests/specify_cli/events/test_decision_log_coord.py tests/specify_cli/events/test_decision_log_locked_append.py -n 4 --dist loadfile -p no:cacheprovider -q -rf
+51 passed in 4.00s
+exit=0 secs=5

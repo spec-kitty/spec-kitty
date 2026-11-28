@@ -1,0 +1,62 @@
+finding_id: F-E3-015
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "contract compatibility checks in charter and events"
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "Exploratory. In both repositories that hold an OpenAPI contract, the breaking-change check ran and passed without comparing anything, because it found no baseline: charter checkContractCompatibility printed 'No released baseline' and events breaking_check.py printed NO_BASELINE_INITIAL_VERSION for mission-status and mission-write (counts: baselines=0). Of the 6 IC mutations, none was detected by a compatibility or version check; the 5 detections came from behaviour tests, example validation and content-drift checks."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/runs-charter-gradle.txt"
+    method: "see F-E3-013"
+    sha256: "c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194"
+    exit_code: 0
+    environment: "JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/runs-evj-baseline.txt"
+    method: ".venv/bin/python contracts/tools/breaking_check.py --root contracts (oasdiff 1.32.1 on PATH)"
+    sha256: "f0c1a5e8d2a47f2c340b09af08ee6361618b6719a748358e628a1f73613d07d7"
+    exit_code: 0
+    environment: "Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/E3/detection.csv"
+    method: "rows of class IC"
+    sha256: "03f998275495744b04d38db44f85ce6814f4acdd45b37181345cba495d4c701b"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "Two contract modules with a breaking-change check; 6 IC mutations."
+  not_covered: "Release workflows; the charter packs contract; core orchestrator-api contract tests outside the mirror rule."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a release tag or changelog entry either check would accept as a baseline."
+  result: "Charter has only rc tags for the charter contract; events has no contract tag."
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [modifiability]
+candidate_invariants: []
+open_questions: []

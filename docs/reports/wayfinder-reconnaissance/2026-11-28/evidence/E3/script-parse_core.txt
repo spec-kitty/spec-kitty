@@ -1,0 +1,21 @@
+"""Summarise core mutation runs against baseline. usage: parse_core.py <scratch>"""
+import json, re, sys, os, glob
+S=sys.argv[1]
+def fails(path):
+    if not os.path.exists(path): return None
+    t=open(path).read()
+    return sorted(set(re.findall(r'^(?:FAILED|ERROR) (\S+)',t,re.M))), (re.findall(r'^(?:=+ )?(\d+ (?:passed|failed|error).*?)(?: =+)?$',t,re.M) or ['?'])[-1], re.findall(r'^exit=(\d+) secs=(\d+)',t,re.M)[-1]
+base={'arch':fails(S+'/logs/baseline-am/arch.txt'),'layer-rules-alone':fails(S+'/logs/baseline-layer/layer-rules-alone.txt')}
+out={}
+for d in sorted(glob.glob(S+'/logs/M-*/')):
+    m=os.path.basename(d.rstrip('/')); out[m]={}
+    for g in ('ruff','ruff-format','mypy','mirror','layer-rules-alone','arch'):
+        f=fails(d+g+'.txt')
+        if f is None: continue
+        new=[x for x in f[0] if g not in base or x not in base[g][0]]
+        out[m][g]={'exit':int(f[2][0]),'secs':int(f[2][1]),'tally':f[1],'failed_nodes':f[0],'new_vs_baseline':new}
+json.dump(out,open(S+'/core-results.json','w'),indent=1)
+for m,v in out.items():
+    print(m,{g:(r['exit'],len(r['new_vs_baseline'])) for g,r in v.items()})
+    for g,r in v.items():
+        for n in r['new_vs_baseline'][:6]: print('    ',g,n[:170])

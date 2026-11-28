@@ -1,0 +1,54 @@
+finding_id: F-E3-011
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "E3 undetected mutation M-OB-2"
+  deviation: null
+subject:
+  component: "src/specify_cli/charter_activate.py"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M-OB-2 loads and rewrites .kittify/charter/activation.yaml directly with ruamel. Against the frozen gate set, alone: 66 architectural files 1295 passed, layer rules 80 passed, 5 mirror files 75 passed, ruff, format and mypy clean. Outside the frozen set, tests/architectural/test_charter_path_literal_authority.py::test_ledger_filename_is_spelled_only_by_the_kernel_authority (line 800) fails and names charter_activate.py:41 and the literal 'activation.yaml'. That file is part of the battery per-change CI selects for this diff; the frozen file-name rule did not match its name."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/runs-M-OB-2.txt"
+    method: "drive_batch.sh <scratch> (M-OB-2 alone)"
+    sha256: "58e9ba795f3760632e35f631d3132dc040a18228df2d222fdd8266b929c398b0"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/runs-supp.txt"
+    method: "drive_supp.sh <scratch> (exploratory, outside the frozen set)"
+    sha256: "3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "Mutation M-OB-2 against the frozen gate set of its repository."
+  not_covered: "244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes."
+  population: "24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations"
+  sample: "1 mutation"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep of tests/architectural for activation.yaml and activation_ledger; ran the three best-matching files outside the set at baseline and with the mutation."
+  result: "Baseline 70 passed; mutated 1 failed, 69 passed. The failing assertion is about where the file name is spelled; test_no_raw_activation_membership.py and test_deny_list_survives_upgrade.py passed."
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [modularity, testability]
+candidate_invariants: []
+open_questions: ["The failing gate keys on the string literal; whether a write that derives the path from the kernel constant would be flagged was not measured."]

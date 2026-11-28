@@ -1,0 +1,71 @@
+finding_id: F-E3-017
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "frozen gate set versus the per-change battery"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Exploratory. For all 15 core patches scripts/ci/gate_selection.py answers that per-change CI runs the whole architectural battery (select_battery_gates returns None), 310 test files at head, of which the frozen set ran 66. One of the 4 core mutations undetected by the frozen set (M-OB-2) is detected by a battery file outside it. Of the 52 mirror test files chosen by the name rule, 16 lie in a module shard the patch's own diff selects per change, and 26 lie in directories the registry lists as out of the per-change matrix."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/gate-selection.json"
+    method: "script-select.txt in the clone at head"
+    sha256: "5db581e3bf3ba686a220080359f0297fe1b30925fad559ed85e55d4d16e144ea"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/mirror-lanes.json"
+    method: "script-mirror_lane.txt in the clone at head"
+    sha256: "bd3a0406f896d011886ff534ce198452d830d0632977a6cf02bc6725dfeb1c4b"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/E3/gate-set.txt"
+    method: "frozen before patch bodies were read"
+    sha256: "7a3646cf8b8349e2d5d827860d112fde862482e07a5d05f422b31975f0aade30"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E4
+    kind: executed
+    reference: "evidence/E3/runs-supp.txt"
+    method: "drive_supp.sh <scratch>"
+    sha256: "3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326"
+    exit_code: 1
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "15 core patches; selection authority at head."
+  not_covered: "Execution of the 244 battery files outside the frozen set."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Asked the selection authority for each patch whether a narrower battery selection applies."
+  result: "None: every patch touches src/, so the answer is the whole battery for each."
+relations:
+  - {type: refines, target: F-E3-011}
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [testability]
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,11 @@
+#!/bin/bash
+# usage: drive_core.sh <scratch> <id>...  -- apply each E2 patch in the disposable core clone, run the frozen set, revert
+S=$1; shift; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/core
+for m in "$@"; do
+  [ -n "$(git status --porcelain --untracked-files=no)" ] && { echo "DIRTY before $m"; exit 1; }
+  if git apply --check $P/$m.patch.txt 2>$S/logs/apply-$m.txt; then git apply $P/$m.patch.txt; echo "$m applied=yes" | tee -a $S/logs/apply.log
+  else echo "$m applied=no" | tee -a $S/logs/apply.log; continue; fi
+  python3 $S/run_core.py $S $m $m > $S/logs/$m.summary 2>&1
+  git apply -R $P/$m.patch.txt; echo "$m done $(date -u +%T) $(python3 -c "import json,sys;print([(r['gate'],r['exit'],r['secs']) for r in json.load(open('$S/logs/$m/summary.json'))])")" | tee -a $S/logs/apply.log
+done
+[ -z "$(git status --porcelain --untracked-files=no)" ] && echo CLEAN

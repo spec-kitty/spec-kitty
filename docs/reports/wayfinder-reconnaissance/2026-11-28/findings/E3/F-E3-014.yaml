@@ -1,0 +1,62 @@
+finding_id: F-E3-014
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "E3 not assessable M-OB-5 and partly M-IC-3"
+  deviation: null
+subject:
+  component: "events read service and mission-status contract"
+  repository: spec-kitty/spec-kitty-events
+  revision: "646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "The single Gradle attempt in the events clone failed at plugin resolution with HTTP 429 from repo.maven.apache.org (native-gradle-plugin 1.1.8), so the ArchUnit rules could not judge M-OB-5 and :contracts:check could not judge M-IC-3. M-OB-5 is recorded as not assessable. Read statically, the mutated class is in adapter.out.filesystem, uses no raw file API at head, and FilesystemMissionEventSourceFileApiTest forbids java.nio.channels.FileChannel there for every class except AllowlistPassThrough and ProjectRootCheck; this was not executed. For M-IC-3 the Python contract tools ran: example_check.py failed with 6 EXAMPLE_INVALID lines naming 'changes_requested'; breaking_check.py exited 0 with NO_BASELINE_INITIAL_VERSION; enum_pin_check.py passed. example_check.py is invoked by no workflow, Makefile target, Gradle file, script or test at head."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/runs-events-gradle.txt"
+    method: "drive_eventsj.sh <scratch>"
+    sha256: "f1685602772b1dfa16396eeb0c99c3d1a3a4625c437b0ffb325032ced328392f"
+    exit_code: 1
+    environment: "JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/runs-evj-M-IC-3.txt"
+    method: ".venv/bin/python contracts/tools/{enum_pin_check,example_check,structure_check,breaking_check}.py --root contracts with M-IC-3 applied"
+    sha256: "29eff8e03bbcfcba39f300a6a393f796f14c74c1b258208d9da37572b22f1039"
+    exit_code: 1
+    environment: "Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/E3/runs-evj-baseline.txt"
+    method: "same tools on the unmodified clone"
+    sha256: "f0c1a5e8d2a47f2c340b09af08ee6361618b6719a748358e628a1f73613d07d7"
+    exit_code: 0
+    environment: "Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "One Gradle attempt; five Python contract tools at baseline and with M-IC-3."
+  not_covered: "Every Gradle task of the events repository; lint_check.py (argument form not resolved)."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep for example_check across *.java, *.py, *.kts, *.gradle, *.yml, *.sh and Makefile outside contracts/tools; listed tags for a contract baseline."
+  result: "No caller found. No tag named contract-mission-status-* exists in the clone (tags present: service-v0.1.0-rc.1, service-v0.1.0-rc.2, v2e-contract)."
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [testability]
+candidate_invariants: []
+open_questions: ["Whether service.yml verifyAll would fail on M-IC-3 or M-OB-5 remains unmeasured."]

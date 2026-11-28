@@ -1,0 +1,9 @@
+#!/bin/bash
+# usage: run_packs.sh <scratch> <label>  -- open-packs per-PR validate job steps, in the disposable clone
+S=$1; L=$S/logs/$2; mkdir -p $L; cd $S/spec-kitty-open-packs; PY=$S/packs-venv/bin/python; export PATH=$S/packs-venv/bin:$PATH
+r(){ n=$1; shift; s=$(date +%s); { echo "\$ $*"; "$@"; rc=$?; echo "exit=$rc secs=$(( $(date +%s)-s ))"; } > $L/$n.txt 2>&1; tail -1 $L/$n.txt | sed "s/^/$n /"; }
+r validate-packs scripts/ci/validate-packs.sh
+r check-pack-digests scripts/ci/check-pack-digests.sh
+r check-vocabulary python3 scripts/ci/check_vocabulary.py
+r gen-pack-reference python3 scripts/docs/gen_pack_reference.py --check
+for d in release vocabulary ci docs assets; do r unittest-$d python3 -m unittest discover -s tests/$d; done

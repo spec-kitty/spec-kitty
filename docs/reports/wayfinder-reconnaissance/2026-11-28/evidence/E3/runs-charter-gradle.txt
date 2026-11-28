@@ -1,0 +1,53 @@
+## logs/charter-M-IC-2-contracts.txt  full_bytes=5233 full_sha256=e6680f3b3abab0b5aae22b872588b1e910c1a36c5bc544b8d855033f164110dd
+$ ./gradlew --no-daemon :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples --continue
+37 changelog fragments are well formed.
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+BUILD SUCCESSFUL in 27s
+11 actionable tasks: 8 executed, 3 up-to-date
+exit=0 secs=28
+## logs/charter-M-PI-4-arch.txt  full_bytes=10456 full_sha256=8f9ebbb924bffcc31e5e066df49dca06fec756bc7dafa8c0f40eeb1f187aad88
+$ ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest
+HexagonalArchitectureTest > SLICE_RINGS FAILED
+    java.lang.AssertionError: Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in a package 'ai.speckitty.charter.activations.application..' should depend on classes that reside outside of packages ['ai.speckitty.charter.activations.application..', 'ai.speckitty.charter.activations.domain..', 'ai.speckitty.charter.kernel..', 'java..', 'org.jspecify.annotations..', 'org.springframework..']' was violated (1 times):
+    Method <ai.speckitty.charter.activations.application.ActivationIdMint.canHoldAnActivation(java.lang.String)> calls method <ai.speckitty.charter.packs.domain.PackEntryNames.canBeAPack(java.lang.String)> in (ActivationIdMint.java:66)
+HexagonalArchitectureTest > A_SLICE_OVER_ANOTHER_SLICE FAILED
+    java.lang.AssertionError: Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in a package 'ai.speckitty.charter.activations..' and reside outside of package 'ai.speckitty.charter.activations.infra.packs..' should depend on classes that reside in a package 'ai.speckitty.charter.packs..'' was violated (1 times):
+    Method <ai.speckitty.charter.activations.application.ActivationIdMint.canHoldAnActivation(java.lang.String)> calls method <ai.speckitty.charter.packs.domain.PackEntryNames.canBeAPack(java.lang.String)> in (ActivationIdMint.java:66)
+1656 tests completed, 2 failed
+> Task :deployable:test FAILED
+FAILURE: Build failed with an exception.
+Execution failed for task ':deployable:test'.
+BUILD FAILED in 8m 53s
+50 actionable tasks: 9 executed, 41 up-to-date
+exit=1 secs=534
+## logs/charter-M-PI-6-arch.txt  full_bytes=7632 full_sha256=d802841c61bef8fd35a4077ca1e41f22fa4c52cdfa8391319fd2241fb9ddeecb
+$ ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest
+BUILD SUCCESSFUL in 8m 39s
+50 actionable tasks: 9 executed, 41 up-to-date
+exit=0 secs=519
+## logs/charter-M-RD-6-arch.txt  full_bytes=12210 full_sha256=2f83256f9ec787151f8f1afad725edacad00819211edce53bab46e1afd944963
+$ ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest
+HexagonalArchitectureTest > SLICE_RINGS FAILED
+    java.lang.AssertionError: Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in a package 'ai.speckitty.charter.activations.domain..' should depend on classes that reside outside of packages ['ai.speckitty.charter.activations.domain..', 'ai.speckitty.charter.kernel..', 'java..', 'org.jspecify.annotations..']' was violated (1 times):
+    Method <ai.speckitty.charter.activations.domain.Revision.require(java.lang.String)> calls method <ai.speckitty.charter.activations.application.MalformedPreconditionException.notAWildcard(java.lang.String)> in (Revision.java:61)
+HexagonalArchitectureTest > ONION_DEPENDS_INWARD FAILED
+    java.lang.AssertionError: Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in any package ['ai.speckitty.charter.kernel..', 'ai.speckitty.charter.packs.domain..', 'ai.speckitty.charter.profiles.domain..', 'ai.speckitty.charter.routing.domain..', 'ai.speckitty.charter.missions.domain..', 'ai.speckitty.charter.activations.domain..'] should depend on classes that reside in any package ['..application..', '..infra..', 'ai.speckitty.charter.deployable..']' was violated (1 times):
+    Method <ai.speckitty.charter.activations.domain.Revision.require(java.lang.String)> calls method <ai.speckitty.charter.activations.application.MalformedPreconditionException.notAWildcard(java.lang.String)> in (Revision.java:61)
+1656 tests completed, 2 failed
+> Task :deployable:test FAILED
+FAILURE: Build failed with an exception.
+Execution failed for task ':deployable:test'.
+BUILD FAILED in 8m 52s
+50 actionable tasks: 12 executed, 38 up-to-date
+exit=1 secs=534
+## logs/charter-base-arch.txt  full_bytes=12108 full_sha256=e717c85540a45fd67b3a2bb326ab53a705b597ea55725803a91d4331267832e0
+BUILD SUCCESSFUL in 27m 17s
+59 actionable tasks: 59 executed
+exit=0 secs=1638
+## logs/charter-base-contracts.txt  full_bytes=6558 full_sha256=e6b1ac46117eedb58e8272eb9f27989acb54d6c58d4f3b58aa0d2c1caf94346c
+$ ./gradlew --no-daemon :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples --continue
+37 changelog fragments are well formed.
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+BUILD SUCCESSFUL in 40s
+20 actionable tasks: 7 executed, 13 up-to-date
+exit=0 secs=41

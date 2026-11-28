@@ -1,0 +1,167 @@
+## logs/lint-M-IC-4/mypy.txt  full_bytes=119 full_sha256=78bae03476803a7d3c6341294f38f4522f025ec7dbda793808b139bf3a5cd795
+$ .venv/bin/mypy src/specify_cli/orchestrator_api/envelope.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-IC-4/ruff-format.txt  full_bytes=133 full_sha256=e1af1d45373f7ecccc87c5f5213303ea9a947512c329e6bf2e3ba84bea8492e8
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/orchestrator_api/envelope.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-IC-4/ruff.txt  full_bytes=118 full_sha256=b5bf194e9f7047c6189250b0c5e5fd69379e19a2450880ca58e4799092e3543e
+$ .venv/bin/ruff check --force-exclude src/specify_cli/orchestrator_api/envelope.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-IC-6/mypy.txt  full_bytes=110 full_sha256=15f50efc6b5850d155c5bafeb71bc2b3616fe26c428ab9c993ee9b72acd52009
+$ .venv/bin/mypy src/specify_cli/status/wp_window.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-IC-6/ruff-format.txt  full_bytes=124 full_sha256=fcc10c696b201898ebcfa76cc1e90ab8409603486610fa1696fe020fd96767d3
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/status/wp_window.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-IC-6/ruff.txt  full_bytes=109 full_sha256=ccaa95f5ff202d9c2a3227c0b8e395fc43d18559ef33a3e24ec2a1c8aa84a223
+$ .venv/bin/ruff check --force-exclude src/specify_cli/status/wp_window.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-OB-1/mypy.txt  full_bytes=107 full_sha256=ee5709c5b436989f7a4964d6b8efbe8a0c93e00973b3ad2841062004538a1b66
+$ .venv/bin/mypy src/specify_cli/mission_brief.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-OB-1/ruff-format.txt  full_bytes=121 full_sha256=6236bd7008f408c32658a58a3106890df166e375bc2dda115118378267b6378d
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/mission_brief.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-OB-1/ruff.txt  full_bytes=106 full_sha256=1ab9b527e7401a01adfa5af645e2e02c553c9357005d97d9630fc12baa8d9d4a
+$ .venv/bin/ruff check --force-exclude src/specify_cli/mission_brief.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-OB-2/mypy.txt  full_bytes=110 full_sha256=622ee7f04409f9c3d11438d1782c78d5a021e0474729bae4ed300a13eccddde8
+$ .venv/bin/mypy src/specify_cli/charter_activate.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-OB-2/ruff-format.txt  full_bytes=99 full_sha256=edae9147c0897e6f86497876edf4db11e305635cad479605eb7b7eb5bacba293
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/charter_activate.py
+exit=0 secs=0
+## logs/lint-M-OB-2/ruff.txt  full_bytes=109 full_sha256=fe5e8ff608ef4d79ac9f559d4871c7d2f309a3f3c08043ba9777463f6a5579a1
+$ .venv/bin/ruff check --force-exclude src/specify_cli/charter_activate.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-OB-3/mypy.txt  full_bytes=110 full_sha256=14e1015f832497a6c7905ab7ab1019a5ca6e82d65eebfdd1c568cffb04ce88a6
+$ .venv/bin/mypy src/specify_cli/upgrade/finalize.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-OB-3/ruff-format.txt  full_bytes=124 full_sha256=9667de208e23417bebd29aab282da1fac8969993d111577f113174c1b2bdd049
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/upgrade/finalize.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-OB-3/ruff.txt  full_bytes=109 full_sha256=ca54e0e960110d166687591415a66b4f9ba71400b649069861b240dcfd2b384d
+$ .venv/bin/ruff check --force-exclude src/specify_cli/upgrade/finalize.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-OB-4/mypy.txt  full_bytes=113 full_sha256=9975a9fee66d8c3bcbb8e4a814395f9aa150ca4787ff644fcc755c4135d08fb6
+$ .venv/bin/mypy src/specify_cli/services/resolution.py
+Success: no issues found in 1 source file
+exit=0 secs=1
+## logs/lint-M-OB-4/ruff-format.txt  full_bytes=127 full_sha256=1a0346621c14b49b01ace2b978ef05ece5408d88b83c22751c36c816619c86d1
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/services/resolution.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-OB-4/ruff.txt  full_bytes=112 full_sha256=ed486c4d1b63841262420d0ae1bbf0819ab26a8f43bd9fe475c7b707ede65b82
+$ .venv/bin/ruff check --force-exclude src/specify_cli/services/resolution.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-OB-6/mypy.txt  full_bytes=106 full_sha256=fd6e65987aba217f3ac2a3c4ac7ca4f00b395465dae1dec7522f7332e2588557
+$ .venv/bin/mypy src/specify_cli/policy/audit.py
+Success: no issues found in 1 source file
+exit=0 secs=1
+## logs/lint-M-OB-6/ruff-format.txt  full_bytes=120 full_sha256=9ff610dbb33176481bb5f22aef5782f3725f14f133926e300edc84b01a1c0433
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/policy/audit.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-OB-6/ruff.txt  full_bytes=105 full_sha256=86bd25eb02f502191aa2d3f084f49146dbb3d3895073e9991c8450ec67b89dbd
+$ .venv/bin/ruff check --force-exclude src/specify_cli/policy/audit.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-PI-2/mypy.txt  full_bytes=233 full_sha256=654d819187b5305c8fa021579959bf039c2d181bb489cdcabe0cab58c324ff76
+$ .venv/bin/mypy src/specify_cli/charter_activate.py
+src/specify_cli/charter_activate.py:41: error: Returning Any from function declared to return "str"  [no-any-return]
+Found 1 error in 1 file (checked 1 source file)
+exit=1 secs=0
+## logs/lint-M-PI-2/ruff-format.txt  full_bytes=99 full_sha256=edae9147c0897e6f86497876edf4db11e305635cad479605eb7b7eb5bacba293
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/charter_activate.py
+exit=0 secs=0
+## logs/lint-M-PI-2/ruff.txt  full_bytes=109 full_sha256=fe5e8ff608ef4d79ac9f559d4871c7d2f309a3f3c08043ba9777463f6a5579a1
+$ .venv/bin/ruff check --force-exclude src/specify_cli/charter_activate.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-PI-3/mypy.txt  full_bytes=113 full_sha256=c2058f2d0b941f44c2e3396c13033031ec21eb2c9a1c78d278888b337eeda0f7
+$ .venv/bin/mypy src/specify_cli/events/decision_log.py
+Success: no issues found in 1 source file
+exit=0 secs=1
+## logs/lint-M-PI-3/ruff-format.txt  full_bytes=102 full_sha256=54db659ecd9071f36e981c4032ef20f146b5c59c62b14cdaad376337051ace12
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/events/decision_log.py
+exit=0 secs=0
+## logs/lint-M-PI-3/ruff.txt  full_bytes=112 full_sha256=2d1960cecb1b8cbb1dde79c7f08c8bac0a05ff0becb2079bebb981a5fbb419f5
+$ .venv/bin/ruff check --force-exclude src/specify_cli/events/decision_log.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-PI-5/mypy.txt  full_bytes=114 full_sha256=dd2feed102026fdfe22b86f13e4718a00c02ed0c61cd5fcb5431954e2f8ef79b
+$ .venv/bin/mypy src/specify_cli/drg_writers/registry.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-PI-5/ruff-format.txt  full_bytes=103 full_sha256=f3ccc1a6fee080789f5a94d7618bcaa89beb4616848249e1f2b07b8ef4cec895
+$ .venv/bin/ruff format --check --force-exclude src/specify_cli/drg_writers/registry.py
+exit=0 secs=0
+## logs/lint-M-PI-5/ruff.txt  full_bytes=113 full_sha256=4c2e8ad477f8a99e2297b2ee60390b36916200712f1b5506ab8e898a60c0eaad
+$ .venv/bin/ruff check --force-exclude src/specify_cli/drg_writers/registry.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-RD-1/mypy.txt  full_bytes=98 full_sha256=6aeeaa286b260a07caf8c736a6d84903b64e1cae025fb94237b115d906f601cb
+$ .venv/bin/mypy src/kernel/site_urls.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-RD-1/ruff-format.txt  full_bytes=112 full_sha256=bfc32679e7ae9d725dacdb55fbf3cbedf1923cb77ac2967f04ad428c26c8e7e7
+$ .venv/bin/ruff format --check --force-exclude src/kernel/site_urls.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-RD-1/ruff.txt  full_bytes=97 full_sha256=138ba95137d2c15e5284e2d0e4c3e798528aecdfb294fce228474d191e01fb36
+$ .venv/bin/ruff check --force-exclude src/kernel/site_urls.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-RD-2/mypy.txt  full_bytes=206 full_sha256=35afb8d62d18234e145e9d0699fcd974d7615907a29d587d389e1132af1dafc7
+$ .venv/bin/mypy src/charter/hasher.py
+src/charter/hasher.py:94: error: Returning Any from function declared to return "Path"  [no-any-return]
+Found 1 error in 1 file (checked 1 source file)
+exit=1 secs=0
+## logs/lint-M-RD-2/ruff-format.txt  full_bytes=110 full_sha256=686c52ffd663ba9b27cc495d17aa8a944fe3f2eb23f9914f1db05539ca22c728
+$ .venv/bin/ruff format --check --force-exclude src/charter/hasher.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-RD-2/ruff.txt  full_bytes=95 full_sha256=f87464bc6f0573664457364ace96e4c178472f8148d5af8e4f7499191c105207
+$ .venv/bin/ruff check --force-exclude src/charter/hasher.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-RD-3/mypy.txt  full_bytes=232 full_sha256=09d2b2383e89ea49bf8d61a7665ab9a5a63cfe5c09fc4db9ab2164cf58d965de
+$ .venv/bin/mypy src/runtime/next/prompt_builder.py
+src/runtime/next/prompt_builder.py:470: error: Returning Any from function declared to return "str"  [no-any-return]
+Found 1 error in 1 file (checked 1 source file)
+exit=1 secs=1
+## logs/lint-M-RD-3/ruff-format.txt  full_bytes=123 full_sha256=ddd9ea8632c5d097951aaa94bd9b11ce0b4294c177fb2d91d72dfe3d8b525052
+$ .venv/bin/ruff format --check --force-exclude src/runtime/next/prompt_builder.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-RD-3/ruff.txt  full_bytes=108 full_sha256=8031cafa8d4b9b4acce0a342ffd15c0ff0340029bd1102dbcd6d77361d9ff0b1
+$ .venv/bin/ruff check --force-exclude src/runtime/next/prompt_builder.py
+All checks passed!
+exit=0 secs=0
+## logs/lint-M-RD-5/mypy.txt  full_bytes=104 full_sha256=d01ff54eb8dce864b0173a8fcf9d39a61588be2737c35ed3ac349e6555d808a9
+$ .venv/bin/mypy src/kernel/glossary_runner.py
+Success: no issues found in 1 source file
+exit=0 secs=0
+## logs/lint-M-RD-5/ruff-format.txt  full_bytes=118 full_sha256=7a29285d82ed1696111c1f45ad061834b9276eb1b20d73695dbe8da5474b5a51
+$ .venv/bin/ruff format --check --force-exclude src/kernel/glossary_runner.py
+1 file already formatted
+exit=0 secs=0
+## logs/lint-M-RD-5/ruff.txt  full_bytes=103 full_sha256=e2abb0db0fc3495a8b15eba1115ba7819fc04f615a845131cc239f2ff6826952
+$ .venv/bin/ruff check --force-exclude src/kernel/glossary_runner.py
+All checks passed!
+exit=0 secs=0

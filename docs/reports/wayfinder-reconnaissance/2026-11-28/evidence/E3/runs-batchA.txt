@@ -1,0 +1,189 @@
+## logs/batchA/arch.txt  full_bytes=35641 full_sha256=b6747934be9bdae3069d66fd45c47e58c7c4af6c52ebb7a40a7adb9a41c15ae9
+$ .venv/bin/python -m pytest tests/architectural/test_acceptance_matrix_write_seam.py tests/architectural/test_anchor_lock_path_single_owner.py tests/architectural/test_bootstrap_import_purity.py tests/architectural/test_bridge_cores_import_boundary.py tests/architectural/test_charter_facades_reexport_offering.py tests/architectural/test_charter_no_specify_cli_import.py tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_charter_offering_public_surface.py tests/architectural/test_charter_sole_door_agent_profile_repository.py tests/architectural/test_charter_sole_door_hardcoded_paths.py tests/architectural/test_charter_sole_door_inner_reacharound.p
+==================================== ERRORS ====================================
+=================================== FAILURES ===================================
+___________ TestKernelIsolation.test_kernel_does_not_import_charter ____________
+E   AssertionError: "src.kernel.glossary_runner" (layer "kernel") imports "charter.offering.artifact_kinds" (layer "charter").
+_________ TestKernelIsolation.test_kernel_does_not_import_specify_cli __________
+E   AssertionError: "src.kernel.site_urls" (layer "kernel") imports "specify_cli.version_utils" (layer "specify_cli").
+_________ TestCharterBoundary.test_charter_does_not_import_specify_cli _________
+E   AssertionError: "src.charter.hasher" (layer "charter") imports "specify_cli.core.constants" (layer "specify_cli").
+___________________________ test_no_new_door_callers ___________________________
+E   AssertionError: New event-log writers (key: (ledgered, found)). An event-log append goes through the EventBridge port or, until its log moves (#6193), a ledgered interim locked append (interim locked append; retires at the #6193 handover; exit #6193 (each entry goes when the write service takes its log over whole); owner: the #6193 write-service handover owner): {('specify_cli.policy.audit', 'mirror_audit_event_to_status_log', 'append_event_log_lines'): (0, 1)}
+E   assert not {('specify_cli.policy.audit', 'mirror_audit_event_to_status_log', 'append_event_log_lines'): (0, 1)}
+______________________ test_no_new_unresolved_log_writes _______________________
+E   AssertionError: Raw writes whose path reads like an event log but names none the gate knows; route an event-log append through kernel.event_log_append (interim locked append; retires at the #6193 handover), or pin the write with its reason (exit #6193 (status.events.jsonl writes; they go when the write service takes that log over); owner: the #6193 write-service handover owner): [('specify_cli.upgrade.finalize', 'mark_migration_settled', 'project_root / TRACKED_LEDGER_RELPATH')]
+E   assert not [('specify_cli.upgrade.finalize', 'mark_migration_settled', 'project_root / TRACKED_LEDGER_RELPATH')]
+E   AssertionError: runtime imports specify_cli subpackages outside the documented allowed-exception ledger (_RUNTIME_ALLOWED_SPECIFY_CLI):
+E       runtime/next/prompt_builder.py imports specify_cli.text_sanitization
+E     Invert the dependency (preferred). A sanctioned ledger expansion also requires a justified independent _baselines.yaml update. Note: specify_cli.cli / specify_cli.next are hard-forbidden (TestRuntimeBoundary) and must NOT be added.
+E   assert not ['runtime/next/prompt_builder.py imports specify_cli.text_sanitization']
+_________________________ test_no_out_of_store_writes __________________________
+E   AssertionError: status.events.jsonl is written outside specify_cli.status.store:
+E       specify_cli.mission_brief:310 Path.open(feature_dir / 'status.events.jsonl', 'a') [ledger allows 0, found 1]
+E     
+E     Route the write through the status FSM (emit_status_transition / BookkeepingTransaction); raw appends go through store.py behind status/_unsafe.py (FR-010/FR-011).
+E   assert not [WriteSite(module='specify_cli.mission_brief', lineno=310, kind='Path.open', mode='a', path_expr="feature_dir / 'status.events.jsonl'", path_text='status.events.jsonl')]
+_________________________ test_store_writes_are_found __________________________
+E   AssertionError: assert {'specify_cli...status.store'} == {'specify_cli.status.store'}
+E     
+E     Extra items in the left set:
+E     'specify_cli.mission_brief'
+E     Use -v to get more diff
+____________ test_kernel_holds_no_charter_or_specify_cli_vocabulary ____________
+E   AssertionError: src/kernel/** must hold no doctrine-/specify_cli-identifying string or mission-type vocabulary, at any scope (kernel is the root layer; FR-004, SC-002, NFR-002).
+E     Resolve via the domain-agnostic kernel.sibling_paths.resolve_installed_sibling primitive instead, with the caller supplying its own __file__ and sibling-relative path.
+E     Violations:
+E       kernel/glossary_runner.py:66 — from charter.offering.artifact_kinds import ...
+E       kernel/site_urls.py:21 — from specify_cli.version_utils import ...
+E   assert [('kernel/glo... import ...')] == []
+E     
+E     Left contains 2 more items, first extra item: ('kernel/glossary_runner.py', 66, 'from charter.offering.artifact_kinds import ...')
+E     Use -v to get more diff
+____________________ test_charter_never_imports_specify_cli ____________________
+E   AssertionError: src/charter/** must not import specify_cli at any scope (kernel <- doctrine <- charter <- specify_cli; FR-008, SC-004).
+E     Resolve the package version via importlib.metadata, or accept the value as data from a specify_cli-layer caller.
+E     Violations:
+E       charter/hasher.py:9 imports specify_cli.core.constants
+E   assert [('charter/ha...e.constants')] == []
+E     
+E     Left contains one more item: ('charter/hasher.py', 9, 'specify_cli.core.constants')
+E     Use -v to get more diff
+_________ test_external_consumers_add_no_new_activation_internal_reach _________
+E   AssertionError: New reach into a charter.activation INTERNAL from an external consumer. Route
+E     the access through the activation seam `charter.activation.api` instead (grow the
+E     seam with an identity re-export if the symbol is missing, tabled in
+E     tests/architectural/test_charter_activation_api_reexport.py). A lazy import is not
+E     exempt. New file/module pairs:
+E       - src/specify_cli/charter_activate.py -> charter.activation._io
+E   assert not [('src/specify_cli/charter_activate.py', 'charter.activation._io')]
+_____________________ test_the_scan_meets_its_time_budget ______________________
+E   AssertionError: the event-log writes gate scan took 5.63 s (budget 5.0 s)
+E   assert 5.630385732999912 < 5.0
+______________ test_m11_gate_reads_the_allowlist_file_it_is_given ______________
+E   AssertionError: ['specify_cli.text_sanitization::sanitize_markdown_text [REVIVED] the symbol has a caller again; delete the entry']
+E   assert [StaleFinding...e the entry')] == []
+E     
+E     Left contains one more item: StaleFinding(key=DeadSymbolKey(module='specify_cli.text_sanitization', name='sanitize_markdown_text'), verdict=<StaleVerdict.REVIVED: 'REVIVED'>, hint='the symbol has a caller again; delete the entry')
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_specify_cli
+FAILED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_specify_cli
+FAILED tests/architectural/test_event_log_writes_gate.py::test_no_new_door_callers
+FAILED tests/architectural/test_event_log_writes_gate.py::test_no_new_unresolved_log_writes
+FAILED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+FAILED tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+FAILED tests/architectural/test_status_events_writes_gate.py::test_store_writes_are_found
+FAILED tests/architectural/test_kernel_no_charter_offering_import.py::test_kernel_holds_no_charter_or_specify_cli_vocabulary
+FAILED tests/architectural/test_charter_no_specify_cli_import.py::test_charter_never_imports_specify_cli
+FAILED tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+FAILED tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget
+FAILED tests/architectural/test_dead_symbol_allowlist_contract.py::test_m11_gate_reads_the_allowlist_file_it_is_given
+13 failed, 1282 passed, 2 xfailed, 2 errors in 433.73s (0:07:13)
+exit=1 secs=435
+## logs/batchA/layer-rules-alone.txt  full_bytes=5307 full_sha256=daa463ed1f871de06220f556dd71bb184b9a61dec07dde23d231e1766c30471b
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+=================================== FAILURES ===================================
+___________ TestKernelIsolation.test_kernel_does_not_import_charter ____________
+E   AssertionError: "src.kernel.glossary_runner" (layer "kernel") imports "charter.offering.artifact_kinds" (layer "charter").
+_________ TestKernelIsolation.test_kernel_does_not_import_specify_cli __________
+E   AssertionError: "src.kernel.site_urls" (layer "kernel") imports "specify_cli.version_utils" (layer "specify_cli").
+_________ TestCharterBoundary.test_charter_does_not_import_specify_cli _________
+E   AssertionError: "src.charter.hasher" (layer "charter") imports "specify_cli.core.constants" (layer "specify_cli").
+E   AssertionError: runtime imports specify_cli subpackages outside the documented allowed-exception ledger (_RUNTIME_ALLOWED_SPECIFY_CLI):
+E       runtime/next/prompt_builder.py imports specify_cli.text_sanitization
+E     Invert the dependency (preferred). A sanctioned ledger expansion also requires a justified independent _baselines.yaml update. Note: specify_cli.cli / specify_cli.next are hard-forbidden (TestRuntimeBoundary) and must NOT be added.
+E   assert not ['runtime/next/prompt_builder.py imports specify_cli.text_sanitization']
+=========================== short test summary info ============================
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+FAILED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_specify_cli
+FAILED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_specify_cli
+FAILED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+4 failed, 76 passed in 43.15s
+exit=1 secs=45
+## logs/batchA/mirror.txt  full_bytes=24448 full_sha256=515f92b4c3f73df2853578f90d6cb884230111130b789581f1581fd1821f8ab4
+$ .venv/bin/python -m pytest tests/_support/test_finalize_source.py tests/agent/glossary/test_resolution.py tests/agent/test_envelope_unit.py tests/agent/test_finalize_tasks_owned_files_validation.py tests/architectural/test_finalize_refresh_pin_authority.py tests/audit/test_audit_architecture.py tests/audit/test_audit_classifiers.py tests/audit/test_audit_cli.py tests/charter/test_hasher.py tests/charter/test_resolution_overhead.py tests/cli/commands/test_finalize_kind_normalisation_helpers.py tests/cli/test_charter_activate_warning.py tests/cli/test_mission_brief.py tests/consolidation/test_resolution_merge_unreviewed.py tests/consolidation/test_wp_window_round_trip.py tests/coordination/t
+=================================== FAILURES ===================================
+_______ test_claim_with_lane_branch_records_open_sha_equal_to_lane_head ________
+E   AssertionError: assert {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': 'd8a39e03fe60094c81d0d8a9bc18785ebb5ac026'}
+E     Right contains 1 more item:
+E     {'open_sha': 'd8a39e03fe60094c81d0d8a9bc18785ebb5ac026'}
+E     Use -v to get more diff
+______________ test_in_progress_with_lane_branch_records_open_sha ______________
+E   AssertionError: assert {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': 'dbe83725f28ff97831b36401a7ad9ea5c928fea9'}
+E     Right contains 1 more item:
+E     {'open_sha': 'dbe83725f28ff97831b36401a7ad9ea5c928fea9'}
+E     Use -v to get more diff
+__________________ TestMakeEnvelope.test_make_envelope_shape ___________________
+E   AssertionError: assert {'command', '...success', ...} == {'command', '...success', ...}
+E     
+E     Extra items in the left set:
+E     'request_id'
+E     Extra items in the right set:
+E     'correlation_id'
+E     Use -v to get more diff
+__________ TestMakeEnvelope.test_make_envelope_unique_correlation_ids __________
+E   KeyError: 'correlation_id'
+___________ test_move_task_claimed_before_implement_then_in_progress ___________
+E   AssertionError: assert ({'lane_head': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928', 'wp_window': {'opened_at': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928', 'schema_version': 1}} is not None and {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E    +  where {'lane_head': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928', 'wp_window': {'opened_at': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928', 'schema_version': 1}} = StatusEvent(event_id='01M8H01VHB61GWYP9378SRC37Q', mission_slug='flat-topo-fixture-01KW2E7B', wp_id='WP01', from_lane=...opened_at': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928', 'schema_version': 1}}, mission_id='01KW2E7BFC0000000000000001').policy_metadata
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928'}
+E     Right contains 1 more item:
+E     {'open_sha': '5581750a374dc09a5bea3ec34a2fdb45cbd6d928'}
+E     Use -v to get more diff)
+________________________ test_capture_adds_no_git_read _________________________
+E   KeyError: 'open_sha'
+_________________ test_wp_window_value_matches_contract_schema _________________
+E   jsonschema.exceptions.ValidationError: Additional properties are not allowed ('opened_at' was unexpected)
+E   
+E   Failed validating 'additionalProperties' in schema:
+E       {'$schema': 'https://json-schema.org/draft/2020-12/schema',
+E        'type': 'object',
+E        'required': ['schema_version'],
+E        'properties': {'schema_version': {'const': 1},
+E                       'open_sha': {'type': 'string',
+E                                    'pattern': '^([0-9a-f]{40}|[0-9a-f]{64})$'},
+E                       'gap': {'type': 'object',
+E                               'required': ['reason'],
+E                               'properties': {'reason': {'enum': ['capture_failed',
+E                                                                  'lane_branch_missing']},
+E                                              'cause': {'enum': ['git_error',
+E                                                                 'probe_error']},
+E                                              'detail': {'type': 'string',
+E                                                         'maxLength': 500}},
+E                               'oneOf': [{'properties': {'reason': {'const': 'capture_failed'}},
+E                                          'required': ['cause']},
+E                                         {'properties': {'reason': {'const': 'lane_branch_missing'}},
+E                                          'not': {'required': ['cause']}}],
+E                               'additionalProperties': False}},
+E        'oneOf': [{'required': ['open_sha'], 'not': {'required': ['gap']}},
+E                  {'required': ['gap'], 'not': {'required': ['open_sha']}}],
+E        'additionalProperties': False}
+E   
+E   On instance:
+E       {'schema_version': 1,
+E        'opened_at': '3f1c0d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e'}
+E   AssertionError: assert 'REVIEW RANGE (WP01): f2a26334db4e..db795f972d53  [recorded]' in '================================================================================\nREVIEW: WP01\n=====================...fixture-01M2D900 --owned-checkout /tmp/spec-kitty-pytest-tmp/run-14431/popen-gw0/test_owned_lane_review_base_is0/owned'
+=========================== short test summary info ============================
+FAILED tests/status/test_wp_window_capture.py::test_claim_with_lane_branch_records_open_sha_equal_to_lane_head
+FAILED tests/status/test_wp_window_capture.py::test_in_progress_with_lane_branch_records_open_sha
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_shape
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_unique_correlation_ids
+FAILED tests/status/test_wp_window_capture.py::test_move_task_claimed_before_implement_then_in_progress
+FAILED tests/status/test_wp_window_capture.py::test_capture_adds_no_git_read
+FAILED tests/status/test_wp_window_capture.py::test_wp_window_value_matches_contract_schema
+FAILED tests/integration/test_prompt_builder_owned_arms.py::test_owned_lane_review_base_is_the_facts_target_branch_not_the_repository_roots
+8 failed, 835 passed, 11 warnings in 480.42s (0:08:00)
+exit=1 secs=486

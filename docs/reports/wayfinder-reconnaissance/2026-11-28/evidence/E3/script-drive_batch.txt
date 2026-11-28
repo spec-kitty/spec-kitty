@@ -1,0 +1,12 @@
+#!/bin/bash
+# Deviation driver (machine load): 1) lint+types per mutation, fresh state each; 2) batch A = 13 file-disjoint mutations
+# applied together, frozen arch set + layer rules alone + union of mirror tests; 3) M-OB-2 alone (shares a file with M-PI-2).
+S=$1; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/core
+A="M-PI-2 M-PI-3 M-PI-5 M-RD-1 M-RD-2 M-RD-3 M-RD-5 M-OB-1 M-OB-3 M-OB-4 M-OB-6 M-IC-4 M-IC-6"
+for m in $A M-OB-2; do git apply $P/$m.patch.txt && E3_ONLY=ruff,format,mypy python3 $S/run_core.py $S lint-$m $m >/dev/null; git apply -R $P/$m.patch.txt; echo "lint $m $(date -u +%T)" >> $S/logs/apply.log; done
+for m in $A; do git apply $P/$m.patch.txt || echo "APPLY FAIL $m" >> $S/logs/apply.log; done
+git diff --stat > $S/logs/batchA-diffstat.txt
+E3_ONLY=layer,arch,mirror python3 $S/run_core.py $S batchA $A > $S/logs/batchA.summary 2>&1; echo "batchA done $(date -u +%T)" >> $S/logs/apply.log
+git checkout -q -- .
+git apply $P/M-OB-2.patch.txt; E3_ONLY=layer,arch,mirror python3 $S/run_core.py $S M-OB-2 M-OB-2 > $S/logs/M-OB-2.summary 2>&1; git apply -R $P/M-OB-2.patch.txt; echo "M-OB-2 done $(date -u +%T)" >> $S/logs/apply.log
+[ -z "$(git status --porcelain --untracked-files=no)" ] && echo CLEAN >> $S/logs/apply.log

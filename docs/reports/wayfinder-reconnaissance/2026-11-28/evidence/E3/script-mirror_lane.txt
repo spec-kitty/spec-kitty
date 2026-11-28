@@ -1,0 +1,15 @@
+import json, sys
+sys.path.insert(0,'scripts/ci')
+import gate_selection as g
+S=sys.argv[1]
+sel=json.load(open(S+'/gate-selection.json')); mirror=json.load(open(S+'/mirror.json')); out={}
+for mid,v in sel.items():
+    out[mid]={}
+    for t in mirror[mid]['selected']:
+        owners=sorted(g.select_modules((t,),mode='pr'))
+        oom=[list(x) for x in g.out_of_matrix_test_paths((t,))]
+        arch=t.startswith('tests/architectural/')
+        per_pr = arch or bool(set(owners)&set(v['modules']))
+        out[mid][t]={'owning_modules':owners,'out_of_matrix':oom,'selected_per_pr_for_this_diff':per_pr}
+        print(mid,t,owners,'OOM' if oom else '', per_pr)
+json.dump(out,open(S+'/mirror-lanes.json','w'),indent=1)

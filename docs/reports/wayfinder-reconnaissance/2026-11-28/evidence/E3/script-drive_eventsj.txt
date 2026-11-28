@@ -1,0 +1,11 @@
+#!/bin/bash
+# Events Java / contract gates in the disposable clone; own GRADLE_USER_HOME; one attempt for the baseline.
+S=$1; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/spec-kitty-events; export GRADLE_USER_HOME=$S/gradle-home-events LC_ALL=C.UTF-8 PATH="$PWD/.venv/bin:$PATH"
+bundle(){ out=$S/bundle-$1; rm -rf $out; .venv/bin/python contracts/tools/bundle.py --root contracts --out $out --bundle-only > $S/logs/eventsj-$1-bundle.txt 2>&1; echo "bundle exit=$?" >> $S/logs/eventsj-$1-bundle.txt; export CONTRACT_BUNDLE=$out/bundle/mission-status/openapi.yaml; export CONTRACT_BUNDLE_SHA256=$(sha256sum $CONTRACT_BUNDLE | cut -d' ' -f1); }
+g(){ n=$1; shift; s=$(date +%s); { echo "\$ ./gradlew --no-daemon $*"; timeout 3300 ./gradlew --no-daemon "$@"; echo "exit=$? secs=$(( $(date +%s)-s ))"; } > $S/logs/eventsj-$n.txt 2>&1; echo "eventsj-$n $(tail -1 $S/logs/eventsj-$n.txt) $(date -u +%T)" >> $S/logs/apply.log; }
+ARCH=":mission-status-api:test --tests *architecture* --tests *FilesystemMissionEventSourceFileApiTest --tests *AllowlistReadmeParityTest --tests *ArtifactAllowlistReadmeParityTest"
+bundle base; g base $ARCH :contracts:check --continue
+if ! grep -q 'exit=0' <(tail -1 $S/logs/eventsj-base.txt); then echo "eventsj baseline not green; mutations still attempted" >> $S/logs/apply.log; fi
+git apply $P/M-OB-5.patch.txt && { bundle M-OB-5; g M-OB-5 $ARCH; }; git apply -R $P/M-OB-5.patch.txt
+git apply $P/M-IC-3.patch.txt && { bundle M-IC-3; g M-IC-3 :contracts:check; }; git apply -R $P/M-IC-3.patch.txt
+echo "events clean=$(git status --porcelain --untracked-files=no | wc -l)" >> $S/logs/apply.log

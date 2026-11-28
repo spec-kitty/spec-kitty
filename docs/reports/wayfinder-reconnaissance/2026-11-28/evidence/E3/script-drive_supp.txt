@@ -1,0 +1,11 @@
+#!/bin/bash
+# Exploratory, outside the frozen set: purpose-named gates for undetected core mutations.
+S=$1; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/core; mkdir -p $S/logs/supp
+r(){ n=$1; shift; { echo "\$ $*"; "$@"; echo "exit=$?"; } > $S/logs/supp/$n.txt 2>&1; echo "$n $(tail -1 $S/logs/supp/$n.txt) $(grep -E ' passed| failed' $S/logs/supp/$n.txt | tail -1)"; }
+OB2="tests/architectural/test_charter_path_literal_authority.py tests/architectural/test_no_raw_activation_membership.py tests/architectural/test_deny_list_survives_upgrade.py"
+OB4="tests/ci/test_service_pins_gate.py"
+PY=".venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf"
+r base-OB2 $PY $OB2; r base-OB4 $PY $OB4
+git apply $P/M-OB-2.patch.txt; r M-OB-2 $PY $OB2; git apply -R $P/M-OB-2.patch.txt
+git apply $P/M-OB-4.patch.txt; r M-OB-4 $PY $OB4; git apply -R $P/M-OB-4.patch.txt
+git status --porcelain --untracked-files=no | wc -l

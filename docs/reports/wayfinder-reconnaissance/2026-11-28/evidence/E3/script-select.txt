@@ -1,0 +1,13 @@
+import csv, json, sys
+sys.path.insert(0,'scripts/ci')
+import gate_selection as g
+R='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28'
+router=g.load_router(); out={}
+for r in csv.DictReader(open(R+'/evidence/E2/mutations.csv')):
+    if 'spec-kitty@' not in r['repository']: continue
+    paths=tuple(f.strip() for f in r['files_touched'].split(';'))
+    sel=g.select_gates(paths,router=router,mode='pr'); bat=g.select_battery_gates(paths,mode='pr'); mods=g.select_modules(paths,mode='pr')
+    out[r['id']]={'paths':paths,'matched_groups':sorted(sel.matched_groups),'unmatched_src':sel.unmatched_src,'selected_jobs':sorted(sel.selected_jobs),'selected_code_shards':sorted(sel.selected_code_shards),'battery':'whole battery (None)' if bat is None else sorted(bat),'modules':sorted(mods)}
+json.dump(out,open(sys.argv[1],'w'),indent=1)
+for k,v in out.items(): print(k,v['matched_groups'],'| battery:',v['battery'] if isinstance(v['battery'],str) else len(v['battery']),'| modules',len(v['modules']),v['modules'][:12],'| arch-heavy' , 'architectural-heavy' in v['selected_jobs'])
+print(sorted(router.always_on_jobs))

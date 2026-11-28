@@ -1,0 +1,530 @@
+{
+ "M-PI-1": {
+  "paths": [
+   "src/specify_cli/status/reducer.py"
+  ],
+  "matched_groups": [
+   "contract_tools",
+   "core_misc",
+   "execution_context",
+   "mission_state",
+   "path_literal_audit",
+   "status",
+   "unit"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "mission-state-audit",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "tests-contract-tools",
+   "tests-path-literal-audit",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc",
+   "execution_context",
+   "status",
+   "unit"
+  ]
+ },
+ "M-PI-2": {
+  "paths": [
+   "src/specify_cli/charter_activate.py"
+  ],
+  "matched_groups": [
+   "cli"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "cli"
+  ]
+ },
+ "M-PI-3": {
+  "paths": [
+   "src/specify_cli/events/decision_log.py"
+  ],
+  "matched_groups": [
+   "core_misc",
+   "execution_context",
+   "status"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc",
+   "execution_context",
+   "status"
+  ]
+ },
+ "M-PI-5": {
+  "paths": [
+   "src/specify_cli/drg_writers/registry.py"
+  ],
+  "matched_groups": [],
+  "unmatched_src": true,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "docs-site",
+   "layer-rules",
+   "mission-state-audit",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "tests-contract-tools",
+   "tests-corpus-blocking",
+   "tests-docs",
+   "tests-e2e",
+   "tests-events-consumers",
+   "tests-orchestrator-api-contract",
+   "tests-path-literal-audit",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "agent",
+   "charter",
+   "ci",
+   "cli",
+   "consolidation",
+   "core_misc",
+   "dossier",
+   "execution_context",
+   "glossary",
+   "kernel",
+   "lanes",
+   "missions",
+   "next",
+   "post_merge",
+   "release",
+   "review",
+   "specify_cli_runtime",
+   "status",
+   "unit",
+   "upgrade"
+  ]
+ },
+ "M-RD-1": {
+  "paths": [
+   "src/kernel/site_urls.py"
+  ],
+  "matched_groups": [
+   "core_misc",
+   "kernel",
+   "unit"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc",
+   "kernel",
+   "unit"
+  ]
+ },
+ "M-RD-2": {
+  "paths": [
+   "src/charter/hasher.py"
+  ],
+  "matched_groups": [
+   "charter"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "charter"
+  ]
+ },
+ "M-RD-3": {
+  "paths": [
+   "src/runtime/next/prompt_builder.py"
+  ],
+  "matched_groups": [
+   "execution_context",
+   "next",
+   "unit"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "execution_context",
+   "next",
+   "unit"
+  ]
+ },
+ "M-RD-5": {
+  "paths": [
+   "src/kernel/glossary_runner.py"
+  ],
+  "matched_groups": [
+   "core_misc",
+   "kernel",
+   "unit"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc",
+   "kernel",
+   "unit"
+  ]
+ },
+ "M-OB-1": {
+  "paths": [
+   "src/specify_cli/mission_brief.py"
+  ],
+  "matched_groups": [
+   "cli"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "cli"
+  ]
+ },
+ "M-OB-2": {
+  "paths": [
+   "src/specify_cli/charter_activate.py"
+  ],
+  "matched_groups": [
+   "cli"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "cli"
+  ]
+ },
+ "M-OB-3": {
+  "paths": [
+   "src/specify_cli/upgrade/finalize.py"
+  ],
+  "matched_groups": [
+   "upgrade"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "upgrade"
+  ]
+ },
+ "M-OB-4": {
+  "paths": [
+   "src/specify_cli/services/resolution.py"
+  ],
+  "matched_groups": [
+   "core_misc"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc"
+  ]
+ },
+ "M-OB-6": {
+  "paths": [
+   "src/specify_cli/policy/audit.py"
+  ],
+  "matched_groups": [
+   "consolidation",
+   "lanes"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "consolidation",
+   "lanes"
+  ]
+ },
+ "M-IC-4": {
+  "paths": [
+   "src/specify_cli/orchestrator_api/envelope.py"
+  ],
+  "matched_groups": [
+   "agent",
+   "consolidation",
+   "core_misc",
+   "execution_context",
+   "lanes",
+   "orchestrator_api_contract",
+   "status"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "tests-orchestrator-api-contract",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "agent",
+   "consolidation",
+   "core_misc",
+   "execution_context",
+   "lanes",
+   "status"
+  ]
+ },
+ "M-IC-6": {
+  "paths": [
+   "src/specify_cli/status/wp_window.py"
+  ],
+  "matched_groups": [
+   "core_misc",
+   "execution_context",
+   "mission_state",
+   "path_literal_audit",
+   "status",
+   "unit"
+  ],
+  "unmatched_src": false,
+  "selected_jobs": [
+   "agent-skills",
+   "architectural-fast",
+   "architectural-heavy",
+   "archive-freeze",
+   "docs-lint",
+   "layer-rules",
+   "mission-state-audit",
+   "prose-scan",
+   "regen-check",
+   "router-gate",
+   "ruff",
+   "terminology",
+   "tests-path-literal-audit",
+   "uv-lock"
+  ],
+  "selected_code_shards": [
+   "architectural-heavy"
+  ],
+  "battery": "whole battery (None)",
+  "modules": [
+   "core_misc",
+   "execution_context",
+   "status",
+   "unit"
+  ]
+ }
+}

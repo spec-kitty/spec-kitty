@@ -1,0 +1,598 @@
+{
+ "M-PI-1": {
+  "tests/status/test_reducer.py": {
+   "owning_modules": [
+    "core_misc",
+    "execution_context",
+    "status",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/specify_cli/status/test_reducer_projection_sentinel.py": {
+   "owning_modules": [
+    "status"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/status/test_reducer_recovery_integrity.py": {
+   "owning_modules": [
+    "core_misc",
+    "execution_context",
+    "status",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/ci/test_reducer_lock_census.py": {
+   "owning_modules": [
+    "ci"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/ci/test_reducer_lock_routing.py": {
+   "owning_modules": [
+    "ci"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-PI-2": {
+  "tests/cli/test_charter_activate_warning.py": {
+   "owning_modules": [
+    "cli"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/test_charter_activate_cli.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/test_charter_activate_cli.py",
+     "tests/specify_cli"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-PI-3": {
+  "tests/specify_cli/events/test_decision_log.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/events/test_decision_log.py",
+     "tests/specify_cli/events"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/events/test_decision_log_coord.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/events/test_decision_log_coord.py",
+     "tests/specify_cli/events"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/events/test_decision_log_locked_append.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/events/test_decision_log_locked_append.py",
+     "tests/specify_cli/events"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-PI-5": {
+  "tests/specify_cli/drg_writers/test_registry_completeness.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/drg_writers/test_registry_completeness.py",
+     "tests/specify_cli/drg_writers"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/compat/test_registry.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/compat/test_registry.py",
+     "tests/specify_cli/compat"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/contracts/test_registry.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/contracts/test_registry.py",
+     "tests/specify_cli/contracts"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/invocation/test_registry.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/invocation/test_registry.py",
+     "tests/specify_cli/invocation"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/shims/test_registry.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/shims/test_registry.py",
+     "tests/specify_cli/shims"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-RD-1": {
+  "tests/kernel/test_site_urls.py": {
+   "owning_modules": [
+    "core_misc",
+    "kernel",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  }
+ },
+ "M-RD-2": {
+  "tests/charter/test_hasher.py": {
+   "owning_modules": [
+    "charter"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/dossier/test_hasher.py": {
+   "owning_modules": [
+    "dossier"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-RD-3": {
+  "tests/next/test_prompt_builder_review_base.py": {
+   "owning_modules": [
+    "execution_context",
+    "next",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/next/test_prompt_builder_unit.py": {
+   "owning_modules": [
+    "execution_context",
+    "next",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/integration/test_prompt_builder_owned_arms.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/integration/test_prompt_builder_owned_arms.py",
+     "tests/integration"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-RD-5": {
+  "tests/kernel/test_glossary_runner.py": {
+   "owning_modules": [
+    "core_misc",
+    "kernel",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  }
+ },
+ "M-OB-1": {
+  "tests/cli/test_mission_brief.py": {
+   "owning_modules": [
+    "cli"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/specify_cli/test_mission_brief_missing_vs_corrupt.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/test_mission_brief_missing_vs_corrupt.py",
+     "tests/specify_cli"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/test_mission_brief_overwrite_chokepoint.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/test_mission_brief_overwrite_chokepoint.py",
+     "tests/specify_cli"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/test_mission_brief_resilient_write.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/test_mission_brief_resilient_write.py",
+     "tests/specify_cli"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-OB-2": {
+  "tests/cli/test_charter_activate_warning.py": {
+   "owning_modules": [
+    "cli"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py": {
+   "owning_modules": [
+    "agent",
+    "charter",
+    "consolidation",
+    "core_misc",
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py",
+     "tests/specify_cli/cli/commands/charter"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/specify_cli/test_charter_activate_cli.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/specify_cli/test_charter_activate_cli.py",
+     "tests/specify_cli"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-OB-3": {
+  "tests/_support/test_finalize_source.py": {
+   "owning_modules": [],
+   "out_of_matrix": [
+    [
+     "tests/_support/test_finalize_source.py",
+     "tests/_support"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/agent/test_finalize_tasks_owned_files_validation.py": {
+   "owning_modules": [
+    "agent",
+    "cli",
+    "execution_context"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/architectural/test_finalize_refresh_pin_authority.py": {
+   "owning_modules": [],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/cli/commands/test_finalize_kind_normalisation_helpers.py": {
+   "owning_modules": [
+    "cli"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/coordination/test_finalize_commits_coord_writes_7792.py": {
+   "owning_modules": [
+    "core_misc",
+    "status"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-OB-4": {
+  "tests/specify_cli/services/test_resolution.py": {
+   "owning_modules": [
+    "core_misc"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/agent/glossary/test_resolution.py": {
+   "owning_modules": [
+    "agent",
+    "cli",
+    "execution_context"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/kernel/test_resolution.py": {
+   "owning_modules": [
+    "core_misc",
+    "kernel",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/charter/test_resolution_overhead.py": {
+   "owning_modules": [
+    "charter"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/consolidation/test_resolution_merge_unreviewed.py": {
+   "owning_modules": [
+    "consolidation"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-OB-6": {
+  "tests/policy/test_audit.py": {
+   "owning_modules": [
+    "consolidation",
+    "lanes"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/policy/test_audit.py",
+     "tests/policy"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": false
+  },
+  "tests/policy/test_audit_locked_append.py": {
+   "owning_modules": [
+    "consolidation",
+    "lanes"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/policy/test_audit_locked_append.py",
+     "tests/policy"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": false
+  },
+  "tests/audit/test_audit_architecture.py": {
+   "owning_modules": [
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/audit/test_audit_architecture.py",
+     "tests/audit"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/audit/test_audit_classifiers.py": {
+   "owning_modules": [
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/audit/test_audit_classifiers.py",
+     "tests/audit"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  },
+  "tests/audit/test_audit_cli.py": {
+   "owning_modules": [
+    "upgrade"
+   ],
+   "out_of_matrix": [
+    [
+     "tests/audit/test_audit_cli.py",
+     "tests/audit"
+    ]
+   ],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ },
+ "M-IC-4": {
+  "tests/agent/test_envelope_unit.py": {
+   "owning_modules": [
+    "agent",
+    "cli",
+    "execution_context"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  }
+ },
+ "M-IC-6": {
+  "tests/status/test_wp_window_capture.py": {
+   "owning_modules": [
+    "core_misc",
+    "execution_context",
+    "status",
+    "unit"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": true,
+   "selected_per_pr_strict": true
+  },
+  "tests/consolidation/test_wp_window_round_trip.py": {
+   "owning_modules": [
+    "consolidation"
+   ],
+   "out_of_matrix": [],
+   "selected_per_pr_for_this_diff": false,
+   "selected_per_pr_strict": false
+  }
+ }
+}

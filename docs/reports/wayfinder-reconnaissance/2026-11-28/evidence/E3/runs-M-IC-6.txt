@@ -1,0 +1,71 @@
+## logs/M-IC-6/mirror.txt  full_bytes=7286 full_sha256=8af51e8771836a64eb6c7fcffc2305ad29c8d6113d4e6290a287a1be677069db
+$ .venv/bin/python -m pytest tests/consolidation/test_wp_window_round_trip.py tests/status/test_wp_window_capture.py -n 4 --dist loadfile -p no:cacheprovider -q -rf
+=================================== FAILURES ===================================
+_______ test_claim_with_lane_branch_records_open_sha_equal_to_lane_head ________
+E   AssertionError: assert {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': '723b5fa1f1495c91e5501ee31e9bbcef568cb813'}
+E     Right contains 1 more item:
+E     {'open_sha': '723b5fa1f1495c91e5501ee31e9bbcef568cb813'}
+E     Use -v to get more diff
+______________ test_in_progress_with_lane_branch_records_open_sha ______________
+E   AssertionError: assert {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': '723b5fa1f1495c91e5501ee31e9bbcef568cb813'}
+E     Right contains 1 more item:
+E     {'open_sha': '723b5fa1f1495c91e5501ee31e9bbcef568cb813'}
+E     Use -v to get more diff
+___________ test_move_task_claimed_before_implement_then_in_progress ___________
+E   AssertionError: assert ({'lane_head': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8', 'wp_window': {'opened_at': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8', 'schema_version': 1}} is not None and {'opened_at':...a_version': 1} == {'open_sha': ...a_version': 1}
+E    +  where {'lane_head': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8', 'wp_window': {'opened_at': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8', 'schema_version': 1}} = StatusEvent(event_id='01M8H1HVV1T1GQJF9RGS8RKVS1', mission_slug='flat-topo-fixture-01KW2E7B', wp_id='WP01', from_lane=...opened_at': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8', 'schema_version': 1}}, mission_id='01KW2E7BFC0000000000000001').policy_metadata
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'opened_at': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8'}
+E     Right contains 1 more item:
+E     {'open_sha': 'e2d0984784c52db7c7b1f6b92465ff393658c8b8'}
+E     Use -v to get more diff)
+________________________ test_capture_adds_no_git_read _________________________
+E   KeyError: 'open_sha'
+_________________ test_wp_window_value_matches_contract_schema _________________
+E   jsonschema.exceptions.ValidationError: Additional properties are not allowed ('opened_at' was unexpected)
+E   
+E   Failed validating 'additionalProperties' in schema:
+E       {'$schema': 'https://json-schema.org/draft/2020-12/schema',
+E        'type': 'object',
+E        'required': ['schema_version'],
+E        'properties': {'schema_version': {'const': 1},
+E                       'open_sha': {'type': 'string',
+E                                    'pattern': '^([0-9a-f]{40}|[0-9a-f]{64})$'},
+E                       'gap': {'type': 'object',
+E                               'required': ['reason'],
+E                               'properties': {'reason': {'enum': ['capture_failed',
+E                                                                  'lane_branch_missing']},
+E                                              'cause': {'enum': ['git_error',
+E                                                                 'probe_error']},
+E                                              'detail': {'type': 'string',
+E                                                         'maxLength': 500}},
+E                               'oneOf': [{'properties': {'reason': {'const': 'capture_failed'}},
+E                                          'required': ['cause']},
+E                                         {'properties': {'reason': {'const': 'lane_branch_missing'}},
+E                                          'not': {'required': ['cause']}}],
+E                               'additionalProperties': False}},
+E        'oneOf': [{'required': ['open_sha'], 'not': {'required': ['gap']}},
+E                  {'required': ['gap'], 'not': {'required': ['open_sha']}}],
+E        'additionalProperties': False}
+E   
+E   On instance:
+E       {'schema_version': 1,
+E        'opened_at': '3f1c0d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e'}
+=========================== short test summary info ============================
+FAILED tests/status/test_wp_window_capture.py::test_claim_with_lane_branch_records_open_sha_equal_to_lane_head
+FAILED tests/status/test_wp_window_capture.py::test_in_progress_with_lane_branch_records_open_sha
+FAILED tests/status/test_wp_window_capture.py::test_move_task_claimed_before_implement_then_in_progress
+FAILED tests/status/test_wp_window_capture.py::test_capture_adds_no_git_read
+FAILED tests/status/test_wp_window_capture.py::test_wp_window_value_matches_contract_schema
+5 failed, 33 passed in 6.38s
+exit=1 secs=8

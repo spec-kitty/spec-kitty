@@ -1,0 +1,4 @@
+## logs/baseline-layer/layer-rules-alone.txt  full_bytes=1630 full_sha256=de1b1ef10d7ed2ad91d1ebe6247dedf132d963e0898c0e44703d492e1d9bb552
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+80 passed in 61.60s (0:01:01)
+exit=0 secs=67

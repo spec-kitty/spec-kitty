@@ -1,0 +1,209 @@
+{
+ "M-IC-4": [
+  "logs/M-IC-4/mirror.txt"
+ ],
+ "M-IC-6": [
+  "logs/M-IC-6/mirror.txt"
+ ],
+ "M-OB-2": [
+  "logs/M-OB-2/arch.txt",
+  "logs/M-OB-2/layer-rules-alone.txt",
+  "logs/M-OB-2/mirror.txt"
+ ],
+ "M-OB-4": [
+  "logs/M-OB-4/arch.txt",
+  "logs/M-OB-4/layer-rules-alone.txt",
+  "logs/M-OB-4/mirror.txt"
+ ],
+ "M-PI-1": [
+  "logs/M-PI-1/arch.txt",
+  "logs/M-PI-1/layer-rules-alone.txt",
+  "logs/M-PI-1/mirror.txt",
+  "logs/M-PI-1/mypy.txt",
+  "logs/M-PI-1/ruff-format.txt",
+  "logs/M-PI-1/ruff.txt"
+ ],
+ "M-PI-3": [
+  "logs/M-PI-3/arch.txt",
+  "logs/M-PI-3/layer-rules-alone.txt",
+  "logs/M-PI-3/mirror.txt"
+ ],
+ "M-PI-5": [
+  "logs/M-PI-5/arch.txt",
+  "logs/M-PI-5/layer-rules-alone.txt",
+  "logs/M-PI-5/mirror.txt"
+ ],
+ "M-RD-3": [
+  "logs/M-RD-3/mirror.txt"
+ ],
+ "baseline-am": [
+  "logs/baseline-am/arch.txt",
+  "logs/baseline-am/mirror.txt"
+ ],
+ "baseline-layer": [
+  "logs/baseline-layer/layer-rules-alone.txt"
+ ],
+ "baseline": [
+  "logs/baseline/mypy.txt",
+  "logs/baseline/ruff-format.txt",
+  "logs/baseline/ruff.txt"
+ ],
+ "batchA": [
+  "logs/batchA/arch.txt",
+  "logs/batchA/layer-rules-alone.txt",
+  "logs/batchA/mirror.txt"
+ ],
+ "ev-M-IC-1": [
+  "logs/ev-M-IC-1/changelog-check.txt",
+  "logs/ev-M-IC-1/changelog-guard.txt",
+  "logs/ev-M-IC-1/conformance.txt",
+  "logs/ev-M-IC-1/mirror.txt",
+  "logs/ev-M-IC-1/mypy.txt",
+  "logs/ev-M-IC-1/ruff-format.txt",
+  "logs/ev-M-IC-1/ruff.txt",
+  "logs/ev-M-IC-1/version-guard.txt"
+ ],
+ "ev-M-RD-4": [
+  "logs/ev-M-RD-4/changelog-check.txt",
+  "logs/ev-M-RD-4/changelog-guard.txt",
+  "logs/ev-M-RD-4/conformance.txt",
+  "logs/ev-M-RD-4/mirror.txt",
+  "logs/ev-M-RD-4/mypy.txt",
+  "logs/ev-M-RD-4/ruff-format.txt",
+  "logs/ev-M-RD-4/ruff.txt",
+  "logs/ev-M-RD-4/version-guard.txt"
+ ],
+ "ev-baseline": [
+  "logs/ev-baseline/changelog-check.txt",
+  "logs/ev-baseline/changelog-guard.txt",
+  "logs/ev-baseline/conformance.txt",
+  "logs/ev-baseline/mirror.txt",
+  "logs/ev-baseline/mypy.txt",
+  "logs/ev-baseline/ruff-format.txt",
+  "logs/ev-baseline/ruff.txt",
+  "logs/ev-baseline/version-guard.txt"
+ ],
+ "evj-M-IC-3": [
+  "logs/evj-M-IC-3/tool-breaking_check.txt",
+  "logs/evj-M-IC-3/tool-enum_pin_check.txt",
+  "logs/evj-M-IC-3/tool-example_check.txt",
+  "logs/evj-M-IC-3/tool-lint_check.txt",
+  "logs/evj-M-IC-3/tool-structure_check.txt"
+ ],
+ "evj-baseline": [
+  "logs/evj-baseline/tool-breaking_check.txt",
+  "logs/evj-baseline/tool-enum_pin_check.txt",
+  "logs/evj-baseline/tool-example_check.txt",
+  "logs/evj-baseline/tool-lint_check.txt",
+  "logs/evj-baseline/tool-structure_check.txt"
+ ],
+ "lint-per-mutation": [
+  "logs/lint-M-IC-4/mypy.txt",
+  "logs/lint-M-IC-4/ruff-format.txt",
+  "logs/lint-M-IC-4/ruff.txt",
+  "logs/lint-M-IC-6/mypy.txt",
+  "logs/lint-M-IC-6/ruff-format.txt",
+  "logs/lint-M-IC-6/ruff.txt",
+  "logs/lint-M-OB-1/mypy.txt",
+  "logs/lint-M-OB-1/ruff-format.txt",
+  "logs/lint-M-OB-1/ruff.txt",
+  "logs/lint-M-OB-2/mypy.txt",
+  "logs/lint-M-OB-2/ruff-format.txt",
+  "logs/lint-M-OB-2/ruff.txt",
+  "logs/lint-M-OB-3/mypy.txt",
+  "logs/lint-M-OB-3/ruff-format.txt",
+  "logs/lint-M-OB-3/ruff.txt",
+  "logs/lint-M-OB-4/mypy.txt",
+  "logs/lint-M-OB-4/ruff-format.txt",
+  "logs/lint-M-OB-4/ruff.txt",
+  "logs/lint-M-OB-6/mypy.txt",
+  "logs/lint-M-OB-6/ruff-format.txt",
+  "logs/lint-M-OB-6/ruff.txt",
+  "logs/lint-M-PI-2/mypy.txt",
+  "logs/lint-M-PI-2/ruff-format.txt",
+  "logs/lint-M-PI-2/ruff.txt",
+  "logs/lint-M-PI-3/mypy.txt",
+  "logs/lint-M-PI-3/ruff-format.txt",
+  "logs/lint-M-PI-3/ruff.txt",
+  "logs/lint-M-PI-5/mypy.txt",
+  "logs/lint-M-PI-5/ruff-format.txt",
+  "logs/lint-M-PI-5/ruff.txt",
+  "logs/lint-M-RD-1/mypy.txt",
+  "logs/lint-M-RD-1/ruff-format.txt",
+  "logs/lint-M-RD-1/ruff.txt",
+  "logs/lint-M-RD-2/mypy.txt",
+  "logs/lint-M-RD-2/ruff-format.txt",
+  "logs/lint-M-RD-2/ruff.txt",
+  "logs/lint-M-RD-3/mypy.txt",
+  "logs/lint-M-RD-3/ruff-format.txt",
+  "logs/lint-M-RD-3/ruff.txt",
+  "logs/lint-M-RD-5/mypy.txt",
+  "logs/lint-M-RD-5/ruff-format.txt",
+  "logs/lint-M-RD-5/ruff.txt"
+ ],
+ "op-M-IC-5-regenerated": [
+  "logs/op-M-IC-5-regenerated/check-pack-digests.txt",
+  "logs/op-M-IC-5-regenerated/check-vocabulary.txt",
+  "logs/op-M-IC-5-regenerated/gen-pack-reference.txt",
+  "logs/op-M-IC-5-regenerated/unittest-assets.txt",
+  "logs/op-M-IC-5-regenerated/unittest-ci.txt",
+  "logs/op-M-IC-5-regenerated/unittest-docs.txt",
+  "logs/op-M-IC-5-regenerated/unittest-release.txt",
+  "logs/op-M-IC-5-regenerated/unittest-vocabulary.txt",
+  "logs/op-M-IC-5-regenerated/validate-packs.txt"
+ ],
+ "op-M-IC-5": [
+  "logs/op-M-IC-5/check-pack-digests.txt",
+  "logs/op-M-IC-5/check-vocabulary.txt",
+  "logs/op-M-IC-5/gen-pack-reference.txt",
+  "logs/op-M-IC-5/unittest-assets.txt",
+  "logs/op-M-IC-5/unittest-ci.txt",
+  "logs/op-M-IC-5/unittest-docs.txt",
+  "logs/op-M-IC-5/unittest-release.txt",
+  "logs/op-M-IC-5/unittest-vocabulary.txt",
+  "logs/op-M-IC-5/validate-packs.txt"
+ ],
+ "op-baseline": [
+  "logs/op-baseline/check-pack-digests.txt",
+  "logs/op-baseline/check-vocabulary.txt",
+  "logs/op-baseline/gen-pack-reference.txt",
+  "logs/op-baseline/unittest-assets.txt",
+  "logs/op-baseline/unittest-ci.txt",
+  "logs/op-baseline/unittest-docs.txt",
+  "logs/op-baseline/unittest-release.txt",
+  "logs/op-baseline/unittest-vocabulary.txt",
+  "logs/op-baseline/validate-packs.txt"
+ ],
+ "supp": [
+  "logs/supp/M-OB-2.txt",
+  "logs/supp/M-OB-4.txt",
+  "logs/supp/base-OB2.txt",
+  "logs/supp/base-OB4.txt",
+  "logs/supp/base-dead.txt",
+  "logs/supp/dead-M-OB-2.txt",
+  "logs/supp/dead-M-OB-4.txt",
+  "logs/supp/dead-M-PI-3.txt",
+  "logs/supp/dead-M-PI-5.txt",
+  "logs/supp/ic6-owned-arms.txt"
+ ],
+ "batchA-diffstat": [
+  "logs/batchA-diffstat.txt"
+ ],
+ "charter-gradle": [
+  "logs/charter-M-IC-2-contracts.txt",
+  "logs/charter-M-PI-4-arch.txt",
+  "logs/charter-M-PI-6-arch.txt",
+  "logs/charter-M-RD-6-arch.txt",
+  "logs/charter-base-arch.txt",
+  "logs/charter-base-contracts.txt"
+ ],
+ "events-gradle": [
+  "logs/eventsj-M-IC-3-bundle.txt",
+  "logs/eventsj-M-IC-3.txt",
+  "logs/eventsj-M-OB-5-bundle.txt",
+  "logs/eventsj-M-OB-5.txt",
+  "logs/eventsj-base-bundle.txt",
+  "logs/eventsj-base.txt",
+  "logs/eventsj-driver.txt"
+ ]
+}

@@ -1,0 +1,82 @@
+## logs/op-baseline/check-pack-digests.txt  full_bytes=1951 full_sha256=b09ddcae769a900f3cef96a80d5c5887896587fe2f73d44c6e350df246318369
+$ scripts/ci/check-pack-digests.sh
+ok: packs/architecture/ digest matches 4d6a28235045c3b5c2fceb93dc472314d21df15ee4bf2306dba7e768db374d94
+ok: packs/built-in/ digest matches 39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d
+ok: packs/cave-kitty/ digest matches 585eb428c5abd119b7d0a889a53879d07ce12e84766c70fe1e6e7c2b80b0d04d
+ok: packs/drupal/ digest matches 5fe40ce32b472a3041b994d7957c79766ae04b869d12fbcc58e69a45554ddf88
+ok: packs/event-driven/ digest matches 737f21ec64f563262da711f7e3f79f11f0540cdced718a220a8ac46a82cad020
+ok: packs/foundation/ digest matches 85fdd04046e2c53e795c03f6addab53d5f76a4fb78fe2d34684c003d7cc1bc13
+ok: packs/go/ digest matches 2101cdc8a7e98d97132277eba4aabe58304217a716f9bfafb22916b50fd8fcf1
+ok: packs/internal/ digest matches eae1dee02b591641a81141e570814028a8b864b6fe18d344679f3a8db2e61f23
+ok: packs/java/ digest matches 9acbaf9f6cce987cbdf65d68636a44ff630c67f494c6b3eb8ab6273b1920ba55
+ok: packs/javascript/ digest matches 895bba479dc9b2b16792adb5bb354b5dfca8d502d82ca6ded27df178ab54ac1f
+ok: packs/pack-authoring/ digest matches 4de320a20ecb16ec3a3e93cec2e9c7ec93ee5370403cf8eaa857eb72e60deac6
+ok: packs/planning-analysis/ digest matches 721f30d1d3ff281d2fce8f016760068a46f3f117b0ccaf01733c3da881766d2f
+ok: packs/python/ digest matches 145f2e1100328374f113972130a51452cf6300dc6b6b3601e161b1a719106a47
+ok: packs/qa/ digest matches 1d70dce70072f1aaaf53f4b425a001509fa45121cdfb264458ede2d430f8aaa7
+ok: packs/refactoring/ digest matches 84c6e65412e84df06d25d08d80dc78c1411b2e0f2e77883f671dbb02ec5153b6
+ok: packs/rust/ digest matches d4fe080b37a6c5ec4009bbf248af8b0d9e7821146d2a95da3a10f7095a29d1ae
+ok: packs/spdd/ digest matches 0ef7afa434fb6b8cbac21b2c2815181d19352b3fd54e86ec410ace43a62b5fd6
+ok: packs/testing/ digest matches b71de662ede9af091582ee021230972b9853d311e47094dea101d08109093f48
+ok: packs/writing/ digest matches 9a50b3cc0947f9398141543b4f0793a95cd5282465a052cad9e1eb5ba8fcc7b0
+exit=0 secs=1
+## logs/op-baseline/check-vocabulary.txt  full_bytes=106 full_sha256=585181c78f81253d68995781497fd63d50760be405d99d927e2fd09bfd4f20d9
+$ python3 scripts/ci/check_vocabulary.py
+exit=0 secs=6
+## logs/op-baseline/gen-pack-reference.txt  full_bytes=105 full_sha256=e7bfdceb155f4f5d480ce33c661c1371fd915e5ec24075e1100ca1067a0a99cd
+$ python3 scripts/docs/gen_pack_reference.py --check
+exit=0 secs=1
+## logs/op-baseline/unittest-assets.txt  full_bytes=243 full_sha256=f5eab22a8db8aede77136fb1b8c9871f2a7962732c293d518e410c3346b04d2d
+$ python3 -m unittest discover -s tests/assets
+Ran 21 tests in 0.217s
+OK
+exit=0 secs=0
+## logs/op-baseline/unittest-ci.txt  full_bytes=498 full_sha256=48324da65e2171e82645063ac928923aeaa92f61bff3e6e8fc8be3d91856ed12
+$ python3 -m unittest discover -s tests/ci
+Ran 327 tests in 58.578s
+OK (skipped=2)
+exit=0 secs=59
+## logs/op-baseline/unittest-docs.txt  full_bytes=443 full_sha256=511852a7122d82f06c701b8159ada5e2898c563563445d9cf6bea4f7fc285dae
+$ python3 -m unittest discover -s tests/docs
+Ran 49 tests in 6.253s
+OK
+exit=0 secs=7
+## logs/op-baseline/unittest-release.txt  full_bytes=174 full_sha256=2f0b7dffa43b386915f13d5bc4760310fa8416c0114040bc60609f30b069ce29
+$ python3 -m unittest discover -s tests/release
+Ran 13 tests in 3.497s
+OK
+exit=0 secs=4
+## logs/op-baseline/unittest-vocabulary.txt  full_bytes=202 full_sha256=afee8f4975fa9f5c4b65b8e23d4ecba4f4d6a1f0eac071d980f7d3e8650a4b04
+$ python3 -m unittest discover -s tests/vocabulary
+Ran 38 tests in 0.567s
+OK
+exit=0 secs=1
+## logs/op-baseline/validate-packs.txt  full_bytes=2874 full_sha256=60698c8f475ea3cfa2f6989d0808e901ebc6676da0c39666a033437b3f185378
+$ scripts/ci/validate-packs.sh
+ok: packs/architecture (28 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/built-in (5 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/cave-kitty (15 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/drupal (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/event-driven (19 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+ok: packs/foundation (222 files checked, 26 not judged: excluded, payload or not held, 0 violations)
+ok: packs/go (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/internal (66 files checked, 16 not judged: excluded, payload or not held, 0 violations)
+ok: packs/java (10 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/javascript (19 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/pack-authoring (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/planning-analysis (16 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/python (12 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/qa (52 files checked, 14 not judged: excluded, payload or not held, 0 violations)
+ok: packs/refactoring (32 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/rust (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/spdd (20 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/testing (32 files checked, 2 not judged: excluded, payload or not held, 0 violations)
+ok: packs/writing (82 files checked, 24 not judged: excluded, payload or not held, 0 violations)
+ok: tests/fixtures/valid/example-pack (6 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: cross-pack checks over 20 packs (0 violations)
+ok: tests/fixtures/invalid/case-variant-readme fails validation as expected (1 violations)
+ok: tests/fixtures/invalid/legacy-shapes fails validation as expected (7 violations)
+ok: tests/fixtures/invalid/retired-pack-document fails validation as expected (2 violations)
+ok: tests/fixtures/invalid/malformed-pack-version (4 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+ok: tests/fixtures/invalid/unknown-dependency (2 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+exit=0 secs=50

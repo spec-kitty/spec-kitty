@@ -1,0 +1,137 @@
+## logs/supp/M-OB-2.txt  full_bytes=2265 full_sha256=ba1d787a902acde3ab43d4c753744dcf2b07cb894a5dbc8f9c41c93c3c8f3ec2
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_charter_path_literal_authority.py tests/architectural/test_no_raw_activation_membership.py tests/architectural/test_deny_list_survives_upgrade.py
+=================================== FAILURES ===================================
+_________ test_ledger_filename_is_spelled_only_by_the_kernel_authority _________
+E   AssertionError: src/specify_cli/charter_activate.py:41 (force_activate_directive) spells 'activation.yaml'; derive it from kernel.activation_ledger_store.ACTIVATION_LEDGER instead (clause c)
+E   assert ['src/specify...d (clause c)'] == []
+E     
+E     Left contains one more item: "src/specify_cli/charter_activate.py:41 (force_activate_directive) spells 'activation.yaml'; derive it from kernel.activation_ledger_store.ACTIVATION_LEDGER instead (clause c)"
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_charter_path_literal_authority.py::test_ledger_filename_is_spelled_only_by_the_kernel_authority
+1 failed, 69 passed in 75.41s (0:01:15)
+exit=1
+## logs/supp/M-OB-4.txt  full_bytes=310 full_sha256=3dfc886d36c421a8635553f39958f769d2c8b41a6078c414eb282093dfedc45d
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/ci/test_service_pins_gate.py
+8 passed in 2.88s
+exit=0
+## logs/supp/base-OB2.txt  full_bytes=1213 full_sha256=26008666dafd6ca81c516439791dac2f48483c56e8f17c195557d242571b07f7
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_charter_path_literal_authority.py tests/architectural/test_no_raw_activation_membership.py tests/architectural/test_deny_list_survives_upgrade.py
+70 passed in 76.11s (0:01:16)
+exit=0
+## logs/supp/base-OB4.txt  full_bytes=310 full_sha256=5da07f22624ae220d114bf5d771dd50859767884e64b0ded905ce5dde99e1553
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/ci/test_service_pins_gate.py
+8 passed in 2.73s
+exit=0
+## logs/supp/base-dead.txt  full_bytes=1183 full_sha256=7814032e1373652a31646336a09c66407b5ae14b80c9f755fd3c2af6fb96c22b
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py
+121 passed in 249.52s (0:04:09)
+exit=0
+## logs/supp/dead-M-OB-2.txt  full_bytes=3553 full_sha256=3834f6c4ddddb6b490385336ac4c0b9866216beb3d34ea66ff337b27af723d38
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py
+=================================== FAILURES ===================================
+__________________ test_no_public_symbol_in_all_is_unimported __________________
+E   AssertionError: Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following public symbols have no other src/ caller, no intra-module reference, and no T013 structural auto-exemption:
+E       - specify_cli.charter_activate::force_activate_directive
+E     
+E     Fix options (in order of preference):
+E       1) Wire the symbol from a runtime caller.
+E       2) If declared in __all__, remove it from __all__ (it stays in the module as an unexported internal) -- otherwise, if it is a widened-in (non-__all__) name, mark it underscore-private.
+E       3) Delete the symbol entirely if it is truly dead.
+E       4) If declared in __all__, add a `(module, name)` entry to `tests/architectural/dead_symbol_allowlist.yaml` with category and rationale (and issue where the category requires it). If it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).
+E     
+E   assert not ["Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following publ... it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).\n"]
+_____________ test_m11c_gate_reads_the_widened_section_it_is_given _____________
+E   AssertionError: control: the committed widened section is clean
+E   assert (['specify_cl...rective'], []) == ([], [])
+E     
+E     At index 0 diff: ['specify_cli.charter_activate::force_activate_directive'] != []
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+FAILED tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+2 failed, 119 passed in 213.77s (0:03:33)
+exit=1
+## logs/supp/dead-M-OB-4.txt  full_bytes=3534 full_sha256=84ee0a99860c89fba8092bf433e8984b0bdb3defb4e2ee69374a3512a0900dec
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py
+=================================== FAILURES ===================================
+__________________ test_no_public_symbol_in_all_is_unimported __________________
+E   AssertionError: Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following public symbols have no other src/ caller, no intra-module reference, and no T013 structural auto-exemption:
+E       - specify_cli.services.resolution::repin_commit
+E     
+E     Fix options (in order of preference):
+E       1) Wire the symbol from a runtime caller.
+E       2) If declared in __all__, remove it from __all__ (it stays in the module as an unexported internal) -- otherwise, if it is a widened-in (non-__all__) name, mark it underscore-private.
+E       3) Delete the symbol entirely if it is truly dead.
+E       4) If declared in __all__, add a `(module, name)` entry to `tests/architectural/dead_symbol_allowlist.yaml` with category and rationale (and issue where the category requires it). If it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).
+E     
+E   assert not ["Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following publ... it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).\n"]
+_____________ test_m11c_gate_reads_the_widened_section_it_is_given _____________
+E   AssertionError: control: the committed widened section is clean
+E   assert (['specify_cl..._commit'], []) == ([], [])
+E     
+E     At index 0 diff: ['specify_cli.services.resolution::repin_commit'] != []
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+FAILED tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+2 failed, 119 passed in 217.32s (0:03:37)
+exit=1
+## logs/supp/dead-M-PI-3.txt  full_bytes=3546 full_sha256=857dc3cb05202c11cd08948e252b04c032b13adccc0dd1188213306a88a7cd12
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py
+=================================== FAILURES ===================================
+__________________ test_no_public_symbol_in_all_is_unimported __________________
+E   AssertionError: Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following public symbols have no other src/ caller, no intra-module reference, and no T013 structural auto-exemption:
+E       - specify_cli.events.decision_log::issued_step_of_run
+E     
+E     Fix options (in order of preference):
+E       1) Wire the symbol from a runtime caller.
+E       2) If declared in __all__, remove it from __all__ (it stays in the module as an unexported internal) -- otherwise, if it is a widened-in (non-__all__) name, mark it underscore-private.
+E       3) Delete the symbol entirely if it is truly dead.
+E       4) If declared in __all__, add a `(module, name)` entry to `tests/architectural/dead_symbol_allowlist.yaml` with category and rationale (and issue where the category requires it). If it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).
+E     
+E   assert not ["Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following publ... it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).\n"]
+_____________ test_m11c_gate_reads_the_widened_section_it_is_given _____________
+E   AssertionError: control: the committed widened section is clean
+E   assert (['specify_cl..._of_run'], []) == ([], [])
+E     
+E     At index 0 diff: ['specify_cli.events.decision_log::issued_step_of_run'] != []
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+FAILED tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+2 failed, 119 passed in 208.55s (0:03:28)
+exit=1
+## logs/supp/dead-M-PI-5.txt  full_bytes=3561 full_sha256=a1f5eb84edfdac82efb4876999f442f12ce9117b444e30d4fa6c6d6e0d4390ec
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py
+=================================== FAILURES ===================================
+__________________ test_no_public_symbol_in_all_is_unimported __________________
+E   AssertionError: Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following public symbols have no other src/ caller, no intra-module reference, and no T013 structural auto-exemption:
+E       - specify_cli.drg_writers.registry::node_violates_layer_rule
+E     
+E     Fix options (in order of preference):
+E       1) Wire the symbol from a runtime caller.
+E       2) If declared in __all__, remove it from __all__ (it stays in the module as an unexported internal) -- otherwise, if it is a widened-in (non-__all__) name, mark it underscore-private.
+E       3) Delete the symbol entirely if it is truly dead.
+E       4) If declared in __all__, add a `(module, name)` entry to `tests/architectural/dead_symbol_allowlist.yaml` with category and rationale (and issue where the category requires it). If it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).
+E     
+E   assert not ["Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION every public module-level name). The following publ... it is a widened-in (non-__all__) name, add it to that file's `widened_grandfathered_470` section instead (FR-303).\n"]
+_____________ test_m11c_gate_reads_the_widened_section_it_is_given _____________
+E   AssertionError: control: the committed widened section is clean
+E   assert (['specify_cl...er_rule'], []) == ([], [])
+E     
+E     At index 0 diff: ['specify_cli.drg_writers.registry::node_violates_layer_rule'] != []
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
+FAILED tests/architectural/test_no_dead_symbols.py::test_m11c_gate_reads_the_widened_section_it_is_given
+2 failed, 119 passed in 215.02s (0:03:35)
+exit=1
+## logs/supp/ic6-owned-arms.txt  full_bytes=1419 full_sha256=b1730481b2be2e8bb795737f256b6dcd9d2691a289f54c7faf3dc0584c7e3467
+$ .venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf tests/integration/test_prompt_builder_owned_arms.py
+=================================== FAILURES ===================================
+E   AssertionError: assert 'REVIEW RANGE (WP01): 7377547bbcd8..87162f335a72  [recorded]' in '================================================================================\nREVIEW: WP01\n=====================...ion owned-fixture-01M2D900 --owned-checkout /tmp/spec-kitty-pytest-tmp/run-10834/test_owned_lane_review_base_is0/owned'
+=========================== short test summary info ============================
+FAILED tests/integration/test_prompt_builder_owned_arms.py::test_owned_lane_review_base_is_the_facts_target_branch_not_the_repository_roots
+1 failed, 10 passed in 6.89s
+exit=1

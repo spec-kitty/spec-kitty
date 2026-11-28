@@ -1,0 +1,12 @@
+#!/bin/bash
+# usage: run_events.sh <scratch> <label>   -- frozen events Python gate set in the disposable clone
+S=$1; L=$S/logs/$2; mkdir -p $L; cd $S/spec-kitty-events; unset UV_CACHE_DIR
+r(){ n=$1; shift; s=$(date +%s); { echo "\$ $*"; "$@"; rc=$?; echo "exit=$rc secs=$(( $(date +%s)-s ))"; } > $L/$n.txt 2>&1; tail -1 $L/$n.txt | sed "s/^/$n /"; }
+r ruff .venv/bin/ruff check .
+r ruff-format .venv/bin/ruff format --check .
+r version-guard .venv/bin/python scripts/check_version_not_amended.py
+r changelog-check .venv/bin/python scripts/changelog.py check
+r changelog-guard .venv/bin/python scripts/changelog.py guard
+r mypy .venv/bin/mypy src/spec_kitty_events --strict
+r conformance .venv/bin/python -m pytest --pyargs spec_kitty_events.conformance --no-cov -q -p no:cacheprovider
+r mirror .venv/bin/python -m pytest tests/test_status_log.py tests/unit/test_gates.py tests/property/test_gates_determinism.py --no-cov -q -p no:cacheprovider

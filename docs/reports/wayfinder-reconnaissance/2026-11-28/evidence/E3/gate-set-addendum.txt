@@ -1,0 +1,21 @@
+Addendum to gate-set.txt (written after the runs; gate-set.txt itself is unchanged since the freeze).
+1. Worker count: the resumed runs used -n 4 (not -n 2) for the architectural set and the mirror tests; the first baseline
+   (logs/baseline-am) used -n 2. Same files, same options otherwise.
+2. tests/architectural/test_layer_rules.py was additionally run by itself (-n0) for the baseline and every core run
+   (coordinator instruction on resume). It is also a member of the 66-file set.
+3. Batch procedure (deviation, machine load): 13 file-disjoint core mutations were applied together (batch A) for the
+   architectural set, layer rules and the union of mirror tests; M-OB-2 (shares src/specify_cli/charter_activate.py with
+   M-PI-2) and M-PI-1 ran alone. Lint and types ran per mutation in fresh state. M-PI-3, M-PI-5 and M-OB-4 (no gate fired
+   in the batch) were re-run alone on the full set; M-IC-4, M-IC-6 and M-RD-3 mirror tests were re-run alone.
+   Batch failures were attributed by the file named in each failure message.
+4. Exploratory runs outside the frozen set (never counted in the frozen-set classification): logs/supp
+   (test_charter_path_literal_authority.py, test_no_raw_activation_membership.py, test_deny_list_survives_upgrade.py,
+   tests/ci/test_service_pins_gate.py, test_no_dead_symbols.py, test_no_dead_modules.py, test_no_write_side_rederivation.py,
+   tests/integration/test_prompt_builder_owned_arms.py) and logs/op-M-IC-5-regenerated.
+5. Open-packs: scripts/ci/validate-packs.sh fetches the charter contract from raw.githubusercontent.com (HTTP 404 here);
+   it was run with CHARTER_CONTRACT_DIR pointing at contracts/packs extracted by `git archive` from the local charter clone
+   at the pinned commit cb9b15426d17c402b06204185a17ebfbc65f22ff. The charter-service job of that workflow was not attempted.
+6. Events Gradle: one attempt; blocked at plugin resolution (HTTP 429 from repo.maven.apache.org). The Python contract
+   tools ran; oasdiff and vacuum were installed with contracts/tools/install_tools.py into scratch.
+7. Core service extras were not synced (make sync-services not run): 2 setup errors at baseline in
+   tests/architectural/test_scenario_contract.py (SERVICE_BINARY_MISSING), identical in every run.

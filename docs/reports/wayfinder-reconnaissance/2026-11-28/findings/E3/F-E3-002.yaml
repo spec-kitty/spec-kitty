@@ -1,0 +1,78 @@
+finding_id: F-E3-002
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "E3 detection count, class PI"
+  deviation: "Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n 4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt."
+subject:
+  component: "mutation class PI (private or internal access)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Class PI: 3 of 6 mutations detected by the frozen gate set (3 of 6 assessable), all 3 by a gate that per-change CI selects and whose message names the import: M-PI-1 (underscore name from spec_kitty_events), M-PI-2 (charter.activation._io), M-PI-4 (charter Java, another slice's domain class). Not detected: M-PI-3 (function-body import of an underscore function of runtime.next._internal_runtime), M-PI-5 (importlib.import_module of charter.offering.drg.merge), M-PI-6 (Java import used only for a compile-time String constant). By subtlety: blatant 2/2, moderate 1/2, subtle 0/2."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/detection.csv"
+    method: "see evidence/E3/script-*.txt drivers; rows filtered on class PI"
+    sha256: "03f998275495744b04d38db44f85ce6814f4acdd45b37181345cba495d4c701b"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/detection-counts.txt"
+    method: "python tally over detection.csv"
+    sha256: "f1add3603ff7d30ede1b154c63b54ff20262b9bd0e02178ab7a98225202c9893"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/E3/runs-M-PI-1.txt"
+    method: "driver logs, trimmed by script-assemble.txt"
+    sha256: "4617b29eccfaebb6fa1ad2d2f60f1e76eda9660d7eac5b36cd22a626c49bdc52"
+    exit_code: 1
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E4
+    kind: executed
+    reference: "evidence/E3/runs-batchA.txt"
+    method: "driver logs, trimmed by script-assemble.txt"
+    sha256: "62e0c44b5c28ffd3ce09520b06253635a8b57183a00d639a688c9ee7df76b8d8"
+    exit_code: 1
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E5
+    kind: executed
+    reference: "evidence/E3/runs-charter-gradle.txt"
+    method: "driver logs, trimmed by script-assemble.txt"
+    sha256: "c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194"
+    exit_code: 1
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "The 6 class-PI mutations of E2 against the frozen gate set, across the repositories they touch."
+  not_covered: "244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes."
+  population: "24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations"
+  sample: "6 class-PI mutations"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "For each mutation counted as detected, read the failure text to confirm it names the mutated file; for each counted as not detected, re-ran alone and looked for any failing node absent from the baseline."
+  result: "Every counted detection names the mutated file or symbol. No uncounted new failure other than load-dependent time-budget tests."
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [modularity, testability]
+candidate_invariants: []
+open_questions: []

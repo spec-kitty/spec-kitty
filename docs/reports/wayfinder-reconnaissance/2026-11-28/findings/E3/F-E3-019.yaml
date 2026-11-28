@@ -1,0 +1,54 @@
+finding_id: F-E3-019
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "open-packs content-drift checks"
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: "f9a557510dc7ff04597a0b8aba87f736e25f785e"
+  revision_kind: head
+claim: "Exploratory. M-IC-5 (one member pin of packs/built-in/pack.yaml loosened from ==3.7.0 to a range) failed check-pack-digests.sh, gen_pack_reference.py --check and 4 tests of tests/ci/test_pack_digest.py; scripts/ci/validate-packs.sh passed. Every failure reports a digest or generated-page mismatch for packs/built-in. After regenerating the recorded digest and the page in the scratch clone (a step added by this workstream, not part of the patch), the two scripts passed and 3 tests in tests/ci/test_pack_digest.py still failed on a digest constant held in the test file. No check reported the form of the pin."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/runs-op-M-IC-5.txt"
+    method: "git apply M-IC-5; run_packs.sh <scratch> op-M-IC-5"
+    sha256: "611827f112dd02c9b7b81e2f9173352dd028f738bdb90a3463380c0f5258f446"
+    exit_code: 1
+    environment: "Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/runs-op-M-IC-5-regenerated.txt"
+    method: "git apply M-IC-5; python3 scripts/ci/pack_digest.py --update built-in; python3 scripts/docs/gen_pack_reference.py; run_packs.sh"
+    sha256: "7e76e487ea7110a22bf8fd00b4c72c1905a003e10f43683cdb865150659aac08"
+    exit_code: 1
+    environment: "Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "The validate job steps of validate-packs.yml that run without the charter service."
+  not_covered: "The charter-service job (composition and registration by the pinned charter jar)."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep of scripts/ci/validate_pack_schemas.py for a rule on the depends_on range form."
+  result: "No such rule found in the validator; composition is delegated to the charter service job, which was not run."
+relations: []
+confidence: medium
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,15 @@
+## logs/baseline/mypy.txt  full_bytes=956 full_sha256=8c1ddf754eefccc21886ef88e8cf371d3d402be7749fc399c364f5b9caa07083
+$ .venv/bin/mypy src/charter/hasher.py src/kernel/glossary_runner.py src/kernel/site_urls.py src/runtime/next/prompt_builder.py src/specify_cli/charter_activate.py src/specify_cli/drg_writers/registry.py src/specify_cli/events/decision_log.py src/specify_cli/mission_brief.py src/specify_cli/orchestrator_api/envelope.py src/specify_cli/policy/audit.py src/specify_cli/services/resolution.py src/specify_cli/status/reducer.py src/specify_cli/status/wp_window.py src/specify_cli/upgrade/finalize.py
+src/specify_cli/status/reducer.py:18: error: Module "spec_kitty_events.status" does not explicitly export attribute "reduce"  [attr-defined]
+src/specify_cli/status/reducer.py:71: error: Returning Any from function declared to return "str"  [no-any-return]
+src/specify_cli/status/reducer.py:108: error: "add" of "set" does not return a value (it only ever returns None)  [func-returns-value]
+Found 3 errors in 1 file (checked 14 source files)
+exit=1 secs=12
+## logs/baseline/ruff-format.txt  full_bytes=571 full_sha256=1ead91c0c0592577fe5f58cb95deb9c817950b4c82b5aff2a9600347f78c259d
+$ .venv/bin/ruff format --check --force-exclude src/charter/hasher.py src/kernel/glossary_runner.py src/kernel/site_urls.py src/runtime/next/prompt_builder.py src/specify_cli/charter_activate.py src/specify_cli/drg_writers/registry.py src/specify_cli/events/decision_log.py src/specify_cli/mission_brief.py src/specify_cli/orchestrator_api/envelope.py src/specify_cli/policy/audit.py src/specify_cli/services/resolution.py src/specify_cli/status/reducer.py src/specify_cli/status/wp_window.py src/specify_cli/upgrade/finalize.py
+11 files already formatted
+exit=0 secs=0
+## logs/baseline/ruff.txt  full_bytes=554 full_sha256=fd1fa71d53ab7a9f906142ea8a2cd4a867d08e31bc9489fd47ac1d2c75b72121
+$ .venv/bin/ruff check --force-exclude src/charter/hasher.py src/kernel/glossary_runner.py src/kernel/site_urls.py src/runtime/next/prompt_builder.py src/specify_cli/charter_activate.py src/specify_cli/drg_writers/registry.py src/specify_cli/events/decision_log.py src/specify_cli/mission_brief.py src/specify_cli/orchestrator_api/envelope.py src/specify_cli/policy/audit.py src/specify_cli/services/resolution.py src/specify_cli/status/reducer.py src/specify_cli/status/wp_window.py src/specify_cli/upgrade/finalize.py
+All checks passed!
+exit=0 secs=1

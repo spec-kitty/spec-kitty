@@ -1,0 +1,30 @@
+## logs/ev-baseline/changelog-check.txt  full_bytes=60 full_sha256=140e729f45997de58ca2cf2052ba4aa773b4e87c71b0ca0af21ef9a68b82bd95
+$ .venv/bin/python scripts/changelog.py check
+exit=0 secs=0
+## logs/ev-baseline/changelog-guard.txt  full_bytes=60 full_sha256=6ce55f9761126a55d1668cb21bd41e4ad6ddd5ecbe8e34b2dfc0f85d7bc2990b
+$ .venv/bin/python scripts/changelog.py guard
+exit=0 secs=0
+## logs/ev-baseline/conformance.txt  full_bytes=1655 full_sha256=9395a4059e5328290a093c8adac09e648cc229e4ec8fc277d3f7e734da0742e6
+$ .venv/bin/python -m pytest --pyargs spec_kitty_events.conformance --no-cov -q -p no:cacheprovider
+1358 passed in 6.31s
+exit=0 secs=8
+## logs/ev-baseline/mirror.txt  full_bytes=426 full_sha256=5e48174e233ecca93e9f27d81472bb8b3ca8e2ed03f78bb8a1845e7d96ceba7e
+$ .venv/bin/python -m pytest tests/test_status_log.py tests/unit/test_gates.py tests/property/test_gates_determinism.py --no-cov -q -p no:cacheprovider
+156 passed in 2.60s
+exit=0 secs=5
+## logs/ev-baseline/mypy.txt  full_bytes=107 full_sha256=5ef31e0e54acbffe58c220f45d7359852eea076a34362e0547330a3ae14d3655
+$ .venv/bin/mypy src/spec_kitty_events --strict
+Success: no issues found in 71 source files
+exit=0 secs=12
+## logs/ev-baseline/ruff-format.txt  full_bytes=77 full_sha256=7384364a348c06939a7868c292a29849fa8c6418df99b68fbbd8e86a4e57a016
+$ .venv/bin/ruff format --check .
+1383 files already formatted
+exit=0 secs=0
+## logs/ev-baseline/ruff.txt  full_bytes=58 full_sha256=fd075d2f79bc102a7774411dc4291cc532b734b22ff18c81a64463c5b4ae80b7
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0 secs=0
+## logs/ev-baseline/version-guard.txt  full_bytes=94 full_sha256=c5a60e15863b736e3fc88446641aa6f709ad284ef2a53fd99d4204e4e6921063
+$ .venv/bin/python scripts/check_version_not_amended.py
+version-not-amended: ok
+exit=0 secs=1

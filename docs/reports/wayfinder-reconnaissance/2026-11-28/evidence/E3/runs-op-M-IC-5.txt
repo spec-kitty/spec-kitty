@@ -1,0 +1,91 @@
+## logs/op-M-IC-5/check-pack-digests.txt  full_bytes=2116 full_sha256=ed52af8af8a8099c684dec33ca7896219c1e02c6bd87428fb21d493581b5ac7a
+$ scripts/ci/check-pack-digests.sh
+ok: packs/architecture/ digest matches 4d6a28235045c3b5c2fceb93dc472314d21df15ee4bf2306dba7e768db374d94
+::error file=packs/built-in.source.yaml::packs/built-in/ digest 131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c != recorded 39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d; run `python3 scripts/ci/pack_digest.py --update built-in`
+ok: packs/cave-kitty/ digest matches 585eb428c5abd119b7d0a889a53879d07ce12e84766c70fe1e6e7c2b80b0d04d
+ok: packs/drupal/ digest matches 5fe40ce32b472a3041b994d7957c79766ae04b869d12fbcc58e69a45554ddf88
+ok: packs/event-driven/ digest matches 737f21ec64f563262da711f7e3f79f11f0540cdced718a220a8ac46a82cad020
+ok: packs/foundation/ digest matches 85fdd04046e2c53e795c03f6addab53d5f76a4fb78fe2d34684c003d7cc1bc13
+ok: packs/go/ digest matches 2101cdc8a7e98d97132277eba4aabe58304217a716f9bfafb22916b50fd8fcf1
+ok: packs/internal/ digest matches eae1dee02b591641a81141e570814028a8b864b6fe18d344679f3a8db2e61f23
+ok: packs/java/ digest matches 9acbaf9f6cce987cbdf65d68636a44ff630c67f494c6b3eb8ab6273b1920ba55
+ok: packs/javascript/ digest matches 895bba479dc9b2b16792adb5bb354b5dfca8d502d82ca6ded27df178ab54ac1f
+ok: packs/pack-authoring/ digest matches 4de320a20ecb16ec3a3e93cec2e9c7ec93ee5370403cf8eaa857eb72e60deac6
+ok: packs/planning-analysis/ digest matches 721f30d1d3ff281d2fce8f016760068a46f3f117b0ccaf01733c3da881766d2f
+ok: packs/python/ digest matches 145f2e1100328374f113972130a51452cf6300dc6b6b3601e161b1a719106a47
+ok: packs/qa/ digest matches 1d70dce70072f1aaaf53f4b425a001509fa45121cdfb264458ede2d430f8aaa7
+ok: packs/refactoring/ digest matches 84c6e65412e84df06d25d08d80dc78c1411b2e0f2e77883f671dbb02ec5153b6
+ok: packs/rust/ digest matches d4fe080b37a6c5ec4009bbf248af8b0d9e7821146d2a95da3a10f7095a29d1ae
+ok: packs/spdd/ digest matches 0ef7afa434fb6b8cbac21b2c2815181d19352b3fd54e86ec410ace43a62b5fd6
+ok: packs/testing/ digest matches b71de662ede9af091582ee021230972b9853d311e47094dea101d08109093f48
+ok: packs/writing/ digest matches 9a50b3cc0947f9398141543b4f0793a95cd5282465a052cad9e1eb5ba8fcc7b0
+exit=1 secs=0
+## logs/op-M-IC-5/check-vocabulary.txt  full_bytes=106 full_sha256=f345a30c457affe43f98904b42b28eb14058bc1e6c6f379ceae60935dcad1f7f
+$ python3 scripts/ci/check_vocabulary.py
+exit=0 secs=7
+## logs/op-M-IC-5/gen-pack-reference.txt  full_bytes=117 full_sha256=8e235b1a097710ac74a24c85eb1d8b163deffb3a4b70e74470eeeae5d0506ebd
+$ python3 scripts/docs/gen_pack_reference.py --check
+Drift detected in generated pack pages: built-in
+exit=1 secs=13
+## logs/op-M-IC-5/unittest-assets.txt  full_bytes=243 full_sha256=9883f5a2209b8bc2d86471b4770508fc15eeb97c8c9fc6644fbb7a479cfeba6f
+$ python3 -m unittest discover -s tests/assets
+Ran 21 tests in 0.201s
+OK
+exit=0 secs=0
+## logs/op-M-IC-5/unittest-ci.txt  full_bytes=4597 full_sha256=1fd8932e2a02a5f9ec961714763f57e071a7c9ef2ecc77b04726467c0b74de11
+$ python3 -m unittest discover -s tests/ci
+FAIL: test_print_mode_lists_digest_and_pack (test_pack_digest.CliTests.test_print_mode_lists_digest_and_pack)
+AssertionError: Tuples differ: (0, '131a7d2cf77222b67baf90cce7da8d9ecd1c49e23[38 chars]n\n') != (0, '39b79575672c97c0562ac2751cc754defbda387a3[38 chars]n\n')
+FAIL: test_real_tree_parity_with_core_pin (test_pack_digest.RecipeTests.test_real_tree_parity_with_core_pin)
+AssertionError: '131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c' != '39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d'
+FAIL: test_check_passes_on_the_real_tree (test_pack_digest.ShimTests.test_check_passes_on_the_real_tree)
+AssertionError: 1 != 0 : ::error file=packs/built-in.source.yaml::packs/built-in/ digest 131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c != recorded 39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d; run `python3 scripts/ci/pack_digest.py --update built-in`
+FAIL: test_no_args_prints_only_the_digest (test_pack_digest.ShimTests.test_no_args_prints_only_the_digest)
+AssertionError: Tuples differ: (0, '131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c\n') != (0, '39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d\n')
+Ran 327 tests in 55.553s
+FAILED (failures=4, skipped=2)
+exit=1 secs=56
+## logs/op-M-IC-5/unittest-docs.txt  full_bytes=443 full_sha256=5df0da2d19ddce599e29fce4133875cc2a04383bb37649b30186eaf558ce2d1d
+$ python3 -m unittest discover -s tests/docs
+Ran 49 tests in 5.274s
+OK
+exit=0 secs=6
+## logs/op-M-IC-5/unittest-release.txt  full_bytes=174 full_sha256=c3721094a5ef2f0c414daa8fa3aca1e4ba30b0442c711492d8468d3f233cfb72
+$ python3 -m unittest discover -s tests/release
+Ran 13 tests in 2.783s
+OK
+exit=0 secs=3
+## logs/op-M-IC-5/unittest-vocabulary.txt  full_bytes=202 full_sha256=bc9f0a274953d8b74f626ca439a471896411cc60369294e4ac417700ca827e39
+$ python3 -m unittest discover -s tests/vocabulary
+Ran 38 tests in 0.565s
+OK
+exit=0 secs=1
+## logs/op-M-IC-5/validate-packs.txt  full_bytes=2874 full_sha256=db9975cf97a2403d936e90fb559539659bcf3b8573c697d651d2fc0a7b620990
+$ scripts/ci/validate-packs.sh
+ok: packs/architecture (28 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/built-in (5 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/cave-kitty (15 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/drupal (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/event-driven (19 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+ok: packs/foundation (222 files checked, 26 not judged: excluded, payload or not held, 0 violations)
+ok: packs/go (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/internal (66 files checked, 16 not judged: excluded, payload or not held, 0 violations)
+ok: packs/java (10 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/javascript (19 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/pack-authoring (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/planning-analysis (16 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/python (12 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/qa (52 files checked, 14 not judged: excluded, payload or not held, 0 violations)
+ok: packs/refactoring (32 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/rust (9 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/spdd (20 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: packs/testing (32 files checked, 2 not judged: excluded, payload or not held, 0 violations)
+ok: packs/writing (82 files checked, 24 not judged: excluded, payload or not held, 0 violations)
+ok: tests/fixtures/valid/example-pack (6 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: cross-pack checks over 20 packs (0 violations)
+ok: tests/fixtures/invalid/case-variant-readme fails validation as expected (1 violations)
+ok: tests/fixtures/invalid/legacy-shapes fails validation as expected (7 violations)
+ok: tests/fixtures/invalid/retired-pack-document fails validation as expected (2 violations)
+ok: tests/fixtures/invalid/malformed-pack-version (4 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+ok: tests/fixtures/invalid/unknown-dependency (2 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+exit=0 secs=49

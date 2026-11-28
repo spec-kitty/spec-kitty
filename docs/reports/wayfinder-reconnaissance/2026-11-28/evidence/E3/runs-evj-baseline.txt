@@ -1,0 +1,24 @@
+## logs/evj-baseline/tool-breaking_check.txt  full_bytes=797 full_sha256=01ae9aba5f5d42149da206653969ede0efa611715364a49eb064ceaf33521aab
+$ .venv/bin/python contracts/tools/breaking_check.py --root contracts
+CONTRACT-CHECK breaking_check: NO_BASELINE_INITIAL_VERSION: mission-status: no release tag exists and info.version 1.0.0-SNAPSHOT is on the initial line with a CHANGELOG entry; nothing to compare against, this is the first release
+PREVIEW_REF_NONE mission-status: no tag under preview/mission-status/ exists
+CONTRACT-CHECK breaking_check: NO_BASELINE_INITIAL_VERSION: mission-write: no release tag exists and info.version 1.0.1-SNAPSHOT is on the initial line with a CHANGELOG entry; nothing to compare against, this is the first release
+PREVIEW_REF_NONE mission-write: no tag under preview/mission-write/ exists
+counts: modules=2 baselines=0 breaking=0 provisional_changes=0 no_baseline_initial=2 preview_ref=none,none
+exit=0
+## logs/evj-baseline/tool-enum_pin_check.txt  full_bytes=104 full_sha256=ff5f98af132d65ca413ab41474fb5872416eea966fc39860df86703dde92bcea
+$ .venv/bin/python contracts/tools/enum_pin_check.py --root contracts
+counts: enums=26 values=86
+exit=0
+## logs/evj-baseline/tool-example_check.txt  full_bytes=111 full_sha256=1dd7958160b6c1efb2f65156acdde1224591acaebd4e78c38354ec6be6b1fa6a
+$ .venv/bin/python contracts/tools/example_check.py --root contracts
+counts: examples=145 validated=145
+exit=0
+## logs/evj-baseline/tool-lint_check.txt  full_bytes=253 full_sha256=83d22649d45e8efc97a379e2543ddeabee8599fd495eb0630b81335c37197adf
+$ .venv/bin/python contracts/tools/lint_check.py contracts/mission-status
+lint_check.py: error: unrecognized arguments: contracts/mission-status
+exit=2
+## logs/evj-baseline/tool-structure_check.txt  full_bytes=127 full_sha256=9cbe73b9c8307ee73218ecd0fc98d21096f6cd8b7daeba155e43273a3882ebf0
+$ .venv/bin/python contracts/tools/structure_check.py --root contracts
+counts: readme_headings=35 changelog_headings=19
+exit=0

@@ -1,0 +1,43 @@
+M-PI-1 applied=yes
+M-PI-1 done 11:48:03 [('ruff', 0, 2), ('ruff-format', 0, 0), ('mypy', 1, 4), ('mirror', 0, 64), ('layer-rules-alone', 0, 81), ('arch', 1, 1175)]
+M-PI-2 applied=yes
+lint M-PI-2 11:52:50
+lint M-PI-3 11:52:51
+lint M-PI-5 11:52:52
+lint M-RD-1 11:52:53
+lint M-RD-2 11:52:53
+lint M-RD-3 11:52:54
+lint M-RD-5 11:52:55
+lint M-OB-1 11:52:56
+lint M-OB-3 11:52:56
+lint M-OB-4 11:52:58
+lint M-OB-6 11:52:59
+lint M-IC-4 11:53:00
+lint M-IC-6 11:53:00
+lint M-OB-2 11:53:01
+batchA done 12:09:08
+M-OB-2 done 12:19:23
+CLEAN
+M-IC-4 applied=yes
+M-IC-4 done 12:19:42 [('mirror', 1, 4)]
+M-IC-6 applied=yes
+M-IC-6 done 12:19:50 [('mirror', 1, 8)]
+M-RD-3 applied=yes
+M-RD-3 done 12:20:02 [('mirror', 0, 12)]
+M-PI-3 applied=yes
+M-PI-3 done 12:25:11 [('mirror', 0, 5), ('layer-rules-alone', 0, 41), ('arch', 1, 262)]
+M-PI-5 applied=yes
+M-PI-5 done 12:30:36 [('mirror', 0, 6), ('layer-rules-alone', 0, 44), ('arch', 1, 275)]
+M-OB-4 applied=yes
+M-OB-4 done 12:38:18 [('mirror', 0, 140), ('layer-rules-alone', 0, 42), ('arch', 1, 279)]
+charter-M-PI-4-arch exit=1 secs=534 13:09:43
+charter-M-PI-6-arch exit=0 secs=519 13:18:22
+charter-M-RD-6-arch exit=1 secs=534 13:27:16
+charter-base-contracts exit=0 secs=41 13:27:57
+charter-M-IC-2-contracts exit=0 secs=28 13:28:25
+charter clean=0
+eventsj-base exit=1 secs=57 13:29:34
+eventsj baseline not green; mutations still attempted
+eventsj-M-OB-5 exit=1 secs=32 13:30:14
+eventsj-M-IC-3 exit=1 secs=16 13:30:37
+events clean=0

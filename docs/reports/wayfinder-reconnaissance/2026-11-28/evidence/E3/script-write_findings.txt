@@ -1,0 +1,183 @@
+import hashlib, json, os, sys
+R=sys.argv[1]; E=R+'/evidence/E3'; F=R+'/findings/E3'
+CORE='5c4fc5a79de1c1c299ab221ca26e5555c68ef533'; CH='06cdfbe94856e8d24eca350c63d2a7b47bb9f13a'; EV='646e330b896b96d7a11f53b34aa3d0c0baa69a05'; OP='f9a557510dc7ff04597a0b8aba87f736e25f785e'
+ENVC='Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18'
+ENVJ='JDK Temurin 25, Gradle 9.8.1 wrapper, own GRADLE_USER_HOME, ArchUnit via :deployable:test'
+ENVE='Python 3.13 venv (uv sync --frozen --all-extras --all-groups), ruff 0.16.4, mypy --strict, pytest; oasdiff 1.32.1, vacuum 0.30.6'
+ENVP='Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest'
+def sha(f): return hashlib.sha256(open(E+'/'+f,'rb').read()).hexdigest()
+def q(s): return json.dumps(s, ensure_ascii=False)
+def ev(i,f,method,kind='executed',rc=0,env=ENVC):
+    return f"""  - id: E{i}
+    kind: {kind}
+    reference: "evidence/E3/{f}"
+    method: {q(method)}
+    sha256: "{sha(f)}"
+    exit_code: {rc}
+    environment: {q(env)}
+    observed_at: "2026-11-28T13:35:00Z"
+"""
+n=0
+def finding(measure,component,repo,rev,claim,evs,covered,not_covered,search,result,cls='observation',view='observed',population=None,sample=None,conf='high',relations=(),qa=(),oq=(),derived=(),interp=None,dev=None):
+    global n; n+=1; fid=f'F-E3-{n:03d}'
+    rel=''.join(f'\n  - {{type: {t}, target: {x}}}' for t,x in relations) or ' []'
+    y=f"""finding_id: {fid}
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: {cls}
+view: {view}
+prereg:
+  measure: {q(measure)}
+  deviation: {q(dev) if dev else 'null'}
+subject:
+  component: {q(component)}
+  repository: spec-kitty/{repo}
+  revision: "{rev}"
+  revision_kind: head
+claim: {q(claim)}
+evidence:
+{''.join(evs)}scope:
+  covered: {q(covered)}
+  not_covered: {q(not_covered)}
+  population: {q(population) if population else 'null'}
+  sample: {q(sample) if sample else 'null'}
+  seed: null
+interpretation: {q(interp) if interp else 'null'}
+derived_from: [{', '.join(derived)}]
+counterevidence: []
+disconfirmation:
+  search: {q(search)}
+  result: {q(result)}
+relations:{rel}
+confidence: {conf}
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [{', '.join(qa)}]
+candidate_invariants: []
+open_questions: [{', '.join(q(x) for x in oq)}]
+"""
+    open(f'{F}/{fid}.yaml','w').write(y); return fid
+DEVB='Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n 4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt.'
+NC244='244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes.'
+POP='24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations'
+
+finding('E3 baseline state','frozen gate set at unmodified head','spec-kitty',CORE,
+ "On the unmodified head the frozen core gate set gave: 66 architectural files 1295 passed, 2 xfailed, 2 setup errors (both in tests/architectural/test_scenario_contract.py, SERVICE_BINARY_MISSING because service extras were not synced in the clone); test_layer_rules.py alone 80/80 passed; mirror tests 913/913 passed; ruff and ruff format clean on 14 touched files; mypy on the 14 touched files exit 1 with 3 errors, all in src/specify_cli/status/reducer.py. Events Python set, open-packs set (with a local copy of the pinned charter contract) and the charter ArchUnit and contract tasks were green. The events Gradle build did not start (HTTP 429 from repo.maven.apache.org at plugin resolution).",
+ [ev(1,'runs-baseline-am.txt','run_core.py <scratch> baseline-am <15 core ids> with E3_ONLY=arch,mirror in a --shared clone at head after uv sync --frozen --all-extras and scripts/sync_packs.py',rc=1),
+  ev(2,'runs-baseline.txt','run_core.py <scratch> baseline <15 core ids> with E3_ONLY=ruff,format,mypy',rc=1),
+  ev(3,'runs-baseline-layer.txt','pytest tests/architectural/test_layer_rules.py -n0'),
+  ev(4,'runs-ev-baseline.txt','run_events.sh <scratch> ev-baseline',env=ENVE),
+  ev(5,'runs-op-baseline.txt','CHARTER_CONTRACT_DIR=<local charter contracts/packs at cb9b1542> run_packs.sh <scratch> op-baseline',env=ENVP),
+  ev(6,'runs-charter-gradle.txt','./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest ; :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples',env=ENVJ),
+  ev(7,'runs-events-gradle.txt','drive_eventsj.sh <scratch> (one attempt)',rc=1,env=ENVJ)],
+ 'Frozen gate set of evidence/E3/gate-set.txt on unmodified clones of four repositories.',
+ NC244+' Events Gradle tasks (blocked). The open-packs charter-service job.',
+ 'Compared the failing node ids of every mutated run with the baseline node ids; looked for baseline failures whose text changed under a mutation.',
+ 'The two setup errors and the three reducer.py mypy errors are identical in every run. Three time-budget tests (test_event_log_writes_gate_budget, test_status_module_boundary AST budget) failed intermittently under machine load in mutated runs and passed in others; they name elapsed seconds, not mutated code, and are not counted.',
+ qa=['testability'],dev=DEVB)
+
+def cls(code,name,claim,files):
+    return finding(f'E3 detection count, class {code}',f'mutation class {code} ({name})','spec-kitty',CORE,claim,
+     [ev(1,'detection.csv','see evidence/E3/script-*.txt drivers; rows filtered on class '+code),ev(2,'detection-counts.txt','python tally over detection.csv')]+[ev(i+3,f,'driver logs, trimmed by script-assemble.txt',rc=1) for i,f in enumerate(files)],
+     f'The 6 class-{code} mutations of E2 against the frozen gate set, across the repositories they touch.',NC244,
+     'For each mutation counted as detected, read the failure text to confirm it names the mutated file; for each counted as not detected, re-ran alone and looked for any failing node absent from the baseline.',
+     'Every counted detection names the mutated file or symbol. No uncounted new failure other than load-dependent time-budget tests.',
+     population=POP,sample=f'6 class-{code} mutations',dev=DEVB,qa=['modularity','testability'])
+c_pi=cls('PI','private or internal access',"Class PI: 3 of 6 mutations detected by the frozen gate set (3 of 6 assessable), all 3 by a gate that per-change CI selects and whose message names the import: M-PI-1 (underscore name from spec_kitty_events), M-PI-2 (charter.activation._io), M-PI-4 (charter Java, another slice's domain class). Not detected: M-PI-3 (function-body import of an underscore function of runtime.next._internal_runtime), M-PI-5 (importlib.import_module of charter.offering.drg.merge), M-PI-6 (Java import used only for a compile-time String constant). By subtlety: blatant 2/2, moderate 1/2, subtle 0/2.",['runs-M-PI-1.txt','runs-batchA.txt','runs-charter-gradle.txt'])
+c_rd=cls('RD','reversed dependency direction',"Class RD: 5 of 6 mutations detected (5 of 6 assessable), all 5 by a per-change gate naming the importing and imported module: M-RD-1, M-RD-2, M-RD-3 (function-body import), M-RD-5 (import under TYPE_CHECKING) by tests/architectural/test_layer_rules.py and two sibling gates in core, M-RD-6 (fully qualified name in a lambda) by ArchUnit in charter. Not detected: M-RD-4 (spec-kitty-events library importing specify_cli inside a function with a type-ignore comment). By subtlety: blatant 2/2, moderate 1/2, subtle 2/2.",['runs-batchA.txt','runs-charter-gradle.txt','runs-ev-M-RD-4.txt'])
+c_ob=cls('OB','ownership bypass of state',"Class OB: 3 of 6 mutations detected by the frozen gate set (3 of 5 assessable), all 3 by per-change gates naming the write site: M-OB-1 (open(...,'a') on status.events.jsonl), M-OB-3 (append to the migration ledger path), M-OB-6 (append through the public kernel primitive). Not detected by the frozen set: M-OB-2 (direct rewrite of activation.yaml) and M-OB-4 (resolver calling the kernel pin writer). Not assessable: M-OB-5 (events Java, build blocked). By subtlety: blatant 1/2, moderate 1/2, subtle 1/1 assessable (1/2 overall). An exploratory run outside the frozen set found M-OB-2 flagged by a per-change battery gate (F-E3-011).",['runs-batchA.txt','runs-M-OB-2.txt','runs-M-OB-4.txt','runs-events-gradle.txt'])
+c_ic=cls('IC','incompatible contract change',"Class IC: 5 of 6 mutations detected (5 of 6 assessable): 4 by checks per-change CI runs (M-IC-1 events unit and conformance tests, M-IC-4 and M-IC-6 core unit tests found by the mirror rule, M-IC-5 open-packs digest and generated-page drift checks) and 1 only by a tool no workflow invokes (M-IC-3, contracts/tools/example_check.py; Gradle side not assessable). Not detected: M-IC-2 (charter contract, optional request property made required). 4 of the 5 failure messages name the changed field or value; M-IC-5 names the pack and a digest. In none of the 6 runs did a check of a version constant or changelog requirement fail. By subtlety: blatant 2/2, moderate 1/2, subtle 2/2.",['runs-ev-M-IC-1.txt','runs-M-IC-4.txt','runs-M-IC-6.txt','runs-op-M-IC-5.txt','runs-evj-M-IC-3.txt','runs-charter-gradle.txt'])
+finding('E3 detection counts overall, by subtlety and by repository','24 E2 mutations against the frozen gate set','spec-kitty',CORE,
+ "Overall: 16 of 24 mutations detected (16 of 23 assessable); 15 by a gate per-change CI selects for the diff, 1 only by a local tool, 0 only by lint or type checks; 7 not detected; 1 not assessable. 15 of the 16 detecting failures name the violation. By subtlety: blatant 7/8, moderate 4/8, subtle 5/7 assessable (5/8 overall). By repository: spec-kitty 11/15, spec-kitty-charter 2/4, spec-kitty-events 2/3 assessable (2/4 overall), spec-kitty-open-packs 1/1. By kind of detecting check: 11 by an architectural gate (AST scan, pytestarch or ArchUnit), 3 by behaviour tests of the touched module, 1 by content-drift checks, 1 by an unwired contract tool.",
+ [ev(1,'detection.csv','drivers in evidence/E3/script-*.txt'),ev(2,'detection-counts.txt','python tally over detection.csv'),ev(3,'gate-selection.json','scripts/ci/gate_selection.py select_gates/select_modules/select_battery_gates(mode=pr) on each core patch path set (script-select.txt)')],
+ 'All 24 mutations; 4 repositories.',NC244+' M-OB-5 and the Gradle side of M-IC-3.',
+ 'Checked whether any mutation counted as detected relied on a baseline-red gate, and whether any undetected mutation was caught by lint or types only.',
+ 'None of either. mypy raised a new no-any-return error on M-PI-2, M-RD-2 and M-RD-3, all three also caught by an architectural gate.',
+ population=POP,sample='24 of 24',dev=DEVB,relations=[('refines',c_pi),('refines',c_rd),('refines',c_ob),('refines',c_ic)],qa=['modularity','testability'])
+
+def und(mid,component,repo,rev,claim,files,search,result,env=ENVC,oq=(),nc=NC244):
+    return finding('E3 undetected mutation '+mid,component,repo,rev,claim,[ev(i+1,f[0],f[1],kind=f[2] if len(f)>2 else 'executed',env=env) for i,f in enumerate(files)],
+      'Mutation '+mid+' against the frozen gate set of its repository.',nc,search,result,population=POP,sample='1 mutation',oq=oq,qa=['modularity','testability'])
+und('M-PI-3','src/specify_cli/events/decision_log.py','spec-kitty',CORE,
+ "M-PI-3 adds a function-body import of runtime.next._internal_runtime.engine._read_snapshot to specify_cli. Run alone: 66 architectural files 1295 passed (baseline tally), layer rules 80 passed, 3 mirror files passed, ruff, format and mypy clean. No file in the frozen set restricts underscore names of runtime.next._internal_runtime: the only private-name gate, tests/architectural/test_events_tracker_public_imports.py:13, scopes itself to the packages spec_kitty_events and spec_kitty_tracker, and the layer rules allow specify_cli to import runtime.",
+ [('runs-M-PI-3.txt','drive_core.sh <scratch> M-PI-3 (alone)'),('runs-lint-per-mutation.txt','run_core.py lint-M-PI-3'),('runs-supp.txt','drive_supp2.sh (exploratory, outside the frozen set)')],
+ 'grep of tests/architectural for _internal_runtime, _read_snapshot and decision_log; ran the dead-symbol, dead-module and write-side gates outside the frozen set.',
+ 'Six battery files mention _internal_runtime, none checks imported names. tests/architectural/test_no_dead_symbols.py fails, naming the new function as having no caller, not the import.',
+ oq=['E2 marks the intended model for this rule as ambiguous (production specify_cli already imports from runtime.next._internal_runtime in 12 import lines).'])
+und('M-PI-5','src/specify_cli/drg_writers/registry.py','spec-kitty',CORE,
+ "M-PI-5 reaches charter.offering.drg.merge._violates_layer_rule through importlib.import_module with a string literal. Run alone: 66 architectural files passed except one time-budget test (elapsed-seconds assertion), layer rules 80 passed, 5 mirror files passed, lint and mypy clean. The gate whose stated purpose covers the rule, tests/architectural/test_runtime_charter_doctrine_boundary.py, records at lines 99-101 that dynamic imports are invisible to its static AST scan; it visits ast.Import and ast.ImportFrom nodes (lines 187-190, 295-301).",
+ [('runs-M-PI-5.txt','drive_core.sh <scratch> M-PI-5 (alone)'),('runs-supp.txt','drive_supp2.sh (exploratory)')],
+ 'Read the gate source for handling of import_module calls; grep of tests/architectural for drg_writers and drg.merge; ran dead-symbol gates outside the set.',
+ 'No frozen-set gate inspects import_module arguments for charter.offering. test_no_dead_symbols.py fails on the uncalled new function only.')
+und('M-PI-6','service/activations application ring','spec-kitty-charter',CH,
+ "M-PI-6 imports ai.speckitty.charter.packs.infra.storage.ConfigRoot into activations.application and uses only its String constant. The module compiled and HexagonalArchitectureTest passed (BUILD SUCCESSFUL, :deployable:test executed), while the same rules SLICE_RINGS and A_SLICE_OVER_ANOTHER_SLICE failed for M-PI-4 in the same session. ConfigRoot.ACTIVATIONS is declared public static final String at ConfigRoot.java:27, and the test imports compiled classes (ClassFileImporter, HexagonalArchitectureTest.java:27).",
+ [('runs-charter-gradle.txt','drive_charter.sh <scratch>: git apply M-PI-6; ./gradlew --no-daemon :deployable:test --tests *HexagonalArchitectureTest')],
+ 'Checked that the test task ran rather than being up to date; compared with M-PI-4 and M-RD-6, which the same test rejected.',
+ 'Task :deployable:test executed (9 executed, 41 up to date) and passed. Checkstyle and the other verifyAll tasks were not run.',env=ENVJ,
+ nc='Checkstyle (config/checkstyle/checkstyle.xml holds an IllegalImport module), module allow-list tests and the remaining verifyAll tasks.',
+ oq=['Whether any source-level check in verifyAll (Checkstyle) would report this import was not measured.'])
+und('M-RD-4','src/spec_kitty_events/status_log.py','spec-kitty-events',EV,
+ "M-RD-4 adds a function-body import of specify_cli.status.transitions to the events library, with a type-ignore comment and no declared dependency. ruff check, ruff format, the version guard, both changelog checks, mypy --strict (71 files), the packaged conformance suite (1358 passed) and tests/test_status_log.py all passed. No test, script or lint configuration in the events repository at head scans src/spec_kitty_events for imports of specify_cli: pyproject.toml selects ruff rules E4, E7, E9 and F (line 167) and declares only pydantic and python-ulid as dependencies (lines 16-19).",
+ [('runs-ev-M-RD-4.txt','run_events.sh <scratch> ev-M-RD-4')],
+ 'grep -rnE for ast.Import, import-linter, banned-api and specify_cli across tests/, scripts/ and pyproject.toml of the events clone.',
+ 'Four ast-based tests exist; none scans the library for imports of another distribution.',env=ENVE,
+ nc='The rest of the events tests/ tree beyond the mirror file; the cross-repo harness workflow.',
+ oq=['E2 marks the rule as partly ambiguous in the documents it read.'])
+f_ob2=und('M-OB-2','src/specify_cli/charter_activate.py','spec-kitty',CORE,
+ "M-OB-2 loads and rewrites .kittify/charter/activation.yaml directly with ruamel. Against the frozen gate set, alone: 66 architectural files 1295 passed, layer rules 80 passed, 5 mirror files 75 passed, ruff, format and mypy clean. Outside the frozen set, tests/architectural/test_charter_path_literal_authority.py::test_ledger_filename_is_spelled_only_by_the_kernel_authority (line 800) fails and names charter_activate.py:41 and the literal 'activation.yaml'. That file is part of the battery per-change CI selects for this diff; the frozen file-name rule did not match its name.",
+ [('runs-M-OB-2.txt','drive_batch.sh <scratch> (M-OB-2 alone)'),('runs-supp.txt','drive_supp.sh <scratch> (exploratory, outside the frozen set)')],
+ 'grep of tests/architectural for activation.yaml and activation_ledger; ran the three best-matching files outside the set at baseline and with the mutation.',
+ 'Baseline 70 passed; mutated 1 failed, 69 passed. The failing assertion is about where the file name is spelled; test_no_raw_activation_membership.py and test_deny_list_survives_upgrade.py passed.',
+ oq=['The failing gate keys on the string literal; whether a write that derives the path from the kernel constant would be flagged was not measured.'])
+und('M-OB-4','src/specify_cli/services/resolution.py','spec-kitty',CORE,
+ "M-OB-4 adds a resolver function that rewrites pins/<service>.source.yaml through kernel.service_pin.write_service_pin. Run alone: 66 architectural files 1295 passed, layer rules 80 passed, 5 mirror files passed (including tests/specify_cli/services/test_resolution.py), lint and mypy clean. No file under tests/architectural names write_service_pin; the callers of that function at head are src/specify_cli/services/vendor.py and tests.",
+ [('runs-M-OB-4.txt','drive_core.sh <scratch> M-OB-4 (alone)'),('runs-supp.txt','drive_supp.sh and drive_supp2.sh (exploratory)')],
+ 'grep -rln write_service_pin over tests/ and src/; ran tests/ci/test_service_pins_gate.py and the dead-symbol gates outside the set.',
+ 'tests/ci/test_service_pins_gate.py 8 passed with the mutation (it checks that committed pins load). test_no_dead_symbols.py fails on the uncalled new function only.')
+und('M-IC-2','contracts/charter/schemas/ExclusionRequest.yaml','spec-kitty-charter',CH,
+ "M-IC-2 makes the optional request property cascade required, with no changelog fragment and no version change. lintContract, checkContractCompatibility, checkContractChangelogFragments, checkClosedResponseObjects and checkRefusalExamples all passed (BUILD SUCCESSFUL). checkContractCompatibility printed 'No released baseline: contracts/charter/CHANGELOG.md records no final release before this one' (message from contracts/src/main/java/ai/speckitty/charter/contracts/compat/ReleaseGate.java:437). checkContractChangelogFragments is described at contracts/build.gradle.kts:1041-1043 as checking the form of the fragments in changes/ and printed '37 changelog fragments are well formed'.",
+ [('runs-charter-gradle.txt','drive_charter.sh <scratch>: git apply M-IC-2; ./gradlew --no-daemon :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples --continue')],
+ 'Ran the same five tasks at baseline for comparison; listed contract tags in the charter clone.',
+ 'Baseline output is the same. Tags contract-charter-v0.2.0-rc.1 to rc.3 exist; the gate reports no final release.',env=ENVJ,
+ nc='Service tests that exercise the contract (for example ContractConformanceTest), lintFixtures and compatibilityFixtures, the release workflow.',
+ oq=['E2 marks the rule as partly ambiguous for a 0.2.0-SNAPSHOT contract.'])
+finding('E3 not assessable M-OB-5 and partly M-IC-3','events read service and mission-status contract','spec-kitty-events',EV,
+ "The single Gradle attempt in the events clone failed at plugin resolution with HTTP 429 from repo.maven.apache.org (native-gradle-plugin 1.1.8), so the ArchUnit rules could not judge M-OB-5 and :contracts:check could not judge M-IC-3. M-OB-5 is recorded as not assessable. Read statically, the mutated class is in adapter.out.filesystem, uses no raw file API at head, and FilesystemMissionEventSourceFileApiTest forbids java.nio.channels.FileChannel there for every class except AllowlistPassThrough and ProjectRootCheck; this was not executed. For M-IC-3 the Python contract tools ran: example_check.py failed with 6 EXAMPLE_INVALID lines naming 'changes_requested'; breaking_check.py exited 0 with NO_BASELINE_INITIAL_VERSION; enum_pin_check.py passed. example_check.py is invoked by no workflow, Makefile target, Gradle file, script or test at head.",
+ [ev(1,'runs-events-gradle.txt','drive_eventsj.sh <scratch>',rc=1,env=ENVJ),ev(2,'runs-evj-M-IC-3.txt','.venv/bin/python contracts/tools/{enum_pin_check,example_check,structure_check,breaking_check}.py --root contracts with M-IC-3 applied',rc=1,env=ENVE),ev(3,'runs-evj-baseline.txt','same tools on the unmodified clone',env=ENVE)],
+ 'One Gradle attempt; five Python contract tools at baseline and with M-IC-3.','Every Gradle task of the events repository; lint_check.py (argument form not resolved).',
+ 'grep for example_check across *.java, *.py, *.kts, *.gradle, *.yml, *.sh and Makefile outside contracts/tools; listed tags for a contract baseline.',
+ 'No caller found. No tag named contract-mission-status-* exists in the clone (tags present: service-v0.1.0-rc.1, service-v0.1.0-rc.2, v2e-contract).',conf='medium',qa=['testability'],
+ oq=['Whether service.yml verifyAll would fail on M-IC-3 or M-OB-5 remains unmeasured.'])
+
+finding('exploratory','contract compatibility checks in charter and events','spec-kitty-charter',CH,
+ "Exploratory. In both repositories that hold an OpenAPI contract, the breaking-change check ran and passed without comparing anything, because it found no baseline: charter checkContractCompatibility printed 'No released baseline' and events breaking_check.py printed NO_BASELINE_INITIAL_VERSION for mission-status and mission-write (counts: baselines=0). Of the 6 IC mutations, none was detected by a compatibility or version check; the 5 detections came from behaviour tests, example validation and content-drift checks.",
+ [ev(1,'runs-charter-gradle.txt','see F-E3-013',env=ENVJ),ev(2,'runs-evj-baseline.txt','.venv/bin/python contracts/tools/breaking_check.py --root contracts (oasdiff 1.32.1 on PATH)',env=ENVE),ev(3,'detection.csv','rows of class IC')],
+ 'Two contract modules with a breaking-change check; 6 IC mutations.','Release workflows; the charter packs contract; core orchestrator-api contract tests outside the mirror rule.',
+ 'Looked for a release tag or changelog entry either check would accept as a baseline.','Charter has only rc tags for the charter contract; events has no contract tag.',qa=['modifiability'])
+finding('exploratory','tests/architectural/test_no_dead_symbols.py','spec-kitty',CORE,
+ "Exploratory, outside the frozen set. tests/architectural/test_no_dead_symbols.py failed for all 4 of the 4 core mutations the frozen set did not detect (M-PI-3, M-PI-5, M-OB-2, M-OB-4), each time naming the function the patch added as a public symbol with no caller. The message does not mention the import, write or call that constitutes the violation. 11 of the 15 core patches add a new function that nothing calls; the gate was run only on these 4.",
+ [ev(1,'runs-supp.txt','drive_supp2.sh <scratch>: pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py -n0 at baseline and per mutation',rc=1)],
+ '4 mutations, 3 gate files outside the frozen set.','The other 11 core mutations against this gate (7 of them add an uncalled function).',
+ 'Ran the same three files on the unmodified clone.','Baseline 121 passed; each mutated run 2 failed, 119 passed, both failures in the dead-symbol gate.',
+ oq=['A patch that also calls the new function from production code would not trip this gate; not measured.'])
+finding('exploratory','frozen gate set versus the per-change battery','spec-kitty',CORE,
+ "Exploratory. For all 15 core patches scripts/ci/gate_selection.py answers that per-change CI runs the whole architectural battery (select_battery_gates returns None), 310 test files at head, of which the frozen set ran 66. One of the 4 core mutations undetected by the frozen set (M-OB-2) is detected by a battery file outside it. Of the 52 mirror test files chosen by the name rule, 16 lie in a module shard the patch's own diff selects per change, and 26 lie in directories the registry lists as out of the per-change matrix.",
+ [ev(1,'gate-selection.json','script-select.txt in the clone at head'),ev(2,'mirror-lanes.json','script-mirror_lane.txt in the clone at head'),ev(3,'gate-set.txt','frozen before patch bodies were read'),ev(4,'runs-supp.txt','drive_supp.sh <scratch>',rc=1)],
+ '15 core patches; selection authority at head.','Execution of the 244 battery files outside the frozen set.',
+ 'Asked the selection authority for each patch whether a narrower battery selection applies.','None: every patch touches src/, so the answer is the whole battery for each.',
+ relations=[('refines',f_ob2)],qa=['testability'])
+finding('exploratory','mypy on touched files','spec-kitty',CORE,
+ "Exploratory. mypy with the repository configuration, run on each touched file, raised one new error for 3 of 15 core mutations (M-PI-2, M-RD-2, M-RD-3), each 'Returning Any from function declared to return ...' on the line that uses the newly imported name; it raised nothing for the other 12. The string mypy occurs in no file under .github/workflows at head, and the Makefile typecheck target names 2 files, neither touched by a patch. ruff check and ruff format reported nothing for any of the 15.",
+ [ev(1,'runs-lint-per-mutation.txt','drive_batch.sh step 1: git apply <patch>; ruff check --force-exclude; ruff format --check --force-exclude; mypy <touched files>; git apply -R',rc=1),ev(2,'runs-baseline.txt','same on the unmodified clone',rc=1)],
+ '15 core mutations, per-file lint and types.','mypy over the whole package; the scoped mypy test in the battery.',
+ 'grep -n mypy over .github/workflows/*.yml and the Makefile in the clone.','No workflow line; Makefile:103-106 targets src/specify_cli/runtime/agent_commands.py and src/specify_cli/git/commit_helpers.py.')
+finding('exploratory','open-packs content-drift checks','spec-kitty-open-packs',OP,
+ "Exploratory. M-IC-5 (one member pin of packs/built-in/pack.yaml loosened from ==3.7.0 to a range) failed check-pack-digests.sh, gen_pack_reference.py --check and 4 tests of tests/ci/test_pack_digest.py; scripts/ci/validate-packs.sh passed. Every failure reports a digest or generated-page mismatch for packs/built-in. After regenerating the recorded digest and the page in the scratch clone (a step added by this workstream, not part of the patch), the two scripts passed and 3 tests in tests/ci/test_pack_digest.py still failed on a digest constant held in the test file. No check reported the form of the pin.",
+ [ev(1,'runs-op-M-IC-5.txt','git apply M-IC-5; run_packs.sh <scratch> op-M-IC-5',rc=1,env=ENVP),ev(2,'runs-op-M-IC-5-regenerated.txt','git apply M-IC-5; python3 scripts/ci/pack_digest.py --update built-in; python3 scripts/docs/gen_pack_reference.py; run_packs.sh',rc=1,env=ENVP)],
+ 'The validate job steps of validate-packs.yml that run without the charter service.','The charter-service job (composition and registration by the pinned charter jar).',
+ 'grep of scripts/ci/validate_pack_schemas.py for a rule on the depends_on range form.','No such rule found in the validator; composition is delegated to the charter service job, which was not run.',conf='medium')
+print(n)

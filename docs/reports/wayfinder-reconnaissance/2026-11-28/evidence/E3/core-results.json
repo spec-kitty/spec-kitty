@@ -1,0 +1,195 @@
+{
+ "M-IC-4": {
+  "mirror": {
+   "exit": 1,
+   "secs": 4,
+   "tally": "2 failed, 17 passed in 3.18s",
+   "failed_nodes": [
+    "tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_shape",
+    "tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_unique_correlation_ids"
+   ],
+   "new_vs_baseline": [
+    "tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_shape",
+    "tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_unique_correlation_ids"
+   ]
+  }
+ },
+ "M-IC-6": {
+  "mirror": {
+   "exit": 1,
+   "secs": 8,
+   "tally": "5 failed, 33 passed in 6.38s",
+   "failed_nodes": [
+    "tests/status/test_wp_window_capture.py::test_capture_adds_no_git_read",
+    "tests/status/test_wp_window_capture.py::test_claim_with_lane_branch_records_open_sha_equal_to_lane_head",
+    "tests/status/test_wp_window_capture.py::test_in_progress_with_lane_branch_records_open_sha",
+    "tests/status/test_wp_window_capture.py::test_move_task_claimed_before_implement_then_in_progress",
+    "tests/status/test_wp_window_capture.py::test_wp_window_value_matches_contract_schema"
+   ],
+   "new_vs_baseline": [
+    "tests/status/test_wp_window_capture.py::test_capture_adds_no_git_read",
+    "tests/status/test_wp_window_capture.py::test_claim_with_lane_branch_records_open_sha_equal_to_lane_head",
+    "tests/status/test_wp_window_capture.py::test_in_progress_with_lane_branch_records_open_sha",
+    "tests/status/test_wp_window_capture.py::test_move_task_claimed_before_implement_then_in_progress",
+    "tests/status/test_wp_window_capture.py::test_wp_window_value_matches_contract_schema"
+   ]
+  }
+ },
+ "M-OB-2": {
+  "mirror": {
+   "exit": 0,
+   "secs": 303,
+   "tally": "75 passed, 1 warning in 299.53s (0:04:59)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "layer-rules-alone": {
+   "exit": 0,
+   "secs": 45,
+   "tally": "80 passed in 42.98s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "arch": {
+   "exit": 1,
+   "secs": 267,
+   "tally": "1295 passed, 2 xfailed, 2 errors in 265.58s (0:04:25)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  }
+ },
+ "M-OB-4": {
+  "mirror": {
+   "exit": 0,
+   "secs": 140,
+   "tally": "153 passed in 138.23s (0:02:18)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "layer-rules-alone": {
+   "exit": 0,
+   "secs": 42,
+   "tally": "80 passed in 40.94s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "arch": {
+   "exit": 1,
+   "secs": 279,
+   "tally": "1295 passed, 2 xfailed, 2 errors in 277.86s (0:04:37)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  }
+ },
+ "M-PI-1": {
+  "ruff": {
+   "exit": 0,
+   "secs": 2,
+   "tally": "?",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "ruff-format": {
+   "exit": 0,
+   "secs": 0,
+   "tally": "?",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "mypy": {
+   "exit": 1,
+   "secs": 4,
+   "tally": "?",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "mirror": {
+   "exit": 0,
+   "secs": 64,
+   "tally": "70 passed in 57.86s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "layer-rules-alone": {
+   "exit": 0,
+   "secs": 81,
+   "tally": "80 passed in 78.08s (0:01:18)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "arch": {
+   "exit": 1,
+   "secs": 1175,
+   "tally": "3 failed, 1292 passed, 2 xfailed, 2 errors in 1168.62s (0:19:28)",
+   "failed_nodes": [
+    "tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget",
+    "tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_names",
+    "tests/architectural/test_status_module_boundary.py::test_ast_scan_no_direct_status_imports_repo_wide"
+   ],
+   "new_vs_baseline": [
+    "tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget",
+    "tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_names",
+    "tests/architectural/test_status_module_boundary.py::test_ast_scan_no_direct_status_imports_repo_wide"
+   ]
+  }
+ },
+ "M-PI-3": {
+  "mirror": {
+   "exit": 0,
+   "secs": 5,
+   "tally": "51 passed in 4.00s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "layer-rules-alone": {
+   "exit": 0,
+   "secs": 41,
+   "tally": "80 passed in 39.63s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "arch": {
+   "exit": 1,
+   "secs": 262,
+   "tally": "1295 passed, 2 xfailed, 2 errors in 260.50s (0:04:20)",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  }
+ },
+ "M-PI-5": {
+  "mirror": {
+   "exit": 0,
+   "secs": 6,
+   "tally": "183 passed, 10 warnings in 4.69s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "layer-rules-alone": {
+   "exit": 0,
+   "secs": 44,
+   "tally": "80 passed in 42.21s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  },
+  "arch": {
+   "exit": 1,
+   "secs": 275,
+   "tally": "1 failed, 1294 passed, 2 xfailed, 2 errors in 273.52s (0:04:33)",
+   "failed_nodes": [
+    "tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget"
+   ],
+   "new_vs_baseline": [
+    "tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget"
+   ]
+  }
+ },
+ "M-RD-3": {
+  "mirror": {
+   "exit": 0,
+   "secs": 12,
+   "tally": "58 passed in 10.37s",
+   "failed_nodes": [],
+   "new_vs_baseline": []
+  }
+ }
+}

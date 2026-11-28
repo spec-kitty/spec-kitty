@@ -1,0 +1,18 @@
+## logs/M-IC-4/mirror.txt  full_bytes=1709 full_sha256=db3b7f182e529360a41ec7de30b76817c84c00a30b6563559d48103529ec6218
+$ .venv/bin/python -m pytest tests/agent/test_envelope_unit.py -n 4 --dist loadfile -p no:cacheprovider -q -rf
+=================================== FAILURES ===================================
+__________________ TestMakeEnvelope.test_make_envelope_shape ___________________
+E   AssertionError: assert {'command', '...success', ...} == {'command', '...success', ...}
+E     
+E     Extra items in the left set:
+E     'request_id'
+E     Extra items in the right set:
+E     'correlation_id'
+E     Use -v to get more diff
+__________ TestMakeEnvelope.test_make_envelope_unique_correlation_ids __________
+E   KeyError: 'correlation_id'
+=========================== short test summary info ============================
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_shape
+FAILED tests/agent/test_envelope_unit.py::TestMakeEnvelope::test_make_envelope_unique_correlation_ids
+2 failed, 17 passed in 3.18s
+exit=1 secs=4

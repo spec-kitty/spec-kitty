@@ -1,0 +1,13 @@
+## logs/M-OB-2/arch.txt  full_bytes=22027 full_sha256=87e1754bfb2d18efcbed78b96c8e629665937a092b82982f1b17a8393b50cbfd
+$ .venv/bin/python -m pytest tests/architectural/test_acceptance_matrix_write_seam.py tests/architectural/test_anchor_lock_path_single_owner.py tests/architectural/test_bootstrap_import_purity.py tests/architectural/test_bridge_cores_import_boundary.py tests/architectural/test_charter_facades_reexport_offering.py tests/architectural/test_charter_no_specify_cli_import.py tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_charter_offering_public_surface.py tests/architectural/test_charter_sole_door_agent_profile_repository.py tests/architectural/test_charter_sole_door_hardcoded_paths.py tests/architectural/test_charter_sole_door_inner_reacharound.p
+==================================== ERRORS ====================================
+1295 passed, 2 xfailed, 2 errors in 265.58s (0:04:25)
+exit=1 secs=267
+## logs/M-OB-2/layer-rules-alone.txt  full_bytes=1510 full_sha256=432a9aae1f498f8572ddf95c3bbaceaa98c4e2990a78b99b77dc315e7a07252e
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+80 passed in 42.98s
+exit=0 secs=45
+## logs/M-OB-2/mirror.txt  full_bytes=4939 full_sha256=26d506083fdff3f7396c9269154b1cd954cc4f3a2b25dc481b191840c3ece045
+$ .venv/bin/python -m pytest tests/cli/test_charter_activate_warning.py tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py tests/specify_cli/test_charter_activate_cli.py -n 4 --dist loadfile -p no:cacheprovider -q -rf
+75 passed, 1 warning in 299.53s (0:04:59)
+exit=0 secs=303

@@ -1,0 +1,54 @@
+finding_id: F-E3-008
+workstream: E3 gate runner for controlled mutations
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "E3 undetected mutation M-PI-5"
+  deviation: null
+subject:
+  component: "src/specify_cli/drg_writers/registry.py"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M-PI-5 reaches charter.offering.drg.merge._violates_layer_rule through importlib.import_module with a string literal. Run alone: 66 architectural files passed except one time-budget test (elapsed-seconds assertion), layer rules 80 passed, 5 mirror files passed, lint and mypy clean. The gate whose stated purpose covers the rule, tests/architectural/test_runtime_charter_doctrine_boundary.py, records at lines 99-101 that dynamic imports are invisible to its static AST scan; it visits ast.Import and ast.ImportFrom nodes (lines 187-190, 295-301)."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E3/runs-M-PI-5.txt"
+    method: "drive_core.sh <scratch> M-PI-5 (alone)"
+    sha256: "6ec6b802e193e0a2a028795e85f19c1691fd3a961986f32922bc2faf42976af8"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E3/runs-supp.txt"
+    method: "drive_supp2.sh (exploratory)"
+    sha256: "3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326"
+    exit_code: 0
+    environment: "Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18"
+    observed_at: "2026-11-28T13:35:00Z"
+scope:
+  covered: "Mutation M-PI-5 against the frozen gate set of its repository."
+  not_covered: "244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15 core diffs; module shards other than the mirror files; nightly lanes."
+  population: "24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations"
+  sample: "1 mutation"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Read the gate source for handling of import_module calls; grep of tests/architectural for drg_writers and drg.merge; ran dead-symbol gates outside the set."
+  result: "No frozen-set gate inspects import_module arguments for charter.offering. test_no_dead_symbols.py fails on the uncalled new function only."
+relations: []
+confidence: high
+analyst:
+  profile: reviewer-renata
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [modularity, testability]
+candidate_invariants: []
+open_questions: []

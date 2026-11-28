@@ -1,0 +1,27 @@
+"""Trim scratch logs into evidence/E3/runs-<label>.txt; record full-log sha256. usage: assemble.py <scratch> <evidence dir>"""
+import glob, hashlib, os, re, sys, json
+S,E=sys.argv[1],sys.argv[2]
+KEEP=re.compile(r'^(FAILED|ERROR|E  |_{3,}|={3,}.*(ERRORS|FAILURES|short test summary)|\$ |exit=|.* (passed|failed)|.*error:|Found \d+ error|CONTRACT-CHECK|::error|.*was violated|.*Architecture Violation|\s+Method <|\s+Field <|> Task .*(FAILED)|BUILD |.*Could not (GET|resolve)|.*status code|No released baseline|\d+ changelog fragments|Drift detected|ok:|FAIL:|AssertionError|Ran \d+ tests|OK|counts:|PREVIEW|All checks passed|\d+ files? (already formatted|would)|Success:|version-not-amended|HexagonalArchitectureTest >|.*actionable tasks)')
+def trim(path):
+    raw=open(path,'rb').read(); out=[f'## {os.path.relpath(path,S)}  full_bytes={len(raw)} full_sha256={hashlib.sha256(raw).hexdigest()}']
+    n=0
+    for line in raw.decode(errors='replace').split('\n'):
+        if KEEP.match(line):
+            if line.startswith('ok:') and n>60: continue
+            out.append(line.replace(S,'<scratch>')[:700]); n+=1
+            if n>=220: out.append('[truncated]'); break
+    return '\n'.join(out)+'\n'
+index={}
+groups={}
+for p in sorted(glob.glob(S+'/logs/*/*.txt'))+sorted(glob.glob(S+'/logs/*.txt')):
+    rel=os.path.relpath(p,S+'/logs'); label=rel.split('/')[0] if '/' in rel else re.sub(r'\.txt$','',rel)
+    if label.startswith('lint-'): label='lint-per-mutation'
+    if label.startswith('apply-') or label in('timing103',): continue
+    if label.startswith('charter-'): label='charter-gradle'
+    if label.startswith('eventsj-'): label='events-gradle'
+    groups.setdefault(label,[]).append(p)
+for label,ps in groups.items():
+    txt=''.join(trim(p) for p in ps)
+    open(f'{E}/runs-{label}.txt','w').write(txt); index[label]=[os.path.relpath(p,S) for p in ps]
+json.dump(index,open(E+'/runs-index.json','w'),indent=1)
+print(len(groups), sum(os.path.getsize(f) for f in glob.glob(E+'/*')))

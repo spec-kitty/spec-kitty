@@ -1,0 +1,19 @@
+## logs/M-PI-5/arch.txt  full_bytes=22855 full_sha256=b357d4e3a3d639869d4cb768e807e9cf49f507ca4f1fb09ce6afb8ef4fd5fea4
+$ .venv/bin/python -m pytest tests/architectural/test_acceptance_matrix_write_seam.py tests/architectural/test_anchor_lock_path_single_owner.py tests/architectural/test_bootstrap_import_purity.py tests/architectural/test_bridge_cores_import_boundary.py tests/architectural/test_charter_facades_reexport_offering.py tests/architectural/test_charter_no_specify_cli_import.py tests/architectural/test_charter_offering_does_not_import_activation.py tests/architectural/test_charter_offering_public_surface.py tests/architectural/test_charter_sole_door_agent_profile_repository.py tests/architectural/test_charter_sole_door_hardcoded_paths.py tests/architectural/test_charter_sole_door_inner_reacharound.p
+==================================== ERRORS ====================================
+=================================== FAILURES ===================================
+_____________________ test_the_scan_meets_its_time_budget ______________________
+E   AssertionError: the event-log writes gate scan took 5.17 s (budget 5.0 s)
+E   assert 5.174504633000197 < 5.0
+=========================== short test summary info ============================
+FAILED tests/architectural/test_event_log_writes_gate_budget.py::test_the_scan_meets_its_time_budget
+1 failed, 1294 passed, 2 xfailed, 2 errors in 273.52s (0:04:33)
+exit=1 secs=275
+## logs/M-PI-5/layer-rules-alone.txt  full_bytes=1510 full_sha256=696737477cd1f0795ad39b2e2f64952df35d8fa7b716d914c10cbd547950b97e
+$ .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -n0 -p no:cacheprovider -q -rf
+80 passed in 42.21s
+exit=0 secs=44
+## logs/M-PI-5/mirror.txt  full_bytes=3079 full_sha256=63e0152ad01e439498aeadf043e3bc4983b9764ef684f8255ef7970c969f02dc
+$ .venv/bin/python -m pytest tests/specify_cli/compat/test_registry.py tests/specify_cli/contracts/test_registry.py tests/specify_cli/drg_writers/test_registry_completeness.py tests/specify_cli/invocation/test_registry.py tests/specify_cli/shims/test_registry.py -n 4 --dist loadfile -p no:cacheprovider -q -rf
+183 passed, 10 warnings in 4.69s
+exit=0 secs=6

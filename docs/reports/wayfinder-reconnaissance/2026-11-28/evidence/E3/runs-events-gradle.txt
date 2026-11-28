@@ -1,0 +1,42 @@
+## logs/eventsj-M-IC-3-bundle.txt  full_bytes=243 full_sha256=928541f8a7867718718688b7af347427c80586cf62bd997239c8b268074476ac
+counts: modules=2 bundles=2 path_items=17
+## logs/eventsj-M-IC-3.txt  full_bytes=3617 full_sha256=2c9c9c6b0f377b5299fe99437cc9074c9697125bda6a8df577e4c0dfde35c609
+$ ./gradlew --no-daemon :contracts:check
+> Task :build-logic:compilePluginsBlocks FAILED
+FAILURE: Build failed with an exception.
+Execution failed for task ':build-logic:compilePluginsBlocks' (registered by plugin class 'org.gradle.kotlin.dsl.plugins.precompiled.PrecompiledScriptPlugins').
+      > Could not resolve all files for configuration ':build-logic:kotlinBuildToolsApiClasspath'.
+         > Could not resolve org.jetbrains.kotlin:kotlin-build-tools-compat:2.4.10.
+               > Could not resolve org.jetbrains.kotlin:kotlin-build-tools-compat:2.4.10.
+                     > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-compat/2.4.10/kotlin-build-tools-compat-2.4.10.pom'.
+                        > Received status code 429 from server: Too Many Requests
+BUILD FAILED in 15s
+3 actionable tasks: 3 executed
+exit=1 secs=16
+## logs/eventsj-M-OB-5-bundle.txt  full_bytes=243 full_sha256=6e548e5241560eb450fa4fa8899268a576f88889134e85ed99a81c8e7cf5d47f
+counts: modules=2 bundles=2 path_items=17
+## logs/eventsj-M-OB-5.txt  full_bytes=3208 full_sha256=eaeb749e3ae2a0d3f957bf438fe788cffa9bd7f7909c26630f7c768d53b72fed
+$ ./gradlew --no-daemon :mission-status-api:test --tests *architecture* --tests *FilesystemMissionEventSourceFileApiTest --tests *AllowlistReadmeParityTest --tests *ArtifactAllowlistReadmeParityTest
+> Task :build-logic:generateExternalPluginSpecBuilders FAILED
+FAILURE: Build failed with an exception.
+Execution failed for task ':build-logic:generateExternalPluginSpecBuilders' (registered by plugin class 'org.gradle.kotlin.dsl.plugins.precompiled.PrecompiledScriptPlugins').
+   > Could not resolve all files for configuration ':build-logic:compileClasspath'.
+      > Could not resolve org.jetbrains.kotlin:kotlin-reflect:2.4.10.
+            > Could not resolve org.jetbrains.kotlin:kotlin-reflect:2.4.10.
+                  > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/2.4.10/kotlin-reflect-2.4.10.pom'.
+                     > Received status code 429 from server: Too Many Requests
+BUILD FAILED in 31s
+exit=1 secs=32
+## logs/eventsj-base-bundle.txt  full_bytes=243 full_sha256=6e548e5241560eb450fa4fa8899268a576f88889134e85ed99a81c8e7cf5d47f
+counts: modules=2 bundles=2 path_items=17
+## logs/eventsj-base.txt  full_bytes=3532 full_sha256=ebd29a70d1f445205a02d39501463a0db98376e1354549684563b1713272110a
+$ ./gradlew --no-daemon :mission-status-api:test --tests *architecture* --tests *FilesystemMissionEventSourceFileApiTest --tests *AllowlistReadmeParityTest --tests *ArtifactAllowlistReadmeParityTest :contracts:check --continue
+FAILURE: Build failed with an exception.
+> Could not resolve all artifacts for configuration 'classpath'.
+   > Could not resolve org.graalvm.buildtools:native-gradle-plugin:1.1.8.
+         > Could not resolve org.graalvm.buildtools:native-gradle-plugin:1.1.8.
+               > Could not GET 'https://repo.maven.apache.org/maven2/org/graalvm/buildtools/native-gradle-plugin/1.1.8/native-gradle-plugin-1.1.8.pom'.
+                  > Received status code 429 from server: Too Many Requests
+BUILD FAILED in 56s
+exit=1 secs=57
+## logs/eventsj-driver.txt  full_bytes=0 full_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

@@ -1,0 +1,11 @@
+#!/bin/bash
+# Exploratory, outside the frozen set: dead-symbol / dead-module / write-side gates on the frozen-set-undetected core mutations,
+# and the IC-6 cross-effect on one integration test.
+S=$1; P=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2; cd $S/core; mkdir -p $S/logs/supp
+r(){ n=$1; shift; { echo "\$ $*"; "$@"; echo "exit=$?"; } > $S/logs/supp/$n.txt 2>&1; echo "$n $(tail -1 $S/logs/supp/$n.txt) $(grep -E ' passed| failed' $S/logs/supp/$n.txt | tail -1)"; }
+G="tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py"
+PY=".venv/bin/python -m pytest -n0 -p no:cacheprovider -q -rf"
+r base-dead $PY $G
+for m in M-PI-3 M-PI-5 M-OB-2 M-OB-4; do git apply $P/$m.patch.txt; r dead-$m $PY $G; git apply -R $P/$m.patch.txt; done
+git apply $P/M-IC-6.patch.txt; r ic6-owned-arms $PY tests/integration/test_prompt_builder_owned_arms.py; git apply -R $P/M-IC-6.patch.txt
+git status --porcelain --untracked-files=no | wc -l
