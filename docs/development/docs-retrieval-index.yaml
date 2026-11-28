@@ -3568,6 +3568,8 @@ pages:
     - {slug: "amendment-2026-11-18-a-forced-or-foreign-claim-never-replaces-the-implementer-of-record-and-an-explicit-re-submission-completes-a-bare-claim-7712", text: "Amendment 2026-11-18: a forced or foreign claim never replaces the implementer of record, and an explicit re-submission completes a bare claim (#7712)", level: 2}
     - {slug: "amendment-2026-11-22-the-single-branch-planning-pin-follows-the-planning-commit-across-a-rebase-7793-7297", text: "Amendment 2026-11-22: the single_branch planning pin follows the planning commit across a rebase (#7793, #7297)", level: 2}
     - {slug: "amendment-2026-11-22-the-approval-stamp-survives-the-review-s-own-sync-merge-7802", text: "Amendment 2026-11-22: the approval stamp survives the review's own sync merge (#7802)", level: 2}
+    - {slug: "amendment-2026-11-25-proposed-a-default-mission-s-planning-evidence-window-runs-on-its-mission-branch-7860", text: "Amendment 2026-11-25 (Proposed): a default Mission's planning evidence window runs on its Mission branch (#7860)", level: 2}
+    - {slug: "the-reconciliation-claim-before-landing-fr-012", text: "The reconciliation claim before landing (FR-012)", level: 3}
     - {slug: "amendment-2026-11-26-an-unreviewed-resolution-merge-is-refused-at-claim-time-re-review-is-the-exit-5604-5721", text: "Amendment 2026-11-26: an unreviewed resolution merge is refused at claim time; re-review is the exit (#5604, #5721)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
@@ -4227,6 +4229,7 @@ pages:
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-11-13-accepted-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13 (Accepted): an explicit `lanes` create on a protected target is refused", level: 2}
     - {slug: "amendment-2026-11-22-accepted-a-docs-work-package-gets-its-own-lane-in-a-lane-topology", text: "Amendment 2026-11-22 (Accepted): a docs work package gets its own lane in a lane topology", level: 2}
+    - {slug: "amendment-2026-11-25-proposed-a-default-mission-s-planning-lane-writes-to-its-mission-branch-until-it-lands-7860", text: "Amendment 2026-11-25 (Proposed): a default Mission's planning lane writes to its Mission branch until it lands (#7860)", level: 2}
   - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
     title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
     divio_type: "none"
@@ -14399,6 +14402,17 @@ pages:
     - {slug: "suppressing-the-warning-during-cutover", text: "Suppressing the Warning During Cutover", level: 2}
     - {slug: "removal-criteria", text: "Removal Criteria", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/migrations/planning-lane-write-branch.md"
+    title: "Migration: Planning Lane Writes to the Mission Branch"
+    divio_type: "how-to"
+    abstract: "Before a default Mission lands, its planning work packages are worked, reviewed and evidenced on the Mission branch; how to recover planning work already committed on the target."
+    anchors:
+    - {slug: "what-changed", text: "What changed", level: 2}
+    - {slug: "who-is-affected", text: "Who is affected", level: 2}
+    - {slug: "symptom", text: "Symptom", level: 2}
+    - {slug: "recover", text: "Recover", level: 2}
+    - {slug: "planning-checkout-missing", text: "`PLANNING_CHECKOUT_MISSING`", level: 2}
+    - {slug: "known-residuals", text: "Known residuals", level: 2}
   - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
     title: "Migration: Relocate Built-In Doctrine to packs/built-in"
     divio_type: "how-to"
