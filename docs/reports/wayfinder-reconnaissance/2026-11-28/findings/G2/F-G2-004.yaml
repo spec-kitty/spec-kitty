@@ -48,7 +48,7 @@ derived_from: []
 counterevidence: []
 disconfirmation:
   search: "Listed every cross-slice reference by slice.ring pair before encoding exceptions (597 under the strictest reading, dominated by infra.api -> generated api.model) and read hexagonal-service.md for each pair class; compared rule names with HexagonalArchitectureTest (ACTIVATIONS_NAME_PACKS_ONLY_FROM_ADAPTER, ARTIFACTS_*)."
-  result: "All other strict-rule hits were explained by documented shared packages or documented exceptions. HexagonalArchitectureTest contains named per-slice rules for the same constraint; it was not run to completion here because the Gradle run is reported under I6."
+  result: "All other strict-rule hits were explained by documented shared packages or documented exceptions. HexagonalArchitectureTest contains named per-slice rules for the same constraint and passed 99/99 in the verifyAll run at head (F-G2-012), consistent with rule A's 0."
 relations: []
 confidence: "medium"
 analyst:

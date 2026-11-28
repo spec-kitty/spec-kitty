@@ -39,7 +39,7 @@ evidence:
     observed_at: "2026-11-28T09:12:00Z"
 scope:
   covered: "Four ledgers, all src/ files; owners as named in CLAUDE.md and module docstrings, verified by reading."
-  not_covered: "Writes whose path arrives through parameters across modules (the heuristic did not see the owners' own writes at function level; the owner's writes were seen only at module tier); subprocess/git writes; the existing pytest gates were not executed (see deviations)."
+  not_covered: "Writes whose path arrives through parameters across modules (the heuristic did not see the owners' own writes at function level; the owner's writes were seen only at module tier); subprocess/git writes. The existing writes gate test_status_events_writes_gate.py was run at head and passed 28/28, including test_no_out_of_store_writes and test_allowed_out_of_store_sites_are_live (evidence/G2/core_existing_gates_full_run.txt)."
   population: null
   sample: null
   seed: null

@@ -1,0 +1,47 @@
+finding_id: "F-G2-015"
+workstream: "G - Expressing invariants as checks (G2, full implementation knowledge)"
+hypotheses: []
+classification: "observation"
+view: "observed"
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "the twelve G2 checks"
+  repository: "spec-kitty/spec-kitty"
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: "head"
+claim: "Of the 12 invariant/subject checks written under full implementation knowledge, 6 needed implementation-internal facts to give a meaningful result (core I1, I2, I5, I6; charter I5 adjudication; core I4 location of the CLI package) and 6 could be written from public metadata and the documented architecture model (charter I1, I2, I3, I4; core I3; charter I6 build file). Recorded baselines that made 'new' or 'private' decidable existed for 3 core checks (I1 ledgers, I2 activation baseline and offering census, I5 allowlists) and for 0 Java checks (the Java module table serves as a documented baseline, not an enforced one)."
+evidence:
+  - id: "E1"
+    kind: "static-derived"
+    reference: "evidence/G2/invariant-results.csv"
+    method: "tabulation of the knowledge-required column"
+    sha256: "26da98257e5b47f00b6d6539a8000b595555ba72b0a1e22dd68aae56f34fcbc6"
+    exit_code: 0
+    environment: "manual tabulation"
+    observed_at: "2026-11-28T09:50:00Z"
+scope:
+  covered: "The 12 checks of this workstream."
+  not_covered: "Checks written by other workstreams."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Re-read each check's inputs for any fact not available from public metadata or the documented model."
+  result: "Classification as stated."
+relations: []
+confidence: "medium"
+analyst:
+  profile: "architect-alphonso"
+  model: "opus"
+verification:
+  status: "unverified"
+  by: null
+quality_attributes:
+  - "verifiability"
+candidate_invariants: []
+open_questions: []

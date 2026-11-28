@@ -1,0 +1,28 @@
+# I6 charter (spec-kitty-charter @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a); Gradle 9.8.1 wrapper, Temurin 25.0.5, GRADLE_USER_HOME in scratch; dependencies from Maven Central mirror (published artefacts); no ../spec-kitty-open-packs sibling, syncPacks not run
+## attempt 1 (git-archive copy, default parallel): daemon disappeared during configuration (host memory pressure) exit=1
+## attempt 2 (git-archive copy, --max-workers=1): BUILD FAILED, contracts:checkPacksChangelog: 'Cannot read the git history ... (git tag --merged HEAD --list contract-packs-v*): fatal: not a git repository' exit=1
+## attempt 3 (git clone --shared): daemon disappeared (session interruption) exit=1
+## attempt 4 (git clone --shared at head, --max-workers=2, -Xmx1536m):
+Sat Nov 28 11:24:27 UTC 2026
+cmd: (git clone --shared at 06cdfbe9, no ../spec-kitty-open-packs sibling) ./gradlew verifyAll --continue --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=512m' --console=plain
+BUILD SUCCESSFUL in 45m 33s
+249 actionable tasks: 240 executed, 9 up-to-date
+exit=0
+Sat Nov 28 12:10:03 UTC 2026
+full log sha256 7d75c527083c3a8e5ff689e20b9cf01cbdaa40e0d66b74ebac3b5cf47256801b, 368 task lines, 0 lines matching FAILED: 0
+## JUnit XML totals over **/build/test-results/**/*.xml
+HexagonalArchitectureTest tests 99 failures 0
+totals {'tests': 16177, 'failures': 0, 'errors': 0, 'skipped': 10}
+skipped: CompositionGoldenTest | org.opentest4j.TestAbortedException: Assumption failed: golden.update is not true
+skipped: SurfaceGoldenTest | org.opentest4j.TestAbortedException: Assumption failed: golden.update is not true
+skipped: ManifestStampHelper | 
+skipped: FileSystemPackSourcesTest | org.opentest4j.TestAbortedException: Assumption failed: permissions do not bite for root
+skipped: FileSystemPackSourcesTest | org.opentest4j.TestAbortedException: Assumption failed: permissions do not bite for root
+skipped: FileSystemPackSourcesTest | org.opentest4j.TestAbortedException: Assumption failed: permissions do not bite for root
+skipped: SymbolicLinksTest | org.opentest4j.TestAbortedException: Assumption failed: not running on GitHub Actions
+skipped: PackRemediationTest | org.opentest4j.TestAbortedException: Assumption failed: this process writes through any mo
+skipped: PackRemediationTest | org.opentest4j.TestAbortedException: Assumption failed: this process writes through any mo
+skipped: ValidateGoldenTest | org.opentest4j.TestAbortedException: Assumption failed: golden.update is not true
+## install: verifyAll produces library jars only; java -jar pack-doctor-0.1.0-SNAPSHOT.jar --help ->
+no main manifest attribute, in service/pack-doctor/build/libs/pack-doctor-0.1.0-SNAPSHOT.jar
+exit=1

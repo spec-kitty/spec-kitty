@@ -37,6 +37,14 @@ evidence:
     exit_code: 0
     environment: "CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I"
     observed_at: "2026-11-28T09:12:00Z"
+  - id: "E4"
+    kind: "executed"
+    reference: "evidence/G2/core_existing_gates_full_run.txt"
+    method: "PYTHONPATH=src:. pytest -n0 -rA on five named architectural gate files in the scratch copy at head (command at the top of the file)"
+    sha256: "3053814a5d596164510a7ab6791f3785fc568aa8bde6e86e64acfd2cd33327e8"
+    exit_code: 1
+    environment: "pytest 9.0.3, CPython 3.11.15 (dev venv)"
+    observed_at: "2026-11-28T11:32:00Z"
 scope:
   covered: "All 1,490 .py files under src/ (1,468 with at least one import), static, module-level and function-local imports, relative imports resolved, literal-string import_module/__import__/find_spec calls."
   not_covered: "Computed dynamic imports, imports executed through plugin entry points, tests/ and scripts/; historical revisions (no comparison with an earlier revision was made; 'new' is relative to the recorded ledgers only)."
@@ -48,7 +56,7 @@ derived_from: []
 counterevidence: []
 disconfirmation:
   search: "Looked for any recorded baseline of cycles beyond the two ledgers: grep for cycle/circular in tests/architectural/*.py and *.yaml; read the pytestarch LayerRule tests and _baselines.yaml caps (10 and 22). Re-ran the check including TYPE_CHECKING imports."
-  result: "No cycle baseline exists other than the two ledgers (and the console ledger for consolidation->cli.console). The charter->glossary edge is described in a test docstring ('outside this assertion ... tracked in #7171; this check introduces no exception') but has no ledger row; pytestarch's static graph does not see literal-string imports. Including TYPE_CHECKING imports gives the same 2 SCCs."
+  result: "No cycle baseline exists other than the two ledgers (and the console ledger for consolidation->cli.console). Running the existing gates at head (evidence/G2/core_existing_gates_full_run.txt): the ledger tests and test_charter_does_not_import_its_dependents[glossary] all PASS, so the existing gate set does not see the dynamic charter->glossary edge my check reports. The charter->glossary edge is described in a test docstring ('outside this assertion ... tracked in #7171; this check introduces no exception') but has no ledger row; pytestarch's static graph does not see literal-string imports. Including TYPE_CHECKING imports gives the same 2 SCCs."
 relations: []
 confidence: "high"
 analyst:
