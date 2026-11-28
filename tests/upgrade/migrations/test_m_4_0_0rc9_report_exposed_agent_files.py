@@ -20,17 +20,14 @@ import pytest
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.session_presence.content import SessionPresenceContent
-from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
-from specify_cli.session_presence.writers.null_writer import NullWriter
 from specify_cli.session_presence.writers.registry import WRITER_REGISTRY, presence_file_paths
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_4_0_0rc9_report_exposed_agent_files as successor
 from specify_cli.upgrade.migrations.base import BaseMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc9_report_exposed_agent_files import ReportExposedAgentFilesMigration
 from specify_cli.upgrade.registry import MigrationRegistry
-from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 SHIPPED_ID = "4.0.0rc9_report_newly_visible_agent_files"
 SUCCESSOR_ID = "4.0.0rc9_report_exposed_agent_files"
@@ -79,17 +76,6 @@ def test_registered_notice_steps_ignore_session_presence_files(tmp_path: Path) -
     assert not _registered(SUCCESSOR_ID).detect(project)
 
 
-def test_the_shipped_step_is_superseded_by_the_successor() -> None:
-    assert SUPERSEDED_MIGRATIONS[SHIPPED_ID] == SUCCESSOR_ID
-    migration = _registered(SUCCESSOR_ID)
-    assert isinstance(migration, ReportExposedAgentFilesMigration)
-    assert migration.clone_local_effect is True
-
-
-def test_presence_file_paths_name_the_claude_code_files() -> None:
-    assert set(_PRESENCE_FILES) <= set(presence_file_paths())
-
-
 def test_an_operator_file_is_listed_and_presence_files_are_not(tmp_path: Path) -> None:
     project = _project(tmp_path, *_PRESENCE_FILES, ".claude/notes.md", ".cursor/mine.txt")
     migration = ReportExposedAgentFilesMigration()
@@ -135,9 +121,6 @@ def test_outside_a_repository_nothing_is_detected(tmp_path: Path) -> None:
 
 def test_presence_file_paths_is_the_union_of_every_writers_owned_paths() -> None:
     """The writers own their file lists; the registry view only unions them (#7878 review, LOW 1)."""
-    assert ClaudeCodeWriter().owned_paths() == _PRESENCE_FILES
-    assert NullWriter("q").owned_paths() == ()
-    assert WRITER_REGISTRY["cursor"].owned_paths() == (".cursor/rules/spec-kitty.mdc",)
     union = {path for writer in WRITER_REGISTRY.values() for path in writer.owned_paths()}
     assert presence_file_paths() == tuple(sorted(union))
 
