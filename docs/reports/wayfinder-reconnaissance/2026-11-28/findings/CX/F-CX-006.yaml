@@ -1,0 +1,75 @@
+finding_id: F-CX-006
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: M01f does not replicate in T2 and only partly in T1 and T3. As reported, file-level cross-component edges
+  added per 1,000 changed Python lines are T1 4.311 vs 5.358, T2 1.651 vs 5.953, T3 3.616 vs 3.330; component pairs
+  new to the src import graph per kloc are T1 1.383 vs 1.515 (replicated), T2 0.241 vs 0.906, T3 0.275 vs 0.491.
+  Frames are identical in size and membership (947, 1,809, 3,026 code commits) but the samples share only 40, 15
+  and 11 of 150 commits; on shared commits the two edge counters give the same file-edge count for 36 of 40, 14
+  of 15 and 11 of 11. Recomputing both with the same estimator (unweighted or stratum-weighted) leaves the T2 gap
+  (1.656 vs 5.953 unweighted). In C T2 one sampled commit holds 65.8% of sampled changed lines; without it C T2
+  is 4.846 per kloc. Between periods the runs agree that new-to-graph pairs per kloc fall from T1 to T2 and from
+  T1 to T3, and disagree on the direction of file edges T1 to T2 and T2 to T3 and of new-to-graph pairs T2 to T3.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/m01f-sensitivity.csv
+  method: 'python3 inline: per-period largest-commit sensitivity from both sample files'
+  sha256: '@@m01f-sensitivity.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E3
+  kind: executed
+  reference: evidence/CX/samples-output.txt
+  method: python3 script-samples.txt
+  sha256: '@@samples-output.txt'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: All three periods, estimator variants recomputed from the two published samples, sample overlap, per-commit
+    edge agreement on shared commits.
+  not_covered: No CX re-run of either AST walker on the repository; by-class rates compared only through the CSV
+    (strata differ).
+  population: code commits per period 947 / 1,809 / 3,026
+  sample: 150 per period per run; overlap 40 / 15 / 11
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the edge counters disagree on identical commits and whether the estimator alone explains
+    the gap.
+  result: Counters agree on 61 of 66 shared commits (differences of 1-2 edges from import-resolution rules). The
+    estimator moves values by under 25%; the T2 gap follows sample composition (heavy-tailed lines per commit) and
+    allocation (C proportional, C2 at least 10 per class).
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

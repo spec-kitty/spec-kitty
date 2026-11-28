@@ -1,0 +1,52 @@
+finding_id: F-CX-009
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: events sibling series
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The events sibling series replicates by month where both runs count the same component universe, and not
+  otherwise. Monthly code commits (C all variant vs C2 python+java variant): equal or within 10% in 9 of 10 months
+  (2026-11 40 vs 36); share touching two or more components within 10% in 8 of 10 months (2026-10 0.268 vs 0.218,
+  2026-11 0.375 vs 0.333). C reports period values (T1 0.75 of 24, T2 0.448 of 87, T3 0.295 of 237) that C2 does
+  not; pooling C2 python-module months 04-06 gives 0.783 of 23. C identifies 141 October commits as imported from
+  core by author date and subject; C2 finds 0 of 1,669 by SHA. These are different tests, not comparable.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Ten months with code commits; T1 by CX pooling.
+  not_covered: T2 and T3 period values (C2 months do not align with the 2026-09-05 boundary).
+  population: 1,475 non-merge events commits 2026-01..11 (both runs)
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared both component variants of C2 against C.
+  result: C2 python-only variant differs from C in October by a factor of four (48 vs 190), so the variant choice,
+    not the commit population, carries the difference.
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

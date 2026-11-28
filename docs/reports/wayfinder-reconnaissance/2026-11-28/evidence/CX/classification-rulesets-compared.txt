@@ -1,0 +1,16 @@
+CX comparison of the two pre-written commit-classification rule sets (C: evidence/C/classification-rules.txt; C2: evidence/C2/classification-rules.txt)
+Both: first matching rule wins; same six classes; cherry-pick trailer -> convergence-activity first; merge commits excluded; bulk >500 files excluded.
+
+Order of tests
+  C : C1 convergence -> C2 compatibility (keyword or >=half src paths under upgrade/, migration/, shims/, compat/) -> C3 corrective (prefix or first word) -> C4 restructuring (prefix or first word) -> C5 capability (prefix or first word) -> C6 other
+  C2: R1 convergence -> R2 corrective by prefix -> R3 restructuring by prefix (compat override) -> R4 feat (compat override) -> R5 compatibility keyword/path -> R6 corrective keyword anywhere in DESC -> R7 restructuring keyword -> R8 capability keyword -> R9 other
+
+Concrete differences
+  D1 Compatibility precedes the fix prefix in C, follows it in C2. A fix-prefixed subject naming a migration/shim/legacy/upgrade is compatibility-work in C and corrective-maintenance in C2.
+  D2 C2 has keyword fall-through rules (R6 fix/bug/regression anywhere, R7 remove/extract/split/..., R8 add/implement/...) for non-feat/refactor prefixes such as chore, docs, test, op; C sends these to other unless the first word matches its short list.
+  D3 Compatibility keyword list: C2 adds upgrade\w*, unshim, restamp; C has compat\w* and "upgrade path". Path test: C needs >=half of src paths under four directories; C2 needs any path under src/specify_cli/upgrade/migrations/.
+  D4 perf: restructuring in C (prefix), falls through in C2. harden/landing prefixes: corrective in C; "landing fold" corrective in both; C2 adds fixup.
+  D5 Convergence: C adds prefix port/integ and "merge latest main into convergence"; C2 adds scope port/convergence and a "port ... from public/experimental" pattern.
+
+Effect on the 6,345 code commits both runs classified (class-confusion-all.csv): identical label 5,671 (89.4%, Cohen kappa 0.841); largest off-diagonal cells: C compatibility-work / C2 corrective-maintenance 378 (D1), C other / C2 restructuring 93 and C other / C2 corrective 71 (D2), C other / C2 compatibility 32 and C restructuring / C2 other 25 (D3, D4), C compatibility / C2 capability 13.
+Fix flag used by M02 and refix: C uses its section-2 fix-class subject (prefix fix/hotfix/bugfix/revert/fix+refactor or first word fix/fixes/fixed/revert); C2 uses rules R2/R6 (adds fold, fixup, landing fold, and fix/bug/regression keywords anywhere).

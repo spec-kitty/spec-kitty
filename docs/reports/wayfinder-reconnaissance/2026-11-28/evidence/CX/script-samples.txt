@@ -1,0 +1,43 @@
+import csv,json,collections
+E='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/'
+def rd(p): return list(csv.DictReader(open(E+p)))
+a=rd('C/classification-sample-50.csv'); b=rd('C2/classification-validation.csv')
+A={r['sha']:r for r in a}; B={r['sha']:r for r in b}
+s=set(A)&set(B); print('class sample overlap',len(s),'of',len(A),len(B))
+ag=sum(1 for k in s if A[k]['read_class']==B[k]['reading_class']); print('readings agree',ag)
+for k in s:
+    if A[k]['read_class']!=B[k]['reading_class']: print(' ',k[:10],A[k]['rule_class'],A[k]['read_class'],'|',B[k]['rule_class'],B[k]['reading_class'],A[k]['subject'][:70])
+ra=sum(1 for k in s if A[k]['rule_class']==B[k]['rule_class']); print('rule labels agree',ra)
+print('C agree',sum(int(A[k]['agree']) for k in A),'C2 agree',sum(1 for k in B if B[k]['rule_class']==B[k]['reading_class']))
+# M01f
+fa=rd('C/m01f-sample.csv'); fb=rd('C2/M01f-import-edges-sample.csv')
+for p in ['T1','T2','T3']:
+    x={r['sha'] for r in fa if r['period']==p}; y={r['sha'] for r in fb if r['period']==p}
+    print('M01f',p,len(x),len(y),'overlap',len(x&y))
+    # on overlap compare file edges added and py lines
+    FA={r['sha']:r for r in fa}; FB={r['sha']:r for r in fb}
+    eq=sum(1 for k in x&y if FA[k]['py_changed_lines']==FB[k]['py_lines_changed_src']); eqe=sum(1 for k in x&y if FA[k]['file_edges_added']==FB[k]['file_edges_added'])
+    eqc=sum(1 for k in x&y if FA[k]['comp_edges_new_in_repo']==FB[k]['component_pairs_new_to_src_tree'])
+    print('   overlap: pylines equal',eq,'file_edges_added equal',eqe,'new-to-tree equal',eqc)
+    for k in x&y:
+        if FA[k]['file_edges_added']!=FB[k]['file_edges_added'] or FA[k]['comp_edges_new_in_repo']!=FB[k]['component_pairs_new_to_src_tree']:
+            print('    ',k[:10],FA[k]['py_changed_lines'],FB[k]['py_lines_changed_src'],'fe',FA[k]['file_edges_added'],FB[k]['file_edges_added'],'new',FA[k]['comp_edges_new_in_repo'],FB[k]['component_pairs_new_to_src_tree'],'within',FA[k]['comp_edges_added'],FB[k]['component_pairs_new_within_changed_files'])
+# alloc by class
+for p in ['T1','T2','T3']:
+    print(p,'C alloc',collections.Counter(r['cls'] for r in fa if r['period']==p),'\n   C2 alloc',collections.Counter(r['class'] for r in fb if r['period']==p))
+# M01g
+ga=rd('C/m01g-review-sample.csv'); gb=rd('C2/M01g-review-intensity-sample.csv')
+for p in ['T1','T2','T3']:
+    x={r['sha'] for r in ga if r['period']==p}; y={r['sha'] for r in gb if r['period']==p}
+    print('M01g',p,len(x),len(y),'overlap',len(x&y))
+GA={r['sha']:r for r in ga}; GB={r['sha']:r for r in gb}
+for k in set(GA)&set(GB):
+    print('  ov',k[:10],GA[k]['pr_number'],GB[k]['pr_number'],GA[k]['reviews_by_other'],GB[k]['reviews_by_other_account'],GA[k]['approved_by_other'],GB[k]['approvals_by_other_account'])
+# M02
+ta=rd('C/m02-trace-sample.csv'); tb=rd('C2/M02-tracing.csv')
+j=json.load(open(E+'C2/M02-frames-and-samples.json'))
+fra={r['sha'] for r in rd('C/m02a-frame.csv')}; frb={r['sha'] for r in rd('C/m02b-frame.csv')}
+for nm,cs,c2s,fr in [('m02a',[r['sha'] for r in ta if r['frame']=='m02a'],j['sample_a'],fra),('m02b',[r['sha'] for r in ta if r['frame']=='m02b'],j['sample_b'],frb)]:
+    c2s12={s[:12] for s in c2s}; cs12={s[:12] for s in cs}
+    print(nm,'C sample',len(cs12),'C2 sample',len(c2s12),'overlap',len(cs12&c2s12),'C2 sample in C frame',len({s for s in c2s if s in fr}))
+json.dump({},open('x.json','w'))

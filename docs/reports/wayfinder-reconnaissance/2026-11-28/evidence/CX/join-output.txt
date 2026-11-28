@@ -1,0 +1,11 @@
+C rows 6356 C nonbulk 6345 C2 rows 6345
+both 6345 C only 0 C2 only 0
+ALL n 6345 agree 5671 0.8938 kappa 0.841
+T1 n 947 agree 846 0.8933 kappa 0.83
+T2 n 1809 agree 1647 0.9104 kappa 0.871
+T3 n 3026 agree 2662 0.8797 kappa 0.808
+ncomp diff C-C2 [(-2, 1), (-1, 31), (0, 6265), (1, 42), (2, 3), (3, 3)]
+ntop diff [(-1, 6), (0, 6302), (1, 37)]
+ge2 agreement Counter({(False, False): 3929, (True, True): 2398, (True, False): 12, (False, True): 6})
+ncomp differing by period Counter({'T2': 37, 'T1': 19, 'T3': 13, 'no': 11})
+churn differs 0

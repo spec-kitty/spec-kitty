@@ -1,0 +1,7 @@
+run,period,n,lines,largest_commit_sha,largest_commit_lines,largest_share,file_edges_added_per_kloc_all,per_kloc_without_largest,newpairs_per_kloc_all,newpairs_per_kloc_without_largest
+C,T1,150,59269,e365474617(restructuring),9575,0.162,4.302,4.085,1.384,1.650
+C,T2,150,70039,66038e2a56(restructuring),46100,0.658,1.656,4.846,0.243,0.710
+C,T3,150,18290,ef23380b7a(compatibility-work),1409,0.077,3.609,3.554,0.273,0.296
+C2,T1,150,98354,3bd6887582(other),11446,0.116,5.358,5.385,1.515,1.622
+C2,T2,150,30910,bb1ef75db1(capability-growth),6618,0.214,5.953,6.710,0.906,1.153
+C2,T3,150,28526,75e678bb1e(capability-growth),6152,0.216,3.330,3.978,0.491,0.626

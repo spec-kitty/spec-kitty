@@ -1,0 +1,51 @@
+finding_id: F-CX-012
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: between-period directions
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 220 period-to-period or month-to-month comparisons where both runs give a value, the direction of change
+  is the same in 198 (90%). For all-class M01c (mean, median, p90) and M01d (both component levels) the direction
+  agrees in every period step and line segment (25 of 25). Disagreements: 13 of 150 by-class rows (compatibility-work,
+  restructuring, other, convergence-activity), 1 month (2026-08 public M01d, 0.4134 vs 0.4075 after 0.4107 vs 0.4147),
+  and 8 M01f rows (file-edge rate T1 to T2 and T2 to T3; new-to-graph pairs T2 to T3). Both runs agree that the
+  refix one-shared-file share falls from T1 to T2 and rises from T2 to T3.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Rows of comparison.csv with a previous slice (T2 vs T1, T3 vs T2, line segments vs T1, consecutive months).
+  not_covered: An equal value in both periods counts as the same direction.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Counted every row with a direction value.
+  result: Disagreements cluster in by-class rows and in M01f; no all-class M01c or M01d step disagrees.
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

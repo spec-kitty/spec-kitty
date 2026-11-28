@@ -1,0 +1,40 @@
+# spec-kitty-events 646e330 execution vocabularies vs core 5c4fc5a consumption (static-derived)
+$ grep -c '= "' WorkKind members
+WorkKind members: 25
+108:class WorkKind(str, Enum):
+132:    DELEGATION_STARTED = "session.delegation_started"
+145:    HANDOFF_PERFORMED = "narrative.handoff_performed"
+170:        WorkKind.DELEGATION_STARTED: "session",
+181:        WorkKind.HANDOFF_PERFORMED: "narrative",
+275:class ProducerIdentity(BaseModel):
+294:class SessionIdentity(BaseModel):
+332:class FactoryAttemptRef(BaseModel):
+792:        WorkKind.DELEGATION_STARTED: MappingProxyType(
+909:        WorkKind.HANDOFF_PERFORMED: MappingProxyType(
+1064:        if self.kind in (WorkKind.DELEGATION_STARTED, WorkKind.DELEGATION_ENDED):
+15:scope, no CLI emitter, no SaaS view, and no detail-read service ship here —
+24:* ``attempt`` is a 1-based counter distinguishing individual tries under the
+17:PROFILE_INVOCATION_SCHEMA_VERSION: str = "3.1.0"
+21:    "ProfileInvocationCompleted"  # Reserved — payload contract deferred
+23:PROFILE_INVOCATION_FAILED: str = "ProfileInvocationFailed"  # Reserved — payload contract deferred
+$ core: distinct spec_kitty_events import paths in src/
+     12 from spec_kitty_events import
+      1 from spec_kitty_events.conformance import
+      2 from spec_kitty_events.decision_moment import
+      5 from spec_kitty_events.decisionpoint import
+      1 from spec_kitty_events.diary import
+      3 from spec_kitty_events.lifecycle import
+      4 from spec_kitty_events.mission_next import
+      3 from spec_kitty_events.persistence import
+      4 from spec_kitty_events.project_lifecycle import
+      4 from spec_kitty_events.status import
+      1 from spec_kitty_events.zeitgeist_attrs import
+      2 import spec_kitty_events
+$ core: grep work_observation|WorkObservation|FactoryAttemptRef|harness_observation|ops_invocation|profile_invocation|SessionIdentity in src/
+7
+$ core OpStartedEvent fields (invocation/record.py)
+(attempt matches above; empty means none)
+$ core: same grep restricted to spec_kitty_events-qualified imports or class names (excludes the CLI module specify_cli.cli.commands.profile_invocation)
+2
+(the 7 unrestricted matches are all specify_cli.cli.commands.profile_invocation, the CLI 'profile-invocation complete' module)
+(both matches are invocation/propagator.py:19,205, which names the event_type string 'ProfileInvocationStarted' in the dormant propagator envelope; it does not import the spec_kitty_events model and has no registered transport)

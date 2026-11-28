@@ -1,0 +1,41 @@
+import csv,collections,sys
+E='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/'
+c={r['sha']:r for r in csv.DictReader(open(E+'C/code-commits-compact.csv'))}
+c2={r['sha12']:r for r in csv.DictReader(open(E+'C2/code-commits-classified.csv'))}
+cnb={k:v for k,v in c.items() if v['bulk']=='0'}
+print('C rows',len(c),'C nonbulk',len(cnb),'C2 rows',len(c2))
+both=set(cnb)&set(c2); print('both',len(both),'C only',len(set(cnb)-set(c2)),'C2 only',len(set(c2)-set(cnb)))
+for k in list(set(cnb)-set(c2))[:10]: print(' Conly',cnb[k])
+for k in list(set(c2)-set(cnb))[:10]: print(' C2only',c2[k])
+CL=['capability-growth','corrective-maintenance','restructuring','compatibility-work','convergence-activity','other']
+def per(k):
+    r=cnb[k]; return r['period'] or 'none'
+out=open('class-confusion-all.csv','w',newline=''); w=csv.writer(out)
+w.writerow(['slice','C_class\\C2_class']+CL+['row_total'])
+for sl in ['ALL','T1','T2','T3']:
+    m=collections.Counter(); n=0;agree=0
+    for k in both:
+        p=per(k)
+        if sl!='ALL' and not p.startswith(sl): continue
+        a=cnb[k]['cls'];b=c2[k]['class']; m[(a,b)]+=1; n+=1; agree+=a==b
+    for a in CL: w.writerow([sl,a]+[m[(a,b)] for b in CL]+[sum(m[(a,b)] for b in CL)])
+    # kappa
+    pa=collections.Counter(a for (a,b),v in m.items() for _ in range(v)); pb=collections.Counter(b for (a,b),v in m.items() for _ in range(v))
+    pe=sum(pa[x]*pb[x] for x in CL)/n/n; po=agree/n
+    print(sl,'n',n,'agree',agree,round(po,4),'kappa',round((po-pe)/(1-pe),3))
+    w.writerow([sl,'agreement',agree,n,round(po,4),'kappa',round((po-pe)/(1-pe),3)])
+out.close()
+# components agreement
+d=collections.Counter(); dt=collections.Counter(); ge=collections.Counter()
+for k in both:
+    x=int(cnb[k]['n_components']); y=int(c2[k]['n_components'])
+    d[x-y]+=1; dt[int(cnb[k]['n_top'])-int(c2[k]['n_top_packages'])]+=1
+    ge[(x>=2,y>=2)]+=1
+print('ncomp diff C-C2',sorted(d.items())); print('ntop diff',sorted(dt.items())); print('ge2 agreement',ge)
+# where do diffs concentrate by period
+dd=collections.Counter()
+for k in both:
+    if cnb[k]['n_components']!=c2[k]['n_components']: dd[per(k)[:2]]+=1
+print('ncomp differing by period',dd)
+# churn agreement
+ch=sum(1 for k in both if cnb[k]['src_churn']!=c2[k]['src_lines_changed']); print('churn differs',ch)

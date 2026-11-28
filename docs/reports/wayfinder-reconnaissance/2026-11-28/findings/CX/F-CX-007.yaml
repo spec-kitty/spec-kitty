@@ -1,0 +1,59 @@
+finding_id: F-CX-007
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01g
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M01g replicates exactly: both runs drew the same 120 commits (40 per period, 120 of 120 shared) and agree
+  on every commit for pull-request membership (118 in a pull request, 2 in none) and for a review by another account
+  (T1 5, T2 0, T3 0) and an approval by another account (T1 4, T2 0, T3 0). C reports the rate over 40 sampled commits,
+  C2 over 39/39/40 pull requests; numerators are identical. The agent-authorship context column is not comparable:
+  C counts an agent trailer on the commit (17/32/29 of 40), C2 an author-name pattern (0/10/15 of 40).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/samples-output.txt
+  method: python3 script-samples.txt
+  sha256: '@@samples-output.txt'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: All 120 sampled commits.
+  not_covered: Review outside GitHub review objects (both runs exclude it).
+  population: code commits per period 947 / 1,809 / 3,026
+  sample: 40 per period, identical SHAs in both runs
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared every commit row, not only totals.
+  result: No disagreement on any of the 120 rows for membership, review or approval; 14 rows name the EXPERIMENTAL
+    repository with different spelling only.
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

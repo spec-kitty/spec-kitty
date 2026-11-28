@@ -1,0 +1,153 @@
+class sample overlap 50 of 50 55
+readings agree 45
+  6d58796bfe compatibility-work compatibility-work | corrective-maintenance corrective-maintenance fix(landing): report a non-UTF-8 status.json instead of aborting the u
+  1bf003fc97 corrective-maintenance compatibility-work | corrective-maintenance restructuring fix(unshim): aggregate-squad folds — glossary reintroduction lock + cr
+  49fcffbbb8 compatibility-work other | compatibility-work corrective-maintenance fix(#2313) phase 2: repoint docs/migration references (guards, src not
+  d7a5375040 compatibility-work compatibility-work | corrective-maintenance corrective-maintenance fix: Remove lane directories even with system files (Fixes #70)
+  7c7dc87d29 compatibility-work compatibility-work | corrective-maintenance corrective-maintenance fix(landing): the runner skip gate asks the selection view by migratio
+rule labels agree 44
+C agree 38 C2 agree 39
+M01f T1 150 150 overlap 40
+   overlap: pylines equal 40 file_edges_added equal 36 new-to-tree equal 36
+     e02dfa003d 11 11 fe 0 1 new 0 0 within 0 1
+     ea12637d78 4844 4844 fe 19 19 new 11 10 within 12 10
+     98c590c366 1270 1270 fe 6 4 new 4 2 within 5 3
+     e365474617 9575 9575 fe 52 51 new 0 0 within 0 0
+     0ba35654ee 485 485 fe 4 4 new 2 1 within 3 3
+     365f1bb255 1221 1221 fe 76 75 new 30 28 within 37 35
+M01f T2 150 150 overlap 15
+   overlap: pylines equal 14 file_edges_added equal 14 new-to-tree equal 14
+     4a9e8211fd 404 14 fe 0 3 new 0 1 within 0 3
+M01f T3 150 150 overlap 11
+   overlap: pylines equal 11 file_edges_added equal 11 new-to-tree equal 11
+T1 C alloc Counter({'corrective-maintenance': 81, 'capability-growth': 30, 'other': 20, 'compatibility-work': 12, 'restructuring': 6, 'convergence-activity': 1}) 
+   C2 alloc Counter({'corrective-maintenance': 69, 'capability-growth': 30, 'other': 22, 'compatibility-work': 15, 'restructuring': 13, 'convergence-activity': 1})
+T2 C alloc Counter({'corrective-maintenance': 70, 'capability-growth': 23, 'convergence-activity': 20, 'other': 16, 'compatibility-work': 12, 'restructuring': 9}) 
+   C2 alloc Counter({'corrective-maintenance': 59, 'capability-growth': 24, 'convergence-activity': 22, 'restructuring': 17, 'other': 16, 'compatibility-work': 12})
+T3 C alloc Counter({'corrective-maintenance': 81, 'other': 19, 'restructuring': 18, 'compatibility-work': 15, 'capability-growth': 11, 'convergence-activity': 6}) 
+   C2 alloc Counter({'corrective-maintenance': 67, 'restructuring': 22, 'other': 19, 'capability-growth': 17, 'convergence-activity': 13, 'compatibility-work': 12})
+M01g T1 40 40 overlap 40
+M01g T2 40 40 overlap 40
+M01g T3 40 40 overlap 40
+  ov 82f4d3d7ae 7817 7817 0 0 0 0
+  ov e67cb68cef 835 835 0 0 0 0
+  ov 0ec9361662 5724 5724 0 0 0 0
+  ov 90d65cfdb2 4446 4446 0 0 0 0
+  ov f62803d682 3155 3155 0 0 0 0
+  ov 10309ebf32 1769 1769 0 0 0 0
+  ov f849337da8 3383 3383 0 0 0 0
+  ov 4a58690378 3467 3467 0 0 0 0
+  ov 29deb96235 3679 3679 0 0 0 0
+  ov 3af20b59dd 1078 1078 0 0 0 0
+  ov 7067099ce4 1491 1491 0 0 0 0
+  ov 9f28935746 3175 3175 0 0 0 0
+  ov 8b518f54c0 5616 5616 0 0 0 0
+  ov d1ff396570 6511 6511 0 0 0 0
+  ov c45045fc35 1658 1658 0 0 0 0
+  ov 401086efbb 2036 2036 0 0 0 0
+  ov b1aee16f16 3765 3765 0 0 0 0
+  ov 87c4e6970f 980 980 0 0 0 0
+  ov 6a553f0a78 1559 1559 0 0 0 0
+  ov 6e6ada014d 995 995 0 0 0 0
+  ov a07dfc1964 7817 7817 0 0 0 0
+  ov 6e27b6467e 2639 2639 0 0 0 0
+  ov 804c99705e 7102 7102 0 0 0 0
+  ov ad3ae6ad83 803 803 0 0 0 0
+  ov 1921308c61 3467 3467 0 0 0 0
+  ov 60d679422f 231 231 0 0 0 0
+  ov c0db3bbd0c 6294 6294 0 0 0 0
+  ov fe114caa40 3060 3060 0 0 0 0
+  ov 12800eade9 3923 3923 0 0 0 0
+  ov 0ede01cade 5709 5709 0 0 0 0
+  ov 209d9b0196 7316 7316 0 0 0 0
+  ov 6acab877be 2028 2028 0 0 0 0
+  ov 89c1769e5a 5896 5896 0 0 0 0
+  ov 6678d1b7fe 4995 4995 0 0 0 0
+  ov f40896b07f 2099 2099 0 0 0 0
+  ov c83ad89f88 7616 7616 0 0 0 0
+  ov dd7bd9be0a 2810 2810 0 0 0 0
+  ov 8a9eed4178 3655 3655 0 0 0 0
+  ov 726c82aa7d 1722 1722 0 0 0 0
+  ov a7cc23efde 5222 5222 0 0 0 0
+  ov 093a219d42 3304 3304 0 0 0 0
+  ov 7db2973104 7009 7009 0 0 0 0
+  ov bb6c4a6e77 869 869 0 0 0 0
+  ov 5f06042fe7 1719 1719 0 0 0 0
+  ov bcf1e62387 5694 5694 0 0 0 0
+  ov 4b817b61b9 6853 6853 0 0 0 0
+  ov 1b93d7cf4a 2081 2081 0 0 0 0
+  ov ff5f6cd5bd 6511 6511 0 0 0 0
+  ov d18dfe6d80 937 937 0 0 0 0
+  ov 10e158bac8 3774 3774 0 0 0 0
+  ov 409a110622   0  0 
+  ov 8b047ca90b 7029 7029 0 0 0 0
+  ov 4bed506d26 5954 5954 0 0 0 0
+  ov 92f81f0c5a 1078 1078 0 0 0 0
+  ov f185e4b36a 1535 1535 0 0 0 0
+  ov c2957b8383 6591 6591 0 0 0 0
+  ov 0226ccc5af 6594 6594 0 0 0 0
+  ov 5a0a7203d7 2328 2328 0 0 0 0
+  ov 4c1841ef9b 1704 1704 0 0 0 0
+  ov 95ad7d78e7 633 633 0 0 0 0
+  ov 2729dc6d59 6119 6119 0 0 0 0
+  ov 0da2f6bed5 1980 1980 0 0 0 0
+  ov 345ce0c306 1017 1017 0 0 0 0
+  ov d2dd0dca57 7837 7837 0 0 0 0
+  ov 3708ad4adf 3155 3155 0 0 0 0
+  ov c0ff122280 803 803 0 0 0 0
+  ov 878696e152 4147 4147 0 0 0 0
+  ov 3ebfd1c01e 3655 3655 0 0 0 0
+  ov 35f3a2206b 2588 2588 0 0 0 0
+  ov 7d0d5580b7 787 787 0 0 0 0
+  ov e2d826d9b6 1031 1031 0 0 0 0
+  ov f6df1b3381 224 224 0 0 0 0
+  ov fd220a10b9 644 644 0 0 0 0
+  ov a3c410dc8b 713 713 0 0 0 0
+  ov 6db34a0b48 3774 3774 0 0 0 0
+  ov a157bf26dc 2225 2225 1 1 1 1
+  ov de0468eff2 3403 3403 0 0 0 0
+  ov 471ca83e25 5659 5659 0 0 0 0
+  ov d184116fef 7275 7275 0 0 0 0
+  ov 7dc5f3fd54 819 819 0 0 0 0
+  ov f3d36f02be 2817 2817 0 0 0 0
+  ov 4d5a1b9e32 567 567 0 0 0 0
+  ov f3f299ebba 1769 1769 0 0 0 0
+  ov e3eb2d2240 5662 5662 0 0 0 0
+  ov a9b85dda58 1960 1960 0 0 0 0
+  ov d1d7e5e141 5398 5398 0 0 0 0
+  ov 6341c28c6e 768 768 0 0 0 0
+  ov 805433712b 4750 4750 0 0 0 0
+  ov 41d08e2851 1535 1535 0 0 0 0
+  ov 632977d1b5 2036 2036 0 0 0 0
+  ov 9226887ec2 1769 1769 0 0 0 0
+  ov 6fc2ac018d 4912 4912 0 0 0 0
+  ov 252e5e61b1 1197 1197 0 0 0 0
+  ov 137fd7aab4 3783 3783 0 0 0 0
+  ov 2284a1c09c 753 753 1 1 1 1
+  ov 95ddce7d7e 7618 7618 0 0 0 0
+  ov c70c8bc6f9   0  0 
+  ov cca2b62aac 6546 6546 0 0 0 0
+  ov 376653f24b 763 763 0 0 0 0
+  ov c844a0df22 2888 2888 0 0 0 0
+  ov 39d42c3ad9 6511 6511 0 0 0 0
+  ov 727d5d8eeb 1903 1903 1 1 1 1
+  ov e9576629b5 3825 3825 0 0 0 0
+  ov e5b24d9941 3792 3792 0 0 0 0
+  ov 3ed3948a6d 860 860 0 0 0 0
+  ov 3f8b8ae4ce 3245 3245 0 0 0 0
+  ov b38233ad5b 353 353 0 0 0 0
+  ov 0a9d8d5ba5 5896 5896 0 0 0 0
+  ov ec843dd7f8 656 656 0 0 0 0
+  ov 0e5f4a68ea 6846 6846 0 0 0 0
+  ov aa9ec6392e 1959 1959 0 0 0 0
+  ov bb32cd8971 5285 5285 0 0 0 0
+  ov 307bc6b137 1620 1620 0 0 0 0
+  ov ba4d575d6a 546 546 0 0 0 0
+  ov 18ee34ff33 284 284 0 0 0 0
+  ov 1b45cef16a 1630 1630 0 0 0 0
+  ov 0476fc58cf 1721 1721 6 6 0 0
+  ov 22ffc0bb9a 4153 4153 0 0 0 0
+  ov c0d6eb771e 6849 6849 0 0 0 0
+  ov 843e73977a 1901 1901 1 1 1 1
+m02a C sample 30 C2 sample 30 overlap 4 C2 sample in C frame 27
+m02b C sample 30 C2 sample 30 overlap 2 C2 sample in C frame 30

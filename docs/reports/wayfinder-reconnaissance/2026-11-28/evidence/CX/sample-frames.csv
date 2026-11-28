@@ -1,0 +1,10 @@
+measure,slice,C_frame_size,C2_frame_size,frame_membership,C_sample_n,C2_sample_n,sample_overlap,seed_and_draw_notes
+classification-validation,2026-01..11 code commits,6345,6345,identical (6345 shared sha12),50,50,50,both Random(20261128) over the frame sorted by SHA; C2 file adds confusion-table rows after the 50
+M01f,T1,947,947,identical membership; class strata differ,150,150,40,C proportional allocation (floor + largest remainder); C2 min(10) per class then proportional remainder; rng shared across strata in both
+M01f,T2,1809,1809,identical membership; class strata differ,150,150,15,C report deviation: one pooled sample over three line segments; C2 same pooling
+M01f,T3,3026,3026,identical membership; class strata differ,150,150,11,
+M01g,T1,947,947,identical,40,40,40,identical SHA lists
+M01g,T2,1809,1809,identical,40,40,40,identical SHA lists
+M01g,T3,3026,3026,identical,40,40,40,identical SHA lists
+M02a,2026-09-07..11-28 multi-component/pin/contract fixes,666,698,different (fix rule and contract rule differ); 27 of 30 C2 sampled SHAs are in the C frame,30,30,4,same seed; frames differ so draws differ
+M02b,2026-09-07..11-28 single-component fixes,1262,1264,different by 2 in size; all 30 C2 sampled SHAs are in the C frame,30,30,2,C fresh Random per frame; C2 draws B after A from one Random stream

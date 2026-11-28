@@ -1,0 +1,50 @@
+finding_id: F-CX-011
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: convergence merge effect
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The convergence merge effect replicates: both runs find the merge tree equal to the EXPERIMENTAL parent
+  (0 differing files) and 3,179 files differing from the public parent; under src/ 481 vs 480 files, +17,449 vs
+  +17,174 and -61,454 vs -61,179 lines, 63 vs 62 components (all within 2%). Differences sit in 6 component rows,
+  from rename detection (C diff --no-renames, C2 -M) and from C counting a file directly under src/ as a component.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Merge against both parents, by component.
+  not_covered: Fork-point-to-line-end diffs (published by C only).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared every component row.
+  result: 6 component rows differ (charter/offering, specify_cli/(root), saas, tracker, requirement_mapping, charter_packs,
+    plus the src-root file); none changes a total by more than 2%.
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

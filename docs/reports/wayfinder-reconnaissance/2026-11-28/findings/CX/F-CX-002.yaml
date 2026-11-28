@@ -1,0 +1,70 @@
+finding_id: F-CX-002
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: commit classification (rule sets and agreement)
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The two pre-written rule sets assign the same class to 5,671 of the 6,345 code commits both runs classified
+  (89.4%, Cohen kappa 0.841; T1 89.3%, T2 91.0%, T3 88.0%). The largest disagreement cell is 378 commits classed
+  compatibility-work by C and corrective-maintenance by C2, followed by C other / C2 restructuring 93 and C other
+  / C2 corrective 71. Both runs drew the same 50 validation commits (50 of 50 shared); each reports 38 of 50 rule-vs-reading
+  agreement (kappa 0.66 vs 0.62); the two readers agree with each other on 45 of 50 and the two rule outputs agree
+  on 44 of 50.
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/class-confusion-all.csv
+  method: python3 script-join.txt
+  sha256: '@@class-confusion-all.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/CX/classification-rulesets-compared.txt
+  method: manual comparison of evidence/C/classification-rules.txt and evidence/C2/classification-rules.txt
+  sha256: '@@classification-rulesets-compared.txt'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E3
+  kind: executed
+  reference: evidence/CX/samples-output.txt
+  method: python3 script-samples.txt
+  sha256: '@@samples-output.txt'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: All 6,345 shared code commits; the shared 50-commit validation sample.
+  not_covered: No third reading of the 5 commits on which the two readers disagree.
+  population: 6,345 code commits; validation frame 6,345
+  sample: 50 (identical in both runs)
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether disagreement concentrates in one period or one rule; checked whether the validation samples
+    differ.
+  result: 'Disagreement is spread over periods (88.0-91.0% agreement) and concentrated in rule order: C tests compatibility
+    keywords before the fix prefix, C2 after; C2 has keyword fall-through rules for unprefixed and chore/docs subjects.
+    4 of the 5 reading disagreements are fix-prefixed subjects with a compatibility keyword.'
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

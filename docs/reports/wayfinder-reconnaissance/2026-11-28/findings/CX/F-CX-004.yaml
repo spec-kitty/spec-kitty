@@ -1,0 +1,63 @@
+finding_id: F-CX-004
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01d
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M01d (share of code commits touching two or more components) for all classes replicates in every period:
+  T1 0.5417 vs 0.5428, T2 pooled 0.3742 vs 0.3704, T2 EXPERIMENTAL 0.3229 vs 0.3144, T3 0.3434 vs 0.3437. The top-level-package
+  variant replicates in T1 (0.2492 vs 0.2482), T2 pooled (0.1288 vs 0.1222) and T3 (0.1150 vs 0.1157) but not in
+  T2 EXPERIMENTAL (0.0825 vs 0.0740, 11%) or the T2 fork-window segment (0.1661, n=277 vs 0.1474, n=285, 12%). By
+  class, 26 of 72 rows are not replicated (compatibility-work and other in every period). Monthly M01d replicates
+  in 14 of 14 month-line cells and monthly mean components in 14 of 14; monthly median differs in 1 of 13 (2026-03:
+  1.5 vs 1.0, n=62).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/component-count-differences.csv
+  method: 'python3 inline in this workstream: per-commit join plus git show --name-only for 86 differing commits'
+  sha256: '@@component-count-differences.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: Periods, line segments and 14 month-line cells.
+  not_covered: C published 2026-08 public-line values in two segments; CX pooled C means and shares weighted by
+    n for that month, medians not poolable.
+  population: 6,345 code commits
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Traced every commit with a differing top-level count to its src directories.
+  result: The top-level differences come from file-lineage mapping in C (files under src/specify_cli/doctrine and
+    src/doctrine whose lineage ends in another top-level package) against directory-only mapping in C2, and from
+    the line boundary of the fork window (C reachability from 38090b6493, C2 date >= 2026-08-19; 285 vs 277 commits).
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

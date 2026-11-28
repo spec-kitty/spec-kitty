@@ -1,0 +1,152 @@
+import csv,json,collections,statistics
+exec(open('build.py').read().split('# ---------- volume')[0])
+ROWS=json.load(open('rows1.json'))
+CL=['capability-growth','corrective-maintenance','restructuring','compatibility-work','convergence-activity','other']
+# ---------- co-change
+pc=rd('C/cochange-pairs.csv'); p2=rd('C2/cochange-pairs-ge3.csv')
+def norm(x): return x.replace('[retired]','')
+CP=collections.defaultdict(dict); C2P=collections.defaultdict(dict)
+for r in pc: CP[r['period']][(r['a'],r['b'])]=int(r['both'])
+for r in p2: C2P[r['period']+'|'+r['line']][(norm(r['comp_a']),norm(r['comp_b']))]=int(r['commits_both'])
+# C public pooled = pre-fork + public (lower bound: per-slice threshold >=3)
+pub=collections.Counter(CP['T2-pre-fork'])+collections.Counter(CP['T2-public'])
+CP['T2-public-pooled(sum)']=dict(pub)
+pairs_sum=[]
+for slc,s2,den in [('T1','T1|all-lines',947),('T2-pooled','T2|all-lines',1809),('T2-public-pooled(sum)','T2|public',1106),('T2-experimental','T2|experimental',703),('T3','T3|all-lines',3026)]:
+    A=CP[slc]; B=C2P[s2]
+    ta=[k for k,_ in sorted(A.items(),key=lambda kv:-kv[1])[:15]]; tb=[k for k,_ in sorted(B.items(),key=lambda kv:-kv[1])[:15]]
+    ov=len(set(ta)&set(tb))
+    common={k for k in set(A)&set(B) if max(A[k],B[k])>=10}; rd_=[abs(A[k]-B[k])/((A[k]+B[k])/2) for k in common]
+    within=sum(1 for x in rd_ if x<=0.10)
+    note='C pre-fork(829)+fork-window(277) pair counts summed by CX; per-slice >=3 threshold makes the C sum a lower bound' if 'sum' in slc else ''
+    add('co-change: top-15 pair set overlap',slc,ov,ov,15,15,status='replicated' if ov>=14 else 'not replicated',cause=f'{ov} of 15 pairs in both top-15 lists. '+note)
+    add('co-change: pairs with >=3 joint commits',slc,len(A),len(B),den,den,cause=note or 'component assignment of a few paths differs (rename map, src root file); pair threshold identical (>=3)')
+    add('co-change: share of pairs (>=10 joint commits in either run) whose joint count differs <=10%',slc,round(within/len(common),4),round(within/len(common),4),len(common),len(common),status='replicated' if within/len(common)>=0.9 else 'not replicated',cause=f'{within} of {len(common)} pairs present in both runs; median relative difference {round(statistics.median(rd_),4)}')
+    # top pair of each and leading pairs
+    for k in list(dict.fromkeys(ta[:5]+tb[:5])):
+        add('co-change: joint commits of leading pair',f'{slc} / {k[0]}+{k[1]}',A.get(k,''),B.get(k,''),den,den,cause=note)
+    pairs_sum.append((slc,ov,len(common),within))
+# share touching cli
+add('co-change: share of code commits touching specify_cli/cli','T1',round(470/947,4),round(470/947,4),947,947)
+add('co-change: share of code commits touching specify_cli/cli','T3',round(1096/3026,4),round(1096/3026,4),3026,3026)
+# ---------- convergence
+add('convergence merge: src files differing vs public parent','merge vs parent1',481,480,cause='C: git diff --no-renames and counts a file directly under src/; C2: -M rename detection and no component for src-root files')
+add('convergence merge: src lines added vs public parent','merge vs parent1',17449,17174,cause='rename detection (C --no-renames, C2 -M)')
+add('convergence merge: src lines deleted vs public parent','merge vs parent1',61454,61179,cause='rename detection')
+add('convergence merge: components differing vs public parent','merge vs parent1',63,62,cause='C counts (src root) as a component; assignment of requirement_mapping / charter_packs file differs')
+add('convergence merge: files differing vs EXPERIMENTAL parent','merge vs parent2',0,0)
+add('convergence merge: all files differing vs public parent','merge vs parent1',3179,3179)
+# ---------- classification
+add('classification: rule-vs-reading agreement on seeded 50','sample of 50',38,38,50,50,cause='same 50 commits drawn by both runs; readings agree 45/50 between runs; rule labels agree 44/50')
+add('classification: kappa rule-vs-reading','sample of 50',0.66,0.62,50,50)
+for sl,ag,n,k in [('ALL',5671,6345,0.841),('T1',846,947,0.83),('T2',1647,1809,0.871),('T3',2662,3026,0.808)]:
+    add('classification: between-run rule-label agreement on all commits both classified',sl,round(ag/n,4),round(ag/n,4),n,n,status='not replicated' if ag/n<0.9 else 'replicated',cause=f'{ag}/{n} identical labels, kappa {k}; largest cell: 378 commits C compatibility-work vs C2 corrective-maintenance (rule order: C tests compat keywords before fix prefix, C2 tests fix prefix first)')
+# ---------- M01f
+fa=rd('C/m01f-sample.csv'); fb=rd('C2/M01f-import-edges-sample.csv')
+fsC={(r['period'],r['cls']):r for r in rd('C/m01f-summary.csv')}
+fs2={(r['period'],r['class']):r for r in rd('C2/M01f-import-edges-aggregate.csv')}
+# stratum sizes for C2 from C2 summary.json class_by_period
+summ=json.load(open(E+'C2/summary.json'))
+def weighted(sample,per,strat,keyl,keye,stratsize):
+    num=den=0
+    for c in CL:
+        s=[r for r in sample if r['period']==per and r[strat]==c]
+        if not s: continue
+        w=stratsize[c]/len(s)
+        num+=w*sum(float(r[keye]) for r in s); den+=w*sum(float(r[keyl]) for r in s)
+    return 1000*num/den
+def unweighted(sample,per,keyl,keye):
+    s=[r for r in sample if r['period']==per]
+    return 1000*sum(float(r[keye]) for r in s)/sum(float(r[keyl]) for r in s)
+prevf={}
+for per in ['T1','T2','T3']:
+    ss=summ['class_by_period'][per]
+    cs={c:int([r for r in fa if r['period']==per and r['cls']==c][0]['stratum_size']) if [r for r in fa if r['period']==per and r['cls']==c] else 0 for c in CL}
+    pv=prevf.get(per)
+    pp={'T2':'T1','T3':'T2'}.get(per)
+    a=fsC[(per,'ALL (stratum-weighted estimate)')]; b=fs2[(per,'ALL')]
+    add('M01f: file-level cross-component edges added per kloc, as each run reported',per,a['file_edges_added_per_kloc'],b['file_edges_added_per_kloc'],'150 sampled; stratum-weighted to population','150 sampled; unweighted ratio',cause='estimator differs (C stratum-weighted, C2 pooled sample ratio); allocation differs (C proportional, C2 min 10 per class then proportional); samples overlap only partly',prev=prevf.get(('fe',pp)))
+    prevf[('fe',per)]=(a['file_edges_added_per_kloc'],b['file_edges_added_per_kloc'])
+    add('M01f: component pairs new to the src import graph per kloc, as each run reported',per,a['repo_new_edges_per_kloc'],b['pairs_new_to_tree_per_kloc'],cause='same estimator/allocation differences; edge-resolution differs (C lineage component map; C2 longest existing directory at that revision)',prev=prevf.get(('nt',pp)))
+    prevf[('nt',per)]=(a['repo_new_edges_per_kloc'],b['pairs_new_to_tree_per_kloc'])
+    # like-for-like recomputations from evidence
+    cu=unweighted(fa,per,'py_changed_lines','file_edges_added'); c2u=float(b['file_edges_added_per_kloc'])
+    add('M01f (CX recomputed from both samples): file edges added per kloc, unweighted ratio',per,round(cu,3),round(c2u,3),cause='CX recomputation from evidence/C/m01f-sample.csv; isolates the estimator choice',prev=prevf.get(('feu',pp)))
+    prevf[('feu',per)]=(cu,c2u)
+    c2w=weighted(fb,per,'class','py_lines_changed_src','file_edges_added',ss)
+    add('M01f (CX recomputed from both samples): file edges added per kloc, stratum-weighted',per,a['file_edges_added_per_kloc'],round(c2w,3),cause='CX recomputation from evidence/C2/M01f-import-edges-sample.csv with C2 class strata sizes',prev=prevf.get(('few',pp)))
+    prevf[('few',per)]=(a['file_edges_added_per_kloc'],c2w)
+    cnu=unweighted(fa,per,'py_changed_lines','comp_edges_new_in_repo'); c2nu=float(b['pairs_new_to_tree_per_kloc'])
+    add('M01f (CX recomputed): new-to-graph pairs per kloc, unweighted ratio',per,round(cnu,3),round(c2nu,3),prev=prevf.get(('ntu',pp)))
+    prevf[('ntu',per)]=(cnu,c2nu)
+    c2nw=weighted(fb,per,'class','py_lines_changed_src','component_pairs_new_to_src_tree',ss)
+    add('M01f (CX recomputed): new-to-graph pairs per kloc, stratum-weighted',per,a['repo_new_edges_per_kloc'],round(c2nw,3),prev=prevf.get(('ntw',pp)))
+    prevf[('ntw',per)]=(a['repo_new_edges_per_kloc'],c2nw)
+    x={r['sha'] for r in fa if r['period']==per}; y={r['sha'] for r in fb if r['period']==per}
+    add('M01f: sample overlap (same commit in both samples)',per,len(x&y),len(x&y),150,150,status='not comparable',cause='frames identical in size and membership (code non-bulk commits of the period); strata differ by class rules and allocation, so draws differ')
+    lc=sum(float(r['py_changed_lines']) for r in fa if r['period']==per); l2=sum(float(r['py_lines_changed_src']) for r in fb if r['period']==per)
+    add('M01f: changed python lines in sample',per,int(lc),int(l2),cause='different samples; one large commit dominates T2 in C')
+# ---------- M01g
+for per,inp,rv,ap in [('T1',39,5,4),('T2',39,0,0),('T3',40,0,0)]:
+    add('M01g: sampled commits in a pull request',per,inp,inp,40,40,cause='identical 40-commit sample in both runs (120/120 SHAs shared)')
+    add('M01g: pull requests with a review by another account',per,rv,rv,'39/39/40 PRs','39/39/40 PRs',cause='C report divides by 40 commits, C2 by PRs; numerators identical on every commit')
+    add('M01g: pull requests with an approval by another account',per,ap,ap,40,40)
+add('M01g: agent-account column (C: agent trailer on commit; C2: author name pattern)','T1/T2/T3','17/32/29','0/10/15',120,120,status='not comparable',cause='different definitions of agent authorship; recorded as context column only by both')
+# ---------- M02
+add('M02a: frame size',"2026-09-07..11-28",666,698,'2,276 fix-subject commits','2,553 fix-subject commits',cause='fix rule (C prefix/first word only; C2 adds fold/landing fold and keyword fix/bug/regression anywhere); contract rule (C: contracts/schema(s) dirs and *schema* basenames outside kitty-specs/tests; C2: contracts/ dirs incl. kitty-specs contracts)')
+add('M02a: fix-subject commits in window',"2026-09-07..11-28",2276,2553,cause='fix rule')
+add('M02a: frame members by contract path',"",'39 (27 only + part of 12 combined)',74,status='not comparable',cause='contract rule differs')
+add('M02b: frame size',"2026-09-07..11-28",1262,1264,cause='fix rule differences largely cancel for single-component fixes')
+add('M02: fix commits touching no component and no pin/contract',"",348,591,cause='fix rule includes keyword matches in C2; most added commits touch no src')
+add('M02a: sample overlap','30',4,4,30,30,status='not comparable',cause='different frames (C2 27 of 30 sampled SHAs are in C frame); same seed, different frame lists')
+add('M02b: sample overlap','30',2,2,30,30,status='not comparable',cause='C2 draws B from the same RNG after A; C uses a fresh RNG per frame; all 30 C2 B SHAs are in C frame')
+for meas,cv,c2v,cau in [('M02a: defect introduced in the same PR (never on main)',13,13,''),('M02a: defect introduced by earlier change on main',15,15,'C2 "introducer reached main yes"'),('M02a: origin unknown',2,2,''),
+    ('M02a: detection (a) automated before main',1,2,''),('M02a: detection (b) automated after main',0,0,''),('M02a: detection (c) a person',22,16,'C2 splits a "not determinable" bucket (11) that C largely codes as person or untraceable (7)'),('M02a: detection not determinable/untraceable',7,11,'bucket semantics differ'),
+    ('M02b: defect introduced in the same PR',21,21,''),('M02b: defect introduced by earlier change on main',9,9,'C2 counts 8 traced + 1 untraceable later-PR'),('M02b: detection (a)',3,5,''),('M02b: detection (b)',1,1,''),('M02b: detection (c)',8,8,''),('M02b: detection not determinable/untraceable',18,16,'')]:
+    add(meas,'sample of 30',cv,c2v,30,30,cause=('different samples from different frames (overlap 4 / 2); '+cau).strip('; '))
+add('M02a: introducing changes from a Mission with acceptance recorded','sample',4,11,'15 earlier-change cases','20 traced introducers incl. same-PR',status='not comparable',cause='C counts only earlier-change introducers and acceptance on/before PR merge; C2 counts traced introducers incl. same-PR ones and acceptance before/same day as the commit')
+# ---------- events
+ev=rd('C/sibling-events-series.csv'); e2=rd('C2/events-sibling-series.csv')
+EVc={r['group']:r for r in ev if r['variant']=='all'}
+EV2={(r['key'],r['component_set']):r for r in e2 if r['subset']=='ALL'}
+pv=None
+for mo in ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-08','2026-09','2026-10','2026-11']:
+    a=EVc[mo]; b=EV2[(mo,'python+java-modules')]
+    add('events sibling: code commits (monthly)',mo,a['code_commits'],b['n_code_commits'],cause='C components add service/, contracts/, java/ modules; C2 python+java variant')
+    add('events sibling: share >=2 components (monthly)',mo,a['share_ge2'],b['share_ge2'],a['code_commits'],b['n_code_commits'],cause='component universe differs (C module-or-subpackage plus service/contracts/java; C2 first-level module plus java modules)',prev=pv)
+    pv=(a['share_ge2'],b['share_ge2'])
+add('events sibling: T1 share >=2 components','T1',0.75,round((10*1.0+11*0.5455+2*1.0)/23,4),24,23,cause='C2 has no period aggregation; CX pooled C2 python-modules months 04-06 weighted by n')
+add('events sibling: imported core commits identified','2026-10',141,0,status='not comparable',cause='C matched author date and subject; C2 matched SHA only (0 of 1,669 share a SHA)')
+# ---------- recurrence
+add('recurrence: files with corrective commits','2026-01..11',1712,1977,cause='C maps files through rename lineage to final path; C2 uses raw paths; corrective sets differ (3,181 vs 3,611 commits)')
+add('recurrence: files with corrective commits in >=3 months','2026-01..11',497,517,1712,1977)
+add('recurrence: share of corrected files with >=3 months','2026-01..11',round(497/1712,4),round(517/1977,4),1712,1977,cause='denominator differs by rename lineage and class rules')
+add('recurrence: components with corrective commits','2026-01..11',88,88)
+add('recurrence: components with corrective commits in >=3 months','2026-01..11',69,68,88,88)
+# refix
+for per,cn,cd,c2n,c2d,cj in [('T1',435,539,428,541,0.2968),('T3',1624,1917,1331,1880,0.5232)]:
+    pr={'T3':(round(703/937,4),round(631/956,4))}.get(per)
+    add('refix within 14 days: share followed by a fix sharing >=1 src file',per,round(cn/cd,4),round(c2n/c2d,4),cd,c2d,cause='fix set (C fix-subject flag; C2 corrective R2/R6); C maps renamed files to final path; C requires a compatible line for the later fix',prev=pr)
+add('refix within 14 days: share followed by a fix sharing >=1 src file','T2 pooled (C sum of 3 segments)',round((242+116+345)/(345+163+429),4),round(631/956,4),937,956,prev=(0.8071,0.7911))
+add('refix within 14 days: strict overlap variant','T1/T2/T3','0.297/0.443/0.523','0.566/0.521/0.554',status='not comparable',cause='C: Jaccard of the two file sets >=0.5; C2: >=50% of the first fix files shared')
+ASSIGN='component assignment differs: C maps each file through its rename lineage to its final path, C2 maps by directory rules only (80 of 6,345 commits differ in component count, 43 in top-level count; concentrated in src/specify_cli/doctrine and src/doctrine paths)'
+for r in ROWS:
+    m=r['measure']
+    if 'sample overlap' in m or m.startswith('classification: between-run') or m.startswith('classification: rule-vs'):
+        if 'sample overlap' in m or 'between-run' in m: r['classification']='descriptive'
+    if r['classification']=='not replicated' and (m.startswith('M01c') or m.startswith('M01d')) and 'class membership' not in r['cause']:
+        r['cause']=(r['cause']+'; ' if r['cause'] else '')+ASSIGN
+    if r['classification']=='not replicated' and (m.startswith('M01c') or m.startswith('M01d')) and int(float(r['C_denominator'] or 0))<60 and r['C_denominator']:
+        r['cause']+='; small stratum (n<60 in C)'
+    if r['classification']=='not replicated' and m.startswith('co-change'):
+        r['cause']+='; '+ASSIGN
+json.dump(ROWS,open('rows2.json','w'))
+with open('comparison.csv','w',newline='') as f:
+    w=csv.DictWriter(f,fieldnames=list(ROWS[0].keys())); w.writeheader(); w.writerows(ROWS)
+cnt=collections.Counter(); fam=collections.Counter()
+for r in ROWS:
+    m=r['measure'].split(':')[0].split(' (')[0]
+    fam[(m,r['classification'])]+=1; cnt[r['classification']]+=1
+print(cnt)
+for k,v in sorted(fam.items()): print(k,v)
+print(pairs_sum)

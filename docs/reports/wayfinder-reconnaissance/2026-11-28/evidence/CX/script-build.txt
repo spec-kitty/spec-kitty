@@ -1,0 +1,101 @@
+import csv,json,collections,math
+E='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/'
+def rd(p): return list(csv.DictReader(open(E+p)))
+ROWS=[]
+def rel(a,b):
+    if a is None or b is None: return None
+    if a==b: return 0.0
+    m=(abs(a)+abs(b))/2
+    return abs(a-b)/m if m else None
+def add(measure,slice_,cv,c2v,cden='',c2den='',status=None,cause='',prev=None):
+    """prev=(cprev,c2prev) for direction"""
+    try: a=float(cv) if cv not in ('',None) else None
+    except: a=None
+    try: b=float(c2v) if c2v not in ('',None) else None
+    except: b=None
+    ad=abs(a-b) if a is not None and b is not None else None
+    r=rel(a,b)
+    if status is None:
+        status='replicated' if (r is not None and r<=0.10) else ('not replicated' if r is not None else 'not comparable')
+    sd=''
+    if prev and a is not None and b is not None and prev[0] not in (None,'') and prev[1] not in (None,''):
+        da=(a>float(prev[0]))-(a<float(prev[0])); db=(b>float(prev[1]))-(b<float(prev[1]))
+        sd='yes' if da==db else 'no'
+    ROWS.append(dict(measure=measure,slice=slice_,C_value=cv,C_denominator=cden,C2_value=c2v,C2_denominator=c2den,
+        abs_diff='' if ad is None else round(ad,4),rel_diff='' if r is None else round(r,4),
+        same_direction_vs_previous_slice=sd,classification=status,cause=cause))
+    return a,b
+# ---------- volume
+vc={r['group']:r for r in rd('C/volume-denominators.csv')}
+v2={(r['scope'],r['key'],r['line'],r['class']):r for r in rd('C2/volume-denominators.csv')}
+CL=['capability-growth','corrective-maintenance','restructuring','compatibility-work','convergence-activity','other']
+def c2p(per,line='all-lines',cls='ALL'): return v2[('period',per,line,cls)]
+cmap={'T1':['T1'],'T2':['T2-pooled'],'T2-public':['T2-pre-fork','T2-public'],'T2-experimental':['T2-experimental'],'T3':['T3']}
+c2map={'T1':('T1','all-lines'),'T2':('T2','all-lines'),'T2-public':('T2','public'),'T2-experimental':('T2','experimental'),'T3':('T3','all-lines')}
+BULKNOTE='C non-merge/code counts include bulk commits; C2 counts exclude them (C bulk_code_commits_excluded subtracted where shown)'
+prev={}
+for sl in ['T1','T2','T2-public','T2-experimental','T3']:
+    cg=[vc[g] for g in cmap[sl]]; r2=c2p(*c2map[sl])
+    s=lambda k:sum(int(x[k]) for x in cg)
+    nm=s('nonmerge_commits')-s('bulk_code_commits_excluded')-s('bulk_noncode'); cc=s('code_commits')-s('bulk_code_commits_excluded')
+    pv=prev.get(('nm',sl[:2])) if sl in('T2','T3') else None
+    add('volume: non-merge non-bulk commits',sl,nm,r2['nonmerge_nonbulk_commits'],cause='C value = nonmerge - bulk (derived by CX from C volume-denominators.csv)')
+    add('volume: code commits (non-bulk)',sl,cc,r2['code_commits'],cause='C value = code_commits - bulk_code_commits_excluded')
+    add('volume: changed src lines in code commits',sl,s('src_changed_lines_code_nonbulk'),r2['changed_lines_src'])
+    add('volume: merge commits',sl,s('merge_commits'),r2['merge_commits'])
+    for c in CL:
+        rc=c2p(c2map[sl][0],c2map[sl][1],c)
+        add('volume: code commits by class',sl+' / '+c,s('code_'+c),rc['code_commits'],cc,r2['code_commits'],cause='class rule sets differ (see class-confusion-all.csv)')
+        add('volume: changed src lines by class',sl+' / '+c,s('srclines_'+c),rc['changed_lines_src'],cause='class rule sets differ')
+# source lines at period ends
+add('volume: python lines under src at T1 end (2026-06-30)','T1 end',287790,287790)
+add('volume: python lines under src at P3a public end','T2 end public',423962,423962)
+add('volume: python lines under src at P3b EXPERIMENTAL end','T2 end experimental',379818,379818)
+add('volume: python lines under src at head','T3 end',524936,524936)
+add('volume: python lines under src at 2026-03-31','T0',91275,91274,cause='1-line difference; counting method (physical lines) not isolated')
+# ---------- M01c / M01d
+mc={(r['group'],r['cls']):r for r in rd('C/m01c-m01d-components-per-commit.csv')}
+m2={(r['scope'],r['key'],r['line'],r['component_granularity'],r['class']):r for r in rd('C2/M01c-M01d-components-per-code-commit.csv')}
+cper={'T1':'T1','T2':'T2-pooled','T2-experimental':'T2-experimental','T3':'T3'}
+c2per={'T1':('T1','all-lines'),'T2':('T2','all-lines'),'T2-experimental':('T2','experimental'),'T3':('T3','all-lines'),
+       'T2-public-prefork':('T2-prefork','public'),'T2-public-forkwindow':('T2-fork-window','public')}
+cper.update({'T2-public-prefork':'T2-pre-fork','T2-public-forkwindow':'T2-public'})
+PCT='p90 method differs: C nearest-rank integer, C2 linear interpolation'
+store=collections.defaultdict(dict)
+for cls in ['ALL']+CL:
+    for sl in ['T1','T2','T2-public-prefork','T2-public-forkwindow','T2-experimental','T3']:
+        a=mc.get((cper[sl],cls)); b=m2.get(('period',)+c2per[sl]+('ncomp',cls)); bt=m2.get(('period',)+c2per[sl]+('ntop',cls))
+        if not a or not b: continue
+        cause_cls='' if cls=='ALL' else 'class membership differs between rule sets'
+        if sl.startswith('T2-public'): cause_cls=(cause_cls+'; ' if cause_cls else '')+'line boundary: C reachability from fork point 38090b6493, C2 date >= 2026-08-19 (8 commits move)'
+        pp={'T2':'T1','T3':'T2','T2-experimental':'T1','T2-public-prefork':'T1','T2-public-forkwindow':'T1'}.get(sl)
+        for meas,ka,kb,src in [('M01c mean components','comp_mean','mean',(a,b)),('M01c median components','comp_median','median',(a,b)),('M01c p90 components','comp_p90','p90',(a,b)),('M01d share >=2 components','share_ge2_components','share_ge2',(a,b)),('M01d share >=2 top-level packages','share_ge2_toplevel','share_ge2',(a,bt))]:
+            x,y=src
+            if y is None: continue
+            pv=store[(meas,cls)].get(pp)
+            cau=cause_cls+(('; ' if cause_cls else '')+PCT if 'p90' in meas else '')
+            add(meas,sl+' / '+cls,x[ka],y[kb],a['n_code_commits'],b['n_code_commits'],cause=cau,prev=pv)
+            store[(meas,cls)][sl]=(x[ka],y[kb])
+# monthly
+months=[('2026-01','pre-fork','public'),('2026-02','pre-fork','public'),('2026-03','pre-fork','public'),('2026-04','pre-fork','public'),('2026-05','pre-fork','public'),('2026-06','pre-fork','public'),('2026-07','pre-fork','public'),('2026-08',None,'public'),('2026-09','public','public'),('2026-08','experimental','experimental'),('2026-09','experimental','experimental'),('2026-09','converged','main-post'),('2026-10','converged','main-post'),('2026-11','converged','main-post')]
+last={}
+for mo,cl,l2 in months:
+    b=m2[('month-line',mo,l2,'ncomp','ALL')]
+    if cl is None:
+        a1=mc[('month 2026-08 pre-fork','ALL')]; a2=mc[('month 2026-08 public','ALL')]
+        n=int(a1['n_code_commits'])+int(a2['n_code_commits'])
+        mean=(float(a1['comp_mean'])*int(a1['n_code_commits'])+float(a2['comp_mean'])*int(a2['n_code_commits']))/n
+        sh=(float(a1['share_ge2_components'])*int(a1['n_code_commits'])+float(a2['share_ge2_components'])*int(a2['n_code_commits']))/n
+        a=dict(n_code_commits=n,comp_mean=round(mean,3),share_ge2_components=round(sh,4),comp_median='',comp_p90='')
+        cau='C splits 2026-08 into pre-fork and public segments; CX pooled C means/shares weighted by n; medians not poolable'
+    else:
+        a=mc[(f'month {mo} {cl}','ALL')]; cau=''
+    key=l2
+    pv=last.get(key)
+    add('M01d share >=2 components (monthly)',f'{mo} {l2}',a['share_ge2_components'],b['share_ge2'],a['n_code_commits'],b['n_code_commits'],cause=cau,prev=pv and pv[0])
+    add('M01c mean components (monthly)',f'{mo} {l2}',a['comp_mean'],b['mean'],a['n_code_commits'],b['n_code_commits'],cause=cau,prev=pv and pv[1])
+    if a['comp_median']!='':
+        add('M01c median components (monthly)',f'{mo} {l2}',a['comp_median'],b['median'],a['n_code_commits'],b['n_code_commits'])
+    last[key]=((a['share_ge2_components'],b['share_ge2']),(a['comp_mean'],b['mean']))
+json.dump(ROWS,open('rows1.json','w'))
+print(len(ROWS))

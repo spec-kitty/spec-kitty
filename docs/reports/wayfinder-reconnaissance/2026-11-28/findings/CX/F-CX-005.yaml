@@ -1,0 +1,63 @@
+finding_id: F-CX-005
+workstream: CX - comparison of two independent runs of workstream C measures
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: co-change matrix top pairs
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Co-change top pairs replicate: the top-15 pair sets share 14 of 15 pairs in T1, 15 of 15 in T2 pooled, 15
+  of 15 in T2 EXPERIMENTAL and 15 of 15 in T3; the leading pair is the same in T1 (charter/offering with specify_cli/cli,
+  84 vs 83 of 947) and T3 (specify_cli/(root) with specify_cli/cli, 98 vs 99 of 3,026); in T2 pooled C ranks cli
+  with core first (74) tied with (root) with cli (74), C2 ranks (root) with cli first (77) then cli with core (74).
+  Among pairs with at least 10 joint commits in either run, the joint count differs by at most 10% for 173 of 216
+  pairs in T1 (80%), 108 of 120 in T2 pooled, 15 of 15 in T2 EXPERIMENTAL and 123 of 127 in T3. The share of code
+  commits touching specify_cli/cli is 470/947 and 1,096/3,026 in both runs.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: '@@comparison.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+- id: E2
+  kind: executed
+  reference: evidence/CX/cochange-pairs-compared.csv
+  method: 'python3 inline: union of pairs with >=10 joint commits per slice from both pair files'
+  sha256: '@@cochange-pairs-compared.csv'
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+  observed_at: '2026-11-28T09:55:37Z'
+scope:
+  covered: T1, T2 pooled, T2 EXPERIMENTAL, T3; the T2 public line (C2 pooled 1,106 commits) compared against the
+    sum of C pre-fork and fork-window pair counts, which is a lower bound because C applies the >=3 threshold per
+    segment (14 of 15 top pairs shared; 54 of 78 frequent pairs within 10%).
+  not_covered: Pair confidence and Jaccard values were not tabulated separately; they follow from the same counts.
+  population: 'pairs with >=3 joint commits: T1 874 (C) / 857 (C2); T3 491 / 488'
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for pairs present in one run only among frequent pairs, and for slices where the leading pair changes.
+  result: T1 has the most pair-level differences, all in pairs involving charter and doctrine-era paths, where the
+    two rename maps differ (file lineage in C, directory rules in C2).
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

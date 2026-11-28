@@ -1,0 +1,7 @@
+sha12,frame_C,C_introducing_kind,C_detection,C2_id,C2_introducer_status,C2_reached_main_before_fix,C2_detection_code,origin_agree,detection_agree_mapped
+2446a12cd9c8,m02a,same-pr,a,A12,traced-weak,"no(same-PR, pre-main)",a-automated-pre-main,yes,yes
+046e9e28ea75,m02a,untraceable,c,A03,untraceable,yes,c-report,no,yes
+126dd7e1666d,m02a,same-pr,untraceable,A19,traced-weak,"no(same-PR, pre-main)",pre-main-unstated,yes,yes
+f2a6e8db0f29,m02a,untraceable,c,A13,untraceable,yes,unstated-post-main,no,no
+4f92c5d72c7e,m02b,same-pr,untraceable,B21,traced,"no(same-PR, pre-main)",pre-main-unstated,yes,yes
+5f5b523d8a31,m02b,same-pr,c,B02,traced-weak,"no(same-PR, pre-main)",c-reviewer-pre-main,yes,yes

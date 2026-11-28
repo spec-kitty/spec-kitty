@@ -1,0 +1,259 @@
+[
+ [
+  "019-autonomous-multi-agent-orchestration-research",
+  8,
+  0,
+  {},
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "artifact-none-single-meaning-01M5365S",
+  3,
+  0,
+  {
+   "agent": 3,
+   "agent_profile": 3,
+   "provider": 3,
+   "shell_pid_created_at": 3,
+   "agent_profile_version": 3,
+   "model": 3,
+   "shell_pid": 3,
+   "role": 3,
+   "subtasks": 3,
+   "notes": 3
+  },
+  {
+   "mission_number": [
+    "",
+    "233"
+   ],
+   "mission_type": [
+    "",
+    "software-dev"
+   ],
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "built-in-pack-from-open-packs-01M59V4T",
+  9,
+  0,
+  {
+   "agent_profile": 9,
+   "provider": 9,
+   "shell_pid_created_at": 9,
+   "agent_profile_version": 9,
+   "model": 9,
+   "shell_pid": 9,
+   "role": 9,
+   "subtasks": 9,
+   "notes": 9
+  },
+  {
+   "mission_number": [
+    "",
+    "237"
+   ],
+   "mission_type": [
+    "",
+    "software-dev"
+   ],
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "gate-scan-scope-completeness-01M6BTVM",
+  2,
+  0,
+  {
+   "agent": 2,
+   "agent_profile": 2,
+   "provider": 2,
+   "shell_pid_created_at": 2,
+   "agent_profile_version": 2,
+   "model": 2,
+   "shell_pid": 2,
+   "role": 2,
+   "subtasks": 2,
+   "notes": 2,
+   "tracker_refs": 2
+  },
+  {
+   "mission_number": [
+    "",
+    "246"
+   ],
+   "mission_type": [
+    "",
+    "software-dev"
+   ],
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "implement-review-retrospect-reliability-01KQQSCW",
+  6,
+  0,
+  {
+   "implementer_of_record": 6
+  },
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "integration-boundary-01KW0PBE",
+  5,
+  0,
+  {},
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "mission-base-window-bound-01M78XB4",
+  5,
+  0,
+  {
+   "agent": 5,
+   "agent_profile": 5,
+   "provider": 5,
+   "shell_pid_created_at": 5,
+   "agent_profile_version": 5,
+   "model": 5,
+   "shell_pid": 5,
+   "role": 5,
+   "subtasks": 5,
+   "notes": 5
+  },
+  {
+   "mission_number": [
+    "",
+    "258"
+   ],
+   "mission_type": [
+    "",
+    "software-dev"
+   ],
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "per-project-sync-consent-ledgers-01KZKMQZ",
+  11,
+  0,
+  {
+   "implementer_of_record": 7
+  },
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "review-merge-gate-hardening-3-2-x-01KRC57C",
+  8,
+  0,
+  {
+   "implementer_of_record": 8
+  },
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
+  8,
+  0,
+  {
+   "implementer_of_record": 8
+  },
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "terminus-reconciliation-attribution-integrity-01M3D4RW",
+  2,
+  0,
+  {
+   "agent_profile": 2,
+   "provider": 2,
+   "shell_pid_created_at": 2,
+   "agent_profile_version": 2,
+   "model": 2,
+   "shell_pid": 2,
+   "role": 2,
+   "subtasks": 2,
+   "notes": 2,
+   "tracker_refs": 2
+  },
+  {
+   "mission_type": [
+    "",
+    "software-dev"
+   ],
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ],
+ [
+  "verification-trust-3115-01KYVYWM",
+  13,
+  0,
+  {
+   "implementer_of_record": 12
+  },
+  {
+   "schema_version": [
+    null,
+    2
+   ]
+  },
+  false
+ ]
+]
