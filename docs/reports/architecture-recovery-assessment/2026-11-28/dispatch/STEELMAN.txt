@@ -1,0 +1,16 @@
+# Brief: the case for what exists
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Profile: reviewer-renata. Id: ST.
+
+The assessors were told to assume nothing deserves to survive. You provide the counterweight, so that nothing is removed whose reason nobody looked for. You are not asked to defend the present design as a whole; you are asked to find the best real reason for each mechanism that an assessor wants simplified, replaced or removed, and to say honestly when there is none.
+
+Read A/mechanisms/M1.md to M8.md, A/duplication/catalogue.md and A/needs/needs-and-journeys.md. For each mechanism, mode or rule that an assessor proposes to simplify, consolidate, replace or remove:
+
+1. Find why it exists: the ADR, issue reference in a comment, test name or incident it answers (core docs/adr/, the charter and events ADRs, code comments, CLAUDE.md, W/synthesis/decision-timeline.csv). A record is evidence of a reason, not proof that the reason still holds (ruling R1).
+2. State the failure it prevents as a concrete scenario a user could meet.
+3. Judge: does the failure still occur if the mechanism it compensates for is itself removed or simplified as proposed? Is the failure likely for the documented journeys, or only inside Spec Kitty's own heavy use? Would a simpler means (git itself, a protected branch, a pull request review, one check) prevent it as well?
+4. Verdict per item: the reason holds and the proposal loses it; the reason holds and the proposal keeps it by other means; the reason no longer holds; no reason found.
+
+Also name what the assessors did not look at that a removal would break: consumers in other repositories, documented user journeys, the principles in ruling R8.
+
+Write A/challenge/steelman.md (at most 3,500 words) and A/challenge/steelman.csv: mechanism, proposal, reason_found, source_reference, failure_scenario, still_needed_after_proposal (yes, no, partly, unknown), verdict, confidence. Lead with the items where the reason holds and the proposal loses it.

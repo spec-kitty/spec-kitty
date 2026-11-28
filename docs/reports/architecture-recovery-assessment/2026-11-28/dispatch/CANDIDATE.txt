@@ -1,0 +1,20 @@
+# Brief: candidate architecture (two architects, written independently)
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Profile: architect-alphonso (scope: propose; the architect decides). Your id and stance are in your instructions. Do not read the other candidate's file.
+
+Inputs: A/needs/needs-and-journeys.md and capabilities.csv; A/mechanisms/M1.md to M8.md; A/duplication/catalogue.md; W/synthesis/component-catalogue.md, dependency-models.md, independence-and-contracts.md. Read code where you need to check that something you rely on is true.
+
+Design the architecture you would choose for Spec Kitty 4.0 if you were not obliged to keep present implementation choices, from the capabilities and quality attributes actually required. Nothing existing is a fixed constraint (R6, R7). Keep the principles of R8 and challenge any whose application you find unjustified, saying what you would keep of it.
+
+Write A/candidates/<id>.md, at most 4,500 words:
+
+1. **The architecture in one page.** The handful of concepts a user and a contributor must hold in their head, and one diagram in text (a small table or an indented outline of components and what each owns).
+2. **Capabilities kept, changed and dropped.** Every capability in capabilities.csv: kept, kept in reduced form, dropped, with the reason. Essential capability and present mechanism are different things; say which mechanism now carries each capability.
+3. **Components and ownership.** Each component: the one responsibility it owns, what it knows nothing about, its public interface, where its state lives and who else may read or write it. One owner per domain rule; say where each rule that is duplicated today would live.
+4. **The mechanisms in scope, one by one.** Workspaces and parallel work; mission-type definition and the step runtime; Mission and work-package lifecycle; events; Charter and packs; execution coordination and agent integration; landing approved work with evidence; upgrade and compatibility. For each: the design, what it deletes relative to today (concepts, modes, stores, rough lines), and what it deliberately no longer does.
+5. **How the extension points work.** What a mission-type author, a pack author, an agent-tool integrator and an external orchestrator can change without editing core, and the rule that keeps core free of special cases for any of them.
+6. **State and authority.** The complete list of persistent stores, each with one authority and its derived views. What the events system and the charter system own at the end state.
+7. **Quality attributes.** How the design meets the ones the needs require (for example: recoverable after interruption, safe with several agents, auditable, usable offline, replaceable parts), and which it trades away.
+8. **What this design is worse at** than today, honestly, and for whom.
+9. **Alternatives you rejected** at the main forks (at least three forks), and what would make you choose them.
+10. **Dependencies on decisions** only the architect can make.

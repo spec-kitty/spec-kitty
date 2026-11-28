@@ -1,0 +1,15 @@
+# Brief: challenge of the candidate architectures
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Profile: paula-patterns. Id: CH.
+
+Two candidate architectures were written independently from different stances: A/candidates/CA.md and A/candidates/CB.md. Inputs they used: A/needs/, A/mechanisms/, A/duplication/. A separate paper gives the case for what exists: A/challenge/steelman.md and steelman.csv. Challenge both candidates; you do not write a third.
+
+1. **Against the needs.** For each capability rated core or important in A/needs/capabilities.csv: does each candidate still provide it, and by what? List losses.
+2. **Against the steelman.** For each item where the steelman says the reason holds and the proposal loses it: what does each candidate do about it?
+3. **Against reality.** Pick the ten claims each candidate rests on most ("X has one caller", "Y is only needed because of Z", "nothing outside core reads W") and check each in the code. Report: true, partly, false, with references.
+4. **Against themselves.** Where does a candidate reintroduce the kind of complexity it removes (a new mode, a second store, a special case, a seam with one implementation)? Where is a "simplification" only a move?
+5. **Against the principles** in ruling R8: where does each candidate weaken Human in Charge, responsible delegation, explicit ownership, independent evolvability or governed coordination, and is the weakening argued or silent?
+6. **Where they agree and differ.** A table of the main forks: what each chose, the cost of each choice, what evidence or ruling would decide it. Agreement reached independently is worth more; mark it.
+7. **Source references.** Spot-check twenty source references across the mechanism assessments and the duplication catalogue (seeded choice, seed 20261128, state how you drew them): does the code at that path say what the document claims?
+
+Write A/challenge/candidate-challenge.md (at most 4,000 words) and A/challenge/forks.csv (fork, CA_choice, CB_choice, cost_CA, cost_CB, decided_by). Grade your findings major (would change a disposition or the roadmap), minor, note.
