@@ -1,0 +1,70 @@
+# Brief for the consolidated report
+
+You write the consolidated report of an architectural recovery assessment of the Spec Kitty ecosystem, commissioned by its human architect. All working stages are finished. You add no new finding and no new judgement: you report what the deliverables establish, where the perspectives disagree, and what the architect has to decide.
+
+A = /home/user/spec-kitty/docs/reports/architecture-recovery-assessment/2026-11-28/
+S = /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/
+
+## Profile and format
+
+- Profile: comms-cleo. In /home/user/spec-kitty run `spec-kitty agent profile show comms-cleo` and `spec-kitty charter context --action review --include agent-profile:synthesizer-sam --include agent-profile:comms-cleo --json` (stderr warnings about a typescript toolguide are benign).
+- Format: the established executive debrief, long form. Read and follow, in /home/user/spec-kitty: packs/internal/procedures/executive-debrief-generation.procedure.yaml, packs/internal/styleguides/executive-debrief.styleguide.yaml, packs/internal/skills/report-debrief.skill.md, docs/development/reporting/debrief-styleguide.md, packs/internal/tactics/branded-deliverable.tactic.yaml, and the example PDFs in docs/development/reporting/examples/. An earlier report of this session in the same format is docs/reports/wayfinder-reconnaissance/2026-11-28/report/wtf-is-up-with-the-spec-kitty-architecture.md; match its conventions (it was accepted by the reader), not its content. The title follows the format's convention, for example "WTF should Spec Kitty 4.0 keep".
+- Order of the long form: executive summary (bottom line, headline table, what we found, what we need from the architect), lettered parts, open risks, appendix. Write the summary for the least technical named reader.
+- Readers: the human architect of Spec Kitty, who decides, and an outside observer who interprets the result and has not read the code.
+
+## Read
+
+A/00-mandate-and-rulings.md (the rulings R1 to R20 bind the report's framing), the nine deliverables A/01 to A/09 with their .csv files, A/challenge/candidate-challenge.md, forks.csv and steelman.md, A/needs/needs-and-journeys.md. The mechanism assessments, candidates and duplication catalogue are the working material behind them; open them where you quote a number or a source reference.
+
+## What the report must do
+
+- Answer the architect's six questions in this order, plainly: how problematic the current architecture is; which mechanisms add unnecessary complexity; which capabilities are genuinely needed; what a simpler coherent architecture could look like; what prevents moving towards it; how to get there in steps while the product keeps working.
+- Keep the necessity of a capability apart from the necessity of its present implementation (R14). Say where several generations of a solution run at once.
+- Keep four things visibly apart: intended target, current implementation, transitional arrangements (each with its end), legacy to retire (R17).
+- Present the recommended architecture with its alternatives at the main forks. Say what the two candidates agreed on independently, what the challenge found, and what remains conditional on a decision. Do not present a conditional choice as settled.
+- Give the dispositions as a table: capability or mechanism, disposition, one-line reason, confidence, the decision it waits on. Show where assessor, steelman and challenge disagree.
+- Present each breaking change as a trade-off: who and what is affected, migration options, cost (R16). User data and capabilities are not disposable.
+- Give the roadmap as steps with what each deletes, and name what can be deleted or tried now without a ruling.
+- Give the outstanding decisions in the order of how much each unblocks, with the default assumed.
+- Say what this implies for Wayfinder, as derived requirements (R19), briefly.
+- Say plainly how much to trust it: evidence is representative, not exhaustive; which claims were checked against code by the challenger and with what result; what was read statically and never run; sizes that are estimates; what was not assessed. Counts are pointers, not evidence of unnecessary complexity (R15), and low use in Spec Kitty's own repositories is not evidence that something is unnecessary.
+- No history of who caused what (R2). No implementation or remediation is authorised; the roadmap is a proposal. Every number and statement traces to a file in A; cut what cannot be traced. Source references to code may be quoted where they make a pattern concrete (three or four vivid examples serve the reader better than a list).
+- Length: body at most 6,500 words; tables and appendix in addition. Plain, short sentences. Explain each technical term once. Use the ecosystem's terms; the domain object is a Mission.
+
+## Departures from the debrief procedure, with the architect's authority
+
+State these in the method section: (1) this debrief does not report GitHub activity, so the collector was not run; every number traces to a file in A instead; (2) the work ran as a Mission of the `plan` type with profile-loaded subagents, not as a dispatch Op; (3) the architect ruled that the documents are stored in A on a research branch; the Markdown source goes to A/report/, and the PDF is written outside the repository and handed over.
+
+## Envelope
+
+Never modify, stage or commit anything under /home/user except new files under A/report/. No state-changing git command. Nothing is posted anywhere. Before you finish run `python3 S/tools/scrub2.py A/report`.
+
+## Outputs
+
+1. A/report/wtf-should-spec-kitty-4-keep.md (or the title you choose, in the same slug form), starting with exactly
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+The generator draws a first-level heading as a part title and a second-level heading as a subsection; the body starts at the executive summary.
+2. A/report/traceability.csv: section, statement (short), kind (current, target, transitional, legacy, disposition, decision, method), source files.
+3. The PDF in S/report2-out/, same file name with .pdf, rendered with the long-form generator in the prepared environment (do not install anything into /home/user/spec-kitty and do not edit the generator):
+
+```
+PATH=S/pdfvenv/bin:$PATH S/pdfvenv/bin/python /home/user/spec-kitty/packs/internal/assets/spec-kitty-branded-pdf.py \
+  --input <a copy of the Markdown in S/report2-out/ with the frontmatter block removed> \
+  --output S/report2-out/<name>.pdf --design-repo S/design-copy \
+  --eyebrow "..." --title "..." --subtitle "..." --lede "..." --footer-center "..." \
+  --meta "AS OF=2026-11-28" --meta "SCOPE=..." --meta "FOR=..."
+```
+
+(replace S by the full scratch path).
+4. Verify: `pdfinfo`; rasterise every page with `pdftoppm -png -r 60` into S/report2-out/pages/ and look at them (Read tool) for broken tables, overflow, orphaned headings and missing fonts; fix and re-render until clean. Then re-check every number in the executive summary against its source file.
+
+## Final message
+
+At most 200 words: files written, page count, body word count, departures from this brief, anything cut as untraceable. No summary of the content.
