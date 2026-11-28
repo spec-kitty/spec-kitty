@@ -7,16 +7,17 @@ updated: '2026-11-28'
 
 A read-only investigation of the intended, observed and evolving architecture of the Spec Kitty ecosystem. Its purpose is to give the human architect the evidence needed to design Wayfinder, an architectural knowledge and assurance repository. It changes no product documentation, code, test, rule or CI configuration, and it starts no remediation.
 
-**Status: pre-registration submitted for approval. No workstream has been dispatched and no hypothesis measurement has been taken for the record.**
+**Status: pre-registration approved by the human architect on 2026-11-28 (see `04-approval-and-dispatch.md`). Investigation in progress; no finding in this folder is final until the review stages are complete.**
 
 | File | What it holds | State |
 |---|---|---|
 | [00-rulings-and-deviations.md](00-rulings-and-deviations.md) | The architect's rulings, the authorised deviations from the charter, and what grounding already observed | recorded |
-| [01-pre-registration.md](01-pre-registration.md) | Revision model, measures, thresholds, samples and controls, fixed before measurement | awaiting approval |
-| [02-prediction-packet.md](02-prediction-packet.md) | The redacted packet for the outside observer: definitions and criteria, no outcomes | awaiting approval |
-| [03-access-requirements.md](03-access-requirements.md) | Repositories and surfaces the investigation still needs, and blocked builds | awaiting decision |
+| [01-pre-registration.md](01-pre-registration.md) | Revision model, measures, thresholds, samples and controls, fixed before measurement | approved 2026-11-28 |
+| [02-prediction-packet.md](02-prediction-packet.md) | The redacted packet for the outside observer: definitions and criteria, no outcomes | approved 2026-11-28 |
+| [03-access-requirements.md](03-access-requirements.md) | Repositories and surfaces the investigation still needs, and blocked builds | granted 2026-11-28 |
+| [04-approval-and-dispatch.md](04-approval-and-dispatch.md) | The approval, the stages and how workstreams were briefed | recorded |
 
-Findings, raw evidence, the synthesis and the adversarial review will be added beside these files once the pre-registration is approved. This folder is additive only.
+Other content: `dispatch/` (the briefs given to each workstream), `grounding/` (notes of the grounding squad, as raw text), `operations-log.txt`, and, as the stages complete, `findings/`, `evidence/`, `workstream-reports/`, `synthesis/`, `review/`, `evaluation/`, `dialectic/` and `report/`. This folder is additive only with respect to the rest of the repository.
 
 ## Inspected revisions
 

@@ -1,0 +1,184 @@
+# Wayfinder grounding — intent landscape and brief-vs-reality alignment
+
+Delegate lens: INTENT LANDSCAPE. Read-only. Pinned SHAs per PINS.md (core 5c4fc5a7, charter 06cdfbe9,
+events 646e330b, open-packs f9a55751, doc-kitty 1acc49fb). Date 2026-11-28.
+Paths are relative to /home/user/<repo>. "OBS" = observation (checked in files), "INT" = interpretation.
+
+Profile applied: architect-alphonso (design/evaluate, no implementation code). Directives applied:
+DIRECTIVE_001 (architectural integrity: keep component boundaries explicit), DIRECTIVE_003 (decision
+documentation: cite the record, not memory), DIRECTIVE_031 (context-aware design: name the bounded context
+of each term), DIRECTIVE_032 (conceptual alignment: never assume shared vocabulary means shared meaning —
+the reason for section 2), USE_C4_MODEL_TECHNIQUES (levels kept apart in the authority map). Charter
+principle "single canonical authority" (.kittify/charter/charter.md:98) used as the test in section 1.
+
+---
+
+## 1. Authority map
+
+### 1.1 spec-kitty/spec-kitty (core)
+
+| Surface | Where | Claims |
+|---|---|---|
+| Project charter | `.kittify/charter/charter.md` (800 L, v1.8.0, updated 2026-11-25) | "binding governance document"; CLAUDE.md says "If the charter and this file ever disagree, the charter wins". Header (lines 3-30) is a dated direction log. "Architecture: Shared Package Boundaries" at :378-441; "Internal Runtime Boundary" :442-450; amendment process :686-708 (major change = ADR + PR). |
+| ADRs | `docs/adr/{1.x,2.x,3.x,4.x}/` = 13 + 38 + 139 + 53 = **243** records (+1 root README). Frontmatter `status:`: 183 accepted, 30 superseded, 26 proposed, 4 with none. | "dated, immutable decision records per era" (docs/architecture/README.md:65); "a later ADR supersedes an earlier one explicitly, never by silence" (:106). OBS: 54 ADRs carry in-place "Amendment 20xx" sections, so records are amended in place; docs/adr/README.md also documents renaming/deleting ADRs. |
+| Architecture corpus | `docs/architecture/` (README.md "Boundary rule (single source of truth)" :31-48) | "docs/architecture + docs/adr = decisions & models, authoritative"; "When the two overlap, architecture wins" (:42-43). |
+| Enforced SSOT | `pyproject.toml` wheel packages + `tests/architectural/test_layer_rules.py` + `conftest.py` landscape fixture | "Module boundaries are owned by code, not prose" (docs/architecture/README.md:48-50); "on any conflict, the enforced pair wins" (00_landscape/README.md:343-348). Chain: `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`. `tests/architectural/` holds **404** files incl. baselines/allowlists/ratchets (`_baselines.yaml`, `_ratchet_keys.py`, `charter_offering_public_surface.yaml`, `global_state_allowlist`, ...). |
+| Landscape (C4 L0) | `docs/architecture/00_landscape/README.md` (362 L, updated 2026-10-19) | Derived view. Names conceptual containers: User (Human in Charge), Control Plane, Kitty-core, Event Store, Orchestration, Dashboard, Agent Tool Connectors, Doctrine, Charter (:131-215). Self-flags its Mermaid diagram as predating #5530 and the October direction (:74-76). |
+| Living C4 | `docs/architecture/diagrams/{01_context,02_containers,03_components}/` | Living. `02_containers/README.md:250-330` "Open-core container view: producer ecosystem" is the **closest thing to an ecosystem-level diagram** in any of the five repos: CLI, ledger, reducer, Mission-Status Read API, charter, packs; events/tracker/open-packs/doc-kitty as "four extracted packages"; Team Kitty as one opaque consumer. |
+| Vision | `docs/architecture/vision/README.md` (60 L, updated 2026-10-03) | Forward intent, mutable; names the roadmap as authority for 4.0.0 intent (:43-44). Five bullets only (:47-58). |
+| Plans | `docs/plans/4-0-0-milestone-roadmap.md` (539 L), `4-x-executive-overview.md` (170 L, 2026-10-06 snapshot with 2026-11-24 status note), `docs/plans/domains/*.md` (three "durable domain plans") | Roadmap is "authority for intent" of the cycle. |
+| Glossary | `docs/context/*.md` (27 pages) | "Terminology canon lives in the glossary context pages" (docs/architecture/README.md:45-47). Entries carry Status / Applicable-to / Do-NOT-use-when. |
+| Agent instructions | `CLAUDE.md`, `AGENTS.md` (881 L) | Restate charter + ADR direction; defer to charter. |
+| Docs site | `site/` builds docs.spec-kitty.ai from `../docs` with doc-kitty (site/astro.config.mjs:1,40; ADR 4.x/2026-10-31-1). So "docs.spec-kitty.ai/architecture/diagrams/" in the brief = `docs/architecture/diagrams/` in core. |
+
+Conflict order, as stated: enforced pair > charter > ADR/architecture > rest of docs; glossary for terms.
+INT: this order is stated in three different files, never in one place.
+
+OBS — staleness inside core's own authority surfaces:
+- docs/architecture/README.md:63-65, :83 and 00_landscape/README.md:359 point at a frozen 2.x C4 snapshot under `docs/architecture/{01_context,02_containers,03_components}/`. Those directories do not exist; the snapshot is at `docs/archive/architecture/01_context` etc.
+- docs/architecture/README.md:86 names `docs/plans/engineering-notes/architecture-audits/`. It does not exist; the reviews are in `docs/plans/engineering-notes/architectural-review/`.
+- docs/architecture/README.md:84, :101-104 list ADR eras 1.x-3.x in the table but 4.x only in a later bullet.
+- docs/plans/4-x-executive-overview.md:109-111 and :168-169 still say the charter becomes "its own external contract package in its own repository" (ADR 2026-10-12-2, Superseded 2026-10-19). The page's status note (:20-23) says the body is a 2026-10-06 snapshot, so it is labelled, but a reader of "Leg 2" gets the reversed direction.
+- docs/adr/4.x/2026-10-12-2 superseded banner says `charter.activation` stays in core "until its post-GA rework"; charter.md:5-9 (2026-11-25) says the switch is a 4.0 deliverable.
+- Cross-repo: core (charter.md:432-433, CLAUDE.md) says the GA charter leg is "frozen seam plus a green conformance corpus"; spec-kitty-charter ADR-0010 Amendment 2026-11-03 says "The conformance corpus no longer gates the switch" (the design, not core's Python answers, is the oracle, ADR-0055 D3). INT: one side is stale or the two gates are different things; workstream A should resolve.
+
+### 1.2 spec-kitty/spec-kitty-charter
+
+- ADRs: `docs/adr/0001..0083` = **83** records + README; sequential numbering; frontmatter `decision_status:` (all Accepted variants, one Proposed); 55 files mention supersession; amendments in place.
+- ADR-0015 "charter repository is canonical for charter structure" (consumers, core included, adapt). ADR-0008 (Python charter stays in core, Java rewrite replaces it), ADR-0010 (cutover scope; core governs only seam routing), ADR-0055 (Java service first).
+- Architecture: `docs/architecture/` (18 pages incl. overview, hexagonal-service, strangler-transition, service-lifecycle, events-and-ledger), `docs/context/system-context.md` (a context diagram naming core, packs, events, event-router, Mission Status Read API, mission-ui).
+- Plans: `docs/plans/roadmap.md`, `milestones.md`, `open-questions.md`, `overhaul-approach.md`.
+- Conformance: `docs/conformance/divergence-register.md` + `divergences.yaml` (stable-id register of every deliberate difference from core, updated 2026-11-27).
+- Own charter `.kittify/charter/charter.md`; `AGENTS.md`; 67 kitty-specs missions; first commit 2026-10-13.
+- ADR-0006 "onion vertical slices, ArchUnit" — the Java-side structural enforcement.
+
+### 1.3 spec-kitty/spec-kitty-events
+
+- ADRs: `docs/adr/0001..0008` = **8** + README; body `**Status:**` line. ADR-0002 "spec-kitty-events is canonical for the events domain and its services" (mirror of core ADR 2026-10-29-1).
+- Architecture: `docs/architecture/{overview,cloudevents-envelope,durability-and-relay,lifecycle-reconciliation,ordering-and-reduction}.md`, `services/` (read-write-split, write-service-protocol, event-ledger-writers-and-readers — the page core froze and handed over).
+- `docs/context/system-context.md`: neighbours diagram that uses "Build Kitty" as a subgraph label and names Zeitgeist relay, SaaS durable journal, spec-kitty-go, Team Kitty dossier.
+- `COMPATIBILITY.md`, `CLAUDE.md`/`AGENTS.md`, own charter, 40 kitty-specs. Two release lines (PyPI `v*`, `service-v*`).
+
+### 1.4 spec-kitty/spec-kitty-open-packs
+
+- ADRs: `docs/architecture/adr/` = **16** date-named records + template + index; body `**Status:**`.
+  Notable: 2026-11-04-1 "strict pack composition and the end of CLI compatibility"; 2026-11-19-3 "packs pin a charter release, and the charter owns the pack logic" (supersedes a 2026-11-16 lockstep).
+- `docs/architecture/{overview,vision,docsite-design}.md`, `docs/plans/roadmap.md`, `docs/research/blockers-and-core-dependencies.md`, `docs/contracts/`.
+- Own charter, AGENTS.md, GEMINI.md, 17 kitty-specs.
+
+### 1.5 spec-kitty/doc-kitty
+
+- ADRs: `docs/adr/0001..` = **87** files; `## Status` section. 30 mention supersession.
+- `docs/architecture/` (20 pages + `research/` with 16 notes), `docs/context/` (product, domain, convention, problem), `docs/plans/roadmap.md`.
+- Product statement (docs/context/product.md): "A library (`@spec-kitty/doc-toolkit`) plus builder scripts" producing a Starlight site, llms.txt and a JSON agent-API. "Out of scope: Authoring documentation content. Hosting a retrieval/embedding index."
+
+### 1.6 Ecosystem-level document
+
+OBS: **no repo holds an ecosystem architecture document.** The nearest are (a) core `diagrams/02_containers/README.md:250-330`, (b) the repository-topology diagram inside the *superseded* ADR 4.x/2026-10-12-2, (c) each sibling's own `system-context.md`, drawn from its own seat. A prior ecosystem target architecture ("Kitty Shared Architecture") exists only in the **private planning repository** (docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md:30).
+
+OBS: four ADR status conventions and two numbering schemes across five repos (core: frontmatter `status:`, date+era; charter: `decision_status:`, sequential; events and open-packs: body `**Status:**`, sequential vs date; doc-kitty: `## Status`, sequential). Total ADRs ≈ 243 + 83 + 8 + 16 + 87 = **437**.
+
+---
+
+## 2. Vocabulary reconciliation
+
+Grep = case-insensitive file count across the five repos (node_modules, .git, lockfiles excluded).
+
+| Brief term | In repos? | Maps to | Divergence |
+|---|---|---|---|
+| Kira / K3 / K4 | 0 files | nothing | Outside vocabulary. |
+| HUD | 0 | nothing; nearest: removed Dashboard container (#5530), mission-ui (not accessible), doc-kitty research `mission-status-portal.md` | No surface to inspect. |
+| Operations Deck | 0 | nothing | same |
+| Paperclip | 0 | nothing | comparison only, per brief |
+| Wayfinder | 0 | nothing | proposed repo; H08 "test Wayfinder itself" has no subject yet |
+| savoir / -faire / -être | 0 | nearest: doctrine kinds (`docs/architecture/doctrine-kinds.md`), agent-knowledge-canonical-homes.md | The triad is the brief's own lens. |
+| "control-pane" | 0 | repos say **Control Plane** = the user-facing mutation surface, today the CLI (00_landscape/README.md:139-143) | Brief: Kira/HUD/Deck/direct interfaces are optional surfaces. Landscape rule 8: "Control Plane is the single user entry point for mutations". Different meaning. |
+| modulith | 2 files, core only | ADR 4.x/2026-10-01-2:91 "Modulith first" — about the Mission Status Read API module only | Not a stated direction for core as a whole. Core's stated shape is a layered package chain. |
+| Build Kitty | core 11, charter 3, events 8, open-packs 7 | **Product line**: "the free CLI and its Mission Status Read API" (docs/context/product-lines.md:25-34). "Do NOT use when naming the CLI package... not a runtime surface". | Brief uses it as the name of the core CLI component (AS-02 "without Build Kitty"). |
+| (Brain Kitty) | core 5, charter 14, open-packs 23 | Product line for charter/governance (product-lines.md:38-47) | Brief never uses it; it is the repos' name for what the brief calls "Charter and API". |
+| Charter and API | yes | `src/charter/` (in-tree layer) + seam `charter.offering.api` + `spec-kitty-charter` Java service (OpenAPI contract, `contracts/charter/`) | Brief: "Complete Charter extraction". Repos: extraction to own repo is **Superseded** (ADR 4.x/2026-10-12-2); "nothing Python moves to spec-kitty-charter"; Python charter is replaced in place behind the seam (charter.md:423-441; charter ADR-0008, 0010). The move is a strangler/rewrite, not an extraction. |
+| Packs | yes | `spec-kitty-open-packs` (`packs/built-in`, `packs/internal`); core holds pins `packs/*.source.yaml`; glossary "Charter Pack" (docs/context/charter.md:56) | Packs "pin a charter release, and the charter owns the pack logic" (open-packs ADR 2026-11-19-3) — packs are not independent of charter by decision. Built-in must be byte-identical in every consumer install. |
+| Doc Kitty | all five (doc-kitty 722) | `doc-kitty` = `@spec-kitty/doc-toolkit`, docs-site toolkit + MCP + agent-API | Brief: "Doc Kitty: savoir" (knowledge). Repo: explicitly out of scope to author content or host a retrieval index. It renders knowledge that lives in each repo's `docs/`. |
+| Events and API | yes | `spec-kitty-events`: PyPI contract package + Java read service (`service/`, mission-status-api) + write service (`command-cli`) + `contracts/` | Brief: "then Events bus/ledger extraction" as future. Repos: contracts and Java services already moved (#6915, charter.md:10-13). The **ledger itself and its reducer stay in core** (`src/specify_cli/status/`, `status.events.jsonl`); 02_containers:252-254 "The CLI owns the append-only event ledger". There is no "bus": `status/adapters.py` is a publish seam with no default handler. "Messaging" was hosted (Zeitgeist) and removed (#6164). |
+| Mission coordination | core 98, events 8 | Closest: "Orchestration" container (00_landscape:164-169); `src/specify_cli/coordination/` (coordination *branch* bookkeeping — a git topology sense); `dependency_graph.py`; `acceptance/`; `consolidation/` | "Coordination" in core mostly names the coord branch/partition, not a component that governs eligibility. |
+| execution infrastructure | 0 | Closest: "Agent Tool Connectors" (00_landscape:186-192), `orchestrator_api/`, external `spec-kitty-orchestrator` (multi-agent-orchestration.md:18,54), `invocation/` (Ops), `session_presence/` | No component by this name. Fleet (SkyKitty) "switched off" 2026-10-19 (charter.md:28, :251). |
+| containerised runners | "containerized": core 16, charter 37, open-packs 3, doc-kitty 10 | charter ADR-0041 "containerized configuration model" = how the *charter service* is deployed; core hits are tests/docs | No runner, container executor or sandbox exists or is planned in the five repos. "sandboxed runner" appears once as a deferred idea (docs/plans/glossary-doctrine-overhaul-program.md:114). |
+| runner | thousands (CliRunner, GitHub runners, MigrationRunner) | Also a **session role**: "dispatcher, triager, runner, reviewer, lander" (docs/development/multi-session-orchestration.md) | Term collision. No glossary entry. |
+| harness | core 1967 files | Glossary canon is **Tool** (docs/context/execution.md:22; naming-decision-tool-vs-agent.md). Code: `HarnessCapabilityRecord`, `HarnessObservationPayload` (events). 17 supported "agents". | No glossary entry for "harness" though used everywhere. "Harness adapter" ≈ agent dir generators + skills renderer + session-presence writers. |
+| assignment | core 887 | `AgentAssignment` (status/models.py:1084), `RACIAssignment` (runtime schema.py:92), glossary "Role" = responsibility assignment (identity.md:38) | Means who-does-a-WP. No "assignment contract independent of mission/WP/attempt/session". |
+| attempt | core 1326 | `FactoryAttemptRef` in spec-kitty-events `work_observation.py:332` ("one attempt may span sessions and one session may outlive several attempts", planning#2270); `ProposalApplyAttempt`; rollback `_AttemptStart` | The brief's sense exists as a *contract field* in events, designed in the private planning repo; no producer in core found by this lens. |
+| projection | core 1787 | At least five senses: tool-surface projection (`tool_surface/profiles/projection.py`), Op projection policy (`invocation/projection_policy.py`), bookkeeping projection at consolidation, pack-skill projection, read-service `ProjectionCache` (events Java), charter `GraphProjection` | The brief's sense (read model rebuilt from ledger) is called **snapshot / materialize / reduce** in core (`status/reducer.py`). No glossary entry. |
+| dispatch | yes | `spec-kitty dispatch` opens an **Op** (planning-and-tracking.md:96, status *candidate*) | "Dispatch" in core = governed ad-hoc invocation, not resource mobilisation. |
+| HiC / Human in Charge | yes | 00_landscape:133-137; charter | Aligned. |
+
+---
+
+## 3. Prior art (reuse before measuring)
+
+Core:
+- `docs/architecture/assessments/code-as-a-crime-scene-overview.md` — 2026-05 forensic run (hotspots, temporal coupling) — **C**, B.
+- `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` — full-src review, charter/doctrine/specify_cli bounded contexts — **B**, A.
+- `.../2026-09-27-kitty-shared-architecture-alignment.md` — squad review of engine vs a proposed hosted target architecture, 29 findings, term collisions, pinned at rc5 — **A**, D, F (same exercise shape as Wayfinder; EC-6 lockstep, EC-8 orchestrator-api verbs, SK-1 stale C4).
+- `docs/architecture/05_ownership_map.md` (demoted) and `kitty-specs/functional-ownership-map-01KPDY72`, `post-convergence-governance-01M1TMPH` — why the ownership manifest was deleted — **A**, E.
+- `docs/architecture/04_implementation_mapping/README.md` (2026-10-12) — concept-to-code map — **A**, B.
+- `docs/architecture/event-ledger-writers-and-readers.md` (frozen 2026-10-28; live copy in events) — every log, writer, reader, gap table — **D**, B.
+- `docs/plans/domains/{doctrine-charter,packs-extraction,api-dashboard}-domain-plan.md` — intended extraction sequences and invariants — **A**, D.
+- `docs/plans/events-domain-move/plan.md` (2026-11-01) — inventory + cut-over runbook — **D**, C.
+- `docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md` — CLI leakage into domain logic — **B**.
+- `docs/plans/engineering-notes/2026-11-06-lane-worktree-friction-research.md` (+ `kitty-specs/lane-worktree-friction-research-01M6QS30/research/pr-classification.csv`) — classified PR friction — **C**.
+- `docs/reports/tracer-friction-recon/2026-09-26/`, `docs/reports/dead-code-review/2026-09-30/`, `docs/reports/test-sanitation/...` — **C**, **E** (weakened tests), H05.
+- `docs/plans/code-quality/README.md` — Sonar baseline, degod/unshim waves — **C**, H05.
+- `docs/architecture/acceptance-scenario-contract.md` (2026-10-15), `acceptance-jvm/` — scenario-to-promise linkage — **E**, traceability model.
+- `docs/architecture/multi-agent-orchestration.md`, `docs/development/multi-session-orchestration.md` (2026-11-20), `docs/development/agent-fleet.md`, `docs/plans/research/session-presence-harness-gaps.md`, `docs/architecture/host-surface-parity.md`, `governed-profile-invocation.md`, `diagrams/02_containers/runtime-execution-domain.md`, `kitty-specs/019-autonomous-multi-agent-orchestration-research` — **F**.
+- `docs/plans/investigations/{mission-type-step-model-unification,wp-op-schema-model}.md` — **A** (mission/op/step terms), AS-03.
+- `docs/context/orchestration.md` #routing, #residue, #primary-partition — already-disambiguated overloaded terms — **A**.
+- `docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`, `docs/convergence/` — the fork convergence — **C** (period boundary).
+- `kitty-specs/charter-service-architecture-4x-01M40EXY`, `contract-ownership-boundary-01KWYRE5`, `integration-boundary-01KW0PBE`, `modular-per-package-ci-01M025GV`, `migration-shim-ownership-rules-01KPDYDW` — **A**, D, E, H05.
+- `tests/architectural/` (404 files, baselines and allowlists) — **E**, B.
+
+Charter: `docs/plans/codebase-health-2026-11-20.md`, `-11-25.md`, `engineering-notes/codebase-assessment-2026-11-20/`, `test-suite-assessment-2026-11-03.md`, `open-packs-drift-watch-research-2026-11-13.md` — **B/E**; `docs/conformance/divergence-register.md` — **D**, AS-07 (attributable exceptions); `docs/architecture/strangler-transition.md` — **A/D**.
+Events: `docs/architecture/services/{read-write-split,write-service-protocol,lock-interop-spike}.md`, `COMPATIBILITY.md`, `kitty-specs/005-event-contract-conformance-suite`, `write-service-cutover-readiness-01M70THX` — **D**.
+Open-packs: `docs/research/blockers-and-core-dependencies.md` (2026-11-16) — **D**, H04.
+Doc-kitty: `docs/architecture/research/{mission-status-portal,missions-and-ops,spec-kitty-adoption-proof}.md`, `research/2026-11-01-parallel-landing-hotspots` — **D** (external status consumer), C.
+
+---
+
+## 4. Hypotheses and scenarios — testability against this terrain
+
+Not assessing truth.
+
+| ID | Well-formed? | Note / evidence sources |
+|---|---|---|
+| H01 | **Period not identifiable from the brief.** | "One to two months" is undated. Candidate anchors in history (INT): commit volume 2026-08 2777, 09 2917, 10 4320, 11 3261; authors/month 33, 35, 27, 10; convergence 2026-08-27..09-07; fleet off 2026-10-19 (charter.md:28). History before the 2026-09 convergence is a merged fork line, so "revision before/during" needs care. "Orthogonality" needs a component set: use the enforced chain plus the landscape containers, not the brief's names. Sources: git log, `tests/architectural/_baselines.yaml` history, crime-scene run. Architect must pin dates. |
+| H02 | Testable. | Subject exists: `accept`, mission-review, events `cross-repo-harness-tests.yml`, core `check-spec-kitty-events-alignment.yml`, charter conformance corpus, `acceptance-jvm`. "Ecosystem regression" needs an operational definition (e.g. a sibling-repo fix PR caused by a core mission). |
+| H03 | Testable, with a premise to fix. | "Documented responsibilities" exist at three levels that disagree by design (landscape lens vs enforced chain). State which is the baseline. |
+| H04 | Partly rests on a contradicted premise. | Charter is by decision *not* an extraction; events is a split (contracts+services out, ledger in). Test per component against its *own* declared independence claim: events PyPI install; `service-v*` assets; open-packs archives; doc-kitty npm; charter service local daemon. spec-kitty-tracker not accessible. |
+| H05 | Testable. | `src/specify_cli/shims`, `compat/`, `upgrade/migrations/order_manifest.txt`, `supersession.py`, `tests/architectural/test_no_retired_subsystems.py`, allowlists with shrink-only rule, `docs/context/historical-terms.md`. |
+| H06 | Testable; section 1 is the evidence base. | Measurable: count of authority surfaces, stale pointers, cross-repo contradictions, absence of an ecosystem doc. Counter-evidence also strong (explicit conflict rules, glossary with guards). |
+| H07 | Subject largely absent. | No execution-infrastructure component in the five repos. Evidence available: `orchestrator_api/` contract, `FactoryAttemptRef` / WorkObservation contracts (events), session roles doc, fleet doc. `spec-kitty-orchestrator`, the planning repo (planning#2268, #2270) and event-router are not accessible. "Comparatively" needs a comparator. Most cells will be "specified only" or "missing". |
+| H08 | Not testable empirically yet. | Wayfinder does not exist. Can be tested as a desk exercise: try to state 5-10 invariants over two languages (Python core, Java services) using only public contracts. |
+| AS-01 | Well-formed. | `charter.offering.api`, `tests/architectural/charter_offering_public_surface.yaml`, charter OpenAPI contract. |
+| AS-02 | Vocabulary problem + access gap. | "Build Kitty" is a product line. Restate as "without the spec-kitty CLI". Write service (`command-cli`) pin is still pending (charter.md:420-422); no runner exists. |
+| AS-03 | Well-formed; cross-repo. | charter ADR-0050 (declared state machines), core `status/transitions.py`, mission-type packs. |
+| AS-04 | Well-formed. | Agent dir generators, `skills/`, `session_presence/writers`, `host-surface-parity.md`, "Adding New Agent Support" checklist (6 touch points — a ready-made change-amplification measure). |
+| AS-05 | Well-formed per component. | See H04. |
+| AS-06 | Well-formed. | pytestarch layer rules (core), ArchUnit (charter ADR-0006), `test_shared_package_boundary.py`. |
+| AS-07 | Well-formed. | Allowlists/baselines in `tests/architectural/`, charter `divergences.yaml`, charter.md:702-706 ("Exceptions discussed case-by-case" — no owner/expiry fields required). |
+| AS-08 | Subject absent (runner). | Nearest: `implement` resume, `scan_recovery_state`, Op records in `kitty-ops/`, consolidate `--resume`. |
+| AS-09 | Well-formed. | `status.json` vs `status.events.jsonl` (`materialize`), read service `ProjectionCache`. Name the projection sense. |
+| AS-10 | Trivially true today; only meaningful after Wayfinder exists. | |
+| AS-11 | Well-formed; contradicting decisions exist. | SemVer range + lock (charter.md:386-388); but open-packs pins a charter release and core pins service builds by sha — "lockstep by pin" is a decided mechanism in places. |
+| AS-12 | Same as H02. | |
+
+Access gaps (named in docs, not among the five): `spec-kitty-tracker`, `spec-kitty/event-router`, `spec-kitty-saas`, `spec-kitty/zeitgeist`, `mission-ui`, pack composer, `spec-kitty-orchestrator`, `spec-kitty-go`, `EXPERIMENTAL-spec-kitty-planning` (PROGRAM.md, planning#2268/#2270, the Kitty Shared Architecture document), the archived EXPERIMENTAL forks, GitHub issues/PRs (corrective PR chains for workstream C need the API, not git alone).
+
+---
+
+## 5. Not verified / lens limits
+
+- Did not read the 437 ADRs; counts and status tallies are by grep on frontmatter.
+- Did not check that docs.spec-kitty.ai as deployed matches `docs/` at the pin.
+- Did not confirm whether any core code *produces* `FactoryAttemptRef` / WorkObservation.
+- Did not verify the charter-corpus contradiction beyond the two cited passages.
+- Commit/author counts include bot and agent identities and the merged fork history; not normalised.
+- Lens does not cover: measured dependencies (B), co-change (C), install experiments (D), mutation of gates (E).

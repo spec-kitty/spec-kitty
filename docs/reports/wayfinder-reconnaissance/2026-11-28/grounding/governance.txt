@@ -1,0 +1,286 @@
+# Wayfinder grounding — Governance and method alignment lens
+
+Delegate: Planner Priti (`planner-priti`, built-in), profile LOADED via `spec-kitty agent profile show planner-priti`;
+governance loaded via `spec-kitty charter context --action plan --json` (bootstrap, source `activation+charter+project_local`;
+raw JSON saved beside this file as `plan-context.json`). Repo: /home/user/spec-kitty @ 5c4fc5a79d (branch
+`claude/spec-kitty-arch-reconnaissance-fdeicj`, clean working tree before and after; `git status --short` = 0 lines).
+
+Applied from the profile: primary focus = decomposition/sequencing/dependency mapping/risk; avoidance boundary = no code,
+no architectural design decisions, no product strategy, not managing agents directly (so everything below is a
+recommendation to the coordinator/HiC, not a decision). Directive refs 003 (decision documentation) and 053 (choose Op or
+Mission before starting). From the plan-action context I applied: DIRECTIVE_044 (canonical sources), 045 (PRs only /
+read-intent), 047 (audience-oriented writing), 048 (version governance: cite pinned SHAs), 049 (self-introduction),
+NO_FULL_HEAVY_SUITES_IN_MISSION, RECONCILE_CHANGE_SCOPE_TENSIONS, and the `research-citation-discipline` styleguide
+(charter.md:330-334). Read-only: only `--help`, `profile show`, `charter context`, `profiles list` and
+`dispatch --dry-run` were executed; dry-run wrote nothing (git status unchanged).
+
+Legend: **OBS** = observation (directly read/run), **INT** = interpretation.
+
+---
+
+## Q1. Mission vehicle
+
+### Governing rule (OBS)
+
+- `packs/built-in/directives/053-choose-op-or-mission-before-starting.directive.yaml` (enforcement: required, L19).
+  Mission triggers (L27-33): needs a written spec/plan; splits into reviewable work packages; needs a review/approval
+  gate; spans more than one sitting; must be resumable by name or by another agent.
+  Integrity rule L52-56: "Handling Mission-sized work as an Op, or as a chain of Ops, to avoid the spec or the review
+  gate breaks this directive." Allowance L81-83: an ad-hoc Op may run while a Mission is in flight "provided it does
+  not carry that Mission's scoped work outside its review gate".
+- INT: Wayfinder hits at least four triggers (multi-sitting, A-F decomposition, independent synthesis + adversarial
+  review gate, resumable by other agents). Under DIRECTIVE_053 it is Mission-sized.
+- Counter-precedent (OBS): internal-pack procedure `packs/internal/procedures/project-evolution-postmortem.procedure.yaml`
+  L51-55 sanctions "parallel squads, each profile-loaded and opened as a governed spec-kitty dispatch Op", with all squad
+  outputs kept in the gitignored `work/` directory (L129-133; `.gitignore:131,190,219`). INT: this is an in-house
+  pattern that sits in tension with DIRECTIVE_053's chain-of-Ops rule; it is in `packs/internal` (maintainer doctrine,
+  not shipped), so it is a legitimate precedent for this repo's core team but does not erase the 053 rule.
+
+### (a) Built-in `research` mission type, full Mission
+
+What it creates (OBS):
+- `spec-kitty agent mission create <slug> --mission-type research` "Creates mission directory in kitty-specs/ and
+  commits to the current branch" (`--help`). Without `--topology` it mints and checks out a topic branch
+  `kitty/mission-<slug>-<mid8>` (help text; CLAUDE.md:441-452). With an explicit `--topology single_branch` on an
+  unprotected target, the Mission's write branch IS the target branch (commit-to-target; CLAUDE.md:587 "#7578"
+  passage). `claude/spec-kitty-arch-reconnaissance-fdeicj` is unprotected: `.kittify/config.yaml` has no `protection:`
+  key, so protected = `{main, master} ∪ remote default` (`src/specify_cli/git/protection_policy.py:20-26`).
+- Mission dir: `kitty-specs/<slug>-<mid8>/` with `meta.json`, `spec.md`, `status.events.jsonl` (MissionCreated),
+  later `plan.md`, `research/source-register.csv`, `research/evidence-log.csv` (templates under
+  `packs/built-in/missions/research/templates/research/`), `findings.md`, `report.md`, optional `traces/` tracer files
+  (`packs/built-in/procedures/mission-tracer-files.procedure.yaml` L13, L23).
+- Runtime steps (`packs/built-in/missions/research/mission-runtime.yaml` L20-59): scoping → methodology → gathering →
+  synthesis → output (agent-profile reviewer-renata) → accept. There is NO tasks/implement/review step in the runtime
+  template, although `research/mission.yaml` L27 lists `tasks.md` as a required artifact and L108-113 carries
+  tasks/implement/review prompts (INT: two descriptions of the same mission type disagree).
+- If WPs are created and `finalize-tasks` runs without an explicit topology: >2 WPs or >1 code lane settles to
+  `lanes_with_coord` → coordination branch + lane branches `kitty/mission-<slug>-lane-<id>` + worktrees
+  `.worktrees/<slug>-lane-<id>` (CLAUDE.md:441-452, 549-551 naming). Explicit `--topology single_branch` avoids all of it.
+
+Gates that would bite (OBS unless marked):
+1. **BLOCKER (OBS)**: gathering→synthesis guard requires `source-register.csv` AND `source_documented_count >= 3`
+   (`src/runtime/next/runtime_bridge_cores.py:576-580`), counted from `kitty-specs/<m>/mission-events.jsonl` rows of
+   `type == "source_documented"` (`src/runtime/next/runtime_bridge_composition.py:347-375`). output→done requires
+   `report.md` AND a `gate_passed`/`publication_approved` row (`runtime_bridge_cores.py:583-587`;
+   `runtime_bridge_composition.py:378-400`). A grep of `src/` and `packs/built-in` for `"source_documented"` /
+   `gate_passed` finds only these readers — no CLI writer — and `spec-kitty agent mission --help` lists no
+   record-source / publication-approval command. The step prompts say the guard is declared in `mission.yaml`
+   (`mission-steps/research/gathering/prompt.md:32`, `output/prompt.md:28`, step contract
+   `research-gathering.step-contract.yaml:25`) but `packs/built-in/missions/research/mission.yaml` (115 lines) declares
+   no `event_count`/`gate_passed`. INT: running the research mission through `spec-kitty next` will stall at gathering
+   unless the agent hand-writes `mission-events.jsonl`, which DIRECTIVE_044 forbids (improvising a canonical surface).
+   File as an upstream gap; do not work around. (Not executed: no mission was created, so the stall is inferred from
+   source, not witnessed.)
+2. 256 KiB per-artifact cap for Mission artifacts: corpus check `tests/contract/test_mission_status_reality.py`
+   refuses with `413 artifact_too_large` (commit 86c10f2101 message; precedent split CSVs into `.partN.csv`). Graph
+   dumps / CSVs from B and C will exceed this.
+3. WP-level gates only if WPs exist: owned-file evidence `IMPLEMENTATION_MISSING` / `OWNERSHIP_UNRESOLVED`, review
+   independence `REVIEW_NOT_INDEPENDENT` (CLAUDE.md:589; `consolidation/wp_evidence.py`); `for_review` counts commits
+   on the lane branch (CLAUDE.md:489-490). A docs-only WP satisfies owned-file evidence if `owned_files` names the docs
+   paths (INT). Review independence actually helps the brief's "independent synthesis/adversarial review".
+4. Approval-stamp / window rules apply to lane missions; a commit-to-target single_branch Mission is stamped too but
+   its consolidation verdicts are unchanged (CLAUDE.md:587).
+5. Terminology guard does NOT scan `kitty-specs/` (`tests/architectural/test_no_legacy_terminology.py:59-60`), and ruff
+   excludes `kitty-specs/*/research/**` (`ruff.toml:10`) — raw evidence scripts there are lint-exempt.
+
+Compatibility with "push only the designated branch; no CI/rules/code changes": compatible ONLY with
+`--topology single_branch --target-branch claude/spec-kitty-arch-reconnaissance-fdeicj` (no topic branch, no lanes, no
+coordination branch, commits land on the designated branch). Default create would make a local `kitty/mission-*` branch
+(never pushed, but it is a second branch and needs a local `consolidate` to land).
+
+Precedent (OBS): `kitty-specs/lane-worktree-friction-research-01M6QS30/` — `mission_type: research`,
+`topology: single_branch`, `target_branch: docs/lane-worktree-friction-research`, raw CSVs + scripts under
+`research/`, distilled report at `docs/plans/engineering-notes/2026-11-06-lane-worktree-friction-research.md` (L39
+points back to the Mission dir). It has spec.md and research.md but no plan.md, findings.md, report.md or
+mission-events.jsonl (INT: the runtime research path was not driven to completion; the team used the Mission as a
+container).
+
+Main risk (a): the research runtime's event gates have no canonical writer, so a "pure" research mission cannot reach
+`done` without improvisation; plus the 256 KiB cap for raw artefacts.
+
+### (b) Series of governed Ops (`spec-kitty dispatch --profile <id>`)
+
+What it creates (OBS): per Op, one `kitty-ops/<ULID>.jsonl` trail file (`docs/architecture/governed-profile-invocation.md`
+L121-131, L163-165) — tracked in git (5,649 tracked files under `kitty-ops/`; only `kitty-ops/ops-index.jsonl` is
+ignored, `.gitignore:92-93`). No spec, plan, WP, branch or worktree (DIRECTIVE_053 L7-9). Close with
+`spec-kitty profile-invocation complete --invocation-id <id> --outcome <..> --artifact <path> --commit <sha>`.
+`--owned-checkout` lets the record live in a linked checkout (dispatch `--help`).
+
+Router behaviour (OBS, dry-run, nothing written):
+- "Investigate the structural import dependency graph ... produce a dependency matrix" → `router_confidence:
+  ambiguous`, alternatives `java-jenny`/`python-pedro` action `implement` ("token 'produce' matched implementer
+  canonical verb"). INT: the router is keyword-driven; always pass `--profile`.
+- "Reconstruct the decision timeline ..." → curator-carla/classify; "Synthesize findings ..." → researcher-robbie/analyze;
+  "Adversarially review ..." → reviewer-renata/review.
+
+Gates: none of the Mission gates; no review gate at all. Main risk (b): DIRECTIVE_053 integrity rule L52-56 — the
+investigation is Mission-sized, so a chain of Ops is non-compliant unless the HiC records an exception (charter.md:702-706
+"Exceptions discussed case-by-case. Strong justification required."). Also no home for tracer files (the tracer procedure
+and `spec-kitty agent tracer-append` are Mission-scoped) and no resumability by name.
+
+### (c) Hybrid (recommended)
+
+One research Mission as the durable, named, resumable container — created with
+`--mission-type research --topology single_branch --target-branch claude/spec-kitty-arch-reconnaissance-fdeicj`
+(never default topology) — holding spec.md (charter of the investigation: hypotheses H01-H08, pinned SHAs, envelope),
+plan.md (methodology, workstream decomposition), source-register/evidence-log, and the three tracer files. Workstreams
+A-F, synthesis and adversarial review run as profile-loaded subagents (charter.md:229-234 "Delegate to preserve
+context ... Each delegation LOADS the relevant doctrine profile"); opening a dispatch Op per workstream is acceptable
+only as the postmortem precedent does it and with the caveat of 053 L81-83. Published findings go to `docs/reports/...`
+(Q2), with the Mission dir pointing to them (single authority: evidence in one place, not copied twice).
+
+Main risk (c): two homes for evidence (kitty-specs vs docs/reports) → duplicate authority; and the research runtime gate
+gap still blocks a clean `done`, so the Mission is used as a container (like the precedent) unless the gap is fixed
+upstream. Mitigation: decide ONE home for raw artefacts (see Q2) and treat the runtime gap as a finding (it is also
+evidence for H02/H05).
+
+INT recommendation: (c). If the HiC wants zero `kitty-specs/` footprint, use (b) and record a HiC exception to
+DIRECTIVE_053 explicitly in the report.
+
+---
+
+## Q2. Where findings belong
+
+OBS:
+- `docs/_meta/sections.yaml` L1-9: site leaves out `archive`, `reports`, `convergence`; registered sections include
+  `architecture` (L36-39) and `plans` (L64-69, feeds sitemap only).
+- `scripts/docs/_dockitty_contract.py:103` `EXCLUDED_FOLDERS = ("archive", "reports", "convergence", "changelog/unreleased")`;
+  `:118` `IMMUTABLE_PREFIXES = ("plans/", "reports/", "changelog/", "archive/")` ("pages never change");
+  `:133` `DRAFT_FOLDERS = ("plans/engineering-notes", "plans/investigations", "plans/research")` (never published;
+  still in frontmatter/link gates).
+- `:336` `REQUIRED_FIELDS = ("title","description","doc_status","updated","kind")`; `:342` statuses; `:345-362` kinds;
+  `:386` description max 180; `:390` `updated` must be a UTC instant `YYYY-MM-DDTHH:MM:SSZ`.
+- `docs/architecture/README.md:36-42` boundary rule: architecture = decisions & models (authoritative);
+  `:86` names `docs/plans/engineering-notes/architecture-audits/` for point-in-time audits — that folder does not exist
+  (moved to `docs/archive/...`; `ls` fails). `:88` `docs/architecture/assessments/` = CaaCS-type assessments (one page,
+  a durable methodology explainer).
+- `docs/plans/README.md:20-23` plans = distil-then-retire working surface; `plans/investigations/README.md:15-16`
+  "issue analyses, compatibility matrices, schema research, mission review reports".
+- Closest precedent for a multi-workstream investigation with raw evidence: `docs/reports/dead-code-review/2026-09-30/`
+  (README.md + `first-pass/domain-*.md` + `test-only-deep-dive/` + `raw/*.txt` + `tooling/*.py`), README frontmatter
+  only `doc_status`/`updated` (reports are excluded from the site frontmatter gate). Also
+  `docs/reports/test-sanitation/<mission>/` (raw/, yaml, final-report.md).
+
+INT recommendation: `docs/reports/wayfinder-reconnaissance/2026-11-28/` with `README.md` (headline, pinned SHAs table,
+hypothesis verdicts), `workstreams/{a..f}-*.md`, `synthesis.md`, `adversarial-review.md`, `raw/` (CSV/JSON/DOT/logs),
+`tooling/`. Reasons: excluded from the docs site (no published-page, link-check or codespell gates), immutable-history
+semantics match a revision-bound evidence snapshot, and the dead-code-review precedent matches the shape. Optionally a
+short distilled page in `docs/plans/investigations/` (draft) linking to it; do NOT put it in `docs/architecture/`
+(authoritative decisions surface; Wayfinder is evidence, not decision — brief p.2).
+
+Gates a new `docs/reports/...` folder must still satisfy (OBS):
+1. Terminology guard `tests/architectural/test_no_legacy_terminology.py` — scans `src`, `tests`, `docs` for
+   `*.py *.md *.yaml *.yml` (L53-54); only `docs/adr/` and listed paths are exempt (L59+). Forbidden: the two retired
+   terms (L47-50), lane+merge phrases ("lane~merge", "merge~the lanes", "merging~lanes", "lane~-merge", L328-333, file
+   baseline may not grow), and the literal `spec-kitty~merge` (L551-552, shrink-only baseline). Run always-on in CI
+   (`.github/workflows/ci-router.yml:1309`). Note: quoting charter.md:544/547 verbatim would trip this gate. Raw `.csv`,
+   `.json`, `.txt`, `.dot` are not scanned.
+2. `ruff check .` and `ruff format --check .` (ci-router.yml:1237) apply to any `.py` under `docs/reports/.../tooling/`
+   (only `kitty-specs/*/research/**` is excluded, ruff.toml:10). Plus mypy expectations for new code (CLAUDE.md Code Style).
+3. Markdown style `markdownlint-cli2` on `**/*.md` — informational only (ci-router.yml:1265-1268).
+4. Docs lint job (ci-router.yml:1335-1343): `check_spelling` (codespell skips `*docs/reports*` and `*docs/plans*`,
+   pyproject.toml:2582), `check_changelog_style`, `retired_surface_gate` (excludes adr/plans/reports per
+   `tests/docs/test_retired_surface_gate.py:3`), `check_generated_docs_untouched`, `check_legacy_lifecycle_log_untouched`.
+5. `tests/docs/test_immutable_bodies.py` (bodies under reports/ and plans/ must not be rewritten by the frontmatter
+   migration) — INT: later edits to a landed report are history edits; land complete.
+6. Docs-site build `docs-site-build.yml:109,114` (`dockitty-validate-frontmatter`, `dockitty-check-links --strict`)
+   — skips excluded folders; applies if anything is placed in `plans/` (DRAFT_FOLDERS stay in frontmatter/link gates):
+   then full REQUIRED_FIELDS, `audience` as list of `{profile, guidance_text}`
+   (`tests/docs/test_dockitty_frontmatter_shape.py:57-68`), `related` as slugs, not paths (L75-76).
+7. Path-routed CI: `docs/**` triggers the `docs`, `docs_site` and `arch_scan_scope` groups (ci-router.yml:691-704,
+   850-870). `docs-index-regen.yml` regenerates the retrieval index post-merge (drift is warning-only,
+   `tests/docs/test_docs_index_freshness.py:7-10`).
+8. Excluded by these gates: `test_no_dead_src_path_literals.py:89`, `test_legacy_docsite_named_nowhere.py:36`,
+   `test_retired_charter_vocabulary.py:177`, `test_status_path_ordering_claims.py:27` all exempt `docs/reports/`.
+
+Not verified: whether `tests/docs/test_one_index_per_folder.py`/`test_section_index_basename.py` impose a README per
+new subfolder of reports (they appear scoped to index.md vs README.md collisions); whether a repo size / LFS rule
+applies to large raw artefacts in `docs/`.
+
+---
+
+## Q3. Charter rules that bind the investigation and its orchestrator (OBS: charter = `.kittify/charter/charter.md`)
+
+| Rule | Lines | Binding on Wayfinder |
+|---|---|---|
+| Model discipline: strongest model for review/architecture; cheap model for mechanical passes | 225-228 (+ tactic `model-task-routing` L43-46 "Never run high-stakes work on a light model") | synthesis, adversarial review, B/D/F judgement on strongest model; git-log mining, CSV extraction may be cheaper |
+| Delegate to preserve context; each delegation LOADS the profile | 229-234 | every A-F delegate must run `agent profile show` + action context and state what it applied |
+| No full heavy-suite runs in mission work | 235-246; internal directive `no-full-heavy-suites-in-mission.directive.yaml:23-30` | E's mutation probes: run the named gate files only, in disposable copies; a full `tests/architectural/` run needs an explicit operator request |
+| Adversarial squad cadence (advisory, never a gate); single owner = procedure | 126-130; `adversarial-squad-deployment.procedure.yaml` L30-36 (cast by declared focus; recurrence-only profiles only on escalation), L84-89 anti-patterns (persona without profile; casting by habit), L123-125 timebox ~30 min | casts below must be justified by focus |
+| Mission tracer files | 139-141; procedure L13-24 (`kitty-specs/<m>/traces/`) | needs a Mission dir → only (a)/(c) |
+| Canonical sources, file gaps upstream, terminology guard | 155-158; DIRECTIVE_044 | the research-runtime event-gate gap must be filed, not hand-worked |
+| Git discipline: PRs only, operator merges, read intent before high-risk ops | 159-161, 263-266, 542-556, 574-584 | push only; no merge |
+| Mission hygiene: reviewer ≠ implementer; issue-matrix + tracker comment | 162-166 | independent synthesis/review identities; there is no tracker issue for Wayfinder (not verified) |
+| Collaboration: planning runs under planner-priti (LOADED) | 255-260 | coordinator profile |
+| Issue branch first `issue-<n>-<slug>`; draft PR first | 261-265, 548-550 | conflicts with designated `claude/...` branch |
+| Research citation discipline: every factual claim traceable; unsourced = labelled hypothesis | 330-334 | matches the brief's finding record |
+| Audience-oriented writing; doc structure (one Divio quadrant, `updated` date) | 299-315 | name persona (e.g. `internal/system-architect`) |
+| Version governance (required) | 322-328 | cite pinned SHAs from PINS.md |
+| Terminology canon (Mission, not Feature) + overloaded `primary`/`merge`/`routing`/`residue` | 112-114, 718-724; CLAUDE.md Terminology Canon | workstream A must name senses |
+| Exception handling | 702-706 | route for every brief/charter conflict |
+| Pre-existing failure reporting (DIR-013): MUST open a GitHub issue | charter §"Pre-existing Failure Reporting Rule" (680-684) | collides with a read-only mandate if E finds genuine pre-existing reds |
+
+Brief ↔ charter conflicts (INT, each needs a HiC ruling or recorded exception):
+1. Designated branch `claude/...` vs "Issue branch first" (charter 261-262, 548-550). Operator instruction is explicit;
+   record it as an exception (702-706).
+2. Brief p.7 "Run A-F independently with architect profiles" vs casting by declared focus
+   (`adversarial-squad-deployment` L30-36, "casting by habit" L88-89). `architect-alphonso` lists canonical verb
+   "decide" and focus "technical design decisions"; the brief reserves decisions to the HiC (p.1). Scope it to
+   evaluate/model.
+3. "Do not dispatch implementation missions" (brief p.1) is compatible with a research Mission; but a pure chain of Ops
+   breaches DIRECTIVE_053 L52-56 (the postmortem procedure is the only counter-precedent).
+4. Brief "retain raw artefacts" vs postmortem procedure "keep squad outputs in gitignored work/" (L129-133): choose
+   tracked `docs/reports/` (brief wins for an evidence-bound investigation; INT).
+5. Charter "draft PR first" vs brief silent on PRs ("findings stored on branch"): do not open a PR unless the HiC asks.
+6. DIR-013 (open an issue for pre-existing failures) vs "no production repository ... changes": issues are not repo
+   files, but they are external writes; ask before filing.
+7. Drift inside the charter itself: charter.md:544,547 still name `spec-kitty~merge` while CLAUDE.md and the
+   terminology gate use `consolidate` (OBS). Do not quote it verbatim in docs.
+
+---
+
+## Q4. Profile casting (by declared focus/avoidance, from `agent profile show`)
+
+| Workstream | Lead (focus that answers it) | Second lens | Avoid |
+|---|---|---|---|
+| Coordinator | planner-priti (decompose, sequence; avoidance: arch decisions) — charter 255-257 | — | — |
+| A intent archaeology | curator-carla (focus: knowledge organization, documentation quality; secondary: architectural decisions, project history; verbs catalog/classify/audit) | lexical-larry (synonym drift, concept conflation across code/specs/ADRs; tactics terminology-extraction-mapping, context-boundary-inference) | larry must not write the report (avoidance: no reports) |
+| B structural | architect-alphonso (component boundaries; tactic dependency-hygiene) — scoped to evaluate/model, not decide | paula-patterns (boundary leaks, cross-layer logic) | — |
+| C evolution/temporal | debugger-debbie (drift chains, recurring-bug classes; verbs falsify/bisect/trace) | researcher-robbie (method/normalisation, spike investigation) | debbie & paula are recurrence-only (avoidance excludes first-occurrence); H01 is a recurrence hypothesis, so cast in squad-delegate mode (procedure L34-36) |
+| D contracts/independence | architect-alphonso (secondary: implementation feasibility, deployment patterns; tactic supply-chain-install-safety) | paula-patterns (compatibility regressions, downstream machine-output contracts, port/adapter boundaries) | implementer profiles (python-pedro etc.) — the router suggested them; avoid |
+| E assurance effectiveness | reviewer-renata (standards compliance; directive 041; tactics delete-the-assertion-not-the-test, test-scaffolding-as-design-smell) | debugger-debbie (falsify; non-vacuity of gates) | — |
+| F execution architecture | paula-patterns (ownership confusion, port/adapter) | architect-alphonso; analyst-annie for the capability matrix / candidate Given/When/Then scenarios (focus: BDD, traceability chain) | — |
+| Synthesis | synthesizer-sam (reconcile, integrate; avoidance: does not modify others' outputs — keeps contradictory evidence) — must be told the output path (focus says it writes to `synthesizer/` by default) | researcher-robbie; diagram-daisy for C4 views (USE_C4_MODEL_TECHNIQUES) | — |
+| Adversarial review | reviewer-renata + lexical-larry (terminology review) + one profile not used as an author of the reviewed workstream (paula-patterns or debugger-debbie) | — | reviewer ≠ author (charter 162); if WPs exist, REVIEW_NOT_INDEPENDENT compares identities |
+
+OBS caveats: `randy-reducer` exists at `packs/built-in/agent_profiles/randy-reducer.agent.yaml` and is cast in the
+procedure's example (L139) but does not appear in `spec-kitty profiles list` here (INT: not activated in this project).
+INT: architect-alphonso leads two workstreams (B, D); if parallel, use separate sessions/models so they stay independent.
+
+---
+
+## Cross-lens drift observations (evidence for H06, OBS)
+
+- `docs/README.md:2` title "Spec Kitty 3.2 Documentation" while charter.md:521 says 4.x is the active line.
+- `docs/architecture/README.md:86` points to a non-existent `docs/plans/engineering-notes/architecture-audits/`.
+- `docs/plans/README.md:35-37` says this repo "consumes their clients" (hosted); CLAUDE.md says the clients were removed
+  in #6164.
+- Research mission: `mission.yaml` vs `mission-runtime.yaml` vs step prompts disagree (tasks/implement steps;
+  where the event guards are declared).
+- `_dockitty_contract.py:345-362,364-383` accept `Feature` as a `kind`/`type` (mirrored from doc-kitty) despite the
+  Terminology Canon (charter.md:718-722) — INT: likely a cross-repo vocabulary leak; minor.
+
+## Not verified
+
+- That `spec-kitty next` on a research Mission actually stalls at gathering (inferred from source; no Mission created).
+- Whether research `accept` requires WPs or other artifacts.
+- Whether a Wayfinder tracker issue exists (DIR-012 / Standing Order #8 hygiene).
+- Size/LFS policy for large raw artefacts under `docs/`.
+- CI behaviour on a push of the designated branch without a PR (most router jobs are PR-triggered; not checked).
+- The other four repositories' governance (this lens read only spec-kitty core).
+
+## Where this lens does not apply
+
+It does not assess the architecture itself (H01-H08 truth), measure coupling, or test independence; it only says how to
+run and where to store the investigation so it is governed, reproducible and gate-clean. Casting advice is from
+declared profile text, not from observed profile performance.

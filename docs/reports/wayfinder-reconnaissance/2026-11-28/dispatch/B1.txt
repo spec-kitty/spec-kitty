@@ -1,0 +1,25 @@
+Workstream B1 - Observed structure, core Python
+Id: B1. Profile: architect-alphonso (scope: evaluate and measure, not decide). Action for charter context: review.
+
+Goal: the observed dependency structure of core (/home/user/spec-kitty/src) at the measurement points, by static analysis. View: observed. Evidence: static-derived (and executed where you run an existing check).
+
+Unit: "component" = each top-level package (kernel, charter, glossary, runtime, mission_runtime, specify_cli) and each second-level subpackage of specify_cli and charter. Build a rename map first so that components are comparable across historical revisions (e.g. doctrine -> charter/offering, constitution -> charter) and commit it as evidence.
+
+Tooling: grimp (or an AST walker of your own) in a scratch venv over `git archive` extracts of each revision. Record the tool version. Use one extractor for all revisions.
+
+Measures (report each at every point P0..P7 and the monthly series, both lines for 2026-08 and 2026-09):
+- M01a: cross-component import edges per thousand lines of Python source (state how you count lines; exclude tests).
+- M01b: share of modules in an import cycle of more than one module; size of the largest strongly connected component relative to all modules. Two variants: (i) all imports; (ii) imports executed at module load only, i.e. excluding `if TYPE_CHECKING:` blocks and imports inside function bodies.
+- Component-level graph at head: nodes, edges with weights, component-level cycles; export as JSON and CSV. Transitive closure size per component (how many components each one reaches).
+- M03a: against the ENFORCED intended model only, at head. The enforced model is: the package list in pyproject.toml, the `landscape` fixture in tests/architectural/conftest.py and tests/architectural/test_layer_rules.py, plus the ledgers/allowlists/baselines those tests read. Count (1) observed dependencies that violate the enforced model and are NOT recorded in any ledger, allowlist or baseline; (2) the number of recorded exceptions, by ledger. You may run tests/architectural/test_layer_rules.py once (about 150 s) in a disposable clone to compare your result with the gate's own. Take the intended model from the tests as given; do not assess how good the tests are.
+- M03c: share of source lines in units for which the enforced model states no internal structure (e.g. inside specify_cli). Report "no intended model", never "aligned".
+- Private access: imports of underscore-prefixed modules or names across component boundaries, and of names not in a package's `__all__` where one is declared; count and rate per 1,000 cross-component imports.
+- Shared mutable state and filesystem conventions: which components read or write the same files/directories under .kittify/, kitty-specs/, the user state dir (derive from path constants and open/write call sites; state the method and its limits).
+- Exception leakage: exception classes defined in one component and caught or raised by name in another; count per component pair.
+- CLI leakage: imports of typer/rich/click in components other than the CLI adapter layer; list.
+- Bootstrap and build dependencies: what must be fetched or generated before the package imports cleanly from a source checkout (packs sync, services), as executed evidence in a disposable clone.
+- Dependencies on the external packages spec_kitty_events and spec_kitty_tracker: which components import them and which names (public vs private).
+
+A later step will compare your component graph with a table of documented relationships produced elsewhere; make your component names plain (package paths) and export edges as evidence/B1/component-edges-head.csv with columns from,to,weight,load_time_weight.
+
+Cap: at most 40 finding records.

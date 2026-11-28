@@ -1,0 +1,34 @@
+Workstream H06a - Answering twenty questions from documentation
+Id: H06a. Profile: researcher-robbie. Action for charter context: specify.
+
+Goal: answer twenty questions about the ecosystem's architecture using documentation only, citing for each answer the single source you consider authoritative.
+
+Run 1 - allowed inputs: in each of the five primary repositories only the documentation trees (docs/, site content), README files at any level, and charters (.kittify/charter/charter.md). NOT allowed in run 1: any source code, tests, build files, workflow files, CLAUDE.md, AGENTS.md, GEMINI.md or other agent-guidance files, kitty-specs/, changelogs, the supplementary repositories. Use search (grep) restricted to the allowed paths. Keep a log of the searches you ran (evidence/H06a/search-log-run1.txt).
+
+For each question record in evidence/H06a/answers-run1.csv: question number, your answer (two or three sentences), the one source you consider authoritative (repo path:line), why you consider it authoritative, other sources that say the same, other sources that say something different (cite; this matters), how many searches it took, and your confidence. If the documentation does not answer a question, say "not answered by the documentation" rather than inferring.
+
+Run 2 - after run 1 is written and closed (do not edit run-1 answers afterwards): additionally allow CLAUDE.md, AGENTS.md and other agent-guidance files. Record in answers-run2.csv only what changes: answers that become possible, change, or gain a contradicting source.
+
+Questions:
+1. Which packages in core may import the charter package, and what may it import?
+2. Which component orders work-package status events, and by what key?
+3. What is the authoritative source of a work package's current state?
+4. Which repository owns the source of the built-in pack, and how does core obtain it?
+5. Who owns the event contract schemas, and how are they versioned and released?
+6. Which component is authoritative for charter activation state?
+7. Through which public interface does core read the charter offering?
+8. Does the CLI start a long-running service? Which one, with what lifecycle?
+9. What is the supported way for an external system to drive a Mission?
+10. How is a Mission identified, and what may be used to look one up?
+11. Which source prevails when architecture documents disagree?
+12. How does a new version of the events package reach a core release?
+13. What does the core wheel ship, and what is deliberately left out?
+14. Which mission types exist, and where is a mission type's state machine defined?
+15. Where are status events published for outside consumers, and is there a default transport?
+16. What is doc-kitty's role towards the documentation of the other repositories?
+17. What decides which tool and model carry out a work package, and where is that recorded?
+18. How is an architectural exception recorded, approved and retired?
+19. What happens to an in-flight Mission when the process is interrupted?
+20. Which capabilities are planned to change owner or location, and where is the approved plan?
+
+File one observation finding per question (20) stating what the documentation says and where, plus one summarising discoverability measures (searches per answer, questions with more than one candidate authority). Do not judge whether the answers are correct against code; someone else checks that.

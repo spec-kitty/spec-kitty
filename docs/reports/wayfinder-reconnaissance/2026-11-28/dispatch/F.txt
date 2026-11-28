@@ -1,0 +1,24 @@
+Workstream F - Allocation of execution responsibilities
+Id: F. Profile: analyst-annie. Action for charter context: specify.
+
+Goal: establish where the responsibilities of executing agent work sit today, and in what state. This is about allocation of responsibility, not about whether a component with a particular name exists. Absence of a prospective component is not a deficiency.
+
+Sources: core (/home/user/spec-kitty: src/runtime, src/mission_runtime, src/specify_cli incl. orchestrator_api, invocation, lanes, workspace, status, agent surfaces; step contracts and procedures in packs; docs), spec-kitty-events (work-observation and attempt-related contracts), spec-kitty-charter, and the supplementary clones /home/user/spec-kitty-orchestrator, /home/user/fleet-kitty, /home/user/spec-kitty-container, /home/user/event-router, /home/user/spec-kitty-mcp, /home/user/spec-kitty-planning (plans for execution).
+
+M07a: for each of these fifteen execution responsibilities - resource identity (who/what carries out a unit of work, and how it is identified), context preparation, workspace provisioning, dispatch (starting the work), model and profile selection, lifecycle supervision (liveness, timeout, stall detection), cancellation, handover between executors, evidence collection, event publication, reconciliation after interruption, permissions and authority limits, human attachment (a person observing or taking over a running unit), dependency eligibility, acceptance - record:
+  - locus: core runtime / external tool (the agent CLI or IDE) / human operations / external coordination system / another ecosystem component (name it);
+  - state: verified by execution (a named test or a command you ran exercises it) / present but unverified / specified only (documented or contracted, no implementation found) / missing (no record, no implementation) / delegated by recorded intent (cite the record) / out of scope by recorded intent (cite the record);
+  - evidence: file:line, test name, or command output; for "verified" you must name the executed evidence. You may run named tests or CLI commands in a disposable clone; no whole suites.
+M07b: BEFORE classifying anything, write down fifteen mission-coordination responsibilities (for example: work-package eligibility, dependency gating, state transition validation, ordering of status events, review independence, approval bound, acceptance, consolidation, rollback, identity, status read, retention/cleanup, topology settlement, exception attestations, resume) and commit the list as evidence/F/coordination-responsibilities.txt. Then apply the same rubric to them.
+Report, for both sets: counts per locus and per state, and the share "verified by execution" among responsibilities that a record places inside the ecosystem (state the denominator and which items you excluded as delegated or out of scope by recorded intent).
+
+Also:
+- The orchestrator API contract: operations, versioning, who consumes it (spec-kitty-orchestrator and others), what it cannot do that the CLI can (cite code).
+- Dispatch versus context preparation in governed invocation (`spec-kitty dispatch`, profile invocation, Ops): which part selects/starts an executor and which only prepares context; what record is kept and where.
+- What a unit of execution is called and keyed by in each place (mission, work package, lane, Op/invocation, attempt, session): identifiers, where they are minted, whether they are joined anywhere.
+- Interruption: what the system can tell about a unit of work that stopped mid-way (per responsibility holder), and what recovery path is documented and tested.
+- External loci: what fleet-kitty, spec-kitty-container and spec-kitty-orchestrator each took on, their status (active/switched off/experimental as recorded), and what interface to core they used.
+- Supplementary single case (tag every finding from it "single case, not generalisable"): read /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/operations-log.txt, the coordinator's log of what running this investigation required outside the ecosystem's native capabilities. Corroborate each entry against code or records before using it; an entry you cannot corroborate stays an uncorroborated note.
+- For each of these prospective operations, state which existing surface, if any, covers it and where the gap is: submit, inspect, attach, cancel, collect; for local process, persistent session, ephemeral container, remote worker, CI. Classify each cell verified / unverified / specified only / missing / out of scope by recorded intent. This is a desk classification unless you executed something; mark which.
+
+Cap: at most 40 finding records.

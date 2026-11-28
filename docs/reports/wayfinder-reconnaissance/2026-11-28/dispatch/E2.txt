@@ -1,0 +1,20 @@
+Workstream E2 - Mutation author
+Id: E2. Profile: debugger-debbie (in delegate mode: you answer this brief directly). Action for charter context: implement.
+
+Goal: write 24 small, controlled violations of the intended architecture as patch files. You do not run any gate and you must not look at how violations are detected. Another agent will apply each patch in a disposable copy and run the existing checks.
+
+Strict blindness: do NOT read anything under tests/ in any repository, any ArchUnit or architecture-test source (src/test in the Java repos), any allowlist/baseline/ledger file, CI workflow files, or the gate inventory of another workstream. You may read: production source (src/, service modules' main source), pyproject.toml / build.gradle(.kts) dependency sections, charters, ADRs and docs/architecture (to learn the intended model), public contract and schema files.
+
+The intended model to violate (learn it from charter + ADR + architecture docs): the layer direction in core (kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli), public-only consumption of external packages and seams, ownership of state (who may write status events, the activation ledger, the migration ledger, pack content), and published contracts between repositories.
+
+Write exactly 24 patches, 6 per class, as unified diffs against the head revisions, each as evidence/E2/M-<class>-<n>.patch.txt, each applying cleanly with `git apply` in a clean clone (verify by `git apply --check` in a disposable clone; never apply in /home/user/*):
+- PI (private import): a component imports a private/internal name of another component or of an external package.
+- RD (reverse dependency): a lower layer imports a higher one, or a library repository gains a dependency on core.
+- OB (ownership bypass): code writes or mutates state owned by another component directly instead of through its interface (e.g. appends to the status event log, edits the activation file, writes a pin) .
+- IC (incompatible contract): a change that breaks a published contract (remove or rename a field in a schema/DTO, change a type or enum, alter an event shape) without a version change.
+
+Spread them: at least 14 in core Python across different components, at least 4 in spec-kitty-charter, at least 4 in spec-kitty-events (Java and/or the Python package), and 2 wherever you judge most informative (open-packs or doc-kitty allowed). Within each class vary subtlety: two blatant, two moderate, two subtle (e.g. import inside a function body, a TYPE_CHECKING-guarded import, a dynamic import via importlib, a re-export through an existing public facade). Each patch must be minimal (a few lines), syntactically valid, and must not break unrelated behaviour on purpose.
+
+Also write evidence/E2/mutations.csv with columns: id, class, subtlety, repository, files touched, the rule of the intended model it violates (with the document source path:line), why a reasonable maintainer would call it a violation, and whether you consider the intended model ambiguous on this point.
+
+No finding records are required from you beyond one observation describing the mutation set and its coverage of the intended model, and one per rule you found too ambiguous to violate cleanly.

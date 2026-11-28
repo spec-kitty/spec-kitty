@@ -1,0 +1,20 @@
+Workstream G - Expressing invariants as checks
+Id: given in your instructions (G1 or G2). Profile: architect-alphonso. Action for charter context: review.
+
+Goal: for six candidate invariants, write a concrete, runnable check and run it, under the information constraint given in your instructions. Do not read the other G agent's folders (evidence/G1 or evidence/G2, findings/G1 or G2, scratch ws-G1/ws-G2).
+
+Invariants:
+I1. No new dependency cycles between components, relative to a recorded baseline.
+I2. No private cross-component access: a component uses another component only through its declared public surface.
+I3. No reverse dependency on core: the library/contract repositories and lower layers do not depend on the core CLI layer.
+I4. No CLI concern inside domain logic: command-line presentation and argument handling do not appear in domain components.
+I5. No state mutation or ledger access outside the owning component: only the owner writes its state (status event log, activation record, migration record, pins).
+I6. Independent build, install and test: each separately released component builds, installs and passes its own checks without the others' sources.
+
+Subjects: core Python at head (/home/user/spec-kitty) and ONE Java repository at head (/home/user/spec-kitty-charter; use /home/user/spec-kitty-events only if charter is unusable). Run in disposable copies.
+
+For each invariant and each subject, deliver: the check as a script or command (stored as .txt), what inputs it needs, the result on the subject (pass / violations with count and list / cannot be evaluated), how long it took, and a plain statement of what you had to know to write it. If you could not write a meaningful check under your constraint, say exactly what information was missing; do not approximate silently.
+
+Write evidence/<id>/invariant-results.csv with columns: invariant, subject, check file, inputs used, result, violation count, could-not-evaluate reason, knowledge required (public metadata / public contract / documented model / implementation internals).
+
+One observation finding per invariant per subject (12), plus exploratory ones if warranted.

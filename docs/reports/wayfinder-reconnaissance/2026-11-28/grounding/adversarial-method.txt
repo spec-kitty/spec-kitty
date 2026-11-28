@@ -1,0 +1,327 @@
+# Wayfinder grounding - adversarial critique of the investigation design
+
+Delegate: reviewer-renata (built-in profile). Date 2026-11-28. Read-only; nothing in /home/user modified.
+
+Profile applied: avoidance boundary (I flag and assess; I do not redesign the plan, make product
+decisions or run the workstreams). Directive refs on the profile: 001, 024, 030, 032, 041, 051.
+I only verified the content of two from loaded context: 024 Locality of Change (keep the findings
+footprint local, see section 5) and 051 (pin by SHA; applied to evidence and tool pinning). I did
+not read the bodies of 001/030/032/041 and do not claim them. Charter context (review action):
+single canonical authority, terminology canon (Mission, never the retired word), canonical sources.
+
+## 0. Terrain measured (all at the pinned SHAs in PINS.md)
+
+| fact | value | command |
+|---|---|---|
+| spec-kitty commits / first-parent | 21714 / 16801 | `git rev-list [--first-parent] --count HEAD` |
+| merge commits | 1260 | `git rev-list --merges --count HEAD` |
+| commits per month | 2025-08..12: 22,247,111,243,128; 2026-01..07: 1441,1225,174,754,723,1482,1198; 2026-08..11: 3250,3134,4320,3262 | `git log --format=%ad --date=format:%Y-%m \| sort \| uniq -c` |
+| `cherry picked from commit` trailers | 632 | `git log --format=%b \| grep -c` |
+| author/commit date differ > 7 days | 296 commits | `git log --format='%at %ct'` |
+| author "Claude" | 10605 commits; 11396 bodies carry a Claude co-author line | `git shortlog -sn`, grep |
+| subjects starting `fix` / `feat` | 4628 / 1394 | `git log --format=%s \| grep -ciE` |
+| src LOC | specify_cli 407154; charter 77725; runtime 17627; kernel 9179; mission_runtime 6868; glossary 6383 (total 524936 in 1490 files) | `find src/<pkg> -name '*.py' \| xargs cat \| wc -l` |
+| tests | 4369 test files, 1.44M LOC | find |
+| tests/architectural | 404 entries, 310 `test_*.py`; 225 files mention allowlist/ratchet/baseline/shrink; 29 xfail mentions; many `*_allowlist.yaml` / `*_baseline.yaml` | ls, grep |
+| ADRs | 244 md (1.x 13, 2.x 38, 3.x 139, 4.x 53); ~30 mention Superseded status; 54 carry "Amendment 20.." | find, grep |
+| kitty-specs | 857 entries | ls |
+| CLAUDE.md | 881 lines | wc |
+| prior art | `docs/architecture/assessments/code-as-a-crime-scene-overview.md` (2026-05 forensic run); mutmut configured in pyproject | ls, grep |
+| spec-kitty-charter | 2442 commits in 6.5 weeks (614 Oct, 1828 Nov); 2016 java, 2836 md, 93 .feature; 84 ADR entries | git, ls-files |
+| spec-kitty-events | 1669 commits; 666 java, 301 py, 2156 json, 91 .feature; 2 commits in 2026-06 | same |
+| spec-kitty-open-packs | 756 commits (591 in Nov); 612 yaml, 734 md | same |
+| doc-kitty | 921 commits; 499 ts, 1879 md; 87 ADR entries | same |
+
+Three facts that change the design:
+
+1. **The composed system is not the five HEADs.** `packs/built-in.source.yaml` pins open-packs
+   `a79c3631`, PINS.md pins open-packs `f9a55751`. `pins/read-service.source.yaml` pins events
+   commit `2f5e0394` (tag `service-v0.1.0-rc.1`), PINS.md pins events `646e330b`. `pyproject.toml`
+   takes `spec-kitty-events>=11.3.0,<12` from PyPI (uv.lock decides the artefact). So "revision" has
+   at least three senses per subject: repo HEAD, the commit core pins, the released artefact core
+   resolves. A finding pinned only to HEAD can be true and irrelevant to what a user installs.
+2. **The repo's own prose is already stale against its own code.** CLAUDE.md gives the events range
+   as "e.g. `spec-kitty-events>=...,<11`"; `pyproject.toml:80` says `>=11.3.0,<12`. One line, found
+   in passing. Any investigator reading CLAUDE.md as an implementation fact will be wrong at some
+   unknown rate.
+3. **History is not a clean time series.** 10x step in commit volume at 2026-08 coincides with the
+   fork convergence (632 cherry-pick trailers, 296 date divergences). Trend lines across that
+   boundary measure the port, not behaviour.
+
+## 1. Bias and fakeability
+
+### Where confirmation will be manufactured
+
+- **B1 Leading frame.** All eight hypotheses are worded in the direction the architect already
+  believes; the brief adds a named list of sins (facade laundering, extraction theatre, shared-kernel
+  dumping...). An LLM handed a named sin and a 525k-LOC repo will find an instance. With
+  `specify_cli` at 407k LOC (78% of src) any pattern has instances; existence proves nothing.
+- **B2 Self-critical documentation counted as evidence.** CLAUDE.md lists dozens of "Residuals",
+  "footgun" entries and strict-xfail pins. That text was written by the same authors (and the same
+  model family: 10.6k commits authored "Claude") whose work is being assessed. Quoting it is
+  testimony, and the investigators share priors with the author. It is also evidence *against* H06
+  and H05 (residuals are being enumerated and retired) that a confirming reader will file as support.
+- **B3 Documentation read as implementation.** See terrain fact 2. ADR text, CLAUDE.md, glossary
+  and architecture pages state intent or past state.
+- **B4 Counts without denominators.** "225 architectural files mention an allowlist/baseline" sounds
+  like H05; the same number supports the opposite reading (ratchets exist and are enforced). "4628
+  fix commits" means nothing without the 21.7k denominator and a classification error rate.
+- **B5 Period selection.** "The relevant period" in H01 is undefined. With monthly volume ranging
+  22 to 4320, an analyst can choose a window that shows either direction.
+- **B6 Size confound.** Every coupling metric rises with LOC and with commit count.
+- **B7 Selective sampling.** "Representative change chains" chosen by the investigator are
+  cherry-picked by construction.
+- **B8 Mutation theatre (E).** An agent that knows which gates exist can write mutations that are
+  caught (or missed) on purpose. Detection rate is meaningless unless mutations are fixed before the
+  gate inventory is read, or written by a different agent.
+- **B9 "Unsupported vs defect" (D).** The classification decides the verdict; unless support claims
+  are extracted from the repos' own docs first, any failure can be relabelled either way.
+- **B10 Profile homogeneity.** Six investigators under architect profiles from the same doctrine
+  pack, same model: six correlated readings, not six independent ones. Agreement among them carries
+  little weight.
+
+### Controls
+
+- **C1 Pre-registration file**, written by the coordinator and approved by the architect *before*
+  any measurement, committed (hash recorded) before workstreams start: per hypothesis the measure,
+  unit of analysis, denominator, comparison windows (as SHAs), threshold for "supported",
+  "contradicted", "inconclusive", and the sampling frame + seed. Deviations are allowed but recorded
+  as `deviation` findings.
+- **C2 Neutral restatement.** Give investigators the *measure* ("report cross-layer import edges per
+  KLOC at SHAs W0..W4"), not the hypothesis sentence. Hypothesis mapping is done after, by synthesis.
+- **C3 Mandatory disconfirmation search.** Each hypothesis-linked finding carries a
+  `disconfirmation` entry: the query run to find the opposite, its result, even when empty. Empty
+  `counterevidence` without a logged search is a rejected record.
+- **C4 Denominators.** Every count ships with population size and sampling frame; rates not counts.
+- **C5 Null / control comparisons.** H01: compare the "maintenance period" against a pre-period and
+  against a sibling repo (events) over the same months. H02: compare with base rate of regressions
+  that are mission-local. Random-file control for any "hotspot" claim.
+- **C6 Seeded random samples** for change chains, ADRs, mutation targets (`shuf --random-source` or
+  a recorded seed); investigator may add hand-picked cases only tagged `purposive`.
+- **C7 Split roles for E.** Mutation author (works from the brief's guardrail list and the intended
+  layer chain only) is a different agent from the one who inventories gates and runs them.
+- **C8 Source-authority tags.** Evidence type must be one of `executed`, `static-derived`,
+  `history-derived`, `document-claim`. A `document-claim` can support only findings in the
+  `intended` or `planned` view, never `observed`.
+- **C9 Diversify.** At least one workstream replica (C or D, the brief's priorities) run by a
+  different profile or model, blind to the first.
+
+### Eight pre-registered falsification tests
+
+Each can realistically come out against the hypothesis here.
+
+- **H01** At five first-parent SHAs fixed in advance (pre-expansion ~2025-12; 2026-03 trough;
+  2026-07 pre-convergence; 2026-09; pinned HEAD) compute cross-package import edges per KLOC and
+  SCC count over the six top-level packages plus `specify_cli` second-level subpackages.
+  Contradicted if edges/KLOC and SCC size at HEAD are <= the pre-period value (within 10%).
+  Plausible: the enforced layer chain with shrink-only ledgers and 310 arch tests may have reduced
+  normalised coupling while LOC grew.
+- **H02** Seeded sample of 30 `fix` commits from 2026-09..11 whose diff touches a pin file,
+  `pyproject.toml` dependency lines, `contracts/`, or >= 2 top-level packages. For each, was the
+  defect caught before merge to main by an existing gate (CI red on PR, arch test, conformance) or
+  after? Contradicted if >= 70% were caught pre-merge. Plausible given cross-repo harness tests,
+  conformance corpus and `check-spec-kitty-events-alignment.yml`.
+- **H03** Take the enforced intended model only (`pyproject` package list + `landscape` fixture +
+  `test_layer_rules.py`) and the documented responsibilities table; extract observed imports with
+  one AST tool. Contradicted if violations of documented direction outside recorded ledgers are
+  zero and ledger entries are < N (pre-set, e.g. 25). Plausible: CI enforces exactly this chain.
+  (Sub-test at subpackage level inside `specify_cli` must be reported separately: no documented
+  intended model there means "no deviation measurable", not "aligned".)
+- **H04** In a clean container with no core checkout: `pip install spec-kitty-events` from PyPI at
+  the locked version, run its packaged conformance (`pytest --pyargs spec_kitty_events.conformance`);
+  build events and charter services with `./gradlew` from their repos alone; resolve packs from
+  open-packs alone. Contradicted if all declared standalone capabilities pass with zero imports of
+  or paths into `spec-kitty`. Plausible: events is a PyPI range dependency with a conformance gate.
+- **H05** Build the full population of transitional constructs from machine-readable sources only
+  (allowlist/baseline YAMLs in tests/architectural, `SUPERSEDED_MIGRATIONS`, strict-xfail residual
+  pins, shim modules). For each, `git log --follow` on the ledger: net entries added vs removed over
+  the last 90 days, and whether it has an owner/issue/retirement condition. Contradicted if >= 70%
+  of ledgers are net-shrinking or flat and >= 70% of entries cite a tracking issue. Plausible:
+  shim namespaces were deleted in 2026-07; ratchets are declared shrink-only.
+- **H06** Fixed list of 20 architectural questions written before reading the docs (e.g. "which
+  package may import charter?", "who orders status events?"). A fresh agent with only the docs tree
+  and the docs index answers each, citing one source; a second agent checks the answer against
+  code. Contradicted if >= 16/20 are answered from a single authoritative source, correct against
+  code, with no contradicting second source found by a search. Plausible: Modularity SSOT names an
+  enforced pair; docs retrieval index exists.
+- **H07** Enumerate the nine capabilities in workstream F before looking. For each, classify by
+  executed evidence only (a test or command that exercises it). Contradicted if >= 6/9 are
+  `verified` for at least two resource types (e.g. local process and lane worktree/CI). Comparative
+  claim needs a comparator: apply the same rubric to mission coordination; H07 is unsupported if
+  the two verified-rates are within 2 capabilities.
+- **H08** Take the pre-set invariant candidates from the brief's guardrail list (6 items). Two
+  agents: one sees only public contracts/schemas/package metadata, one sees implementation. Each
+  writes a check. Contradicted if for >= 4/6 the contract-only check cannot be written or yields a
+  verdict different from the implementation-aware check on the same pinned SHAs, in Python and Java
+  components both. Plausible: several CLAUDE.md gates are AST pins on named functions, i.e.
+  intimate implementation knowledge.
+
+## 2. Evidence chain
+
+Must be captured per evidence item: repo + full SHA (and which *sense*: HEAD, core-pinned commit,
+resolved artefact version); working-tree cleanliness (`git status --porcelain` empty, or the
+mutation patch hash for E); exact command with cwd; tool name + version; environment (OS, Python,
+JDK, uv.lock hash, container image digest for D); raw stdout/stderr file; sha256 of that file; exit
+code; UTC timestamp; analyst identity (profile + model id); for sampled work, frame size + seed.
+Note `packs/built-in/` is git-ignored and fetched: an analysis that reads it must record the pin
+file hash, because the tree is not covered by the repo SHA.
+
+Missing from the suggested record: evidence content hash; exit code; reproduction status;
+scope/coverage and limitations; observed_at; analyst; view tag (intended/observed/planned);
+relations between findings; disconfirmation search; pre-registration reference; status
+(draft/challenged/withdrawn).
+
+### Minimal amended schema (additions marked +)
+
+```yaml
+finding_id: WF-C-012
+workstream: C
+hypotheses: [H01]
+classification: observation        # observation|interpretation|hypothesis|recommendation
++view: observed                    # intended|observed|planned
+subject: {component, repository, revision, +revision_kind: head|core-pin|released}
+claim: "<one bounded, checkable sentence>"
++prereg: {measure_id: M-H01-1, deviation: none}
+evidence:
+  - id: E1
+    type: executed                 # executed|static-derived|history-derived|document-claim
+    reference: evidence/C/012/e1.log
+    +sha256: ...
+    method: "<exact command, cwd>"
+    +env: evidence/C/env.json      # one shared file per workstream run
+    +exit_code: 0
+    +observed_at: 2026-11-28T14:02:00Z
++scope: {covered: "...", not_covered: "...", population: 1490, sample: 60, seed: 4711}
+interpretation: null               # must be null on observations
++derived_from: []                  # required non-empty for interpretation/recommendation
+counterevidence: []
++disconfirmation: {search: "<command or query>", result: evidence/C/012/d1.log}
++relations: [{type: supports|contradicts|duplicates|refines, target: WF-B-003}]
+confidence: medium
++analyst: {profile: ..., model: ...}
++verification: {status: unverified|reproduced|not-reproduced|refuted, by: ..., at: ...}
+quality_attributes: []
+candidate_invariants: []
+open_questions: []
+```
+
+Rules:
+
+- **R1** An `observation` has `interpretation: null` and at least one evidence item that is not
+  `document-claim` unless `view: intended|planned`.
+- **R2** An `interpretation` or `recommendation` cites only finding ids in `derived_from`; it has no
+  direct repo references. If it needs a new fact, file the observation first.
+- **R3** A `document-claim` observation is worded "document X at SHA says Y", never "Y".
+- **R4** No hypothesis verdict in any workstream finding. Verdicts belong to synthesis.
+- **R5** A finding whose evidence hash does not match the file is void.
+
+## 3. Independence
+
+- **I1 Evidence-first packets.** Synthesis receives observations + raw artefacts + the
+  pre-registration, with `interpretation`, `confidence` and investigator hypothesis mapping
+  stripped (a mechanical script produces the redacted set; record its hash). Synthesis writes its
+  own mapping, then gets the investigators' interpretations as a second pass and records every
+  disagreement as a `contradicts` relation.
+- **I2 Reviewer derives first.** For each sampled finding the adversarial reviewer gets subject +
+  command + raw output, writes its own claim, then unseals the investigator's claim.
+- **I3 Stated sample.** Reproduce 100% of findings that carry a hypothesis verdict weight of
+  "decisive" (expect <= 20) plus a seeded random 20% of the rest, minimum 5 per workstream. Report
+  the reproduce rate with the denominator. "A sample" with no size is unfalsifiable.
+- **I4 Refuter per high-impact finding**: a separate agent tasked only with breaking it, with a
+  time box, result recorded in `verification`.
+- **I5 Coordinator must not**: paraphrase findings into prompts; pass hypothesis text as the task;
+  merge or deduplicate findings before review; drop "inconclusive"; fix an investigator's command
+  and keep the original result; tell the reviewer which findings matter; let one agent hold both
+  investigator and reviewer roles; pass Kira a narrative without the evidence tree and prereg.
+- **I6 Outside model.** Kira wrote the hypotheses. Kira interpreting the results is author review.
+  Give Kira the same redacted packet first and ask for a prediction before unsealing.
+
+## 4. Scope hazards
+
+Gaps (no owner in A-F):
+
+- **G1 Cross-repo pin/lock contract surface** (`pins/*.source.yaml`, `packs/*.source.yaml`,
+  `uv.lock`, `requires_core`, open-packs' reverse anchor, `spec-kitty service vendor`). B is
+  import-graph, D is runtime install. Nobody owns "what does core actually compose". Assign to D and
+  make it D's first deliverable; it also fixes the revision sense for everyone else.
+- **G2 Packaging/distribution** (wheel include rules, `spec-kitty-services` companion wheel, what
+  ships). Target direction says "modulith composition/packaging distribution" yet no workstream
+  owns it. D.
+- **G3 Java services** in events (666 java) and charter (2016 java). B's method (Python imports,
+  pytestarch) does not reach Gradle modules. Either B gets a Gradle dependency pass or Java
+  structure is declared out of scope in writing.
+- **G4 CI as an assurance and coupling surface** (20 workflows, registry-driven shards). E inspects
+  checks; nobody owns CI-level cross-repo coupling.
+- **G5 Docs site / doc-kitty** (the "savoir" component, 499 ts files). A reads docs as intent; no
+  one assesses doc-kitty as a component. Brief reference to docs.spec-kitty.ai diagrams: network
+  access may be absent; say so.
+- **G6 H08 "test Wayfinder itself"** has no workstream.
+
+Overlaps: A and C both produce a decision timeline (A from ADRs, C from history) - make A own it
+and C consume it. B and E both read tests/architectural - B takes the intended model from it, E
+measures it; forbid B from judging gate quality. C and E both count exceptions/ledgers. F and D
+both touch event publication.
+
+Time-box / exclude: kitty-specs (857) - sample only, seeded, never corpus-read. ADRs - index pass
+over 244 then seeded deep-read; 3.x holds 139. History before 2026-01 (751 commits) as baseline
+only. Cross-convergence trend lines flagged. Full test suite runs prohibited (1.44M LOC of tests);
+E runs named gate files. Mutation budget fixed (e.g. 24 mutations, 4 classes x 6).
+
+Likeliest low-value volume: **A** (intent archaeology). Unlimited text, 244 ADRs + 857 specs +
+glossary, every contradiction is a "finding", all `document-claim`. Cap A at a finding count and
+require each to feed a named deliverable. Second: C, which can emit unlimited CSVs; C must
+pre-register metrics.
+
+## 5. "Do not modify production repositories" vs "store findings in spec-kitty docs"
+
+The brief: "No production repository, CI, architecture rule or implementation changes." Adding
+files to spec-kitty is a production repository change. My reading: the plan needs an explicit
+architect ruling; without one the default is findings stay outside the five repos.
+
+If the architect allows it, the boundary I would hold:
+
+- One designated topic branch, additive commits only, under one new folder; never merged, never a
+  PR by the reconnaissance (the operator decides later); no push unless told.
+- Zero edits to existing files: not `docs/_meta/sections.yaml`, not any README index, not
+  `docs/development/docs-retrieval-index.yaml` / `page-inventory.yaml` (a per-PR guard,
+  `scripts/ci/check_generated_docs_untouched.py`, refuses those), not `pyproject.toml`, not any
+  allowlist.
+- Folder under `docs/reports/` (precedent: `docs/reports/tracer-friction-recon`,
+  `test-sanitation/.../raw`). `reports` is in the docsite `EXCLUDED_FOLDERS` and is not a
+  registered section.
+
+What can go wrong, grounded:
+
+- `tests/architectural/test_no_legacy_terminology.py` scans `docs/` `*.py, *.md, *.yaml, *.yml`;
+  only `docs/adr/` is exempt. A grep log or YAML finding that *quotes* a retired term goes red.
+  It already hard-codes special paths under docs/archive and docs/reports for this reason.
+- `tests/docs/test_docs_structural_lint.py` and `test_touched_set_gates.py` rglob all `docs/**/*.md`
+  (frontmatter contract, one index per dir, dated basenames, sanctioned section membership,
+  shadow basenames). Spelling runs over docs too.
+- Any `.py` under docs is subject to `ruff format --check .`; existing evidence scripts are listed
+  one by one in `pyproject.toml` excludes. New evidence scripts would need a pyproject edit, which
+  is forbidden. So: no `.py` in the evidence tree.
+- `tests/architectural/test_no_dead_src_path_literals.py` / `test_no_stale_charter_path_literals`
+  read docs markdown for path literals; findings about deleted paths will name dead paths.
+- A push to main touching `docs/**` triggers `docs-index-regen.yml` (bot PR). Another reason never
+  to merge.
+- Evidence size: graph exports and co-change CSVs for 21.7k commits are large binary-ish blobs in
+  a repo with a wheel/sdist include policy and packaging safety tests.
+- Mutated checkouts for E must live outside the repo tree entirely; a worktree under `.worktrees/`
+  is spec-kitty operational state.
+
+Safer equivalent: findings and evidence in a standalone git repo in the scratchpad (or the future
+wayfinder repo), with a manifest of sha256 sums; at most one pointer page proposed to the operator.
+Evidence as `.log/.csv/.json/.txt`, findings as `.yaml` only if outside `docs/`.
+
+## 6. Concessions - what the draft plan gets right
+
+- Pinned SHAs for all five repos, full history fetched, before any work. Correct order.
+- One record per finding with the observation/interpretation split is the right primitive.
+- Raw evidence tree beside findings, and synthesis given evidence paths: the right instinct.
+- Reviewer re-running reproduction commands: the single most valuable control; it only lacks a
+  stated sample size and derive-first ordering.
+- Mutations in disposable checkouts only; "do not require agreement; retain contradictory evidence".
+- The brief itself says a disproved hypothesis is a success and tags the architect's account as
+  attributed experience. The framing risk is in the dispatch, not in the brief's intent.
+- Prioritising C and D is right: they are the two streams that produce executed/measured evidence.

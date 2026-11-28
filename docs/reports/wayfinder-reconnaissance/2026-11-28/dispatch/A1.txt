@@ -1,0 +1,17 @@
+Workstream A1 - Recorded intent: components, decisions, authority
+Id: A1. Profile: curator-carla. Action for charter context: specify.
+
+Goal: reconstruct what the ecosystem's own records say the architecture is meant to be. Everything you produce is in the recorded-intent or approved-plan view and rests on document-claim evidence. You do not check code.
+
+Sources: charters (.kittify/charter/ in each repo), ADR trees (docs/adr in each repo), docs/architecture, docs/plans, docs/context, READMEs, in the five primary repositories; plus /home/user/spec-kitty-planning (programme constitution PROGRAM.md, planning ADRs/decisions, and the architectural review dated 2026-09-27 on a shared architecture) and /home/user/spec-kitty-planning-archive if needed. Do not use CLAUDE.md/AGENTS.md as a primary source; where you do use one, tag it.
+
+Deliver:
+1. Component and responsibility catalogue (evidence/A1/component-catalogue.csv): one row per component or capability that any record names (core CLI, kernel, charter activation, charter offering, glossary, runtime, mission_runtime, status model and ledger, events contracts, read service, write service, packs tiers, doc-kitty, tracker client, orchestrator API, external tools/agent surfaces, and any other the records name). Columns: component, owning repository, recorded responsibility (short), source (repo path:line at the head revision), decision date, status (current/superseded/planned), declared independence per dimension (logical, contract, source, distribution, deployment: claimed / explicitly-not-pursued / silent, each with source).
+2. Documented dependency model (evidence/A1/documented-relationships.csv): every relationship between two components that a record allows, forbids or requires. Columns: from, to, relation (may-depend / must-not-depend / consumes-contract / pins / ships), tier (enforced-by-test-as-recorded / documented-only), source. This table will later be compared with an observed graph that you must not look at; make it as complete as the records allow, and list separately the units for which no record states any intended internal structure.
+3. Decision timeline (evidence/A1/decision-timeline.csv): index ALL ADRs of all five repos plus planning decisions (id, date, title, status, supersedes/superseded-by, amended-in-place yes/no, component). Then deep-read a seeded sample of 40 ADRs (stratified by repo and era) plus every ADR that changes ownership, location or contract of a component. Record supersession chains and in-place amendments.
+4. Source-authority map: which source each repository says prevails on conflict, with citations, and whether an ecosystem-level statement exists.
+5. Approved plans vs proposals: list every recorded, approved future change of ownership/location/contract (with approver and date if recorded), separately from proposals without recorded approval.
+6. Recorded contradictions: pairs of records at the head revisions that state incompatible things about the same subject (cite both). Report as observations of document state; do not rule which is right.
+7. Reuse: summarise what the 2026-09-27 review found (as document-claims with its own evidence status), without adopting its conclusions.
+
+Cap: at most 40 finding records. Catalogue rows are evidence, not findings; file findings for things a reader must know (authority order, supersession of major decisions, contradictions, gaps where no intent is recorded).

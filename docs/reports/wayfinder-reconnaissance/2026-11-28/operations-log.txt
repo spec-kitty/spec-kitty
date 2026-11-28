@@ -1,0 +1,17 @@
+Operations log - what running this investigation required (coordinator's record, single case)
+Each line: what was needed -> who or what provided it. Entries are the coordinator's own account and are uncorroborated until checked.
+
+1. Workspace with five repositories -> provided by the cloud session environment as shallow clones (50 commits); full history fetched by hand with git.
+2. Thirteen further repositories -> attached through the session environment's repository tool after the architect's approval in chat; cloned by hand.
+3. Governance context -> `spec-kitty charter status`, `spec-kitty charter context --action ...`, `spec-kitty agent profile show <id>` (native CLI).
+4. Choice of vehicle -> architect's ruling in chat. A `research` Mission was created natively (`spec-kitty agent mission create ... --mission-type research --topology single_branch`); its steps are not advanced with `spec-kitty next`.
+5. Splitting the work into parallel workstreams, starting each executor, choosing its model, passing its brief -> the external agent tool's subagent facility, driven by the coordinator. No `spec-kitty dispatch` Op was opened for the workstreams. (A grounding delegate reported that `spec-kitty dispatch --dry-run` routed a structural-analysis request to implementer profiles; not re-checked by the coordinator.)
+6. Profile loading inside each executor -> each executor runs the native CLI itself, on instruction from its brief.
+7. Isolation between executors (who may read what) -> by written instruction only; nothing enforces it.
+8. Liveness, completion notice, cancellation and collection of each executor's result -> the external agent tool.
+9. Identity of a unit of work -> a workstream id invented by the coordinator (A1, B1, ...); not a work package, lane, Op or attempt known to the CLI.
+10. Evidence format, finding record, storage location -> defined by the coordinator and the architect in docs/reports; not a Mission artifact kind.
+11. Review independence, blind replication, reproduction sampling -> arranged by the coordinator through separate executors.
+12. Approvals and rulings by the human architect -> given in chat; recorded by the coordinator in files 00 and 04.
+13. Commits and pushes to the research branch -> plain git by the coordinator; the Mission scaffold commit was made by the CLI.
+14. Disposable environments for experiments -> scratch directories and virtual environments made by each executor; no native provisioning used.

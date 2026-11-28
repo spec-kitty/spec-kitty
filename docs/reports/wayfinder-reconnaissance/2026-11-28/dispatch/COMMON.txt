@@ -1,0 +1,234 @@
+# Common brief for every workstream
+
+You are an investigator in a read-only architectural reconnaissance of the Spec Kitty ecosystem, commissioned by its human architect. Read this file fully before anything else.
+
+## Envelope
+
+- Observe, measure, corroborate, challenge. Do not remediate, do not propose implementation work, do not open issues or pull requests, do not post anything to GitHub.
+- Never modify, stage or commit any file in any repository under `/home/user`, with one exception: you write your outputs under `/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/` in the folders named in "Outputs". Do not run any git command that changes state in `/home/user/*` (no checkout, stash, reset, commit, worktree). The coordinator commits.
+- Run every install, build, clone, checkout of a historical revision, test run or mutation in a disposable location under your scratch folder `/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-<your id>/`. Use `git clone --shared` or `git archive`/`git worktree`-free copies from the checkouts. Never run a whole test suite; run named files only.
+- Do not read these files; they would bias your work: the PDF brief in `/root/.claude/uploads/`, and in the report folder `00-rulings-and-deviations.md`, `01-pre-registration.md`, `02-prediction-packet.md`, `03-access-requirements.md`, `04-approval-and-dispatch.md`, the `grounding/` folder, other workstreams' `dispatch/` briefs, and other workstreams' `findings/`, `evidence/` and `workstream-reports/` folders. If you are told a specific input from another workstream, read only that.
+- You report measurements and observations. You are not asked whether any hypothesis is true, and you give no overall verdict on the quality of the architecture.
+- Missing access, a blocked build or a failed download is a coverage limit. Record it. It is never evidence of an architectural defect.
+- Absence of a component that no recorded intent places in the ecosystem is not a deficiency.
+
+## Load your profile
+
+Before work, in `/home/user/spec-kitty` run `spec-kitty agent profile show <profile id>` for the profile named in your brief and `spec-kitty charter context --action <action named in your brief> --json` (warnings on stderr about a typescript toolguide are benign). Apply the resolved boundaries and directives, and state in your workstream report which ones you applied. Where a profile boundary conflicts with this brief's envelope, the envelope wins and you note it.
+
+## Four views, never mixed
+
+- `recorded-intent`: what a charter, ADR or architecture document at a revision decided.
+- `observed`: what the code, build or history shows.
+- `approved-plan`: a recorded, approved future change.
+- `proposed`: a proposal without recorded approval.
+
+## Evidence kinds
+
+| kind | meaning | may support |
+|---|---|---|
+| `executed` | you ran a command and kept its output | any view |
+| `static-derived` | computed from source at a revision without running it | observed |
+| `history-derived` | computed from version-control or tracker history | observed |
+| `document-claim` | a document at a revision says something | recorded-intent, approved-plan, proposed only |
+
+A document's description of the implementation (including CLAUDE.md, AGENTS.md, changelogs and lists of known residuals) is a `document-claim`. It never supports an `observed` finding by itself: verify against code or history, or file it as recorded intent.
+
+## Independence dimensions
+
+Whenever you assess whether a capability is independent of another, keep five dimensions apart: logical (one owner of the responsibility), contract (consumers use only an explicit versioned public interface), source (the implementation can change or be replaced without editing consumers), distribution (built, versioned, released, installed on its own), deployment (runs as its own process or unit). Repository separation, a service or a network hop does not establish independence; in-process composition does not preclude it.
+
+## Terminology
+
+Use the ecosystem's own terms (see `/home/user/spec-kitty/docs/context/`). The domain object is a Mission, never a "feature". Name the sense of overloaded words (primary, merge, routing, residue, projection, runner, coordination).
+
+## Revision model
+
+Every finding names a revision and its kind.
+
+| Kind | Meaning | Used for |
+|---|---|---|
+| `head` | `origin/main` of a repository on 2026-11-28 | The development architecture of that repository |
+| `core-pin` | The revision of another repository that core at `head` composes | What core actually integrates |
+| `released` | A published artefact (PyPI wheel, service release asset) | The architecture of the supported distribution |
+| `historical` | A fixed earlier revision of core (section 2) | Evolution measures |
+
+Head revisions:
+
+| Repository | `head` |
+|---|---|
+| `spec-kitty` (core) | `5c4fc5a79de1c1c299ab221ca26e5555c68ef533` |
+| `spec-kitty-charter` | `06cdfbe94856e8d24eca350c63d2a7b47bb9f13a` |
+| `spec-kitty-events` | `646e330b896b96d7a11f53b34aa3d0c0baa69a05` |
+| `spec-kitty-open-packs` | `f9a557510dc7ff04597a0b8aba87f736e25f785e` |
+| `doc-kitty` | `1acc49fbe209436d3c1666a86e8b3960ee19e5ac` |
+
+Integration pins read from core at `head`:
+
+| Surface | File in core | Pinned to |
+|---|---|---|
+| Built-in pack | `packs/built-in.source.yaml` | open-packs `a79c36318b7a506ca2ab26d74705c5e3e406004f`, `requires_core >=4.0.0rc7,<5` |
+| Internal pack | `packs/internal.source.yaml` | open-packs `ecda7b00c789006bedcec4e2a8aadf75aa5b03f8` |
+| Events read service | `pins/read-service.source.yaml` | events tag `service-v0.1.0-rc.1`, commit `2f5e03948b5262185d15e45019fe14fbc473b9b5` |
+| Events Python package | `pyproject.toml`, `uv.lock` | range `>=11.3.0,<12`, locked `11.3.0` |
+| Tracker Python package | `pyproject.toml`, `uv.lock` | range `>=0.5.2,<0.6`, locked `0.5.2` |
+| Services companion wheel | `pyproject.toml` | `spec-kitty-services==4.0.0rc9` (workspace member) |
+
+Released artefacts known so far: `spec-kitty-cli` 3.2.7 (stable) and 4.0.0rc8 (pre-release) on PyPI; core `head` is 4.0.0rc9, not published. The complete pin and lock surface, including the reverse pins held by `spec-kitty-open-packs` and the charter repository, is the first deliverable of workstream D and is recorded before other workstreams cite a `core-pin` or `released` revision.
+
+Environment recorded with every executed evidence item: tool name and version, Python or JDK version, the command, its exit code, and the SHA-256 of the raw output file.
+
+## Measurement points
+
+### Fixed historical revisions of core
+
+Chosen from tags and landmark commits, before normalised measurement.
+
+| Point | Revision | Date | Why this point |
+|---|---|---|---|
+| P0 | `5a66b2a20a` (v0.11.0) | 2026-01-16 | Before the events dependency, the reducer, the `next` loop and the doctrine stack were added |
+| P1 | `40e5209a57` (v3.2.0) | 2026-06-16 | Start of the 3.2.x point-release line |
+| P2 | tag `v3.2.5` | 2026-07-08 | Inside the 3.2.x line |
+| P3a | `614c52cb38` | 2026-09-04 | Last commit of the public line before the convergence |
+| P3b | `f57b06dd87` | 2026-09-05 | Last commit of the EXPERIMENTAL line before the convergence |
+| P4 | `d4c5af7d8f` (v4.0.0rc1) | 2026-09-13 | First release candidate after the convergence |
+| P5 | `cc58393e0a` (v4.0.0rc5) | 2026-10-02 | Mid-series release candidate |
+| P6 | `d58e78335b` | 2026-10-14 | Removal of the hosted surfaces |
+| P7 | `5c4fc5a79d` | 2026-11-28 | `head` |
+
+In addition, a monthly series is taken at the last commit of each calendar month from 2026-01 to 2026-11. For 2026-08 and 2026-09 both lines are measured.
+
+### Discontinuities
+
+These are handled by rule, not by judgement at analysis time.
+
+- **Convergence.** The merge `2554bd13ad` (2026-09-05) joined two lines that ran in parallel from 2026-08-19. It is a structural discontinuity. No trend is drawn across it. Its effect is reported on its own as the difference between P3a, P3b and the merge result.
+- **Bulk commits.** A commit touching more than 500 files is excluded from per-commit measures and listed.
+- **Non-code commits.** A commit touching only `docs/`, `kitty-specs/` or `.kittify/` is excluded from code measures and counted separately.
+- **Issue numbers.** `#N` references belong to four trackers over time. Each reference is qualified by line and date before it is followed.
+- **Extracted repositories.** The charter repository has no core history, and Events imported some core history. Cross-repository change is joined by time, issue and pull request, never by file path. Imported commits are counted once.
+- **Renames.** A rename map is built first (for example `doctrine` to `charter/offering`) and applied to every historical revision.
+
+### Periods
+
+Where a brief asks for a comparison between periods of core history, use exactly these, each read at the nearest measured point on or before its boundary:
+
+| Period | From | To |
+|---|---|---|
+| T1 | 2026-04-01 | 2026-06-30 |
+| T2 | 2026-07-01 | 2026-09-05 (both lines; the convergence merge itself is reported apart) |
+| T3 | 2026-09-06 | 2026-11-28 |
+
+## Supplementary repositories (read-only clones, `head` on 2026-11-28)
+
+| Repository | Path | Revision | Commits fetched |
+|---|---|---|---|
+| `spec-kitty/spec-kitty-planning` | `/home/user/spec-kitty-planning` | `89f52a458082b87a5b9e2ca67537f843be53ebfe` | 3033 |
+| `spec-kitty/experimental-spec-kitty` (archived) | `/home/user/experimental-spec-kitty` | `29f302566ad4f4103b3829c454a99abce70d413a` | 1 (its history is in core as the second parent of the convergence merge) |
+| `spec-kitty/spec-kitty-tracker` | `/home/user/spec-kitty-tracker` | `658abee7b33ed2d14003c08fdbec4ffea2f45223` | 629 |
+| `spec-kitty/spec-kitty-orchestrator` | `/home/user/spec-kitty-orchestrator` | `8be32b14d15a48bb035a436cf13d49c8fa231c2f` | 27 |
+| `spec-kitty/experimental-spec-kitty-end-to-end-testing` | `/home/user/experimental-spec-kitty-end-to-end-testing` | `30181e955706e2edfef5c6a53871b82e026cc57e` | 852 |
+| `spec-kitty/fleet-kitty` | `/home/user/fleet-kitty` | `e3b39b8078700410681a3e5fc733a4d0c792eccb` | 213 |
+| `spec-kitty/spec-kitty-container` | `/home/user/spec-kitty-container` | `1ff99fea6f09986b7d934ebac7ba756578556168` | 23 |
+| `spec-kitty/spec-kitty-planning-archive` | `/home/user/spec-kitty-planning-archive` | `b1e5ad3f70fef1bf310f04c9b28953a8007fcd2c` | 1 |
+| `spec-kitty/event-router` | `/home/user/event-router` | `8f4bb647fcfe17a2581ab1c97c10326e9645bbd0` | 1 |
+| `spec-kitty/spec-kitty-pack-composer` | `/home/user/spec-kitty-pack-composer` | `d40a8bac24b24bac340d485760c896ebd8d7f253` | 1 |
+| `spec-kitty/spec-kitty-mcp` | `/home/user/spec-kitty-mcp` | `a6bdf6bda88a45c58b0f74306a77ed38b51635e5` | 1 |
+| `spec-kitty/experimental-spec-kitty-events` (archived) | `/home/user/experimental-spec-kitty-events` | `4bb00f893d6babcb84ba9a0ee797ce64b3ff8b8f` | 1 |
+| `spec-kitty/experimental-spec-kitty-tracker` (archived) | `/home/user/experimental-spec-kitty-tracker` | `0e67d6b20c0f292744e4e289289239cba9cd3a74` | 1 |
+
+The five primary repositories are full clones at `/home/user/spec-kitty`, `/home/user/spec-kitty-charter`, `/home/user/spec-kitty-events`, `/home/user/spec-kitty-open-packs`, `/home/user/doc-kitty`. Do not `git fetch` in any of them. Issues and pull requests of attached repositories can be read with the GitHub MCP tools (load them with ToolSearch `select:mcp__github__pull_request_read,mcp__github__issue_read,mcp__github__list_pull_requests,mcp__github__list_commits,mcp__github__get_commit`); read only, never write.
+
+## Environment notes
+
+- Python 3.13, uv, Node 22, JDK 25, Docker client are present. There is no system Docker daemon; a daemon can be started in scratch space, Docker Hub is rate-limited and `mirror.gcr.io` works.
+- The `spec-kitty-events` Gradle build was blocked earlier by rate limiting on dependency retrieval; the charter Gradle build worked. Retry once; if blocked, analyse statically and say so.
+- `spec-kitty-cli` on PyPI: 3.2.7 stable, 4.0.0rc8 pre-release. Core `head` is 4.0.0rc9, unpublished.
+- The CLI on PATH is an editable install of `/home/user/spec-kitty`; use it read-only. For any command that writes project state, use a disposable clone.
+- Record tool names and versions you use.
+
+## Sampling
+
+Seed for every random sample: `20261128` (for example `shuf --random-source=<(yes 20261128)` or a seeded Python `random.Random(20261128)`). State the population, the sampling frame and the sample size with every count. A case you pick by hand is tagged `purposive` and never mixed into a seeded sample.
+
+## Outputs
+
+All under `/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/`, where `<WS>` is your workstream id:
+
+1. `evidence/<WS>/`: raw artefacts. Command logs, graph exports, CSV, JSON. Allowed extensions: `.txt`, `.json`, `.csv`. Put scripts you wrote there as `.txt` (no `.py`, `.sh`, `.java` files anywhere under `docs/`). Each file at most 500 KB and the folder at most 4 MB; for anything larger keep the full file in scratch and commit a truncated or aggregated version plus the SHA-256 of the full file and the command that regenerates it. Write an `evidence/<WS>/MANIFEST.csv` with columns `file,sha256,produced_by_command,revision,tool_versions,exit_code,observed_at_utc`.
+2. `findings/<WS>/F-<WS>-NNN.yaml`: one file per finding, in the schema below. Observations first. An interpretation or recommendation is a separate record that cites observation ids in `derived_from` and never cites repository text directly.
+3. `workstream-reports/<WS>.md`: at most 1,500 words. Start it with this frontmatter exactly:
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+Then: profile and directives applied; method and tools with versions; what was covered and what was not; a table of the measures you were asked for with their values and the finding ids that carry them; deviations from your brief (what, why, what you did instead); blocked items; exploratory observations, clearly marked. No verdict on the architecture as a whole.
+
+A gate in the repository forbids a few retired phrases in every tracked file under `docs/`. You do not need to know them. Before you compute any SHA-256 and before you finish, run `python3 /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/tools/scrub.py <report folder>/evidence/<WS> <report folder>/findings/<WS>`. The tool inserts a `~` inside each retired phrase (for example in quoted logs) and is idempotent; the coordinator runs it again on everything before committing. Compute hashes after scrubbing.
+
+## Finding record
+
+```yaml
+finding_id: F-<WS>-001
+workstream: <your workstream name>
+hypotheses: []            # leave empty; filled later by the synthesis
+classification: observation   # observation | interpretation | hypothesis | recommendation
+view: observed            # recorded-intent | observed | approved-plan | proposed
+prereg:
+  measure: <measure id from your brief, or "exploratory">
+  deviation: null
+subject:
+  component: <component>
+  repository: spec-kitty/<repo>
+  revision: "<full sha or released version>"
+  revision_kind: head     # head | core-pin | released | historical
+claim: "<specific, bounded, with the number and its denominator>"
+evidence:
+  - id: E1
+    kind: static-derived  # executed | static-derived | history-derived | document-claim
+    reference: "evidence/<WS>/<file>"   # or repo path:line at the revision for a document-claim
+    method: "<exact reproduction command>"
+    sha256: "<of the artefact>"
+    exit_code: 0
+    environment: "<tool versions>"
+    observed_at: "<UTC>"
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: null      # null on observations
+derived_from: []          # finding ids; required on interpretations and recommendations
+counterevidence: []
+disconfirmation:
+  search: "<what you did to look for the opposite>"
+  result: "<what you found, even if nothing>"
+relations: []             # {type: supports|contradicts|duplicates|refines, target: F-...}
+confidence: high          # high | medium | low
+analyst:
+  profile: ""
+  model: ""
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []
+```
+
+Rules:
+
+- Every finding carries a disconfirmation search: what you did to find the opposite, and its result. An empty `counterevidence` without one is rejected.
+- Rates, not bare counts: give the denominator.
+- Mark every finding as carrying a measure from your brief, or as `exploratory`. Exploratory findings are welcome and are never presented as answers to a measure.
+- If a measure cannot be taken as written, stop that measure, record a deviation (what, why, what you did instead) and carry it in each affected finding. Do not silently adapt a definition.
+- Do not put secrets, tokens or e-mail addresses of people in any output.
+
+## Your final message
+
+When done, reply to the coordinator with at most 150 words: number of findings by classification, files written, deviations, blocked items. Do not summarise your conclusions in that message; they are in your report.

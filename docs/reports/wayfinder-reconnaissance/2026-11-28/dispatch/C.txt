@@ -1,0 +1,28 @@
+Workstream C - Evolution and change coupling
+Id: C (if your id is given as C2 in your instructions, use C2 everywhere and treat this as an independent run: do not read evidence/C, findings/C or workstream-reports/C*). Profile: named in your instructions. Action for charter context: review.
+
+Goal: measure how change in core (/home/user/spec-kitty) was distributed over components through time, by version-control and tracker history. View: observed. Evidence: history-derived.
+
+Definitions:
+- Component: each top-level package under src/ (kernel, charter, glossary, runtime, mission_runtime, specify_cli) and each second-level subpackage of specify_cli and charter. Build and commit a rename map so paths in older revisions map to today's components (e.g. doctrine -> charter/offering, constitution -> charter).
+- Code commit: a commit that changes at least one file under src/. Commits touching only docs/, kitty-specs/, .kittify/ or tests are counted separately. Commits touching more than 500 files are excluded and listed. Merge commits are handled explicitly (state how).
+- Lines of history: the public line and the EXPERIMENTAL line ran in parallel between 2026-08-19 and 2026-09-05 and were joined by merge 2554bd13ad. Tag every commit with its line. Draw no trend across the merge; report the merge's own effect separately (what it changed, by component, relative to each parent).
+- Commit class, by fixed rules that you write down BEFORE classifying and commit as evidence/<id>/classification-rules.txt: capability-growth, corrective-maintenance, restructuring, compatibility-work (migrations, shims, upgrade paths, legacy readers), convergence-activity (cherry-pick trailers, the convergence merge and its preparation), other. Use the subject prefix, the paths touched and trailers. Then classify a seeded sample of 50 commits by reading their diffs and report the rule set's agreement with that reading (confusion table).
+
+Measures (per calendar month 2026-01..2026-11, per line where two exist, and aggregated for periods T1, T2, T3 of the common brief):
+- M01c: components touched per code commit: median, 90th percentile, mean; overall and by commit class.
+- M01d: share of code commits that touch two or more components; overall and by class.
+- Co-change matrix: for each pair of components, the number of code commits touching both and the pair's support/confidence; top pairs per period; export CSV.
+- Volume denominators: commits, code commits, changed lines, source lines at period end, by class.
+- M01f: new cross-component import edges introduced per thousand changed lines, by commit class and period. Method: for a seeded sample of 150 code commits per period (stratified by class), compute the cross-component import edge set (an AST walk over the changed files before and after is enough) and count edges added and removed. State the method's limits.
+- M01g: review intensity. Seeded sample of 40 code commits per period: was the change part of a pull request, and does that pull request carry a review or approval by an account other than its author? Use the GitHub MCP tools read-only (commit -> associated pull request -> reviews). For the EXPERIMENTAL line use the archived repository spec-kitty/experimental-spec-kitty if its pull requests are readable. Issue and PR numbers belong to different trackers over time: qualify each by line and date. Report "not assessable" where the tracker cannot be read; that is a coverage limit, not a result. Record whether the author is a human or an agent account as a separate column; do not treat it as a measure of supervision.
+- M02a: frame = commits on core main from 2026-09-07 to 2026-11-28 whose subject marks a fix and whose diff touches two or more components, or a pin/lock file (packs/*.source.yaml, pins/*, uv.lock, pyproject.toml dependency lines), or a contract file. Report the frame size. Draw a seeded sample of 30. For each, trace: the change that introduced the defect (via issue/PR text, blame, references); whether that introducing change belonged to a Mission (kitty-specs/ artifacts) that had passed its acceptance; and how the defect was detected: (a) an automated check before the introducing change reached main, (b) an automated run after it reached main (nightly, post-merge), (c) a person (user report, reviewer, operator, another Mission). Keep untraceable cases in the denominator as "untraceable".
+- M02b: the same for a seeded sample of 30 fixes that touch exactly one component and no pin/lock/contract file.
+- Sibling series: M01c/M01d-equivalent (top-level package or module as component) for /home/user/spec-kitty-events over the same months.
+- Recurrence: files and components that received corrective-maintenance commits in three or more distinct months; chains where a fix commit is itself fixed within 14 days (same files, fix-class subject), count per period with denominators.
+
+Also record three to five representative change chains per period as narrative evidence (purposive, tagged so), each traced from the first change to the last correction, without asserting cause.
+
+Report correlations as correlations. Do not attribute cause.
+
+Cap: at most 40 finding records.

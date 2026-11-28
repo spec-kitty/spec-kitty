@@ -1,0 +1,24 @@
+Workstream D1 - Integration surface, packaging and independence of Python-side capabilities
+Id: D1. Profile: architect-alphonso (scope: evaluate and measure, not decide). Action for charter context: review.
+
+Goal: establish by execution in disposable environments what core actually composes, what it ships, and how independent each capability is on each of the five dimensions. View: observed (executed wherever possible).
+
+FIRST DELIVERABLE (write it before anything else, as evidence/D1/revision-table.csv and a finding): the complete pin and lock surface. For every place where one repository or artefact fixes a version or revision of another: file, mechanism (commit pin, tag pin, version range, lock entry, digest, requires_core, companion wheel), pinned value, whether it is verified at build/install/run time and how. Include packs/*.source.yaml, pins/*.source.yaml, pyproject.toml ranges and uv.lock in core; charter.lock.yaml and any pins in spec-kitty-open-packs; pins held by spec-kitty-charter, spec-kitty-events and doc-kitty; the `spec-kitty service vendor` and `charter pack vendor` mechanisms. State for each surface the three revision kinds (head of the other repo, the pin in core, the released artefact) and how far apart they are (commits, days).
+
+Then:
+- Distribution contents: build the core wheel and sdist from a disposable clone of head (and download 4.0.0rc8 and 3.2.7 from PyPI); list what ships (top-level packages, pack tiers, pins, binaries) and what is excluded. Development architecture vs supported distribution: differences between a source checkout that works (what must be synced/fetched first) and an installed wheel.
+- M04a: for each released Python artefact (spec-kitty-events, spec-kitty-tracker, spec-kitty-cli): install alone in a clean venv; record its dependency closure; run its own packaged checks if it has any (e.g. `pytest --pyargs spec_kitty_events.conformance`).
+- M04b: from a clean clone, with no sibling checkout present, can each of spec-kitty-open-packs, doc-kitty, spec-kitty-tracker and the Python part of spec-kitty-events build and run its own named fast checks? (Named files/targets only, no whole suites.)
+- M04c: consumer references that bypass a public surface: core's imports of spec_kitty_events / spec_kitty_tracker names that are private or not in the declared public surface; file paths from one component into another's tree; reads of another component's files instead of its interface (packs tree, charter bundle, status files, activation file). Count with denominators.
+- M04d: install core (4.0.0rc8 wheel, and head from source) against the lowest and the highest spec-kitty-events and spec-kitty-tracker versions its declared ranges admit; run the events packaged conformance and a small named set of core checks at that boundary (pick the test files that cover the events/tracker seam; name them). Record pass/fail per combination.
+- M04e: seams. For `charter.offering.api` in core, the status event produce seam (`status/adapters.py`), the tracker client boundary and the packs resolution path: who imports the seam, who imports behind it (bypass count), and can a second implementation or a stub stand behind it without editing a consumer? Try a minimal stub in a disposable copy where feasible and record what had to change.
+- M04f: absence tests in a disposable environment, only where a record says it should work: core CLI basic commands without the optional services wheel; packs resolution offline from the cache; status read from files with no service running. Record which ran.
+- Packs: can a pack from spec-kitty-open-packs be validated and used without core's source tree (only a released CLI)? What does a pack pin of core/charter imply for upgrade order?
+- Mission and work-package state machines: are their definitions data (pack content, YAML) or code? For the most recent addition of a mission type and of a supported agent/tool in history, list the files changed, by component (history-derived).
+- Reconstructing derived state: in a disposable Mission directory copy, delete the derived status snapshot/materialised views and check whether the documented command rebuilds them identically from the event log.
+
+Fill the matrix evidence/D1/independence-matrix.csv: rows = charter activation, charter offering, status ledger and reducer, events contracts (Python package), mission state machine, work-package state machine, packs, glossary, tracker client, doc-kitty; columns = the five dimensions; each cell = observed state (established / partly / not established / not assessable) with the evidence id. Do not fill a "declared" column; that comes from elsewhere. Rows for the Java services are filled by another workstream.
+
+A blocked test makes a cell "not assessable". Distinguish a capability that is unsupported by design from a defect, and say on what basis.
+
+Cap: at most 45 finding records.

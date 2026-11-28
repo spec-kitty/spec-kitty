@@ -1,0 +1,20 @@
+Workstream D2 - Independence of the Java services (charter service, events read and write services)
+Id: D2. Profile: java-jenny (used here for build and runtime competence; your task is to measure, not to implement). Action for charter context: review.
+
+Goal: establish by execution in disposable environments how independent the Java services are on each of the five dimensions. View: observed.
+
+Subjects: /home/user/spec-kitty-charter (the charter service and its contracts), /home/user/spec-kitty-events (service/ and contracts/ modules; release line service-v*), and the way core (/home/user/spec-kitty) and /home/user/spec-kitty-open-packs consume them.
+
+Measures:
+- M04b: from a clean clone with no sibling checkout present, does each repository build (Gradle) and pass its own architecture/contract verification tasks? Run named tasks only. The events build may be blocked by rate-limited dependency retrieval: retry once, record the exact error, then continue statically and mark affected cells "not assessable". The charter build worked earlier.
+- M04a: download the released service artefacts that core pins (events tag service-v0.1.0-rc.1: assets, sha256) and verify digests against core's pins/read-service.source.yaml. Start the read service against a small Mission directory fixture if a native binary or jar runs here; query it through its published contract; stop it. Same for a charter service artefact if one is released. Record what ran.
+- Contract surface: where the contracts are defined (OpenAPI/JSON schema/proto/Java interfaces), how they are versioned, what conformance fixtures exist, and who consumes them (core, open-packs, doc-kitty, others among the supplementary clones such as spec-kitty-orchestrator, spec-kitty-pack-composer, spec-kitty-mcp, fleet-kitty).
+- M04c: references that bypass the contract: a consumer reading the service's files or internals, a service reading core's files directly (e.g. .kittify/ or kitty-specs/ layouts) rather than through a declared input contract; shared file formats defined in two places. Count and list.
+- M04d: version compatibility: which contract versions each consumer pin admits; does a consumer run against the next released service version (service-v0.1.0-rc.2, rc.3) where artefacts exist? Try it if the artefacts run.
+- M04e: is there a second implementation of any service contract (e.g. a Python implementation in core of what the Java service does, or a conformance corpus that both pass)? If both exist, run the shared conformance corpus against each where feasible and record agreement.
+- M04f: deployment: how each service is started, by whom (CLI launcher, user, CI only), its lifecycle (per worktree, loopback, daemon), and what happens in core when it is absent. Verify by execution in a disposable project where feasible.
+- Whether any consumer requires the service to be a separate process, or requires it to be in-process.
+
+Fill evidence/D2/independence-matrix.csv: rows = charter service (offering reads), charter activation as served, events read service, events write service, events contracts (Java/bundles); columns = the five dimensions; each cell = observed state (established / partly / not established / not assessable) with evidence id. Do not fill a "declared" column.
+
+Distinguish unsupported-by-design from defect, and say on what basis. Cap: at most 30 finding records.

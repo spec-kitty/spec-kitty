@@ -1,0 +1,19 @@
+Workstream E1 - Assurance inventory, exceptions, and the research-mission experiment
+Id: E1. Profile: reviewer-renata. Action for charter context: review.
+
+Goal: inventory the mechanisms that are meant to keep the architecture as intended, and measure the population of recorded exceptions. View: observed.
+
+Deliver:
+1. Gate inventory (evidence/E1/gates.csv) across the five primary repos: every automated architecture/contract/boundary check (architectural tests, layer rules, AST pins, ArchUnit, module allowlists, conformance suites, pack/DRG gates, docs validators, packaging guards). Columns: repo, file, what it protects (boundary/direction/contract/packaging/terminology/other), mechanism, exceptions file it reads, where it runs (per-PR required / per-PR reported / nightly / release / local only / nowhere), blocking or informational. Derive "where it runs" from workflow files and module registries, with file:line.
+2. CI as an assurance surface: which checks are required to land a change on main in each repo (from workflow and ruleset evidence available in the repo; say what you cannot see), which test directories are outside the per-change matrix, which cross-repository checks exist (e.g. events alignment, cross-repo harness with /home/user/experimental-spec-kitty-end-to-end-testing) and what triggers them.
+3. Chain from governance to gate: for 12 rules sampled by seed from the charter's architecture sections and the binding directives, trace rule -> where a spec/plan/review step is told to apply it -> automated gate (if any) -> exception path. Record at which link each chain ends.
+4. M05a: population of transitional constructs from machine-readable sources only: baseline/ledger/allowlist files read by architectural tests, the superseded-migrations table, strict expected-failure markers with issue references, shim/legacy-reader modules, compatibility aliases; and their equivalents in the other four repos. One row per ledger: path, entries now.
+5. M05b: for each ledger, entries added and removed between 2026-09-07 and 2026-11-28 (git history of the file), net change; flat, shrinking or growing.
+6. M05c: share of entries (per ledger and overall) that carry a tracking reference (issue/ADR) or a retirement condition. M05d: age distribution of entries (first appearance in history).
+7. Exception governance as recorded: how an exception is supposed to be requested, approved, owned and retired (document-claim), and for a seeded sample of 30 ledger entries whether owner, rationale, approval and retirement condition are actually present (observed).
+8. Experiment PX-01, in a disposable clone of core at head (git clone --shared into scratch; use a scratch HOME so no user state is touched): create a Mission with `spec-kitty agent mission create <slug> --mission-type research --topology single_branch`, author minimal spec/plan content as the documented commands require, and advance it with the documented commands only (`spec-kitty next --mission <handle>` and the commands it names). Record every command and output. Record the first step that cannot be passed, the guard that refuses, what the guard waits for, and whether any documented CLI command or documented procedure produces it. Outcomes: completes / stalls at a guard with no documented producer / stalls for another reason / could not be run. Attempt no workaround (do not hand-write event files) and repair nothing.
+9. Acceptance at Mission level: what `accept` and Mission review check, as observed in code and step contracts: which checks are local to the Mission's own artifacts and which look at the ecosystem (other repos, pins, contracts, architectural gates). List with file:line.
+
+You must NOT read the folder scratchpad/ws-E2 or dispatch/E2.txt, and must not design or run mutations; another agent does that.
+
+Cap: at most 40 finding records.

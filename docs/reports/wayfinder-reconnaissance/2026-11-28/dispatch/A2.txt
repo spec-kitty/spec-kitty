@@ -1,0 +1,14 @@
+Workstream A2 - Terminology and concept map
+Id: A2. Profile: lexical-larry. Action for charter context: specify.
+
+Goal: establish the ecosystem's vocabulary for architecture-relevant concepts, where the same word carries several senses, and how a list of outside terms maps onto it. All document-claim evidence unless you verify an identifier in code (then static-derived).
+
+Sources: docs/context/ glossaries and docs in the five primary repos, charters, ADRs, plus identifiers in source where a term names a code concept. /home/user/spec-kitty-planning may be used.
+
+Deliver:
+1. Term inventory (evidence/A2/terms.csv) for: runtime, dispatch, mission, mission type, work package, invocation, Op, pack (and tiers), orchestrator, orchestration, coordination, control plane, harness, tool, agent, profile, runner, assignment, attempt, session, lane, projection, snapshot, materialize, ledger, event, bus, seam, adapter, contract, charter, doctrine, offering, activation, service, daemon, modulith/monolith, product-line names. Columns: term, sense, defining source (path:line), repositories where used, count of uses per repo (grep, state the command), canonical or discouraged per the glossary, conflicting senses.
+2. For each term with more than one sense: where each sense is used and whether the glossary disambiguates it.
+3. Mapping table (evidence/A2/outside-terms.csv) for these outside terms, which come from a prospective consumption context and are NOT expected to exist in the repositories (their absence is not a deficiency): Build Kitty, core CLI, Charter and API, Packs, Doc Kitty, Events and API, mission coordination, execution infrastructure, containerised runner, control-pane surface, HUD, Operations Deck, Kira, Wayfinder, architectural knowledge plane, modulith packager, harness adapter, assignment, attempt, session, projection, native journal, savoir / savoir-faire / savoir-etre. Columns: outside term, nearest ecosystem term(s), ecosystem definition source, fit (same / narrower / broader / different / no counterpart), note.
+4. Cross-repository terminology drift: terms defined differently in two repositories' glossaries or charters.
+
+Cap: at most 20 finding records.

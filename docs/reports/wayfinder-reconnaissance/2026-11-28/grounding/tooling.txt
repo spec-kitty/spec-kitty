@@ -1,0 +1,237 @@
+# Wayfinder grounding: tooling, measurability and feasibility
+
+Delegate lens: TOOLING / MEASURABILITY / FEASIBILITY. Date 2026-11-28. Read-only: all five checkouts verified clean (`git status --porcelain` = 0 lines each) after the work.
+
+## Profile applied
+
+- `spec-kitty agent profile show paula-patterns`: architecture-scout. Its avoidance boundary lists "first-occurrence bugs, mechanical refactors". A tooling inventory is first-occurrence, mostly mechanical scouting, so I switched to **researcher-robbie** (focus: technology evaluation and spike investigations; avoids production code and final technology decisions). Directive 003 applied.
+- `spec-kitty charter context --action plan --json`: bootstrap mode, 264 references. Applied: single canonical authority, reuse existing checks before adding tools, terminology canon (Mission, never feature).
+
+## Pinned revisions (from PINS.md)
+
+spec-kitty 5c4fc5a79d, charter 06cdfbe948, events 646e330b89, open-packs f9a557510d, doc-kitty 1acc49fbe2.
+
+Scratch layout: `scripts/` (my scripts), `out/` (JSON/log outputs), `venvs/` (uv venvs), `revs/` (git-archive src trees), `clones/` (shared clones), `dl/` (downloaded release asset), `gradle-home/`, `pnpm-store/`, `dockerd/`.
+
+---
+
+## 1. Existing mechanisms to reuse
+
+### spec-kitty (core)
+- `tests/architectural/`: 479 tracked files, 393 .py, **309 `test_*.py`** (115,699 lines). 160 of them use `ast.parse`/`ast.walk` (AST pins). 8 files import pytestarch.
+- `conftest.py::landscape` (line 89): 6 layers kernel, charter, glossary, runtime, mission_runtime, specify_cli.
+- `test_layer_rules.py`: 28 test functions, 6 `LayerRule()`s. Ledgers: `_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI`=10, `_RUNTIME_ALLOWED_SPECIFY_CLI`=22, `_MERGE_CLI_CONSOLE_IMPORTERS`=16.
+- `_baselines.yaml`: ratchet meta-file (`test_ratchet_baselines.py`). 19 gated tests, 30 baseline keys, **sum of baselined entries = 1015**. Examples: charter_activation boundary 231, status read door legacy 33, doctrine census 10. Every line carries a `# justification:`.
+- Allowlists and baselines (lines): dead_symbol_allowlist 1374, _baselines 477, charter_activation_boundary_baseline 469, charter_path_literal_allowlist 413, ci_topology_census.json 365, census/home_pin anchor 332 and tombstones 331, _inert_slots_baseline 244, _builtin_pack_provenance_baseline 235, charter_offering_public_surface 199, mission_type_reader_allowlist 134, global_state_allowlist S1-S8 213 in total.
+- `_exemptions/*.txt`: 21 files, 18 of them empty. The non-empty ones are root_vacuous_denial (12), os-detect-ban-deferred (3), os-detect-ban-mypy-narrowing (2) and os-detect-ban-sanctioned-raw (1).
+- No import-linter config. pytestarch 4.0.1 is locked (introduced 2026-04-04, 71e7c28350).
+- CI: 20 workflows.
+  - `ci-router.yml` feeds `gate_selection.py`.
+  - `.github/ci-module-registry.yml`: 20 module rows plus **32 out_of_matrix entries covering 107 test directories**. 3 of those entries (50 dirs) record "no per-PR home / rootless": tests/acceptance, tests/adversarial, tests/concurrency, tests/cross_branch, the tests/specify_cli/* trees and others.
+  - Also: ci-aggregate (diff-cover ≥90%, `sonar-pr`), packs.yml, ci-nightly, sonar.yml, check-spec-kitty-events-alignment, release-readiness, protect-main.
+- Machine-readable outputs:
+  - `--junitxml` in about 20 CI places (out/reports/xunit-*.xml).
+  - Coverage XML.
+  - `.github/ci-shard-timings.json`, `ci-consumer-census.json`, `ci-foreign-coverage-baseline.json`, `tests/architectural/ci_topology_census.json`, `p1_census/census.json`.
+  - CLI: `spec-kitty migrate ledger --json` (1.75 s, keys summary/steps), `charter context --json`, `doctor <27 subcommands>` (charter-packs, topology, identity, contracts, ...), `charter pack validate/regenerate-graph`.
+- SonarCloud public API works token-free: `curl "https://sonarcloud.io/api/measures/component?component=spec-kitty_spec-kitty&metricKeys=ncloc,coverage,..."` returns ncloc 264,951, coverage 84.3, cognitive complexity 51,833. Only **16 analyses** exist (since reinstatement in Sep 2026), so there is no pre-maintenance baseline.
+
+### spec-kitty-charter
+- 18 Gradle projects (verified with `./gradlew projects`).
+- ArchUnit 1.5.1: 10 files, about 192 `should(...)` rule declarations (HexagonalArchitectureTest, NetworkCodeBoundaryTest, OwnerOnlyBoundaryTest, PackGraphWalkBoundaryTest, ...).
+- Checkstyle 14.3.0, ErrorProne 2.50, JaCoCo, build-logic `ModuleDependencyAllowlist.kt` (Gradle-level module dependency gate) and `CheckstyleRegister.kt`.
+- 13 workflows, including mutation-testing (nightly), timing-nightly, whole-pack and contract-release. No sonar-project.properties.
+
+### spec-kitty-events
+- Python package plus 6 Gradle projects (java-binding, mission-status-api, domain-model, event-log, command-cli, contracts).
+- ArchUnit 1.4.2: 14 files, about 76 rule declarations (ArchitectureRules, WriteOwnershipRules, AuthorityPurity, LedgerExemptionScope, NoUncappedRead, ...).
+- Packaged conformance gate `pytest --pyargs spec_kitty_events.conformance`: **ran against the PyPI 11.3.0 wheel in a clean venv: 1200 passed in 2.87 s.**
+- 12 workflows. `cross-repo-harness-tests` checks out **spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing** (not accessible to this session).
+
+### spec-kitty-open-packs
+- `validate-packs.yml`: charter-schema validation (`scripts/ci/validate-packs.sh`), digest check, vocabulary guard, generated pages check, and 5 unittest suites.
+- `charter-track.yml` tracks the charter pin.
+
+### doc-kitty
+- `pnpm validate:docs|links|adr-ids|changelog|features|catalog`, markdownlint, plantuml guard and an artifacts assert.
+- After `pnpm install` (36.5 s) in a disposable clone: validate:docs → 217 files valid; validate:links → 1943 refs resolve (3.2 s total).
+- Cross-repo, read-only runs (indicative only, since other repos may not claim DocKitty conformance):
+  - charter docs: 416 valid, links clean.
+  - events docs: 235 valid with its own `--exclude docs/changelog/unreleased`.
+  - open-packs: 45 files fail, but no exclusion flag was applied.
+  - **spec-kitty docs: 392 files fail frontmatter, 195 link problems in 76 files** (input to H06).
+
+## 2. Languages and LOC (git ls-files, wc -l)
+
+| repo | files | py | java | ts/mjs/astro | md | feature |
+|---|---|---|---|---|---|---|
+| spec-kitty | 41,377 | 2,026,306 (src 524,936; tests 1,443,771) | 4,349 (acceptance-jvm) | ~0.1k | 2.31M | 1,787 |
+| charter | 7,489 | 8,255 | 341,934 | ~0.2k | 272k | 39,011 |
+| events | 6,064 | 93,973 | 63,731 | ~0.2k | 116k | 1,069 |
+| open-packs | 1,650 | 21,084 | 598 | ~0.1k | 64k | 22 |
+| doc-kitty | 3,562 | 0 | 0 | 104,659 ts + 36,370 mjs + 3,380 astro | 160k | 660 |
+
+spec-kitty src packages (py LOC / files): specify_cli 407,154/1119; charter 77,725/252; runtime 17,627/36; kernel 9,179/45; mission_runtime 6,868/16; glossary 6,383/22. Build files: pyproject.toml (+ src/kernel/pyproject.toml, packages/spec-kitty-services).
+
+Extractors:
+- Installed in a scratch venv (uv): grimp 3.20, import-linter 2.17, pydeps 3.0.9, pytestarch 5.1.1.
+- Available on the host: jdeps (JDK 25.0.5), node 22 and pnpm 11. madge is reachable on npm but not installed.
+
+**grimp on spec-kitty src at HEAD:**
+- 1,490 modules, 8,332 internal edges, built in **0.16-0.2 s**.
+- 15 non-trivial module SCCs covering 494 modules. The largest has 201 modules (specify_cli 164, runtime 27, mission_runtime 10).
+- Package-level mutual reachability: runtime↔specify_cli and mission_runtime↔specify_cli.
+- Cross-layer edges: runtime→specify_cli 98, mission_runtime→specify_cli 30, specify_cli→runtime 40.
+- Caveat: grimp counts function-local and TYPE_CHECKING imports by default. B must decide whether to normalise with `exclude_type_checking_imports`.
+
+By comparison, the pytestarch gate `tests/architectural/test_layer_rules.py` (80 tests) took **150 s** (3m05 wall) in a disposable clone.
+
+## 3. History shape
+
+Commits per month (author date):
+- spec-kitty: 2025-08 22, 09 247, 10 111, 11 243, 12 128 | 2026-01 1441, 02 1225, 03 174, 04 754, 05 723, 06 1482, 07 1198, 08 3250, 09 3134, 10 4320, 11 3262.
+- charter: 2026-10 614, 11 1828.
+- events: 2026-01 26, 02 655, 03 55, 04 139, 05 86, 06 2, 08 256, 09 51, 10 294, 11 105.
+- open-packs: 2026-07 5, 10 160, 11 591.
+- doc-kitty: 2026-08 133, 09 79, 10 396, 11 313.
+
+spec-kitty monthly (committer date): agent-involved share (author or co-author trailer matching claude/codex/cursor/bot/agent), fix: share, and reverts.
+
+| month | commits | agent | fix | reverts |
+|---|---|---|---|---|
+| 2026-05 | 723 | 11% | 20% | 0 |
+| 2026-06 | 1477 | 29% | 19% | 5 |
+| **2026-07** | 1187 | **78%** | 24% | 3 |
+| 2026-08 | 3039 | 65% | 24% | 0 |
+| 2026-09 | 3329 | 74% | 24% | 0 |
+| 2026-10 | 3326 | 92% | 27% | 1 |
+| 2026-11 | 4288 | 64% | 19% | 3 |
+
+Commit message conventions, by repo:
+
+| repo | conventional prefix | fix: | subject has #N | co-author trailer |
+|---|---|---|---|---|
+| spec-kitty | 84% | 20% | 33% | 51% |
+| charter | 98% | 14% | 38% | 44% |
+| events | 78% | 10% | 25% | 32% |
+| open-packs | 97% | 25% | 55% | 77% |
+| doc-kitty | 94% | 22% | 42% | 94% |
+
+**Merge convention (spec-kitty):**
+- 21,714 commits, 16,801 first-parent, 1,260 merges (348 first-parent).
+- Since 2026-08, main is effectively rebase-linear: first-parent merges were 3 (Aug), 7 (Sep), 0 (Oct), 1 (Nov). Every PR commit lands individually, so PR boundaries are NOT in git.
+- GitHub REST works: `gh api repos/spec-kitty/spec-kitty/commits/<sha>/pulls`. Rate limit 15,000/h, 2,980 closed PRs (2,665 merged). GraphQL is blocked, so `gh pr` and `gh release list` fail; use `gh api`.
+- Other repos: charter has 0 merges (fully linear); events 194; open-packs 1; doc-kitty 9.
+
+Tags:
+- spec-kitty: 295 tags.
+- charter: 8 tags, all 2026-11.
+- events: 36 tags; `service-v0.1.0-rc.1` 2026-11-01, rc.2 2026-11-01, v11.3.0 2026-10-27.
+- open-packs: 3.
+- doc-kitty: 9.
+- On spec-kitty, **v3.2.6.2 and v3.2.7 are NOT ancestors of main** (released from a side line). Every other sampled tag is on the first-parent chain.
+
+### Discontinuities that bias temporal metrics
+1. **Convergence** `2554bd13ad` (2026-09-05, "merge: converge EXPERIMENTAL Spec Kitty into public main"):
+   - First parent 614c52cb38 (public, 800 unique commits); second parent f57b06dd87 (EXPERIMENTAL, 1,996 unique commits; fork point 38090b6493, 2026-08-19).
+   - The merge "preserves the exact EXPERIMENTAL tree". A first-parent diff is 3,179 files, +69,807/−349,905.
+   - PR #3881 (e721763759) wraps it.
+   - The two lines ran in parallel 2026-08-19..09-05.
+2. **Issue-number namespaces collide.** EXPERIMENTAL refs (#1078, #1044, ...), public Priivacy-ai refs (to #3916, 2026-09-06), post-org-move spec-kitty refs (from 2026-09-07) and spec-kit upstream refs (2025-09/10, up to #748) share one `#N` space.
+3. **Root commit** 223b2e1fb5 (2025-08-21, Den Delimarsky): the history starts as a GitHub spec-kit fork.
+4. **Charter repo has one root (2026-10-13) and carries no core history**, so the extraction severs file lineage.
+   - Events imported the core service history (`1e9ec1d3` #147, 2026-10-30, merged f75022f6), so those commits exist in both repos (double-count risk).
+   - Events also has a second root `50ee0e6c` (2026-10-03, contracts layout).
+5. Renames: doctrine→charter/offering (2b5335cf81, 2026-08-29), constitution→charter (#390, 2026-04-05). Module identities need a rename map across epochs.
+6. Bulk commits: commit size median 2 files, p90 11, p99 80, max 7,344, with 27 commits over 500 files. 7,255 commits touch only docs/kitty-specs/.kittify; filter them.
+7. Merge commits show no files in `git log --name-only` without `-m`.
+
+### Candidate epoch boundaries (spec-kitty)
+
+| epoch | SHA | date | modules / edges / SCC-modules (grimp) | confidence |
+|---|---|---|---|---|
+| E0 before capability expansion | v0.11.0 5a66b2a20a | 2026-01-16 | 105 / 250 / 25 (specify_cli only) | high |
+| E1 expansion consolidated / start of maintenance | v3.2.0 40e5209a57 | 2026-06-16 | 996 / 3,420 / 237 | medium |
+| E1b inside maintenance | v3.2.5 (tag) | 2026-07-08 | 1,069 / 4,004 / 292 | medium |
+| E2a end of maintenance, public line | 614c52cb38 | 2026-09-04 | 1,310 / 5,787 / 378 | medium |
+| E2b end of maintenance, EXPERIMENTAL line | f57b06dd87 | 2026-09-05 | 1,250 / 5,281 / 339 | medium |
+| E3 remediation began | c0054153b9 (#3888, Tier-3 governance and runtime ledgers, 2026-09-06), or v4.0.0rc1 d4c5af7d8f | 2026-09-13 | 1,256 / 5,505 / 362 | medium |
+| E3b peak | v4.0.0rc5 cc58393e0a | 2026-10-02 | 1,325 / 6,275 / **581 (largest SCC 509)** | to explain |
+| E3c hosted removal | d58e78335b (#6164) | 2026-10-14 | – | high (landmark) |
+| E4 current | 5c4fc5a79d | 2026-11-28 | 1,490 / 8,332 / 494 | exact |
+
+Basis for E0: events dependency added 2026-01-29 (a6f2435c23); reducer 2026-02-08 (87f3efb1f3); `next` loop 2026-02-17 (767ca9131c); doctrine stack and pytestarch 2026-04-04 (623057f978).
+
+Basis for E1/E2:
+- 3.2.x is a point-release line (v3.2.0 06-16 … v3.2.6 09-03).
+- Agent share jumps from 29% to 78% in July. Tags thin out: 2 in July, 2 in August.
+- The 1-2 month "barely supervised" window most plausibly covers **2026-07-01..2026-09-05**. That window is attributed, not established, so A must corroborate it.
+
+Architectural tests over time: 0 (v3.0.0), 52 (v3.2.0), 95 (v3.2.5), 160 (614c52), 176 (rc1), 244 (rc5), 306 (rc8), 310 (HEAD).
+
+Other repos have no pre-maintenance history at all: charter, open-packs and doc-kitty only exist in E3/E4.
+
+## 4. Environment feasibility
+
+| item | result |
+|---|---|
+| Docker system daemon | blocked: `/var/run/docker.sock` missing |
+| Scratch dockerd (`dockerd --data-root <scratch> --host unix://<scratch>/docker.sock`, running as root) | works (29.9.3, overlayfs, cgroup v1). Docker Hub returns **429**. `mirror.gcr.io/library/python:3.12-slim` pulled and ran (`container-ok`). public.ecr.aws failed. Network egress from inside a container is untested. |
+| Java | JDK 25.0.5 (Temurin) = required 25 (charter and events toolchains). System gradle 8.14.3; wrappers use 9.8.1 (downloads fine). |
+| Charter Gradle | works: `./gradlew projects` 92 s with a fresh GRADLE_USER_HOME (Google Central mirror first, per its settings). Full `verifyAll` not run. |
+| Events Gradle | **blocked**: repo.maven.apache.org 429 through the plugin portal redirect. Three disposable init-script workarounds failed (one hit dependency-verification on the mirror's plugin-marker POM). Retry later, or pre-seed the cache. |
+| PyPI spec-kitty-events | works: 11.3.0 standalone (deps pydantic, python-ulid only), imports OK, conformance 1200 passed |
+| PyPI spec-kitty-cli | works, with a trap: the default resolves **3.2.7 + events 6.1.0**. `--prerelease allow` gives **4.0.0rc8** + events 11.3.0. rc9 (local editable) is not on PyPI. |
+| GitHub release assets | works: `curl -L .../service-v0.1.0-rc.1/mission-status-api-0.1.0-rc.1-linux-x64` 96 MB in 0.9 s, sha256 e78c8311… **matches** `pins/read-service.source.yaml` |
+| docs.spec-kitty.ai, /architecture/diagrams/ | 200 / 200 |
+| npm registry, pnpm | works (doc-kitty install 36.5 s) |
+| Related repos (EXPERIMENTAL-spec-kitty-end-to-end-testing, EXPERIMENTAL-spec-kitty-planning, event-router, EXPERIMENTAL-spec-kitty, spec-kitty-tracker, spec-kitty-saas) | not enabled for this session (gh api 403 "use add_repo") |
+
+## 5. Cost sizing
+
+Cheap (seconds, no install per revision; `git archive <rev> src | tar -x` + grimp):
+- Import graph, SCCs and cross-package edges: 0.01-0.18 s per revision, 0.2 s to archive. All 11 revisions above were measured. Per-month or even per-PR sampling (thousands of revisions) is affordable.
+- Co-change, files per fix, commit-size and fix/revert chains: `git log --no-renames --name-only` over 21,714 commits takes 1.1 s.
+- Tag and ADR timelines: ADRs by month in spec-kitty 2026-01 21, 02 23, 03 5, 04 36, 05 14, 06 22, 07 23, 08 24, 09 20, 10 40, 11 11. ADR totals: core 239, charter 83, events 8, open-packs 17, doc-kitty 99.
+- Allowlist and baseline sizes per revision: `git show <rev>:<path>`.
+- PR metadata via REST: about 30 calls for all PRs, or 1 call per commit.
+
+Moderate:
+- pytestarch gates: 150 s for test_layer_rules alone. E mutation loops: N mutations × the relevant gate files. Use grimp/import-linter as a fast oracle, but **measure detection with the real gates**.
+- doc validators: seconds after a 40 s install.
+
+Expensive or blocked:
+- Gradle builds and jdeps over Java (it needs compiled classes; charter is feasible, events is blocked by 429).
+- Installing old CLI versions per revision.
+- Container-based D scenarios (Hub rate limit; use the gcr mirror).
+- Whole test suites: forbidden, and spec-kitty tests are 1.44M LOC.
+
+## Commands (reproduce)
+
+```bash
+G=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/grounding
+uv venv $G/venvs/graph --python 3.12 && VIRTUAL_ENV=$G/venvs/graph uv pip install grimp import-linter pydeps pytestarch
+$G/venvs/graph/bin/python -I $G/scripts/grimp_any.py /home/user/spec-kitty/src $G/out/grimp_scc_head.json
+cd /home/user/spec-kitty; git archive <rev> src | tar -x -C $G/revs/<rev>; $G/venvs/graph/bin/python -I $G/scripts/grimp_any.py $G/revs/<rev>/src $G/out/grimp_<rev>.json
+git log --no-renames --format='@%H %ct' --name-only > $G/out/sk_namelog.txt
+uv venv $G/venvs/ev-only --python 3.12 && VIRTUAL_ENV=$G/venvs/ev-only uv pip install spec-kitty-events pytest jsonschema hypothesis
+$G/venvs/ev-only/bin/python -I -m pytest --pyargs spec_kitty_events.conformance -q -p no:cacheprovider
+git clone -q --shared /home/user/spec-kitty $G/clones/sk && cd $G/clones/sk && git checkout -q 5c4fc5a79d
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$G/clones/sk/src:$G/clones/sk /home/user/spec-kitty/.venv/bin/python -m pytest tests/architectural/test_layer_rules.py -q -p no:cacheprovider -n0 --junitxml=$G/out/layer_rules.xml
+GRADLE_USER_HOME=$G/gradle-home ./gradlew -q projects --no-daemon   # in $G/clones/ch (works) / $G/clones/ev (429)
+dockerd --data-root $G/dockerd/root --host unix://$G/dockerd/docker.sock &; DOCKER_HOST=unix://$G/dockerd/docker.sock docker run --rm mirror.gcr.io/library/python:3.12-slim python -c 'print(1)'
+gh api repos/spec-kitty/spec-kitty-events/releases/tags/service-v0.1.0-rc.1 --jq '.assets[].browser_download_url'
+curl -s "https://sonarcloud.io/api/measures/component?component=spec-kitty_spec-kitty&metricKeys=ncloc,coverage,cognitive_complexity"
+cd $G/clones/dk && pnpm install --frozen-lockfile --store-dir $G/pnpm-store && node src/scripts/validate-frontmatter.mjs /home/user/<repo>/docs
+```
+
+Outputs: `out/grimp_*.json` (per revision), `out/layer_rules.xml` (junit), `out/sk_namelog.txt`, `out/log_<repo>.txt`, `out/tags_<repo>.txt`.
+
+## Not verified
+- Full `verifyAll` for either Java repo; jdeps graphs.
+- Container network egress.
+- import-linter contract authoring.
+- Open-packs validator run.
+- Whether the rc5 SCC spike is real coupling or lazy/TYPE_CHECKING imports.
+- The causal attribution of the maintenance window.
+- Content of inaccessible repos (the e2e harness, the planning PROGRAM.md, the EXPERIMENTAL tracker).

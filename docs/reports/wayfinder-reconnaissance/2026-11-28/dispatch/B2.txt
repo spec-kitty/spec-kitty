@@ -1,0 +1,21 @@
+Workstream B2 - Observed structure, Java services and doc-kitty
+Id: B2. Profile: architect-alphonso (scope: evaluate and measure, not decide). Action for charter context: review.
+
+Goal: the observed dependency structure of the non-Python code: /home/user/spec-kitty-charter (Gradle, Java/Kotlin), /home/user/spec-kitty-events (Gradle modules under service/ and contracts/, plus its Python package src/spec_kitty_events), /home/user/doc-kitty (Node workspace), and /home/user/spec-kitty-open-packs (content plus scripts). View: observed.
+
+Unit: Gradle module (and Java package within a module); workspace package for doc-kitty; top-level package for Python.
+
+Measures per repository at head:
+- Module inventory with lines of code by language.
+- Module dependency graph (from Gradle build files; and from compiled classes with jdeps where the build works; otherwise from import statements, and say which). Export nodes/edges as CSV/JSON. Cycles at module and package level.
+- M03a for Java: the enforced intended model is whatever the repository enforces: ArchUnit rule classes, module dependency allowlists (e.g. a ModuleDependencyAllowlist in the charter build), Gradle verification tasks. Count observed dependencies that violate the enforced model without being recorded as an exception, and the number of recorded exceptions. If the build works, run the architecture test task(s) only and keep the output; if not, derive statically and say so.
+- M03c: share of code in modules for which no enforced rule states intended structure.
+- Private access across modules: use of another module's internal/impl packages; count and rate.
+- Cross-repository references in code and build files: any path, coordinate, URL, pin or generated-source dependency from one repository to another (charter <-> events <-> core <-> open-packs <-> doc-kitty). List with file:line. Include what open-packs pins of the charter repository (charter.lock.yaml) and what the charter repository pins of others.
+- Shared schemas or contracts duplicated between repositories (same schema or DTO defined in two places): detect by file name and content hash similarity; list.
+- For spec_kitty_events (Python): its public surface (`__all__`, documented modules), its import graph and cycles, and its dependencies.
+- doc-kitty: package graph, what it reads from other repositories and through which interface.
+
+The events Gradle build may be blocked by dependency retrieval; retry once, then go static and mark every affected finding. Do not run full test suites.
+
+Cap: at most 35 finding records.
