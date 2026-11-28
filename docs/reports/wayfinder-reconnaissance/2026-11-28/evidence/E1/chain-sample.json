@@ -1,0 +1,369 @@
+{
+ "frame_A_population": 39,
+ "frame_B_population": 50,
+ "seed": 20261128,
+ "sample_A": [
+  {
+   "idx": 0,
+   "line": 384,
+   "section": "External Contract Packages",
+   "text": "Consume released PyPI packages through the normal dependency graph."
+  },
+  {
+   "idx": 6,
+   "line": 400,
+   "section": "External Contract Packages",
+   "text": "**the pinned service build**, which core pins with one lockfile per service (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only through `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored: `pins/read-service.source.yaml`, `spec-kitty-events` `service-v0.1.0-rc.1` (#6915)."
+  },
+  {
+   "idx": 7,
+   "line": 446,
+   "section": "Internal Runtime Boundary",
+   "text": "Runtime code used by `spec-kitty next` and mission execution should live inside this repository."
+  },
+  {
+   "idx": 24,
+   "line": 527,
+   "section": "Development Principles",
+   "text": "All new features target `main`"
+  },
+  {
+   "idx": 25,
+   "line": 528,
+   "section": "Development Principles",
+   "text": "Breaking changes are allowed during pre-release alpha/beta cycles"
+  },
+  {
+   "idx": 29,
+   "line": 548,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Create the ticket branch: `git checkout -b issue-<n>-<slug>`"
+  }
+ ],
+ "sample_B": [
+  {
+   "idx": 3,
+   "id": "DIRECTIVE_018",
+   "source": "built-in",
+   "title": "Doctrine Versioning Requirement"
+  },
+  {
+   "idx": 14,
+   "id": "DIRECTIVE_036",
+   "source": "built-in",
+   "title": "Black-Box Integration Testing"
+  },
+  {
+   "idx": 22,
+   "id": "DIRECTIVE_044",
+   "source": "built-in",
+   "title": "Canonical Sources and Unification"
+  },
+  {
+   "idx": 23,
+   "id": "DIRECTIVE_045",
+   "source": "built-in",
+   "title": "PRs-Only and Read-Intent Before High-Risk Operations"
+  },
+  {
+   "idx": 35,
+   "id": "USE_C4_MODEL_TECHNIQUES",
+   "source": "built-in",
+   "title": "Use C4 Model Techniques"
+  },
+  {
+   "idx": 44,
+   "id": "DIR-008",
+   "source": "project",
+   "title": "No security issues (credentials, secrets handling)"
+  }
+ ],
+ "frame_A": [
+  {
+   "idx": 0,
+   "line": 384,
+   "section": "External Contract Packages",
+   "text": "Consume released PyPI packages through the normal dependency graph."
+  },
+  {
+   "idx": 1,
+   "line": 385,
+   "section": "External Contract Packages",
+   "text": "Do not vendor their source into the CLI package."
+  },
+  {
+   "idx": 2,
+   "line": 386,
+   "section": "External Contract Packages",
+   "text": "Do not commit path dependencies, editable installs, or moving branch refs for production or release builds."
+  },
+  {
+   "idx": 3,
+   "line": 387,
+   "section": "External Contract Packages",
+   "text": "Use SemVer-compatible dependency ranges in library/package metadata where compatibility allows; keep exact artifact resolution in lockfiles and release records."
+  },
+  {
+   "idx": 4,
+   "line": 388,
+   "section": "External Contract Packages",
+   "text": "Validate cross-repo behavior with consumer tests and compatibility fixtures rather than forcing every sibling package to release in lockstep."
+  },
+  {
+   "idx": 5,
+   "line": 399,
+   "section": "External Contract Packages",
+   "text": "**the PyPI package**, a SemVer range plus `uv.lock`, unchanged;"
+  },
+  {
+   "idx": 6,
+   "line": 400,
+   "section": "External Contract Packages",
+   "text": "**the pinned service build**, which core pins with one lockfile per service (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only throug"
+  },
+  {
+   "idx": 7,
+   "line": 446,
+   "section": "Internal Runtime Boundary",
+   "text": "Runtime code used by `spec-kitty next` and mission execution should live inside this repository."
+  },
+  {
+   "idx": 8,
+   "line": 447,
+   "section": "Internal Runtime Boundary",
+   "text": "CLI runtime code may consume `spec-kitty-events` and `spec-kitty-tracker` as external package contracts where needed."
+  },
+  {
+   "idx": 9,
+   "line": 448,
+   "section": "Internal Runtime Boundary",
+   "text": "The CLI must not require the standalone `spec-kitty-runtime` PyPI package at runtime."
+  },
+  {
+   "idx": 10,
+   "line": 449,
+   "section": "Internal Runtime Boundary",
+   "text": "Do not add release gates that require publishing `spec-kitty-runtime` before the CLI can ship."
+  },
+  {
+   "idx": 11,
+   "line": 450,
+   "section": "Internal Runtime Boundary",
+   "text": "If SaaS needs analogous mission execution behavior, establish an explicit SaaS-owned boundary or a new shared contract through a reviewed issue before reintrodu"
+  },
+  {
+   "idx": 12,
+   "line": 458,
+   "section": "Doctrine Pack Tiers: `built-in` (consumer) vs `internal` (in-house)",
+   "text": "**`packs/built-in/` is public product doctrine** shipped to every consumer in the PyPI wheel (single-rooted, resolved by a kernel ancestor-walk). Only doctrine "
+  },
+  {
+   "idx": 13,
+   "line": 461,
+   "section": "Doctrine Pack Tiers: `built-in` (consumer) vs `internal` (in-house)",
+   "text": "**`packs/internal/` is the org-tier maintainer pack** \u2014 how *we* (the Spec Kitty core team) land PRs, triage the tracker, calibrate P0/escalation, keep main hon"
+  },
+  {
+   "idx": 14,
+   "line": 495,
+   "section": "Development Workflow Requirements",
+   "text": "Change the owning package repository first."
+  },
+  {
+   "idx": 15,
+   "line": 496,
+   "section": "Development Workflow Requirements",
+   "text": "Publish or prepare a versioned package artifact with compatibility notes."
+  },
+  {
+   "idx": 16,
+   "line": 497,
+   "section": "Development Workflow Requirements",
+   "text": "Update CLI dependency constraints or lockfiles to consume that artifact."
+  },
+  {
+   "idx": 17,
+   "line": 498,
+   "section": "Development Workflow Requirements",
+   "text": "Run CLI consumer tests that cover the changed contract."
+  },
+  {
+   "idx": 18,
+   "line": 499,
+   "section": "Development Workflow Requirements",
+   "text": "Do not merge temporary path, git, branch, or editable-install overrides."
+  },
+  {
+   "idx": 19,
+   "line": 514,
+   "section": "Current Branch Strategy (4.x)",
+   "text": "**`main`** \u2014 Active development. All new features, bug fixes, and releases target `main`."
+  },
+  {
+   "idx": 20,
+   "line": 515,
+   "section": "Current Branch Strategy (4.x)",
+   "text": "**`remotes/origin/1.x-maintenance`** \u2014 Historical. The 1.x local-only CLI is in maintenance mode. Only security and critical bug fixes are accepted."
+  },
+  {
+   "idx": 21,
+   "line": 521,
+   "section": "Release Versioning",
+   "text": "**4.x** \u2014 Current active line: governed delivery from agreed intent to a verified result. **4.0.0 GA ships \"done when done\" \u2014 it is not date-gated.** Release ca"
+  },
+  {
+   "idx": 22,
+   "line": 522,
+   "section": "Release Versioning",
+   "text": "**3.x** \u2014 Closed. The last release was **3.2.7** (2026-09-10). The planned 3.3.x cycle was retired on 2026-08-23 without shipping; its open work was re-triaged "
+  },
+  {
+   "idx": 23,
+   "line": 523,
+   "section": "Release Versioning",
+   "text": "**1.x** \u2014 Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency."
+  },
+  {
+   "idx": 24,
+   "line": 527,
+   "section": "Development Principles",
+   "text": "All new features target `main`"
+  },
+  {
+   "idx": 25,
+   "line": 528,
+   "section": "Development Principles",
+   "text": "Breaking changes are allowed during pre-release alpha/beta cycles"
+  },
+  {
+   "idx": 26,
+   "line": 529,
+   "section": "Development Principles",
+   "text": "The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any mission"
+  },
+  {
+   "idx": 27,
+   "line": 530,
+   "section": "Development Principles",
+   "text": "Do not hardcode branch names in templates or scaffolding; use the resolved branch context"
+  },
+  {
+   "idx": 28,
+   "line": 547,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Run `spec-kitty~merge` locally \u2014 this merges lane branches into local `main`."
+  },
+  {
+   "idx": 29,
+   "line": 548,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Create the ticket branch: `git checkout -b issue-<n>-<slug>`"
+  },
+  {
+   "idx": 30,
+   "line": 549,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Push it: `git push origin issue-<n>-<slug>`"
+  },
+  {
+   "idx": 31,
+   "line": 550,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Open a PR targeting `main`: `gh pr create --title \"...\" --body \"...\"`"
+  },
+  {
+   "idx": 32,
+   "line": 551,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Do **not** merge it; the operator owns that step."
+  },
+  {
+   "idx": 33,
+   "line": 554,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Start work on a named branch, never on `main` directly."
+  },
+  {
+   "idx": 34,
+   "line": 555,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Push the branch and open a PR."
+  },
+  {
+   "idx": 35,
+   "line": 556,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Never push `main` directly."
+  },
+  {
+   "idx": 36,
+   "line": 559,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Use the mission lane branch/worktree as intended by the workflow."
+  },
+  {
+   "idx": 37,
+   "line": 560,
+   "section": "Agent Push Authorization (binding)",
+   "text": "If planning artifacts need to land on `main`, create an `issue-<n>-<slug>` branch instead of bypassing the guard."
+  },
+  {
+   "idx": 38,
+   "line": 561,
+   "section": "Agent Push Authorization (binding)",
+   "text": "Never silently work around the guard with raw git commands or `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`."
+  }
+ ],
+ "frame_B": [
+  "DIRECTIVE_001",
+  "DIRECTIVE_003",
+  "DIRECTIVE_010",
+  "DIRECTIVE_018",
+  "DIRECTIVE_024",
+  "DIRECTIVE_025",
+  "DIRECTIVE_028",
+  "DIRECTIVE_029",
+  "DIRECTIVE_030",
+  "DIRECTIVE_031",
+  "DIRECTIVE_032",
+  "DIRECTIVE_033",
+  "DIRECTIVE_034",
+  "DIRECTIVE_035",
+  "DIRECTIVE_036",
+  "DIRECTIVE_037",
+  "DIRECTIVE_038",
+  "DIRECTIVE_039",
+  "DIRECTIVE_040",
+  "DIRECTIVE_041",
+  "DIRECTIVE_042",
+  "DIRECTIVE_043",
+  "DIRECTIVE_044",
+  "DIRECTIVE_045",
+  "DIRECTIVE_046",
+  "DIRECTIVE_047",
+  "DIRECTIVE_048",
+  "DIRECTIVE_049",
+  "DIRECTIVE_050",
+  "DIRECTIVE_051",
+  "DIRECTIVE_052",
+  "DIRECTIVE_053",
+  "DISCIPLINED_REFACTORING",
+  "NO_FULL_HEAVY_SUITES_IN_MISSION",
+  "RECONCILE_CHANGE_SCOPE_TENSIONS",
+  "USE_C4_MODEL_TECHNIQUES",
+  "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+  "DIR-001",
+  "DIR-002",
+  "DIR-003",
+  "DIR-004",
+  "DIR-005",
+  "DIR-006",
+  "DIR-007",
+  "DIR-008",
+  "DIR-009",
+  "DIR-010",
+  "DIR-011",
+  "DIR-012",
+  "DIR-013"
+ ]
+}

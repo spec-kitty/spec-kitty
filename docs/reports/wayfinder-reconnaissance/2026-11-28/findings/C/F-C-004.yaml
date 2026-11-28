@@ -5,9 +5,11 @@ classification: observation
 view: observed
 prereg:
   measure: volume-denominators
-  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+  deviation: 'Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
     that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
-    before measurement.
+    before measurement. The code also treats landing and fold as first words, so 120 code commits with the unprefixed
+    subject form "landing fold: ..." are corrective-maintenance; by the literal text of the rules file they would
+    be other.'
 subject:
   component: core history
   repository: spec-kitty/spec-kitty

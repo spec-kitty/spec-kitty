@@ -49,7 +49,7 @@ derived_from: []
 counterevidence: []
 disconfirmation:
   search: Checked stratum sizes behind each class rate.
-  result: Eleven of the seventeen class cells rest on fewer than 20 commits and several on one to three edges; class-level
+  result: Eleven of the eighteen class cells rest on fewer than 20 commits and several on one to three edges; class-level
     rates are not stable enough to rank classes.
 relations: []
 confidence: low

@@ -48,7 +48,7 @@ counterevidence: []
 disconfirmation:
   search: Looked for a T3 chain whose corrections stop at the first change.
   result: None among the four chosen; they were chosen because they have followers, so they say nothing about how
-    common such chains are (see F-C-023 for rates).
+    common such chains are (see F-C-024 for rates).
 relations: []
 confidence: low
 analyst:

@@ -1,0 +1,104 @@
+## V1 routing owners named by core docs/context/orchestration.md:838, existence at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 (git cat-file -t)
+src/mission_runtime/resolution.py blob
+docs/architecture/branch-target-routing.md blob
+src/specify_cli/coordination/commit_router.py blob
+src/specify_cli/invocation/router.py blob
+src/charter/offering/model_task_routing tree
+src/runtime/next/_internal_runtime/significance.py blob
+src/mission_runtime/resolution.py:2466:class PlacementSeam:
+src/runtime/next/_internal_runtime/significance.py:173:def make_routing_bands(
+src/specify_cli/coordination/commit_router.py:256:def commit_for_mission(
+src/specify_cli/invocation/router.py:546:class ActionRouter:
+
+## V2 core ArtifactKind members (5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src/charter/offering/artifact_kinds.py)
+53:class MissionTypeNotAnArtifactKind(ValueError):
+150:    DIRECTIVE = "directive"
+151:    TACTIC = "tactic"
+152:    STYLEGUIDE = "styleguide"
+153:    TOOLGUIDE = "toolguide"
+154:    PARADIGM = "paradigm"
+155:    PROCEDURE = "procedure"
+156:    AGENT_PROFILE = "agent_profile"
+157:    MISSION_STEP_CONTRACT = "mission_step_contract"
+158:    TEMPLATE = "template"
+159:    ASSET = "asset"
+160:    GLOSSARY_PACK = "glossary_pack"
+161:    ANTI_PATTERN = "anti_pattern"
+162:    SKILL = "skill"
+## V2 charter ArtifactKind members (06cdfbe9 service/kernel/.../ArtifactKind.java)
+14:    DIRECTIVE("directive", "directives", true),
+16:    TACTIC("tactic", "tactics", true),
+18:    STYLEGUIDE("styleguide", "styleguides", true),
+20:    TOOLGUIDE("toolguide", "toolguides", true),
+22:    PARADIGM("paradigm", "paradigms", true),
+24:    PROCEDURE("procedure", "procedures", true),
+26:    AGENT_PROFILE("agent_profile", "agent_profiles", true),
+33:    GLOSSARY("glossary", "glossaries", true),
+35:    SKILL("skill", "skills", true),
+41:    ANTI_PATTERN("anti_pattern", "anti_patterns", true),
+43:    ASSET("asset", "assets", false),
+45:    TEMPLATE("template", "templates", false),
+50:     * items, and a governing preset may require it, as {@code RequiredFloor} does for every kind. Core has no such
+53:    MISSION_TYPE("mission_type", "mission_types", true),
+59:    GUARD("guard", "guards", false),
+64:    LIFECYCLE("lifecycle", "lifecycles", false),
+71:    STEP_ENHANCEMENT("step_enhancement", "step_enhancements", true),
+78:    ROUTING_CATALOG("routing_catalog", "routing_catalogs", true);
+
+## V3 events diary ordering key (646e330b src/spec_kitty_events/diary.py) and glossary claim
+  1966	    effective, seq = _carry_lifted_sort_at(events, _approved_departure_sort_at(events))
+  1967	    return sorted(
+  1968	        events,
+  1969	        key=lambda e: (
+  1970	            effective.get(e.event_id, e.at),
+  1971	            e.event_id in seq
+  1972	            or (
+  1973	                e.from_lane == Lane.APPROVED
+  1974	                and not _is_reconstruction_seed(e)
+  1975	                and (e.wp_id, e.at) in approvals
+  1976	            ),
+  1977	            seq.get(e.event_id, 0),
+  1978	            e.event_id,
+  1979	        ),
+  1980	    )
+lamport mentions in diary.py: 0
+34:### Lamport clock
+35-The logical clock (`lamport_clock`) that, with `node_id`, owns event ordering. Wall-clock
+36-`timestamp` is never used to order. See [ordering and reduction](/architecture/ordering-and-reduction/).
+
+## V4 harness: glossary definitions vs code
+191:  - surface: harness
+192-    definition: "The host LLM or external system responsible for generating doctrine content during charter synthesis. Operates under a contract with spec-kitty's validation and staging pipeline; does not write artifacts directly."
+266:  - id: harness
+267-    name: harness
+268-    definition: The host LLM or external system responsible for generating doctrine content during charter synthesis. Operates
+269-      under a contract with spec-kitty's validation and staging pipeline; does not write artifacts directly.
+3:This module declares, for every configured harness (keys of
+14:2. **Doctor completeness** — every configured harness must have a record here,
+22:even when all configured harnesses fall into this category.
+34:    """Capability declaration for one configured harness.
+37:        harness_key: The tool key as it appears in :data:`AI_CHOICES`.
+1084:class AgentAssignment:
+1095:        tool: AI agent identifier (e.g., 'claude', 'copilot', 'gemini', 'cursor').
+## V5 config key: binding charter vs code
+452:### Doctrine Pack Tiers: `built-in` (consumer) vs `internal` (in-house)
+454:Doctrine packs are tiered by audience, and the boundary is binding (ADR
+464:  (`.kittify/config.yaml` → `doctrine.org.packs`) and **must never ship**:
+charter_packs occurrences in src: 75
+src/charter/activation/sync.py:265:_RETIRED_GOVERNANCE_SELECTION_KEY = "doctrine"
+src/specify_cli/migration/legacy_charter_layout.py:96:_LEGACY_GOVERNANCE_SELECTION_KEY = "legacy_governance_selection_key"
+src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py:82:_LEGACY_GOVERNANCE_SELECTION_KEY = "doctrine"
+## V6 DRG expansions inside core docs/context and seed glossary
+docs/context/testing-taxonomy.md:124:doctrine reference graph
+docs/context/charter.md:521:Doctrine Relationship Graph
+docs/context/charter-overview.md:111:Doctrine Reference Graph
+.kittify/glossaries/spec_kitty_core.yaml:105:doctrine reference graph
+.kittify/glossaries/spec_kitty_core.yaml:154:doctrine reference graph
+.kittify/glossaries/spec_kitty_core.yaml:160:doctrine reference graph
+## V7 events vocabulary families with no core-src importer
+class FactoryAttemptRef(BaseModel):
+    """The factory job/attempt an observation was produced under (planning
+    #2270 binds these into continuous missions). Distinct from the session
+    and the principal: one attempt may span sessions and one session may
+    outlive several attempts."""
+

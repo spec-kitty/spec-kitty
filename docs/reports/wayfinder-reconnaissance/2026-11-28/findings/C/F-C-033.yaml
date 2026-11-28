@@ -34,9 +34,9 @@ interpretation: 34 of the 60 sampled fix commits correct something introduced in
   those name no detector. The untraceable share is thus mostly a property of pre-merge folds. For defects that reached
   main the sample shows detection by a person in 21 of 24 cases; the sample is 24 and nine origins are blame candidates.
 derived_from:
-- F-C-017
 - F-C-018
 - F-C-019
+- F-C-020
 counterevidence: []
 disconfirmation:
   search: Recomputed detection for the earlier-change cases alone.

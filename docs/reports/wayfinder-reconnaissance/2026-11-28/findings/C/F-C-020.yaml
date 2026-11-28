@@ -46,7 +46,7 @@ counterevidence: []
 disconfirmation:
   search: Compared with M02a for the share of same-pull-request folds.
   result: 21 of 30 in M02b against 13 of 30 in M02a; with n=30 each the difference is within what sampling alone
-    can produce (Fisher exact two-sided p about 0.07, computed by hand from the 2x2 table).
+    can produce (Fisher exact two-sided p = 0.067 on the 2x2 table 13/17 against 21/9).
 relations: []
 confidence: medium
 analyst:

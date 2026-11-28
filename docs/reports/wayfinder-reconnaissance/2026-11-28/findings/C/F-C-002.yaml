@@ -38,8 +38,8 @@ derived_from: []
 counterevidence: []
 disconfirmation:
   search: Checked whether the non-code share is produced by one month.
-  result: Every month from 2026-01 to 2026-11 has more non-code than code non-merge commits (lowest code share 14.6%
-    in 2026-01, highest 52.6% on the experimental line in 2026-08).
+  result: Code commits are under half of non-merge commits in 13 of the 15 month-and-line cells (lowest 14.6% in
+    2026-01); the two exceptions are the experimental line in 2026-08 (52.6%) and the public line in 2026-09 (50.3%).
 relations: []
 confidence: high
 analyst:

@@ -12,9 +12,11 @@ subject:
   revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
   revision_kind: head
 claim: 'Detection route in the M02a sample of 30: (a) automated check before the introducing change reached main
-  1; (b) automated run after it reached main 0; (c) a person 22 (issue opened by a person 15, reviewer or review
-  squad before merge 7); untraceable 7, all seven being pre-merge folds in the same pull request whose message names
-  no detector. Among the 15 defects introduced by an earlier change on main, all 15 were detected by route (c).'
+  1; (b) automated run after it reached main 0; (c) a person 22 (5 inside the same pull request, by review or a
+  review squad; 17 for defects that had reached main, reported through issues or a maintainer ruling, at least 3
+  of which name a review squad or landing review as their source); untraceable 7, all seven being pre-merge folds
+  in the same pull request whose message names no detector. Among the 15 defects introduced by an earlier change
+  on main, all 15 were detected by route (c).'
 evidence:
 - id: E1
   kind: history-derived
@@ -38,7 +40,7 @@ counterevidence: []
 disconfirmation:
   search: Looked for any sampled cross-component fix whose message or issue names a nightly or post-merge run as
     detector.
-  result: None in the 30. One M02b case does (F-C-019).
+  result: None in the 30. One M02b case does (F-C-020).
 relations: []
 confidence: medium
 analyst:

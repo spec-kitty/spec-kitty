@@ -1,0 +1,310 @@
+### CMD 1 [2026-11-28T09:09:54Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty --version
+spec-kitty-cli version 4.0.0rc9
+### EXIT 0
+
+### CMD 2 [2026-11-28T09:10:00Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty agent mission create px01-research-probe --mission-type research --topology single_branch --json
+{"result": "success", "mission_slug": "px01-research-probe-01M8GPPT", "mission_number": null, "mission_id": "01M8GPPT8V768GNP8V85EP3P2T", "mission_type": "research", "slug": "px01-research-probe-01M8GPPT", "friendly_name": "px01 research probe", "purpose_tldr": "px01 research probe", "purpose_context": "This mission advances px01 research probe on px01-main so stakeholders can track the work from mission creation onward.", "mission_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "feature_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "spec_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/spec.md", "meta_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/meta.json", "created_at": "2026-11-28T09:10:17.819406+00:00", "created_files": ["/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/spec.md", "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/meta.json", "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/tasks/README.md"], "mission_branch": null, "commit_to_target": null, "uncommitted_artifacts": [{"path": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/spec.md", "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).", "responsible_command": "/spec-kitty.specify"}], "write_mode": "update_existing_files", "scaffold_only": true, "requires_agent_authoring": true, "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.", "origin_binding": {"attempted": false, "succeeded": false, "error": null}, "coordination_branch": null, "coordination_branch_created": false, "topology": "single_branch", "topology_source": "explicit", "topology_provisional": false, "target_replacement": null, "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T09:10:19Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T09:10:19Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD 3 [2026-11-28T09:10:24Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --mission px01-research-probe-01M8GPPT --json
+{
+  "kind": "query",
+  "agent": null,
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "not_started",
+  "timestamp": "2026-11-28T09:10:30.150748+00:00",
+  "action": null,
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": null,
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {},
+  "run_id": null,
+  "step_id": null,
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": true,
+  "preview_step": "scoping",
+  "next_command": "spec-kitty next --agent <agent> --mission px01-research-probe-01M8GPPT --result success"
+}
+### EXIT 0
+
+### CMD 4 [2026-11-28T09:10:39Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8GPPT --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "scoping",
+  "timestamp": "2026-11-28T09:10:43.378263+00:00",
+  "action": "scoping",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.spec-kitty/spec-kitty-prompts/48a556c2b104768c/spec-kitty-next-claude-px01-research-probe-01M8GPPT-scoping.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.kittify/missions/research"
+  },
+  "run_id": "1bd665501e1d4b6b8488d69a0d246dca",
+  "step_id": "scoping",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD 5 [2026-11-28T09:11:15Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ /root/.local/share/uv/tools/spec-kitty-cli/bin/python scripts/sync_packs.py --pack all
+built-in: synced a79c36318b7a
+internal: synced ecda7b00c789
+### EXIT 0
+
+### CMD 6 [2026-11-28T09:11:38Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git add kitty-specs/px01-research-probe-01M8GPPT/spec.md
+
+### EXIT 0
+
+### CMD 7 [2026-11-28T09:11:38Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git commit -q -m docs(px01): author research spec
+
+### EXIT 0
+
+### CMD 8 [2026-11-28T09:11:39Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8GPPT --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "methodology",
+  "timestamp": "2026-11-28T09:11:43.655667+00:00",
+  "action": "methodology",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.spec-kitty/spec-kitty-prompts/48a556c2b104768c/spec-kitty-next-claude-px01-research-probe-01M8GPPT-methodology.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.kittify/missions/research"
+  },
+  "run_id": "1bd665501e1d4b6b8488d69a0d246dca",
+  "step_id": "methodology",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD 9 [2026-11-28T09:12:41Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty agent mission setup-plan --mission px01-research-probe-01M8GPPT --json
+{"result": "blocked", "phase_complete": false, "blocked_reason": "spec.md must be committed AND substantive before setup-plan can run. Under the exact 'Research Question & Scope' heading, populate the primary research question and a bare '**Scope**:' line with an in-scope boundary; author at least one substantive DR/AR/QR requirement each, replacing shipped template lines; commit spec.md, then re-run setup-plan.", "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", "mission_slug": "px01-research-probe-01M8GPPT", "mission_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "feature_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "spec_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/spec.md", "spec_committed": true, "spec_substantive": false, "spec_commit_surfaces_checked": ["HEAD:kitty-specs/px01-research-probe-01M8GPPT/spec.md (cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo): hit"], "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T09:12:48Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T09:12:48Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD 10 [2026-11-28T09:12:59Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git add kitty-specs/px01-research-probe-01M8GPPT/spec.md
+
+### EXIT 0
+
+### CMD 11 [2026-11-28T09:12:59Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git commit -q -m docs(px01): make research requirements specific
+
+### EXIT 0
+
+### CMD 12 [2026-11-28T09:12:59Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty agent mission setup-plan --mission px01-research-probe-01M8GPPT --json
+{"result": "success", "phase_complete": false, "mission_slug": "px01-research-probe-01M8GPPT", "plan_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/plan.md", "mission_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "feature_dir": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT", "spec_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo/kitty-specs/px01-research-probe-01M8GPPT/spec.md", "plan_substantive": false, "requirement_id_warnings": [], "scaffold_only": true, "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T09:13:07Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T09:13:07Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD 13 [2026-11-28T09:13:25Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git add kitty-specs/px01-research-probe-01M8GPPT/plan.md
+
+### EXIT 0
+
+### CMD 14 [2026-11-28T09:13:25Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git commit -q -m docs(px01): author research plan
+
+### EXIT 0
+
+### CMD 15 [2026-11-28T09:13:26Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8GPPT --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T09:13:30.174927+00:00",
+  "action": "gathering",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.spec-kitty/spec-kitty-prompts/48a556c2b104768c/spec-kitty-next-claude-px01-research-probe-01M8GPPT-gathering.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.kittify/missions/research"
+  },
+  "run_id": "1bd665501e1d4b6b8488d69a0d246dca",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD 16 [2026-11-28T09:14:21Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git add kitty-specs/px01-research-probe-01M8GPPT/research
+
+### EXIT 0
+
+### CMD 17 [2026-11-28T09:14:21Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ git commit -q -m docs(px01): register sources and evidence
+
+### EXIT 0
+
+### CMD 18 [2026-11-28T09:14:22Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8GPPT --result success --json
+{
+  "kind": "blocked",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T09:14:28.132266+00:00",
+  "action": "gathering",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.spec-kitty/spec-kitty-prompts/48a556c2b104768c/spec-kitty-next-claude-px01-research-probe-01M8GPPT-gathering.md",
+  "reason": "Required artifact missing: source-register.csv",
+  "guard_failures": [
+    "Required artifact missing: source-register.csv",
+    "Insufficient sources documented (need >=3)"
+  ],
+  "guard_failure_paths": {
+    "source-register.csv": "kitty-specs/px01-research-probe-01M8GPPT/source-register.csv"
+  },
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/home/.kittify/missions/research"
+  },
+  "run_id": "1bd665501e1d4b6b8488d69a0d246dca",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 1
+
+### CMD 19 [2026-11-28T09:16:04Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ spec-kitty next --mission px01-research-probe-01M8GPPT --json
+{
+  "kind": "query",
+  "agent": null,
+  "mission_slug": "px01-research-probe-01M8GPPT",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T09:16:10.809609+00:00",
+  "action": null,
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": null,
+  "reason": "No eligible steps: remaining steps have unmet dependencies.",
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {},
+  "run_id": "1bd665501e1d4b6b8488d69a0d246dca",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": true,
+  "preview_step": null,
+  "next_command": "spec-kitty next --agent <agent> --mission px01-research-probe-01M8GPPT --result success"
+}
+### EXIT 0
+
+### CMD 20 [2026-11-28T09:16:12Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ sh -c git grep -n -E 'source_documented|gate_passed|publication_approved' -- docs/api docs/guides docs/tutorials docs/how-to README.md 2>/dev/null | head -20; echo '--- grep of the CLI reference for an emitter of mission events done'
+--- grep of the CLI reference for an emitter of mission events done
+### EXIT 0
+
+### CMD 21 [2026-11-28T09:16:12Z] cwd=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E1/px01/repo
+$ sh -c spec-kitty agent status emit --help 2>&1 | head -30
+                                                                                                                                                                                                        
+ Usage: spec-kitty agent status emit [OPTIONS] [wp_id]                                                                                                                                                  
+                                                                                                                                                                                                        
+ Emit a status transition event for a work package.                                                                                                                                                     
+                                                                                                                                                                                                        
+ Records a lane transition in the canonical event log, validates the                                                                                                                                    
+ transition against the state machine, materializes a snapshot, and                                                                                                                                     
+ updates legacy compatibility views.                                                                                                                                                                    
+                                                                                                                                                                                                        
+ Examples:                                                                                                                                                                                              
+     spec-kitty agent status emit WP01 --to claimed --actor claude                                                                                                                                      
+     spec-kitty agent status emit --wp WP01 --to claimed --actor claude                                                                                                                                 
+     spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}'                                            
+     spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"                                                                                          
+                                                                                                                                                                                                        
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│   wp_id      <str>  Work package ID (e.g., WP01)                                                                                                                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --to                                       <str>  Target lane (e.g., claimed, in_progress, for_review, approved, done) [required]                                                                 │
+│ *  --actor                                    <str>  Who is making this transition (a 'migration:'-prefixed identity is refused: reconstruction seeds are written in-process by migrations only)     │
+│                                                      [required]                                                                                                                                      │
+│    --mission                                  <str>  Mission slug (required in multi-mission repos)                                                                                                  │
+│    --wp                                       <str>  Work package ID (alternative to positional ID)                                                                                                  │
+│    --force                                           Force transition bypassing guards                                                                                                               │
+│    --reason                                   <str>  Reason for forced transition (required with --force out of in_review or approved)                                                               │
+│    --evidence-json                            <str>  JSON string with done evidence                                                                                                                  │
+│    --review-ref                               <str>  Review feedback reference                                                                                                                       │
+│    --review-result-json                       <str>  JSON structured review outcome for transitions from in_review                                                                                   │
+│    --workspace-context                        <str>  Workspace context identifier for claimed->in_progress                                                                                           │
+### EXIT 0
+

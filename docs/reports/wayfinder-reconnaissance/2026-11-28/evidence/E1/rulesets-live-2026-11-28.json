@@ -1,0 +1,626 @@
+{
+ "observed_at_utc": "2026-11-28T09:05Z",
+ "tool": "gh 2.89.0 (gh api repos/spec-kitty/<repo>/rulesets and /rulesets/<id>; gh api repos/spec-kitty/<repo>/branches/main/protection)",
+ "note": "Reduced from the raw API responses: bypass actors are kept as type and mode only; ids, node ids and links are dropped. Raw files stay in scratch.",
+ "repos": {
+  "spec-kitty": {
+   "rulesets": [
+    {
+     "name": "main-1",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/main"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      }
+     ],
+     "raw_sha256": "f6e89af761ca2943cc251131ab6c926a2c37a79914f419cee878a61780ad1b98"
+    },
+    {
+     "name": "main-2",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/main"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "RepositoryRole",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "Clean install verification",
+        "router gate",
+        "CI Modules gate"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "7e81325bf844db9cfb51e9281ad0a5e56bdf50d707bd836ac6579c1cc2a3329a"
+    },
+    {
+     "name": "1.x-maintenance",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/1.x-maintenance"
+     ],
+     "bypass_actors": [],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      }
+     ],
+     "raw_sha256": "b1072288d472f7a3727e179952862a0209a3a29e2df1e476e85977028cb652cc"
+    },
+    {
+     "name": "Protect main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": true,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "gate"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "06e32b63ff5025116b24fff86a5b01fbc3842c7b1d7de17666328e3a94a22dd4"
+    },
+    {
+     "name": "main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "acceptance",
+        "service-gate",
+        "cross-repo-harness-tests",
+        "docs-build"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "fdfa2e7deafa4532b995a8c1f7cb0f96ccfb8cb20fdf122a9d84ab513d8a32c5"
+    },
+    {
+     "name": "service-release-tags",
+     "target": "tag",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/tags/service-v*"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "Team",
+       "bypass_mode": "always"
+      },
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "creation"
+      },
+      {
+       "type": "update"
+      },
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      }
+     ],
+     "raw_sha256": "dbd304bb7d4ede6661d57a7bd4158da42d276bae4a3b189a3fd884a9887cc4c2"
+    },
+    {
+     "name": "main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      },
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "Validate packs gate",
+        "Charter service validation"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "37dcf24c0b460447a09b858b14fbac4481a1b76e4158a80b716c720f34eff08c"
+    }
+   ],
+   "branch_protection_main": {
+    "classic_branch_protection": "Branch not protected",
+    "required_status_check_contexts": null,
+    "enforce_admins": null,
+    "required_pull_request_reviews": null
+   }
+  },
+  "spec-kitty-charter": {
+   "rulesets": [
+    {
+     "name": "Protect main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": true,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "gate"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "06e32b63ff5025116b24fff86a5b01fbc3842c7b1d7de17666328e3a94a22dd4"
+    }
+   ],
+   "branch_protection_main": {
+    "classic_branch_protection": "Branch not protected",
+    "required_status_check_contexts": null,
+    "enforce_admins": null,
+    "required_pull_request_reviews": null
+   }
+  },
+  "spec-kitty-events": {
+   "rulesets": [
+    {
+     "name": "main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "acceptance",
+        "service-gate",
+        "cross-repo-harness-tests",
+        "docs-build"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "fdfa2e7deafa4532b995a8c1f7cb0f96ccfb8cb20fdf122a9d84ab513d8a32c5"
+    },
+    {
+     "name": "service-release-tags",
+     "target": "tag",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/tags/service-v*"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "Team",
+       "bypass_mode": "always"
+      },
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "creation"
+      },
+      {
+       "type": "update"
+      },
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      }
+     ],
+     "raw_sha256": "dbd304bb7d4ede6661d57a7bd4158da42d276bae4a3b189a3fd884a9887cc4c2"
+    }
+   ],
+   "branch_protection_main": {
+    "classic_branch_protection": "present",
+    "required_status_check_contexts": [
+     "cross-repo-harness-tests"
+    ],
+    "enforce_admins": false,
+    "required_pull_request_reviews": null
+   }
+  },
+  "spec-kitty-open-packs": {
+   "rulesets": [
+    {
+     "name": "main",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "~DEFAULT_BRANCH"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      },
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "Validate packs gate",
+        "Charter service validation"
+       ],
+       "strict": false
+      }
+     ],
+     "raw_sha256": "37dcf24c0b460447a09b858b14fbac4481a1b76e4158a80b716c720f34eff08c"
+    }
+   ],
+   "branch_protection_main": {
+    "classic_branch_protection": "Branch not protected",
+    "required_status_check_contexts": null,
+    "enforce_admins": null,
+    "required_pull_request_reviews": null
+   }
+  },
+  "doc-kitty": {
+   "rulesets": [
+    {
+     "name": "m1",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/main"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "User",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "deletion"
+      },
+      {
+       "type": "non_fast_forward"
+      },
+      {
+       "type": "creation"
+      },
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "merge_queue",
+       "merge_method": "REBASE"
+      },
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      }
+     ],
+     "raw_sha256": "db72e7907565437c7f057370971f1c46e90c21c7e4509adcdeb24d4cb50ae8e9"
+    },
+    {
+     "name": "m2",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/main"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "RepositoryRole",
+       "bypass_mode": "always"
+      }
+     ],
+     "rules": [
+      {
+       "type": "required_linear_history"
+      },
+      {
+       "type": "required_status_checks",
+       "contexts": [
+        "ci-ok"
+       ],
+       "strict": true
+      }
+     ],
+     "raw_sha256": "9783cf9060f1fdc45518d6af1e9ab2aeeeb531c1e9610d60b2c4f8224072b7e8"
+    },
+    {
+     "name": "m3",
+     "target": "branch",
+     "enforcement": "active",
+     "ref_include": [
+      "refs/heads/main"
+     ],
+     "bypass_actors": [
+      {
+       "actor_type": "RepositoryRole",
+       "bypass_mode": "always"
+      },
+      {
+       "actor_type": "User",
+       "bypass_mode": "pull_request"
+      }
+     ],
+     "rules": [
+      {
+       "type": "pull_request",
+       "required_approving_review_count": 0,
+       "require_code_owner_review": false,
+       "allowed_merge_methods": [
+        "merge",
+        "squash",
+        "rebase"
+       ],
+       "dismiss_stale_reviews_on_push": false,
+       "require_last_push_approval": false
+      }
+     ],
+     "raw_sha256": "b318e4174864c5d16076417523d7b058a948e208d197a0582d04a11725542454"
+    }
+   ],
+   "branch_protection_main": {
+    "classic_branch_protection": "Branch not protected",
+    "required_status_check_contexts": null,
+    "enforce_admins": null,
+    "required_pull_request_reviews": null
+   }
+  }
+ }
+}

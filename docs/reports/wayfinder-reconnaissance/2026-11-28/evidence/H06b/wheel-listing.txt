@@ -1,0 +1,17 @@
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Building wheel...
+Successfully built /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-H06b/dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+wheel sha256 27e355a7cab14c6c71c58a30c297ee6d84b24da203a463de9e33de19021d74d0
+entries 2239
+top-level {'charter': 427, 'glossary': 24, 'kernel': 46, 'mission_runtime': 16, 'packs': 505, 'runtime': 36, 'spec_kitty_cli-4.0.0rc9.dist-info': 6, 'specify_cli': 1179}
+packs second level ['packs/built-in']
+specify_cli/_pins ['specify_cli/_pins/README.md', 'specify_cli/_pins/read-service.source.yaml']
+packs/internal entries 0
+binary-like entries (.jar .exe .so .dylib .bin) 0
+acceptance-jvm/ site/ tests/ entries 0
+Name: spec-kitty-cli
+Version: 4.0.0rc9
+Requires-Dist: spec-kitty-events<12,>=11.3.0
+Requires-Dist: spec-kitty-tracker<0.6,>=0.5.2
+Requires-Dist: spec-kitty-services==4.0.0rc9; extra == 'services'
+exit=0

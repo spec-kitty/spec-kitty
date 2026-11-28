@@ -1,0 +1,15 @@
+# H06b wheel build and listing. Run from the scratch folder holding core/ (git archive of 5c4fc5a79d) with
+# packs/built-in copied from /home/user/spec-kitty/packs/built-in (the tree `make sync-packs` fetched; the build hook verifies it against packs/built-in.source.yaml):
+#   (cd core && uv build --wheel --out-dir ../dist) ; python3 script-wheel-listing.txt dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+import zipfile,collections,sys,hashlib
+p=sys.argv[1]; z=zipfile.ZipFile(p); n=z.namelist()
+print('wheel sha256',hashlib.sha256(open(p,'rb').read()).hexdigest())
+print('entries',len(n)); print('top-level',dict(sorted(collections.Counter(x.split('/')[0] for x in n).items())))
+print('packs second level',sorted({'/'.join(x.split('/')[:2]) for x in n if x.startswith('packs/')}))
+print('specify_cli/_pins',[x for x in n if '/_pins/' in x])
+print('packs/internal entries',len([x for x in n if 'packs/internal' in x]))
+print('binary-like entries (.jar .exe .so .dylib .bin)',len([x for x in n if x.endswith(('.jar','.exe','.so','.dylib','.bin'))]))
+print('acceptance-jvm/ site/ tests/ entries',len([x for x in n if x.startswith(('acceptance-jvm','site/','tests/'))]))
+md=[x for x in n if x.endswith('METADATA')][0]
+for l in z.read(md).decode().splitlines():
+    if l.startswith(('Requires-Dist: spec-kitty','Version:','Name:')): print(l)

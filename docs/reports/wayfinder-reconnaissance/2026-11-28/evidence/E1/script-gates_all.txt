@@ -1,0 +1,236 @@
+"""Gate inventory builder. Usage: python3 gates_all.py <scratch> <out.csv>
+Static: reads tracked files of five shared clones at head. Core architectural rows are generated
+(one per tests/architectural/**/test_*.py); the remaining rows are curated by hand from workflow files.
+'protects' for generated rows is a keyword rule over file name + docstring (first match wins), not a judgement."""
+import ast, re, os, sys, csv, yaml, subprocess
+from collections import Counter
+
+S, OUT = sys.argv[1], sys.argv[2]
+R = f'{S}/src-spec-kitty'
+reg = yaml.safe_load(open(f'{R}/.github/ci-module-registry.yml'))
+regtxt = open(f'{R}/.github/ci-module-registry.yml').read().splitlines()
+
+
+def regline(s):
+    for i, l in enumerate(regtxt, 1):
+        if s in l:
+            return i
+    return 0
+
+
+arch = reg['special_tiers']['architectural']
+roster = {r['path'] for r in arch['fast_gate']['roster']}
+scan = {r['gate']: r['globs'] for r in arch['scan_scopes']}
+always_job = {
+    'tests/architectural/test_no_legacy_terminology.py': ('terminology', 'ci-router.yml:1293,1309'),
+    'tests/architectural/test_layer_rules.py': ('layer-rules', 'ci-router.yml:1370,1386'),
+    'tests/architectural/test_pyproject_shape.py': ('layer-rules', 'ci-router.yml:1370,1386'),
+    'tests/architectural/test_archive_root_byte_identical.py': ('archive-freeze', 'ci-router.yml:1397,1415'),
+}
+RULES = [
+    ('terminology', r'terminolog|vocabular|bare_prose|glossary_(authority|pack)|verdict_vocab|single_language|legacy_docsite|no_shipped_layer_label|status_path_ordering_claims|deprecated_doctrine_command|config_key_spelled'),
+    ('packaging', r'packag|pyproject_shape|runtime_pypi|pack_trees_untracked|windows_filenames|release_asset|absolute_pack_paths|builtin_pack_provenance|first_party_hosts|events_cutover_absent|built_in_location'),
+    ('direction', r'layer_rules|import_boundary|_import\b|import_ban|import_purity|import_hygiene|upward_import|cold_import|third_party_imports|public_imports|does_not_import|no_specify_cli_import|_boundary|module_boundary|bridge_cores'),
+    ('contract', r'contract|public_surface|scenario|schema|parity|urn_identity|kind_table|reexport|mission_runtime_surface|cli_reference|completion_manifest|regenerate_graph_roundtrip|enumeration'),
+    ('other:ci-integrity', r'^test_ci_|workflow|shard|marker|makefile|pytest_ini|coverage|battery|gate_(coverage|os_tier|read_scope|remedy|scan_scope|selection)|suite|matrix|tier|universe|quarantine|ratchet_(baselines|positional)|out_of_matrix|orchestrator_api_per_pr|interpreter|nightly|local_gate|duplicate|timing|perf'),
+    ('other:test-hygiene', r'tmp_path|tmp_paths|sys_modules|assert_swallowed|global_state|real_home|home_pin|home_owner|root_vacuous|pack_presence_skipif|session_reaper|pycache|scanner_parse|planted|remediation_effectiveness|mypy|ruff|tid251|issue_named'),
+    ('other:docs-and-records', r'adr_hygiene|archive|claudemd|workspace_resolution_doc|doc_parity|docs_|dead_builtin_doc|dossier|git_matrix_paths|shipped_text|commit_recipe|subtask_recipe|profile_load_resolver|operating_procedures|offering_missions_stale|stale_charter_path|dead_src_path|dead_doctrine_paths'),
+    ('boundary', r'single|sole|seam|owner|authority|door|routing|one_copy|singleton|census|write|read|guard|allowlist|ledger|retire|dead|shim|migration|lock|clock|os_detection|symlink|untrusted|egress|activation|placement|lane_|resolver|rederivation|no_redrift|worktree|protection|transition|deny_list|override_policy|invariant|topology|unsandboxed|trio|status_|mission_|lift|inert|authored|unification|content_identity|meta_decode|reference_enum|loop_aware|placeholder|execution_mode|exemption|enrolment|upgrade|safety_registry|integration_boundary|2093'),
+]
+
+
+def cat(name):
+    n = name.lower()
+    for c, p in RULES:
+        if re.search(p, n):
+            return c
+    return 'other'
+
+
+def mech(src):
+    m = []
+    if 'pytestarch' in src or 'LayerRule' in src:
+        m.append('pytestarch layer rule')
+    if re.search(r'\bast\.(parse|walk|NodeVisitor)|_ast_scan|_scan import', src):
+        m.append('AST scan')
+    if re.search(r'"ls-files"|"grep"|git grep|git ls-files', src):
+        m.append('git grep / ls-files')
+    if re.search(r'yaml\.safe_load|json\.load', src):
+        m.append('committed data file compared with live tree')
+    if re.search(r're\.(compile|search|findall|match)', src) and 'AST scan' not in m:
+        m.append('regex text scan')
+    if re.search(r'subprocess|CliRunner|runner\.invoke', src):
+        m.append('runs a subprocess or the CLI')
+    return '; '.join(m) or 'pytest assertions over imported code'
+
+
+EXC = re.compile(r'''["']([\w./-]*(?:allowlist|baseline|exempt|ledger|ratchet|membership|census|registry|public_surface|shim)[\w./-]*\.(?:ya?ml|json|txt|toml))["']''', re.I)
+EXC2 = re.compile(r'\b(_\w*(?:exempt|allowlist|baseline)\w*)\b')
+BASE = yaml.safe_load(open(f'{R}/tests/architectural/_baselines.yaml'))
+rows = []
+files = subprocess.run(['git', '-C', R, 'ls-files', 'tests/architectural'], capture_output=True, text=True).stdout.split()
+for f in sorted(files):
+    b = os.path.basename(f)
+    if not (b.startswith('test_') and b.endswith('.py')):
+        continue
+    if 'fixtures/' in f:
+        continue
+    src = open(f'{R}/{f}', encoding='utf-8').read()
+    try:
+        doc = (ast.get_docstring(ast.parse(src)) or '').strip().split('\n\n')[0].replace('\n', ' ')[:180]
+    except SyntaxError:
+        doc = '(unparseable)'
+    ex = sorted(set(EXC.findall(src)))
+    mods = sorted(set(x for x in EXC2.findall(src) if os.path.exists(f'{R}/tests/architectural/{x}.py')))
+    exs = ex + [f'tests/architectural/{m}.py' for m in mods]
+    stem = b[:-3]
+    if stem in BASE:
+        exs.append('tests/architectural/_baselines.yaml#' + stem + ' (in-code allowlist, size-capped)')
+    if '_exemptions' in src:
+        exs.append('tests/architectural/_exemptions/*.txt')
+    if 'global_state_allowlist' in src:
+        exs.append('tests/architectural/global_state_allowlist/S*.yaml')
+    if f in always_job:
+        j, l = always_job[f]
+        where = 'per-PR required'
+        detail = f'always-on job {j} in needs of router gate (a required check)'
+        ev = f'.github/workflows/{l}; .github/workflows/ci-router.yml:2107; .github/ci-module-registry.yml:{regline("- " + f)}'
+    elif f in roster:
+        where = 'per-PR required'
+        detail = 'always-on job architectural-fast (fast roster) in needs of router gate'
+        ev = f'.github/workflows/ci-router.yml:1428,1454; .github/ci-module-registry.yml:{regline("{path: " + f + ",")}'
+    else:
+        sc = scan.get(f)
+        where = 'per-PR required when selected; nightly'
+        detail = 'job architectural-heavy runs only when a code group or this gate\'s scan scope changed' + (' (scan scope: ' + ' | '.join(sc) + ')' if sc else ' (no scan scope beyond src/** and tests/architectural/**)') + '; nightly architectural-backstop'
+        ev = '.github/workflows/ci-router.yml:1516,1701; .github/workflows/ci-nightly.yml:1599' + (f'; .github/ci-module-registry.yml:{regline("{gate: " + f + ",")}' if sc else '')
+    rows.append(dict(repo='spec-kitty', file=f, protects=cat(b), mechanism=mech(src), exceptions_file='; '.join(dict.fromkeys(exs)), where_runs=where, where_detail=detail, where_evidence=ev, blocking='blocking', row_origin='generated', summary=doc))
+
+C = []
+
+
+def add(repo, file, protects, mechanism, exc, where, detail, ev, blocking, summary):
+    C.append(dict(repo=repo, file=file, protects=protects, mechanism=mechanism, exceptions_file=exc, where_runs=where, where_detail=detail, where_evidence=ev, blocking=blocking, row_origin='curated', summary=summary))
+
+
+W = '.github/workflows/'
+# ---- core, outside tests/architectural
+add('spec-kitty', 'ruff.toml + pyproject.toml [tool.ruff] (incl. TID251 banned-api)', 'boundary', 'ruff check + ruff format --check', 'ruff.toml [lint.extend-per-file-ignores]; pyproject.toml [tool.ruff.format].exclude', 'per-PR required', 'always-on job ruff in needs of router gate', W + 'ci-router.yml:1222,1235', 'blocking', 'Lint, banned-API imports and formatting over the whole repository.')
+add('spec-kitty', 'uv.lock', 'packaging', 'uv lock --check', '', 'per-PR required', 'always-on job uv-lock in needs of router gate', W + 'ci-router.yml:1239,1257', 'blocking', 'Lockfile matches pyproject.')
+add('spec-kitty', 'spec-kitty regen --check', 'contract', 'CLI regeneration check of generated artefacts', '', 'per-PR required', 'always-on job regen-check in needs of router gate', W + 'ci-router.yml:1270,1285', 'blocking', 'Generated artefacts are current.')
+add('spec-kitty', 'scripts/docs/check_spelling.py; check_changelog_style.py; retired_surface_gate.py; scripts/ci/check_generated_docs_untouched.py; check_legacy_lifecycle_log_untouched.py', 'terminology', 'python scripts over docs', 'retired_surface_gate burn-down list (tests/architectural/_baselines.yaml#test_retired_surface_gate.burn_down)', 'per-PR required', 'always-on job docs-lint in needs of router gate', W + 'ci-router.yml:1321,1339-1343', 'blocking', 'Docs spelling, changelog style, retired surfaces, generated docs untouched.')
+add('spec-kitty', 'scripts/ci/validate_agent_skills.py', 'contract', 'skills-ref validation of Agent Skills files', '', 'per-PR required', 'always-on job agent-skills in needs of router gate', W + 'ci-router.yml:1353,1368', 'blocking', 'Agent Skills name grammar and structure.')
+add('spec-kitty', 'scripts/ci/consumer_census.py --check', 'other:ci-integrity', 'census file compared with live tree', '.github/ci-consumer-census.json', 'per-PR required', 'step of always-on job architectural-fast', W + 'ci-router.yml:1468', 'blocking', 'Consumer census is current.')
+add('spec-kitty', 'tests/docs/**', 'other:docs-and-records', 'pytest', '', 'per-PR required when selected', 'job tests-docs (docs group or prose-only diff) in needs of router gate', W + 'ci-router.yml:1739,1762', 'blocking', 'Docs tests.')
+add('spec-kitty', 'tests/e2e/** + tests/acceptance/test_first_run_path.py', 'contract', 'pytest end-to-end', '', 'per-PR required when selected', 'job tests-e2e (e2e group) in needs of router gate', W + 'ci-router.yml:1764,1791', 'blocking', 'End-to-end CLI walks.')
+add('spec-kitty', 'tests marked corpus (-m "corpus and not windows_ci")', 'contract', 'pytest corpus suites', '', 'per-PR required when selected', 'job tests-corpus-blocking (corpus group) in needs of router gate', W + 'ci-router.yml:1820,1851', 'blocking', 'Charter/pack corpus conformance.')
+add('spec-kitty', 'tests/contract/** (corpus-marked contract tools)', 'contract', 'pytest contract tests', '', 'per-PR required when selected', 'job tests-contract-tools in needs of router gate', W + 'ci-router.yml:1875,1903', 'blocking', 'Contract tool tests.')
+add('spec-kitty', 'events consumer tests (reducer_lock group)', 'contract', 'pytest over the consumers of spec_kitty_events at the locked version', '', 'per-PR required when selected', 'job tests-events-consumers (reducer_lock group) in needs of router gate', W + 'ci-router.yml:1919,1942', 'blocking', 'Core consumers of the events package against the locked version.')
+add('spec-kitty', 'tests/audit/test_no_legacy_path_literals.py', 'boundary', 'pytest literal audit', '', 'per-PR required when selected', 'job tests-path-literal-audit in needs of router gate', W + 'ci-router.yml:1961,1981', 'blocking', 'No legacy path literals.')
+add('spec-kitty', 'tests/contract/test_orchestrator_api.py', 'contract', 'pytest contract test of orchestrator-api envelope', '', 'per-PR required when selected', 'job tests-orchestrator-api-contract in needs of router gate', W + 'ci-router.yml:1993,2014', 'blocking', 'orchestrator-api contract.')
+add('spec-kitty', 'spec-kitty doctor mission-state --audit --fail-on teamspace-blocker', 'contract', 'CLI audit of kitty-specs Mission state', '', 'per-PR required when selected; nightly', 'job mission-state-audit (mission_state group) in needs of router gate; nightly mission-state-audit', W + 'ci-router.yml:2031,2060; ' + W + 'ci-nightly.yml:2199', 'blocking', 'Mission state audit of the repository\'s own Missions.')
+add('spec-kitty', 'docs site build (doc-kitty)', 'contract', 'reusable workflow docs-site-build.yml', '', 'per-PR required when selected', 'job docs-site (docs_site group) in needs of router gate', W + 'ci-router.yml:2096', 'blocking', 'Docs site builds with the doc-kitty toolkit.')
+add('spec-kitty', 'module test matrix (tests/<module>/** per .github/ci-module-registry.yml modules[])', 'other', 'pytest per module shard with coverage', '.github/ci-module-registry.yml out_of_matrix_test_dirs', 'per-PR required when selected', 'CI Modules gate (a required check) over the module shards a diff selects', W + 'ci-modules.yml; ' + W + 'module-tests.yml; .github/ci-module-registry.yml:12', 'blocking', 'Per-module functional tests; includes non-architectural boundary tests such as tests/specify_cli/upgrade/test_requires_git_repository_audit.py when their directory is claimed.')
+add('spec-kitty', 'clean install verification (built wheel installed in a clean environment)', 'packaging', 'build wheel, install, smoke', '', 'per-PR required', 'job clean-install-verification (a required check)', W + 'ci-quality.yml:76', 'blocking', 'Wheel installs without path or editable sources; shared-package boundary.')
+add('spec-kitty', 'diff-cover >=90% on changed critical-path lines', 'other:ci-integrity', 'diff-cover over aggregated shard coverage', '', 'per-PR reported', 'CI Aggregate gate; not among the three required checks of ruleset main-2', W + 'ci-aggregate.yml:335,706', 'blocking in its workflow; not required to merge', 'Coverage of changed lines.')
+add('spec-kitty', 'SonarCloud per-change report', 'other', 'SonarCloud analysis', '', 'per-PR reported', 'job sonar-pr continue-on-error, outside aggregate-gate', W + 'ci-aggregate.yml:484', 'informational', 'Quality gate status, reported.')
+add('spec-kitty', 'packs/built-in.source.yaml + packs/internal.source.yaml (sync_packs --check)', 'contract', 'pin + digest verification of fetched pack trees', '', 'per-PR reported', 'job built-in-pin-check in packs gate; packs gate is not among the required checks', W + 'packs.yml:243,262,430', 'blocking in its workflow; not required to merge', 'Pinned pack trees match their digests.')
+add('spec-kitty', 'built-in pack regen / DRG regenerate-graph --check / pack-manifest freshness', 'contract', 'CLI regeneration checks; tests/architectural/test_pack_manifest_no_author_edit.py', '', 'per-PR reported', 'jobs built-in-regen-check, built-in-drg-check, built-in-pack-manifest in packs gate', W + 'packs.yml:199,221,268,287', 'blocking in its workflow; not required to merge', 'Pack graph and manifest are generated, not hand-edited.')
+add('spec-kitty', 'built-in pack corpus suite', 'contract', 'pytest -m corpus', '', 'per-PR reported', 'job built-in-corpus-suite continue-on-error', W + 'packs.yml:289,347', 'informational', 'Advisory corpus suite.')
+add('spec-kitty', 'built-in plugin build + claude plugin validate --strict', 'contract', 'external validator', '', 'per-PR reported', 'job built-in-plugin-validate in packs gate', W + 'packs.yml:355', 'blocking in its workflow; not required to merge', 'Plugin packaging of the built-in pack.')
+add('spec-kitty', 'internal pack org validation (DRG fragment, refines edges, org-charter required ids)', 'contract', 'CLI validation', '', 'per-PR reported', 'job internal-org-validate in packs gate', W + 'packs.yml:388', 'blocking in its workflow; not required to merge', 'Internal org pack validity.')
+add('spec-kitty', 'tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages', 'packaging', 'pytest over built wheel contents', '', 'per-PR reported', 'job internal-packaging-safety runs when the internal pack group changed; its directory is in out_of_matrix_test_dirs (no module row)', W + 'packs.yml:406,423; .github/ci-module-registry.yml:1328', 'blocking in its workflow; not required to merge', 'The internal pack never ships in the wheel.')
+add('spec-kitty', 'scripts/release/check_shared_package_drift.py', 'contract', 'pyproject range + uv.lock + compatibility manifest compared for spec-kitty-events / tracker', '.kittify/release/shared-package-compatibility.json', 'per-PR reported; nightly', 'workflow Check Shared Package Drift, path-filtered to pyproject.toml, uv.lock, the manifest, scripts/release/**; scheduled 02:11 UTC; not a required check', W + 'check-spec-kitty-events-alignment.yml:4-22,49', 'blocking in its workflow; not required to merge', 'Cross-repository: shared package versions do not drift.')
+add('spec-kitty', 'windows-critical tests (-m windows_ci)', 'other', 'pytest on Windows', '', 'per-PR reported', 'workflow ci-windows; not a required check', W + 'ci-windows.yml:64', 'blocking in its workflow; not required to merge', 'Windows-critical paths.')
+add('spec-kitty', 'release readiness + cutover guard', 'contract', 'python cutover_guard over kitty-specs', '', 'per-PR reported; nightly', 'workflow Release Readiness Check; not a required check', W + 'release-readiness.yml:39,197,250', 'blocking in its workflow; not required to merge', 'Missions are cut over; release metadata ready.')
+add('spec-kitty', 'protect-main (commit came from a PR)', 'other', 'post-hoc inspection of pushed commit', '', 'on push to main', 'runs after the push; cannot refuse it', W + 'protect-main.yml:20-35', 'informational (post-hoc)', 'Detects a direct push to main after the fact.')
+add('spec-kitty', 'acceptance-jvm Cucumber scenarios (tests/scenarios/*.feature)', 'contract', 'Cucumber-JVM against the CLI, 3 OS', 'absorption ledger read by test_scenario_contract.py', 'nightly', 'job acceptance-bdd; red escalates to a P0 issue', W + 'ci-nightly.yml:1881,2132', 'blocking for the nightly; release gate needs a green nightly', 'Behavioural acceptance scenarios.')
+add('spec-kitty', 'events consumers on the newest allowed spec-kitty-events', 'contract', 'pytest consumers against newest version in range', '', 'nightly', 'job events-latest', W + 'ci-nightly.yml:2323', 'blocking for the nightly', 'Cross-repository: forward compatibility with the events package.')
+add('spec-kitty', 'mission status corpus compare (pinned read-service binary vs Python oracle)', 'contract', 'differential comparison of the pinned events read service with core\'s Python reducer', 'pins/read-service.source.yaml', 'nightly', 'job mission-status-corpus', W + 'ci-nightly.yml:2442', 'blocking for the nightly', 'Cross-repository: pinned Java read service agrees with core.')
+add('spec-kitty', 'tests/specify_cli/** out-of-matrix trees, tests/integration + tests/next, interpreter matrix, full module matrix', 'other', 'pytest', '.github/ci-module-registry.yml out_of_matrix_test_dirs', 'nightly', 'jobs specify-cli-out-of-matrix, integration-next-shard-1..4, interpreter-matrix-shard-1..6, full-module-matrix', W + 'ci-nightly.yml:530-1483', 'blocking for the nightly', 'Test directories with no per-PR home.')
+add('spec-kitty', 'open-P0 reproductions (p0_repro markers)', 'other', 'pytest with SPEC_KITTY_RUN_P0_REPRO', 'p0_repro(issue=N) markers', 'nightly', 'job p0-repro', W + 'ci-nightly.yml:447', 'blocking for the nightly', 'Known-red reproductions of open P0 issues.')
+add('spec-kitty', 'security scans (bandit + pip-audit)', 'other', 'bandit, pip-audit', '', 'nightly', 'job security-scans', W + 'ci-nightly.yml:2269', 'blocking for the nightly', 'Security scans.')
+add('spec-kitty', 'release nightly gate + service pin verification', 'packaging', 'release.yml requires a green nightly for the release SHA and verifies service pins', 'pins/*.source.yaml', 'release', 'jobs nightly-gate and build-release', W + 'release.yml:60,87', 'blocking', 'Release needs a green nightly and verified pins.')
+add('spec-kitty', 'Makefile typecheck (mypy --strict, targeted)', 'other', 'mypy', 'pyproject.toml [[tool.mypy.overrides]] transitional quarantine', 'local only', 'no workflow invokes mypy directly (grep of .github/workflows for "mypy" returns nothing); tests/cross_cutting/test_mypy_strict_mission_step_contracts.py and tests/architectural/test_mypy_scoped_typing_debt.py run mypy inside pytest', 'Makefile:103-104', 'informational', 'Targeted strict typing.')
+# ---- charter
+ch = f'{S}/src-spec-kitty-charter'
+cf = subprocess.run(['git', '-C', ch, 'ls-files'], capture_output=True, text=True).stdout.split()
+pat = re.compile(r'(Architecture|Allowlist|Parity|ClosureChecker|ClosedResponse|Agreement|DigestBaseline|Conformance|Contract|Register|Identical|Drift|Mirror|ReleaseGate|ReachableContractFiles|XSourceCitations|RefusalExamples)[A-Za-z]*Test\.(java|kt)$')
+for f in cf:
+    if pat.search(f):
+        b = os.path.basename(f)
+        if 'HexagonalArchitecture' in b:
+            p, m = 'direction', 'ArchUnit (59 ArchRule constants: onion rings, slice isolation, framework-free domain, port placement)'
+        elif 'Allowlist' in b:
+            p, m = 'boundary', 'unit test of an allow-list rule'
+        elif re.search('Parity|Agreement|Mirror|Identical', b):
+            p, m = 'contract', 'parity test between two representations of one fact'
+        elif re.search('Conformance|Contract|Closure|Closed|Refusal|Reachable|XSource|ReleaseGate', b):
+            p, m = 'contract', 'contract/closure test (JUnit)'
+        elif 'Drift' in b:
+            p, m = 'contract', 'round-trip drift test against open-packs'
+        else:
+            p, m = 'other', 'JUnit'
+        add('spec-kitty-charter', f, p, m, '', 'per-PR required when selected', './gradlew verifyAll in service.yml job verify, called by ci.yml job service when the service path group changed; ci.yml job gate is the one required check', W + 'service.yml:76,127; ' + W + 'ci.yml:105,123', 'blocking', '')
+add('spec-kitty-charter', 'build-logic/src/main/kotlin/ModuleDependencyAllowlist.kt', 'direction', 'Gradle build fails when pack-validation or pack-doctor declares a dependency outside its allow-list', 'allow-lists declared in the module build scripts', 'per-PR required when selected', 'part of every Gradle configuration; verifyAll', W + 'service.yml:127', 'blocking', 'Module dependency allow-list (ADR-0075).')
+add('spec-kitty-charter', 'build-logic/src/main/kotlin/CheckstyleRegister.kt + config/checkstyle/suppressions.xml', 'other', 'Checkstyle with one suppressions register', 'config/checkstyle/suppressions.xml', 'per-PR required when selected', 'verifyAll', W + 'service.yml:127', 'blocking', 'Hand-written quality gates; exceptions only through the register.')
+add('spec-kitty-charter', 'contracts/build.gradle.kts lintContract / lintFixtures (vacuum, contracts/lint/ruleset.yaml)', 'contract', 'OpenAPI lint with a custom ruleset', '', 'per-PR required when selected', 'verifyAll', 'contracts/build.gradle.kts:823,833; ' + W + 'service.yml:127', 'blocking', 'Contract lint.')
+add('spec-kitty-charter', 'contracts/build.gradle.kts checkContractCompatibility (oasdiff) + compatibilityFixtures', 'contract', 'OpenAPI breaking-change check against the released contract', 'contracts/compat/severity-levels.txt', 'per-PR required when selected', 'verifyAll', 'contracts/build.gradle.kts:845,854; ' + W + 'service.yml:127', 'blocking', 'Contract compatibility.')
+add('spec-kitty-charter', ':pack-validation:wholePackRoundTrip', 'contract', 'whole-pack round trip over the open-packs packs', '', 'per-PR required when selected', 'ci.yml job wholepack when its path group changed', W + 'whole-pack.yml:59; ' + W + 'ci.yml:117', 'blocking', 'Cross-repository: charter reads and writes every open-packs pack unchanged.')
+add('spec-kitty-charter', 'scripts/docs/check_docs.py (frontmatter, related, freshness, links, terms, adr, changelog, orphans, plantuml) + cspell', 'terminology', 'python docs checks; cspell', 'cspell.json; lychee.toml', 'per-PR required when selected', 'ci.yml job docs when the docs path group changed', W + 'docs-cleanliness.yml:70-91,143,273; ' + W + 'ci.yml:111', 'blocking', 'Docs cleanliness.')
+add('spec-kitty-charter', 'markdownlint', 'other', 'markdownlint-cli2', '', 'per-PR reported', 'job markdown-lint continue-on-error', W + 'docs-cleanliness.yml:113', 'informational', 'Markdown lint.')
+add('spec-kitty-charter', 'build-logic/src/main/kotlin/MutationFloors.kt (pitest floors)', 'other', 'pitest mutation score floors per module', 'scripts/ci/fixtures/floors.json', 'nightly', 'workflow Mutation testing', W + 'mutation-testing.yml:64,138', 'blocking for the nightly (opens an alert)', 'Mutation floors (ADR-0062).')
+add('spec-kitty-charter', 'build-logic/src/main/kotlin/TimingBudgets.kt', 'other', 'CPU-time budgets', '', 'nightly', 'workflow CPU-time budgets (nightly); report-only per ADR-0057', W + 'timing-nightly.yml:31', 'informational', 'Performance budgets never block a PR.')
+add('spec-kitty-charter', 'SonarCloud nightly', 'other', 'SonarCloud', '', 'nightly', 'job scan continue-on-error', W + 'sonar.yml:34', 'informational', '')
+add('spec-kitty-charter', 'service-release gate (checkServiceReleaseTag, native builds, contract release assets)', 'packaging', 'Gradle release gate', '', 'release', 'workflow service-release on service-v* tags', W + 'service-release.yml:55', 'blocking', '')
+# ---- events
+ev = f'{S}/src-spec-kitty-events'
+ef = subprocess.run(['git', '-C', ev, 'ls-files'], capture_output=True, text=True).stdout.split()
+for f in ef:
+    if re.search(r'architecture/[A-Za-z]+Test\.java$|architecture/ArchitectureRules\.java$|AllowlistReadmeParityTest\.java$|FileApiTest\.java$', f):
+        add('spec-kitty-events', f, 'direction' if 'rchitecture' in f else 'contract', 'ArchUnit rules (JUnit)', '', 'per-PR required when selected', './gradlew verifyAll in service.yml job gradle; the detect job skips it unless Java/service/contract paths changed; service-gate is a required check', W + 'service.yml:180,216,730', 'blocking', '')
+for f in ef:
+    if re.match(r'tests/test_.*(conformance|contract|wheel_contents|forbidden_keys|scenario_contract|ci_gate_workflows|service_workflows|compatibility_doc|support_matrix|version_not_amended|lane_vocabulary|local_only_removed|cross_repo_harness_workflow|release_protection).*\.py$', f):
+        b = os.path.basename(f)
+        p = 'packaging' if 'wheel' in b else 'terminology' if 'vocabulary' in b else 'other:ci-integrity' if re.search('workflow|release_protection|ci_gate', b) else 'contract'
+        add('spec-kitty-events', f, p, 'pytest', '', 'per-PR required', 'acceptance.yml job acceptance runs the whole pytest testpaths; acceptance is a required check', W + 'acceptance.yml:66,98', 'blocking', '')
+add('spec-kitty-events', 'src/spec_kitty_events/conformance/** (packaged conformance suite, 885 tracked files)', 'contract', 'pytest --pyargs spec_kitty_events.conformance (the suite other repositories consume)', '', 'local only (as a --pyargs run)', 'no workflow invokes "--pyargs"; acceptance.yml installs the conformance extra and runs plain pytest', 'grep "pyargs" .github/workflows -> no hit; ' + W + 'acceptance.yml:85,98; AGENTS.md Commands table', 'not determined', 'Document-claim in AGENTS.md says it is run on every PR; no workflow line was found that runs it by that command.')
+add('spec-kitty-events', 'scripts/ci/scenario_contract.py', 'contract', 'feature-file / step-binding contract', '', 'per-PR required', 'acceptance.yml', W + 'acceptance.yml:92', 'blocking', '')
+add('spec-kitty-events', 'mypy src/spec_kitty_events --strict', 'other', 'mypy strict', '', 'per-PR required', 'acceptance.yml', W + 'acceptance.yml:101', 'blocking', '')
+add('spec-kitty-events', 'cross-repo harness: identity-boundary unit tests of the end-to-end testing repository at pinned SHA 193f5c0e with the PR copy of the events package', 'contract', 'pytest in a second repository checked out at a pinned commit; installs spec-kitty-cli==3.2.0rc22', '', 'per-PR required', 'job cross-repo-harness-tests (a required check); skipped on fork PRs, which GitHub reports as success', W + 'cross-repo-harness-tests.yml:39,72,102,108', 'blocking', 'Cross-repository.')
+add('spec-kitty-events', 'write-core-parity: conformance generators --check against a core checkout', 'contract', 'generators run with core\'s code and compared with committed vectors', '', 'per-PR required when selected', 'service.yml job write-core-parity in needs of service-gate', W + 'service.yml:598,621,639-645', 'blocking', 'Cross-repository: Java write core agrees with core\'s Python.')
+add('spec-kitty-events', 'lock-interop: Java and Python lock on the same file', 'contract', 'Gradle tests with a core checkout', '', 'per-PR required when selected', 'service.yml job lock-interop', W + 'service.yml:487,529,560', 'blocking', 'Cross-repository.')
+add('spec-kitty-events', 'nightly-corpus: mission status corpus compare against a core checkout', 'contract', 'differential comparison', '', 'nightly', 'service.yml job nightly-corpus on schedule', W + 'service.yml:649,672,715', 'blocking for the nightly', 'Cross-repository.')
+add('spec-kitty-events', 'docs-build (doc-toolkit validate-frontmatter, check-links)', 'other:docs-and-records', 'docs site build', '', 'per-PR required', 'job build named docs-build (a required check)', W + 'docs-site.yml:39', 'blocking', '')
+add('spec-kitty-events', 'ci.yml suite (ruff, changelog fragments, version guard, tests)', 'other', 'make targets on a Blacksmith runner', '', 'per-PR reported', 'job suite is not among the required checks', W + 'ci.yml:27', 'blocking in its workflow; not required to merge', '')
+add('spec-kitty-events', 'scripts/release/release_protection_audit.py', 'other:ci-integrity', 'live GitHub rulesets and environments compared with a committed expectation', 'scripts/release/release-protection-expected.json', 'nightly', 'workflow release-protection-audit (daily, read-only)', W + 'release-protection-audit.yml:28', 'blocking for the nightly', 'Audits the repository protection settings.')
+# ---- open-packs
+op = '.github/workflows/validate-packs.yml'
+for f, p, m, l in [('scripts/ci/validate-packs.sh', 'contract', 'pack schema validation against the charter schemas at the charter.lock.yaml commit', '107'), ('scripts/ci/check-pack-digests.sh', 'packaging', 'pack digest check', '110'), ('scripts/ci/check_vocabulary.py', 'terminology', 'vocabulary check', '116'), ('scripts/docs/gen_pack_reference.py --check', 'contract', 'generated reference is current', '121'), ('tests/release, tests/vocabulary, tests/ci, tests/docs, tests/assets (unittest)', 'other', 'unittest discover', '124-136')]:
+    add('spec-kitty-open-packs', f, p, m, 'charter.lock.yaml (pin)', 'per-PR required', 'job validate in needs of Validate packs gate (a required check)', f'{op}:67,{l},234', 'blocking', '')
+add('spec-kitty-open-packs', 'scripts/ci/charter_service_check.py + charter pack-check jar', 'contract', 'the pinned charter service composes and registers every pack; whole-pack check', 'charter.lock.yaml (pin)', 'per-PR required', 'job charter-service (itself a required check, and in needs of the gate)', f'{op}:145,230', 'blocking', 'Cross-repository: packs are proven against the pinned charter release.')
+add('spec-kitty-open-packs', 'charter-track (packs against newer charter releases / charter main)', 'contract', 'same checks against a newer charter; opens a bump PR or a red issue', '', 'nightly', 'scheduled; on pull_request only with a label', '.github/workflows/charter-track.yml:60,105,219', 'informational for PRs', 'Cross-repository.')
+add('spec-kitty-open-packs', 'docs-site drift gate + freshness', 'other:docs-and-records', 'generated content drift check', '', 'per-PR reported', 'workflow Docs site; not a required check', '.github/workflows/docs-site.yml:105,127', 'blocking in its workflow; not required to merge', '')
+# ---- doc-kitty
+dk = '.github/workflows/ci.yml'
+for f, p, m, l in [('pnpm typecheck / pnpm lint (eslint.config.js) / pnpm test', 'other', 'tsc, eslint, unit tests', '85,102-106'), ('packs corpus: doc-toolkit packs reader against open-packs at src/tests/fixtures/packs-corpus/open-packs.pin.json', 'contract', 'reader run over every pack of a pinned open-packs commit', '113-118'), ('pnpm validate:docs / validate:example / validate:links / validate:adr-ids / validate:changelog / validate:features / validate:catalog', 'contract', 'toolkit validators over the repository\'s own docs', '122,139-165'), ('src/scripts/plantuml-guard-bin.mjs + plantuml-allowlist job', 'boundary', 'PlantUML server allow-list guard', '276,411'), ('assert:artifacts, assert-diagrams, assert:no-broken-links, check-redirect-coverage (example/url-baseline.txt)', 'contract', 'build output assertions; URL baseline', '194,298-367'), ('pnpm test:a11y (Playwright, a11y baselines)', 'other', 'accessibility tests against committed baselines', '465,509')]:
+    add('doc-kitty', f, p, m, 'example/url-baseline.txt' if 'redirect' in f else '', 'per-PR required when selected', 'lane runs when its change group is detected; ci-ok is the one required check', f'{dk}:{l},527', 'blocking', 'Cross-repository.' if 'open-packs' in f else '')
+add('doc-kitty', 'consumption test (toolkit consumed as a package by a fixture project)', 'contract', 'install the packed toolkit into a consumer fixture and build', 'tests/consumption/consumer-fixture/url-baseline.txt', 'per-PR reported', 'separate workflow; not in needs of ci-ok', '.github/workflows/consumption-test.yml:37', 'blocking in its workflow; not required to merge', '')
+add('doc-kitty', 'nightly smoke', 'contract', 'smoke build when the toolchain changed', '', 'nightly', 'workflow Nightly smoke', '.github/workflows/nightly.yml:41,115', 'blocking for the nightly', '')
+add('doc-kitty', 'release verify', 'packaging', 'verify job before publish', '', 'release', 'workflow Release', '.github/workflows/release.yml:41', 'blocking', '')
+rows += C
+cols = ['repo', 'file', 'protects', 'mechanism', 'exceptions_file', 'where_runs', 'where_detail', 'where_evidence', 'blocking', 'row_origin', 'summary']
+w = csv.DictWriter(open(OUT, 'w', newline=''), fieldnames=cols)
+w.writeheader()
+w.writerows(rows)
+print('rows', len(rows))
+for k in ['repo', 'protects', 'where_runs', 'blocking']:
+    print(k, dict(Counter(r[k] for r in rows)))
+print('by repo x where:')
+c = Counter((r['repo'], r['where_runs']) for r in rows)
+for k, v in sorted(c.items()):
+    print('  ', k, v)
+print('core arch rows with exception file', sum(1 for r in rows if r['row_origin'] == 'generated' and r['exceptions_file']), 'of', sum(1 for r in rows if r['row_origin'] == 'generated'))
+print('core arch by protects', dict(Counter(r['protects'] for r in rows if r['row_origin'] == 'generated')))
+print('core arch by where', dict(Counter(r['where_runs'] for r in rows if r['row_origin'] == 'generated')))
+print('core arch heavy with scan scope', sum(1 for r in rows if r['row_origin'] == 'generated' and 'scan scope:' in r['where_detail']))

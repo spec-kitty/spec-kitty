@@ -1,0 +1,401 @@
+
+===== Q1a charter outbound top-level packages (import statements) =====
+    997 charter
+    127 kernel
+
+===== Q1b charter.offering outbound top-level packages =====
+    258 charter.offering
+     49 kernel.*
+
+===== Q1c files importing charter, per package =====
+kernel 0
+glossary 2
+runtime 4
+mission_runtime 0
+specify_cli 143
+
+===== Q1d/Q7a direct charter.offering.* import statements outside charter =====
+src/specify_cli/dossier/manifest.py:72:    from charter.offering.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
+src/specify_cli/mission.py:31:    from charter.offering.missions.models import MissionType
+src/specify_cli/cli/commands/charter/pack_asset.py:77:    from charter.offering.service import CharterOfferingService
+src/specify_cli/cli/commands/charter/pack_tooling.py:141:    from charter.offering.drg.migration.hand_authored_overlay import (
+src/specify_cli/cli/commands/charter/mission_type.py:44:    from charter.offering.missions.models import MissionType
+src/specify_cli/cli/commands/agent/tasks_move_task_gates.py:56:    from charter.offering.missions.step_contracts import GateBinding
+src/specify_cli/cli/commands/_charter_pack_collect.py:38:    from charter.offering.drg.org_pack_loader import OrgDRGFragment
+src/specify_cli/cli/commands/_charter_pack_collect.py:39:    from charter.offering.drg.override_policy import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:256:        from charter.offering.service import CharterOfferingService
+src/specify_cli/cli/commands/_charter_pack_collect.py:358:    from charter.offering.service import CharterOfferingService
+src/specify_cli/cli/commands/_charter_pack_collect.py:499:    from charter.offering.agent_profiles.operating_procedures import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:504:    from charter.offering.drg.loader import load_built_in_graph
+src/specify_cli/cli/commands/_charter_pack_collect.py:505:    from charter.offering.artifact_kinds import ArtifactKind
+src/specify_cli/cli/commands/_charter_pack_collect.py:506:    from charter.offering.pack_paths import built_in_dir
+src/specify_cli/cli/commands/_charter_pack_collect.py:607:    from charter.offering.service import CharterOfferingService
+src/specify_cli/cli/commands/_charter_pack_collect.py:923:    from charter.offering.drg.override_policy import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:944:    from charter.offering.drg.override_policy import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:978:    from charter.offering.drg.override_policy import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:993:    from charter.offering.drg.override_policy import (
+src/specify_cli/cli/commands/_charter_pack_collect.py:1287:    from charter.offering.service import CharterOfferingService
+src/specify_cli/tool_surface/bundles/codex.py:176:        import charter.offering as offering
+src/specify_cli/mission_step_contracts/executor.py:24:    from charter.offering.agent_profiles.profile import AgentProfile
+src/runtime/next/runtime_bridge_io.py:1271:    from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+src/runtime/next/runtime_bridge_composition.py:229:        from charter.offering.missions.step_contracts import (
+
+===== Q1e/Q7b baselined lazy reach-through allowlist (gate) =====
+
+
+#: Measured 2026-09-06: 11 file/import pairs across six files. Whole-file
+#: exceptions hid added reaches (#3522); pin exact modules and evict each pair
+#: when it migrates, even if another import remains in the same file.
+_LAZY_BASELINE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
+    {
+        # #3179: wrapped sole-door service construction for asset operations.
+        ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
+        # #3179: wrapped raw service for unfiltered diagnostic repositories.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.service"),
+        # #3179: existing operating-procedure diagnostics, pending facade migration.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.agent_profiles.operating_procedures"),
+        # #3179: diagnostic node-kind classification, pending charter.drg migration.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.artifact_kinds"),
+        # #3179: built-in graph for diagnostics, pending charter.drg migration.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.loader"),
+        # #3179: doorless override-audit management internal (TICKETED-BASELINE).
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.override_policy"),
+        # #3179: diagnostic pack location, pending facade migration.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.pack_paths"),
+        # #3179: doorless DRG-regeneration internal (TICKETED-BASELINE).
+        ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
+        # #3179: package __file__ metadata, not a symbol reach-through.
+        ("src/specify_cli/tool_surface/bundles/codex.py", "charter.offering"),
+        # #3522: pre-existing step-contract reach, charter.missions migration #2173.
+        ("src/runtime/next/runtime_bridge_composition.py", "charter.offering.missions.step_contracts"),
+        # #3522: pre-existing step-projection reach, charter.missions migration #2173.
+        ("src/runtime/next/runtime_bridge_io.py", "charter.offering.missions.step_projection"),
+24:  lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
+26:  boundary_baseline: 231  # justification: #6188 introduces the charter.activation entry-point seam; freeze the 235 pre-existing external-consumer reaches into charter.activation internals as a shr
+28:  legacy_read_allowlist: 33  # justification: #7408 lands the FR-006 status read door gate with the 45 legacy readers still to move (one entry per enclosing function and form, each with its reason)
+
+===== Q7c facades importing charter.offering.api; api __all__ =====
+src/charter/activation/drg_activation.py
+src/charter/activation/api.py
+src/charter/drg.py
+src/charter/offering/api.py
+src/charter/glossary_packs.py
+src/charter/model_routing.py
+src/charter/assets.py
+src/charter/pack_paths.py
+src/charter/languages.py
+src/charter/spdd_reasons.py
+12 ['ArtifactKind', 'AssetManifest', 'AssetNotFoundError', 'AssetPathEscapeError', 'AssetRepository', 'AssetResolutionError', 'CatalogLoadResult', 'LANGUAGE_TOKENS', 'RoutingRecommendation', 'evaluate', 'load', 'slug_for']
+
+===== Q2 reducer entry points in core =====
+17:from spec_kitty_events.diary import State, reduce_parsed
+18:from spec_kitty_events.status import reduce as reduce_shared_state
+205:    snapshot = _state_to_snapshot(reduce_parsed(events, annotations or []))
+401:    snapshot = _state_to_snapshot(reduce_shared_state(raw_events))
+src/specify_cli/status/migrate_lifecycle_envelope.py:10:lamport_clock, causation_id, correlation_id, data_tier``).
+src/specify_cli/status/migrate_lifecycle_envelope.py:35:* ``lamport_clock``: explicit ``None`` -- the legacy row never recorded a
+src/specify_cli/status/migrate_lifecycle_envelope.py:38:  ``Event.lamport_clock`` is optional and an absent value IS the contract's
+src/specify_cli/status/migrate_lifecycle_envelope.py:99:    "lamport_clock",
+src/specify_cli/status/migrate_lifecycle_envelope.py:204:    migrated["lamport_clock"] = None
+
+===== Q2 events library 11.3.0 (installed in /home/user/spec-kitty/.venv) ordering =====
+spec-kitty-events 11.3.0
+def _order_transitions(events: list[StatusEvent]) -> list[StatusEvent]:
+    """Sort by ``(at, event_id)``, except that a real ``approved -> X`` follows its approval.
+
+    A non-seed event leaving ``approved`` causally follows the ``-> approved``
+    approval it departed, so it must never sort before that approval -- not when
+    they share an ``at`` (its ``event_id`` could be smaller), and not when the
+    approval carries a LATER ``at`` than the departure (a clock-ahead reviewer, or
+    a teammate's approval arriving through ``git pull`` + the union merge driver).
+    Otherwise arm (ii) would drop the departure for arriving while the WP is still
+    ``in_review`` (spec-kitty-events#87 for the equal-``at`` case,
+    spec-kitty-events#101 / spec-kitty/spec-kitty#4941 for the later-``at`` case).
+    The later-``at`` case lifts only the departure's SORT ``at`` to its approval's
+    (:func:`_approved_departure_sort_at`) and carries it to the same-WP events stamped
+    below it (:func:`_carry_lifted_sort_at`); the stored ``at`` is untouched, and the
+    un-skewed case is a no-op, so the equal-``at`` behaviour is unchanged.
+    """
+    approvals = {
+        (ev.wp_id, ev.at)
+        for ev in events
+        if ev.to_lane == Lane.APPROVED
+        and ev.from_lane != Lane.APPROVED
+        and not _is_reconstruction_seed(ev)
+    }
+    effective, seq = _carry_lifted_sort_at(events, _approved_departure_sort_at(events))
+    return sorted(
+        events,
+        key=lambda e: (
+            effective.get(e.event_id, e.at),
+            e.event_id in seq
+            or (
+                e.from_lane == Lane.APPROVED
+                and not _is_reconstruction_seed(e)
+                and (e.wp_id, e.at) in approvals
+            ),
+            seq.get(e.event_id, 0),
+            e.event_id,
+        ),
+    )
+
+222:from spec_kitty_events.diary import DiaryError, State, parse_diary, reduce
+
+===== Q3 status read door =====
+223:def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout | None = None) -> StatusReadSurface:
+793:def read_status_events(surface: StatusReadSurface) -> list[StatusEvent]:
+825:def materialize_status(surface: StatusReadSurface) -> StatusSnapshot:
+51:ALLOWLIST_DRAIN_BY = "2026-12-31"
+
+===== Q4 pack pin, tracked pack paths at head, sync target, vendor command =====
+# Pin lockfile: which spec-kitty-open-packs commit this pack was taken from.
+# Direction: open-packs -> core. (open-packs' own built-in.source.yaml records the
+# OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,
+# not vendored; tree_digest = clean_tree_digest(<subtree>, level=<tree_digest.level>).
+repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
+commit: a79c36318b7a506ca2ab26d74705c5e3e406004f
+subtree: packs/built-in
+tree_digest:
+  algorithm: clean-tree-sha256
+  value: 3b4cbd97a28efcce3b07f9751ccdde4a976bd206b5049056a9c347b9fb73f839
+  level: built-in
+requires_core: '>=4.0.0rc7,<5'
+snapshot_sha256: c21c5903af73181e26879da0ba0cc7e48dff32906148bb6f11e9d6ff575db8d7
+packs/README.md
+packs/built-in.source.yaml
+packs/internal.source.yaml
+15:sync-packs: ## Fetch and verify packs/built-in and packs/internal (test-fast does NOT sync; run once per worktree)
+16-	uv run --frozen python scripts/sync_packs.py --pack all
+83:charter_pack_app.command("vendor")(pack_vendor)
+
+===== Q5 events repo release lines and schema version =====
+3:version = "11.5.0"
+/home/user/spec-kitty-events/.github/workflows/publish-pypi.yml:5:    tags:
+/home/user/spec-kitty-events/.github/workflows/publish-pypi.yml-6-      - "v*"
+--
+/home/user/spec-kitty-events/.github/workflows/service-release.yml:23:    tags: ["service-v*"]
+/home/user/spec-kitty-events/.github/workflows/service-release.yml-24-  workflow_dispatch:
+147:        default="3.0.0", pattern=r"^\d+\.\d+\.\d+$", description="Envelope schema version (semver)"
+132
+
+===== Q6 activation ledger readers outside kernel floor =====
+     10 src/charter/activation/activation_ledger.py
+      1 src/charter/activation/compiler.py
+      1 src/charter/activation/pack_context.py
+      4 src/charter/activation/pack_manager.py
+      1 src/charter/activation/schemas.py
+      1 src/charter/activation/synthesizer/legacy_rename.py
+      2 src/charter/bundle.py
+      4 src/charter/offering/spdd_reasons/activation.py
+      1 src/specify_cli/charter_runtime/freshness/computer.py
+      1 src/specify_cli/cli/commands/charter/status.py
+      1 src/specify_cli/cli/commands/migrate_cmd.py
+      2 src/specify_cli/skills/command_renderer.py
+      2 src/specify_cli/state/contract.py
+      1 src/specify_cli/upgrade/migrations/base.py
+    if resolved.source is ActivationSource.LEDGER:
+        try:
+            ledger = read_activation_ledger_raw(repo_root) or {}
+        except ActivationLedgerFormatError as exc:
+
+===== Q8 service launcher wiring =====
+pins:
+README.md
+read-service.source.yaml
+
+src/specify_cli/services:
+__init__.py
+attestation.py
+client.py
+errors.py
+host.py
+launcher.py
+policies.py
+resolution.py
+vendor.py
+src/specify_cli/cli/commands/service.py:18:* ``stop`` -- stop this clone's instance (FR-009) through :class:`ServiceLauncher`. Exit 0 when
+src/specify_cli/cli/commands/service.py:44:from specify_cli.services.launcher import ServiceLauncher, StopOutcome
+src/specify_cli/cli/commands/service.py:294:        outcome = ServiceLauncher(warn=warnings.append).stop(service, _repo_root())
+9:Only the write service is launchable today. The charter service is recorded
+35:    launchable: bool
+38:    def require_launchable(self) -> None:
+40:        if not self.launchable:
+56:WRITE_SERVICE = ServicePolicy(service="write-service", scope="git_common_dir", launchable=True, start_args=_write_service_args)
+57:#: Recorded for shape only: launchable once the charter seam work enables it.
+58:CHARTER_SERVICE = ServicePolicy(service="charter-service", scope="worktree", launchable=False, start_args=_charter_service_args)
+60:READ_SERVICE = ServicePolicy(service="read-service", scope="git_common_dir", launchable=False, start_args=_read_service_args)
+28:    assertThat(options.idleTimeout()).isEqualTo(Duration.ofSeconds(1800));
+
+===== Q9 orchestrator-api =====
+244:CONTRACT_VERSION = "1.31.0"
+/home/user/spec-kitty-orchestrator/src/spec_kitty_orchestrator/__init__.py
+/home/user/spec-kitty-orchestrator/src/spec_kitty_orchestrator/cli/main.py
+/home/user/spec-kitty-orchestrator/src/spec_kitty_orchestrator/host/client.py
+/home/user/spec-kitty-orchestrator/src/spec_kitty_orchestrator/host/__init__.py
+/home/user/spec-kitty-orchestrator/src/spec_kitty_orchestrator/host/models.py
+166:@app.command("tail")
+
+===== Q10 mission identity =====
+12
+"""Mission handle resolver: maps user-supplied handles to canonical mission identity.
+
+Resolution priority (most-specific → least-specific):
+
+1. **Full mission_id** (26-char ULID): exact match on ``meta.json.mission_id``
+2. **mid8 prefix** (8 chars): match on ``mission_id[:8]``
+3. **Full slug with numeric prefix** (e.g. ``"083-foo-bar"``): directory name match
+4. **Human slug** (e.g. ``"foo-bar"`` for ``"083-foo-bar"``, or ``"smoke-test"`` for
+   ``"smoke-test-01M6BTQX"``): the slug with any leading ``NNN-`` prefix and this
+   Mission's own trailing ``-<mid8>`` removed (:func:`_human_slug_for_index_entry`)
+5. **Numeric prefix alone** (e.g. ``"083"``): directory prefix match
+
+__init__.py
+bake.py
+
+===== Q12 events dependency =====
+80:    "spec-kitty-events>=11.3.0,<12",
+81:    "spec-kitty-tracker>=0.5.2,<0.6",
+2326:name = "spec-kitty-events"
+2327-version = "11.3.0"
+2328-source = { registry = "https://pypi.org/simple" }
+316:[tool.uv.sources]
+317-spec-kitty-services = { workspace = true }
+.kittify/release/shared-package-compatibility.json
+scripts/snapshot_events_envelope.py
+tests/contract/test_events_envelope_matches_resolved_version.py
+PORTED_EVENTS_VERSION in core (non-docs):
+0
+PORTED_EVENTS_VERSION in events:
+/home/user/spec-kitty-events/service/src/test/java/org/speckitty/missionstatus/conformance/golden/ManifestCouplingTest.java
+/home/user/spec-kitty-events/service/event-log/src/main/java/org/speckitty/missionstatus/domain/readmodel/reducer/StatusReducer.java
+
+===== Q13 wheel config =====
+162:packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/charter"]
+244:"pins" = "specify_cli/_pins"
+283:    "acceptance-jvm/**",
+284:    "tests/scenarios/**",
+291:    "packs/internal/**",
+292:    "packs/internal.source.yaml",
+298:    "site/**",
+
+===== Q14 mission types =====
+packs/built-in/missions/README.md
+packs/built-in/missions/built_in_step_contracts
+packs/built-in/missions/documentation
+packs/built-in/missions/mission-steps
+packs/built-in/missions/mission_types
+packs/built-in/missions/plan
+packs/built-in/missions/research
+packs/built-in/missions/software-dev
+software-dev src=d8f51ff66fa2b943 pack=d8f51ff66fa2b943
+research src=4e4e77e5ee70f9ff pack=4e4e77e5ee70f9ff
+documentation src=85802c821a25769b pack=85802c821a25769b
+plan src=b19b093b92a11267 pack=b19b093b92a11267
+
+===== Q15 fan-out seam registrations =====
+150:def register_status_fanout_handler(cb: StatusFanOutHandler) -> None:
+165:def register_lifecycle_fanout_handler(cb: LifecycleFanOutHandler) -> None:
+175:def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
+217:def fire_status_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+279:def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+318:def fire_lifecycle_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+callers of register_*_fanout_handler outside status/adapters.py and status/__init__.py:
+0
+ls: cannot access 'src/specify_cli/status/zeitgeist_bridge.py': No such file or directory
+
+===== Q16 doc-toolkit consumption =====
+site/package.json:15:    "@spec-kitty/doc-toolkit": "github:spec-kitty/doc-kitty#1042a40792b47df4339b4511e2107c55854adce1&path:/src",
+/home/user/spec-kitty-open-packs/site/package.json:21:    "@spec-kitty/doc-toolkit": "0.3.0",
+/home/user/spec-kitty-charter/site/package.json:26:    "@spec-kitty/doc-toolkit": "0.7.0",
+/home/user/spec-kitty-events/site/package.json:25:    "@spec-kitty/doc-toolkit": "0.6.0",
+
+===== Q17 actor profile precedence; prompt profile source =====
+    binding_profile = binding.agent_profile if binding is not None else None
+    binding_model = binding.model if binding is not None else None
+    return {
+        "role": role,
+        "profile": binding_profile or agent_profile or None,
+        "tool": tool,
+        "model": binding_model or agent_model or None,
+    # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
+    # governance resolver so the profile's directive_references and
+    # tactic_references are rendered into the prompt the agent will read.
+    agent_profile_id = wp_meta.agent_profile
+
+
+===== Q18 baseline ratchet file =====
+leaves 30 naming owner 5 naming drain 3 naming #issue 9 inline justification 15
+structured issue:/owner: keys 0
+gate files defining an ALLOWLIST/ALLOWED/EXEMPT constant: 86 of 379
+def test_growth_fails_shrinkage_warns(
+    record_property: RecordPropertyFn,
+) -> None:
+    """AC-6: shrinkage below baseline is REPORTED, never fails.
+
+    The report nudges the PR author to lock in the new lower bound by
+    editing ``_baselines.yaml`` in the same PR. Shrinkage is good news
+    (a previously-grandfathered orphan got wired or deleted) so it must
+    not block CI. Routed off the ``warnings`` channel via ``record_property``
+    (was ``warnings.warn``) so the diagnostic surfaces in the JUnit/report
+    output without polluting the arch-suite warnings channel that NFR-006
+    requires to stay first-party-clean.
+    """
+
+===== Q19 recovery commands =====
+391:    recover: bool = typer.Option(False, "--recover", help="Recover from crashed implementation session"),
+1164:    resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from the last incomplete WP"),
+1165:    abort: bool = typer.Option(False, "--abort", help="Abort an in-progress merge, cleaning up state and worktrees"),
+4:.kittify/runtime/merge/<mission_id>/state.json with lock support to prevent
+495:        .kittify/runtime/merge/<mission_id>/state.json
+237:    next_command: str | None = None
+317:        if self.next_command is not None:
+
+===== Q20 status of the record behind the 'non-status kinds move to PRIMARY' clause =====
+status: Proposed
+**The artefact rule** (open; it ties to [#7266](https://github.com/spec-kitty/spec-kitty/issues/7266), artefact placement):
+
+- **(a) The service gains an artefact operation on the same surface.** A `coordination_ref_commit` unit may carry artefact blobs (path, bytes) beside its rows, committed in the same compare-and-swap commit. One writer per ref; one commit per unit; the transaction's "rows and artefacts land together" property is kept.
+- **(b) The non-status kinds move to the PRIMARY partition** (#7266). The coordination branch then carries only the event log, and the kinds are written where PRIMARY artefacts are written today.
+- **(c) The CLI commits the non-status kinds itself**, by plumbing, onto the same ref. Rejected: two writers on one ref race; the compare-and-swap detects it, but every race becomes a refusal on one side, and it breaks "one writer" (ADR 2026-10-22-1 D-1).
+
+**Recommendation:** (a) as the default for every kind, so step 4a does not wait on #7266; #7266 may later move a kind to PRIMARY under (b), and that kind then leaves this surface. Whatever is chosen, it is chosen per kind, before step 4a, and no kind is left without a rule.
+ls: cannot access 'services': No such file or directory
+
+===== Cited-source statuses =====
+docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md :: status: Accepted doc_status: active 
+docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md :: status: Accepted doc_status: active 
+docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md :: status: Accepted doc_status: active 
+docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md :: status: Superseded doc_status: superseded 
+docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md :: status: Accepted doc_status: active 
+docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md :: status: Proposed doc_status: active 
+docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md :: status: Accepted doc_status: active 
+
+===== Authority rules =====
+## Boundary rule (single source of truth)
+
+Two surfaces, two jobs. They never duplicate each other:
+
+| Surface | Holds | Authority |
+|---|---|---|
+| `docs/architecture/` + `docs/adr/` | **Decisions & models**: ADRs, C4 diagrams, vision, audits, calibration | Authoritative; changes are deliberate and reviewed |
+| The rest of `docs/` | **Consumption**: tutorials, how-tos, reference, context | Reader-facing; narrates and links *up* to architecture |
+
+- **Architecture = decisions & models.** ADRs (under `docs/adr/`), the C4 model, vision,
+  audits and calibration are the deliberately changed source of truth.
+- **Reader-facing docs link up; they never duplicate architecture narrative.** When the
+  two overlap, architecture wins.
+- **Vision is an architecture concern.** There is no `docs/vision/`; forward intent lives
+  in `docs/architecture/vision/`.
+- **Terminology canon lives in the glossary context pages** (see
+  [glossary conventions](../context/glossary-conventions.md)). Architecture docs
+  *reference* glossary terms; they do not host a second glossary.
+- **Module boundaries are owned by code, not prose.** The enforced pair (the
+Older era folders remain authoritative for the decisions made in those eras; a later
+ADR supersedes an earlier one explicitly, never by silence.
+- **Single canonical authority.** Every rule, surface, and identity has ONE owning
+  source. Reconcile (extend/reference) existing doctrine rather than add a second
+  authority; prefer require-canonical + migration over no-canonical-field fallback
+The durable, governing contracts live in [`contracts/`](contracts/README.md);
+[`COMPATIBILITY.md`](COMPATIBILITY.md) is the public compatibility policy and the
+authoritative version-and-compatibility reference.
+- The committed JSON Schemas and conformance fixtures are the single source of truth for the event contract. A language binding is generated from, or tested against, them; no binding is itself the specification.

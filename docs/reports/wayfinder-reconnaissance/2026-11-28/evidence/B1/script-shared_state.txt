@@ -199,6 +199,10 @@ for m, tree in trees.items():
     visit(tree, None)
 
 outdir.mkdir(exist_ok=True, parents=True)
+with open(outdir / "shared-paths-sites-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["component", "module", "line", "path_key_full", "path_key", "classification"])
+    w.writerows(sorted(sites))
 agg = defaultdict(lambda: defaultdict(Counter))
 for c, m, line, k, k1, cls in sites:
     agg[k1][c][cls] += 1

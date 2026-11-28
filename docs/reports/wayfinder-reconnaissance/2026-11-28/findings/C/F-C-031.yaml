@@ -15,8 +15,8 @@ subject:
   revision_kind: head
 claim: Exploratory. 576 non-merge commits carry a cherry-pick trailer. Among code commits classed convergence-activity,
   247 fall in T2 (196 on the experimental line, 35 pre-fork, 16 public) and 112 in T3, after the merge; 3 fall in
-  T1. Two of the three T3-dated or pre-fork trailer commits in the classification sample were ordinary fixes or
-  refactors by content.
+  T1. In the classification sample, 3 of the 5 commits the rule put in this class were read as ordinary fixes or
+  a refactor by content; all 3 are dated outside the fork window.
 evidence:
 - id: E1
   kind: history-derived

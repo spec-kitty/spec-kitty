@@ -52,7 +52,7 @@ disconfirmation:
   search: Checked the three convergence-activity disagreements for a rule error.
   result: All three carry a cherry-pick trailer below the body excerpt that was read and are dated outside the convergence
     window (2026-07-12, 2026-09-30, 2026-09-30); if the trailer is taken as decisive, agreement is 41 of 50. The
-    trailer rule therefore also captures cherry-picks unrelated to the convergence (F-C-030).
+    trailer rule therefore also captures cherry-picks unrelated to the convergence (F-C-031).
 relations: []
 confidence: medium
 analyst:

@@ -58,7 +58,7 @@ disconfirmation:
     in a pull request number (a proxy for squash commits).
   result: The top-level variant keeps the order T1 > T2 > T3 (mean 1.33, 1.15, 1.13). Commits with a pull request
     suffix touch more components in every period (mean 3.45 vs 2.36 in T1, 1.74 vs 1.63 in T3), and their share
-    differs by period (42.6%, 21.0%, 44.2%), so the unit of measurement is not uniform (F-C-029).
+    differs by period (42.6%, 21.0%, 44.2%), so the unit of measurement is not uniform (F-C-030).
 relations: []
 confidence: high
 analyst:

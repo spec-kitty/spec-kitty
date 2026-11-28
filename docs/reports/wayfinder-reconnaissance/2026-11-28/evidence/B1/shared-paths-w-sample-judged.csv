@@ -1,0 +1,13 @@
+component,module,line,path_key_full,path_key,classification,manual_judgement_does_the_function_write_at_or_under_the_path
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration,497,kitty-specs,kitty-specs,RW,probable: function dumps normalised frontmatter for files found under the worktree kitty-specs tree
+specify_cli.cli,specify_cli.cli.commands.retrospect,1300,.kittify,.kittify,RW,no: only an exists() probe on .kittify; the write in the function targets a caller-supplied json_out path
+specify_cli.cli,specify_cli.cli.commands.init,1861,.kittify/templates,.kittify/templates,RW,ambiguous: the site records .kittify/templates as created by this run; the copy calls in the function target other paths
+glossary,glossary.pipeline,228,.kittify/events/glossary,.kittify/events,RW,yes: mkdir on the constructed path
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_0_6_5_commands_rename,126,.kittify/missions,.kittify/missions,RW,yes: shutil.move onto the constructed path
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_0_6_5_commands_rename,115,.kittify/templates,.kittify/templates,RW,yes: shutil.move onto the constructed path
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_0_11_2_improved_workflow_templates,55,.kittify/missions,.kittify/missions,RW,yes: mkdir/copy2 into a descendant of the constructed path
+specify_cli.cli,specify_cli.cli.commands.charter.generate,543,.kittify/charter,.kittify/charter,W,yes: mkdir of a descendant of the constructed path
+specify_cli.migration,specify_cli.migration.runner,83,.kittify,.kittify,RW,ambiguous: .kittify is the source of a copytree into a backup directory
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_0_11_1_improved_workflow_templates,73,.kittify/missions/software-dev/command-templates,.kittify/missions,RW,no: the constructed path is the packaged source of a copy; the destination is elsewhere
+specify_cli.upgrade,specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep,362,kitty-specs/<mission>/tasks,kitty-specs/<mission>/tasks,RW,no: only an exists() probe on tasks/; the rename targets a sibling file
+specify_cli.core,specify_cli.core.mission_creation_scaffold,303,kitty-specs/<mission>/status.events.jsonl,kitty-specs/<mission>/status.events.jsonl,RW,yes: touch() on the constructed path

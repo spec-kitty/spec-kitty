@@ -36,11 +36,11 @@ interpretation: Median changed lines per commit and the share of squash-style co
 derived_from:
 - F-C-005
 - F-C-007
-- F-C-029
+- F-C-030
 counterevidence: []
 disconfirmation:
   search: Looked for a comparison that holds commit granularity fixed.
-  result: Splitting by the pull-request-suffix proxy keeps the order of periods (F-C-029), which speaks against
+  result: Splitting by the pull-request-suffix proxy keeps the order of periods (F-C-030), which speaks against
     granularity as the only source; the proxy is coarse.
 relations: []
 confidence: medium

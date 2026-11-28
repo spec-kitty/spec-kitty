@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# H06b code checks. Usage: bash script-code-checks.txt <core-export-dir> > code-checks-log.txt
+# <core-export-dir> = `git -C /home/user/spec-kitty archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C <dir>`
+C="$1"; E=/home/user/spec-kitty-events; OP=/home/user/spec-kitty-open-packs; cd "$C" || exit 2
+h(){ echo; echo "===== $* ====="; }
+h "Q1a charter outbound top-level packages (import statements)"
+grep -rhoE "^\s*(from|import) (kernel|charter|glossary|runtime|mission_runtime|specify_cli|doctrine)\b" src/charter --include=*.py | awk '{print $2}' | sort | uniq -c
+h "Q1b charter.offering outbound top-level packages"
+grep -rhoE "^\s*(from|import) (kernel|charter|glossary|runtime|mission_runtime|specify_cli)(\.[a-z_]+)?" src/charter/offering --include=*.py | awk '{print $2}' | sed -E 's/^(kernel)\..*/\1.*/' | sort | uniq -c
+h "Q1c files importing charter, per package"
+for p in kernel glossary runtime mission_runtime specify_cli; do echo "$p $(grep -rlE '^\s*(from|import) charter\b' src/$p --include=*.py | wc -l)"; done
+h "Q1d/Q7a direct charter.offering.* import statements outside charter"
+grep -rnE "^\s*(from|import) charter\.offering" src/specify_cli src/runtime src/glossary src/mission_runtime --include=*.py
+h "Q1e/Q7b baselined lazy reach-through allowlist (gate)"
+sed -n 105,133p tests/architectural/test_runtime_charter_doctrine_boundary.py
+grep -n "lazy_baseline_allowlist\|boundary_baseline\|legacy_read_allowlist" tests/architectural/_baselines.yaml | cut -c1-200
+h "Q7c facades importing charter.offering.api; api __all__"
+grep -rlE "charter\.offering\.api" src --include=*.py
+python3 -c "
+import ast;t=ast.parse(open('src/charter/offering/api.py').read())
+for n in t.body:
+    if isinstance(n,ast.Assign) and getattr(n.targets[0],'id','')=='__all__': print(len(n.value.elts),[e.value for e in n.value.elts])"
+h "Q2 reducer entry points in core"
+grep -n "reduce_parsed\|reduce_shared_state" src/specify_cli/status/reducer.py
+grep -rn "lamport" src/specify_cli/status/*.py | cut -c1-160
+h "Q2 events library 11.3.0 (installed in /home/user/spec-kitty/.venv) ordering"
+D=/home/user/spec-kitty/.venv/lib/python3.11/site-packages/spec_kitty_events
+/home/user/spec-kitty/.venv/bin/python -c "import importlib.metadata as m;print('spec-kitty-events',m.version('spec-kitty-events'))"
+sed -n 1808,1846p $D/diary.py
+grep -n "^from spec_kitty_events.diary import" $D/status.py
+h "Q3 status read door"
+grep -n "^def resolve_status_read\|^def read_status_events\|^def materialize_status" src/specify_cli/status/read_surface.py
+grep -n "ALLOWLIST_DRAIN_BY = " tests/architectural/test_status_read_single_door.py
+h "Q4 pack pin, tracked pack paths at head, sync target, vendor command"
+head -13 packs/built-in.source.yaml
+git -C /home/user/spec-kitty ls-tree --name-only 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 packs/
+grep -n "^sync-packs" -A1 Makefile
+grep -n 'command("vendor")' src/specify_cli/cli/commands/charter/_app.py
+h "Q5 events repo release lines and schema version"
+grep -n "^version" $E/pyproject.toml
+grep -n "tags:" -A1 $E/.github/workflows/publish-pypi.yml $E/.github/workflows/service-release.yml
+grep -n 'default="3.0.0"' $E/src/spec_kitty_events/models.py
+ls $E/src/spec_kitty_events/schemas | wc -l
+h "Q6 activation ledger readers outside kernel floor"
+grep -rn "read_activation_ledger_raw\|activation_ledger_path\|kernel.activation_ledger_store" src --include=*.py | grep -v "^src/kernel/activation_ledger_store.py" | awk -F: '{print $1}' | sort | uniq -c
+sed -n 231,234p src/charter/offering/spdd_reasons/activation.py
+h "Q8 service launcher wiring"
+ls src/specify_cli/services pins
+grep -rn "ServiceLauncher\|\.ensure(" src --include=*.py | grep -v "^src/specify_cli/services/launcher.py" | cut -c1-200
+grep -n "launchable" src/specify_cli/services/policies.py | cut -c1-200
+grep -rn "Duration.ofSeconds(1800)" $E/service/command-cli/src/test/java/org/speckitty/commandcli/config/ServeOptionsTest.java
+h "Q9 orchestrator-api"
+grep -n "^CONTRACT_VERSION" src/specify_cli/orchestrator_api/envelope.py
+grep -rln "orchestrator-api" /home/user/spec-kitty-orchestrator/src --include=*.py
+grep -n '@app.command("tail")' src/specify_cli/cli/commands/events.py
+h "Q10 mission identity"
+grep -rln "MISSION_AMBIGUOUS_SELECTOR" src --include=*.py | wc -l
+sed -n 1,12p src/specify_cli/context/mission_resolver.py
+ls src/specify_cli/consolidation/mission_number
+h "Q12 events dependency"
+grep -n '"spec-kitty-events\|"spec-kitty-tracker' pyproject.toml
+grep -n -A2 '^name = "spec-kitty-events"' uv.lock
+grep -n -A1 "tool.uv.sources" pyproject.toml
+ls scripts/snapshot_events_envelope.py tests/contract/test_events_envelope_matches_resolved_version.py .kittify/release/shared-package-compatibility.json
+echo "PORTED_EVENTS_VERSION in core (non-docs):"; grep -rl "PORTED_EVENTS_VERSION" src tests scripts 2>/dev/null | wc -l
+echo "PORTED_EVENTS_VERSION in events:"; grep -rl "PORTED_EVENTS_VERSION" $E/service --include=*.java
+h "Q13 wheel config"
+grep -n '^packages = \|^"pins" = \|"packs/internal\|"acceptance-jvm\|"tests/scenarios\|"site/\*\*' pyproject.toml
+h "Q14 mission types"
+git -C $OP ls-tree --name-only a79c36318b7a506ca2ab26d74705c5e3e406004f packs/built-in/missions/
+for t in software-dev research documentation plan; do echo "$t src=$(sha256sum < src/specify_cli/missions/$t/mission.yaml | cut -c1-16) pack=$(git -C $OP show a79c36318b7a506ca2ab26d74705c5e3e406004f:packs/built-in/missions/$t/mission.yaml | sha256sum | cut -c1-16)"; done
+h "Q15 fan-out seam registrations"
+grep -n "^def register_\|^def fire_" src/specify_cli/status/adapters.py
+echo "callers of register_*_fanout_handler outside status/adapters.py and status/__init__.py:"; grep -rn "register_status_fanout_handler\|register_lifecycle_fanout_handler\|register_resolved_binding_fanout_handler" src --include=*.py | grep -v "status/adapters.py\|status/__init__.py" | wc -l
+ls src/specify_cli/status/zeitgeist_bridge.py 2>&1 | tail -1
+h "Q16 doc-toolkit consumption"
+grep -n "doc-toolkit\"" site/package.json /home/user/spec-kitty-open-packs/site/package.json /home/user/spec-kitty-charter/site/package.json $E/site/package.json
+h "Q17 actor profile precedence; prompt profile source"
+sed -n 117,123p src/specify_cli/status/actor.py
+sed -n 230,234p src/runtime/next/prompt_builder.py
+h "Q18 baseline ratchet file"
+python3 - <<'PY'
+import re
+ls=open('tests/architectural/_baselines.yaml').read().splitlines()
+lv=[l for l in ls if re.match(r'^\s+[A-Za-z0-9_]+:\s*\d+',l)]
+print('leaves',len(lv),'naming owner',sum('owner' in l.lower() for l in lv),'naming drain',sum('drain' in l.lower() for l in lv),'naming #issue',sum(bool(re.search(r'#\d+',l)) for l in lv),'inline justification',sum('justification' in l for l in lv))
+print('structured issue:/owner: keys',sum(bool(re.match(r'^\s+(issue|owner|drain[a-z_]*):',l)) for l in ls))
+PY
+echo "gate files defining an ALLOWLIST/ALLOWED/EXEMPT constant: $(grep -rlE '^_?[A-Z_]*(ALLOWLIST|ALLOWED|EXEMPT)[A-Z_]*\s*[:=]' tests/architectural/*.py | wc -l) of $(ls tests/architectural/*.py | wc -l)"
+sed -n 566,578p tests/architectural/test_ratchet_baselines.py
+h "Q19 recovery commands"
+grep -n '"--recover"' src/specify_cli/cli/commands/implement.py | cut -c1-160
+grep -n '"--resume"\|"--abort"' src/specify_cli/cli/commands/consolidate.py | cut -c1-160
+grep -n "runtime/merge/<mission_id>/state.json" src/specify_cli/consolidation/state.py | head -2
+grep -n "next_command" src/runtime/next/decision.py | head -2
+h "Q20 status of the record behind the 'non-status kinds move to PRIMARY' clause"
+sed -n 4p docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md
+sed -n 99,105p docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md | cut -c1-330
+ls services 2>&1 | tail -1
+h "Cited-source statuses"
+for f in docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md; do echo "$f :: $(sed -n 4,5p $f | tr '\n' ' ')"; done
+h "Authority rules"
+sed -n 32,50p docs/architecture/README.md
+sed -n 106,107p docs/architecture/README.md
+sed -n 98,100p .kittify/charter/charter.md
+sed -n 78,80p $E/README.md
+sed -n 80p $E/.kittify/charter/charter.md | cut -c1-260

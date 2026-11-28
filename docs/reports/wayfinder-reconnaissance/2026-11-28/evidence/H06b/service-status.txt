@@ -1,0 +1,3 @@
+$ spec-kitty --version
+spec-kitty-cli version 4.0.0rc9
+$ spec-kitty service status --json   (cwd: empty git repository in scratch; CLI = editable install of /home/user/spec-kitty at 83097d32, which differs from head 5c4fc5a79d only under docs/reports and kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM)
