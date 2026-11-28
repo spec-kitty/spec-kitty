@@ -1,0 +1,74 @@
+# Brief for the consolidated report
+
+You write the consolidated report of a read-only architectural reconnaissance of the Spec Kitty ecosystem, commissioned by its human architect. All earlier stages are finished. You add no new finding and no new judgement: you report what the stages established, where they disagree, and what the architect has to decide.
+
+R = /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/
+S = /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/
+
+## Profile and format
+
+- Profile: comms-cleo. In /home/user/spec-kitty run `spec-kitty agent profile show comms-cleo` and `spec-kitty charter context --action review --include agent-profile:synthesizer-sam --include agent-profile:comms-cleo --json` (stderr warnings about a typescript toolguide are benign).
+- Format: the established executive debrief, long form. Read and follow, in /home/user/spec-kitty: packs/internal/procedures/executive-debrief-generation.procedure.yaml, packs/internal/styleguides/executive-debrief.styleguide.yaml, packs/internal/skills/report-debrief.skill.md, docs/development/reporting/debrief-styleguide.md, packs/internal/tactics/branded-deliverable.tactic.yaml, packs/internal/toolguides/BRANDED_DOCUMENT_GENERATION.md, and the two example PDFs in docs/development/reporting/examples/ for look and voice. Also apply the repository's report-writing voice that the styleguide names. The title follows the format's convention ("WTF is up with ..." for a scope report).
+- Order of the long form as the styleguide gives it: executive summary (bottom line, headline table, what happened, what is needed from the reader), lettered parts, open risks, appendix. Write the summary for the least technical named reader.
+- Readers: the human architect of Spec Kitty (who decides), and an outside observer who will interpret the results and who has not seen the repositories. The architect delivers the report by hand.
+
+## Departures from the procedure, with the architect's authority
+
+1. Source of facts. This debrief does not report GitHub activity, so the collector is not run. Its rule is kept in spirit: every number and every statement traces to a file in R (a finding id, or a named file under synthesis/, review/, evaluation/, dialectic/). A statement that cannot be traced is cut. Issue and pull-request references appear only if they are in a finding's evidence.
+2. The work ran as a research Mission with subagents, not as a dispatch Op (see R/00-rulings-and-deviations.md, D-1).
+3. Placement. The architect ruled that the investigation's documents are stored under R on a research branch. The Markdown source of the report goes to R/report/. The PDF is not written anywhere under /home/user/spec-kitty: it goes to S/report-out/ and is handed over.
+State these three in the report's method section.
+
+## Envelope
+
+- Never modify, stage or commit anything under /home/user except new files under R/report/. No git command that changes state. Nothing is posted to GitHub.
+- No remediation, no implementation work items, no Wayfinder implementation. Recommendations are prospective design recommendations for the architect to weigh.
+- A blocked build or missing access is a coverage limit, never a defect. The absence of Kira, a HUD, an Operations Deck or similar prospective components is not a deficiency. Paperclip is a comparison only. Desk assessment (H08, AS-10) is never presented as empirical verification.
+- Use the ecosystem's terms; the domain object is a Mission. A repository gate forbids a few retired phrases under docs/: run `python3 S/tools/scrub.py R/report` before you finish.
+
+## What to read
+
+R/00 to R/05, R/synthesis/ (all .md and .csv at the top level, and coordinator-procedure-notes.txt), R/review/ (verdict-challenge.md, synthesis-challenge.md, wording-review.md, repro-R1.md, repro-R2.md, repro-R3.md and their .csv), R/evaluation/ (validity-evaluation.md, verdict-ledger.csv, process-evaluation.md, process-deviations.csv), R/dialectic/ (dialectic-record.md, disagreements.csv, both position papers and rebuttals), R/operations-log.txt. Open finding records and raw evidence wherever you quote a number, and quote the number as the latest stage corrected it (the review's reproduced value where it differs from the investigator's; say so).
+
+## What the report must do
+
+- Keep four kinds of statement visibly apart, as separate parts or clearly labelled blocks: (1) empirically supported conclusions, (2) architectural interpretations, (3) prospective design recommendations, (4) outstanding human decisions.
+- Keep the stages apart: prospective predictions (not yet returned by the outside observer; say that the comparison is pending and that no finding was disclosed beforehand), independent findings, synthesis, adversarial review, post-hoc evaluation, dialectical review. For every hypothesis H01 to H08, the experiment PX-01 and the scenarios AS-01 to AS-12, show the synthesis verdict, the review verdict and the evaluation side by side from R/evaluation/verdict-ledger.csv. Where they differ, show the difference; do not pick a winner.
+- Report disconfirmations as prominently as confirmations. A contradicted hypothesis is a result.
+- Keep the disagreements of the dialectical review as disagreements, in both parties' terms, with what would settle each. No forced consensus.
+- Take wording items graded major in R/review/wording-items.csv and major items in R/review/challenge-items.csv into account: do not repeat a statement that the review found stronger than its evidence; use the reading the review allows.
+- Say plainly what was not measured and why (the coverage limits and declared breaches), the reproduction rates with denominators, and the results of the process evaluation, including what the coordinator did wrong.
+- Views: mark recorded intent, observed, approved plan and proposal. Revision kinds: head, core pin, released. No trend across the convergence merge. Deterioration apart from cause.
+- The appendix lists where each deliverable of the commission lives in R (the twelve documents), the inspected revisions, the method in short, and the traceability table.
+- Length: the body at most 6,500 words; tables and the appendix in addition. Plain, short sentences. Explain each technical term once.
+
+## Outputs
+
+1. R/report/wtf-is-up-with-the-spec-kitty-architecture.md: the Markdown source, starting with exactly
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+The generator draws a first-level heading as a part title and a second-level heading as a subsection; the body starts at the executive summary.
+2. R/report/traceability.csv: section, statement (short), kind (conclusion, interpretation, recommendation, decision, method), source files, finding ids.
+3. The PDF, S/report-out/wtf-is-up-with-the-spec-kitty-architecture.pdf, rendered with the long-form generator. A prepared environment exists; do not install anything into /home/user/spec-kitty and do not edit the generator or its stylesheet:
+
+```
+PATH=S/pdfvenv/bin:$PATH S/pdfvenv/bin/python /home/user/spec-kitty/packs/internal/assets/spec-kitty-branded-pdf.py \
+  --input <a copy of the Markdown in S/report-out/ with the frontmatter block removed> \
+  --output S/report-out/wtf-is-up-with-the-spec-kitty-architecture.pdf \
+  --design-repo S/design-copy \
+  --eyebrow "..." --title "..." --subtitle "..." --lede "..." --footer-center "..." \
+  --meta "AS OF=2026-11-28" --meta "SCOPE=..." --meta "FOR=..."
+```
+
+(replace S by the full scratch path). S/design-copy is a scratch copy of the brand fonts and logo from the read-only clone of spec-kitty-design at 19fb6a224c; the generator also imports one web font, which may fall back if the network refuses it; say so if it does.
+4. Verify as the procedure asks: `pdfinfo`, rasterise every page with `pdftoppm -png -r 60` into S/report-out/pages/ and look at them (Read tool) for broken tables, overflowing code, orphaned headings and missing fonts; fix the Markdown and re-render until it reads cleanly. Then re-check every number in the executive summary against its source file.
+
+## Final message
+
+At most 200 words to the coordinator: files written, page count, word count of the body, departures from this brief, anything you had to cut because it could not be traced. No summary of the content.
