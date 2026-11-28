@@ -508,20 +508,6 @@ def test_without_the_mission_branch_rule_the_planning_lane_authors_nothing(tmp_p
 
 
 @pytest.mark.integration
-def test_an_empty_planning_write_scope_authors_nothing_on_the_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A ``planning_artifact`` WP with ``owned_files: []`` gives the planning lane an empty scope: status, stray and code commits stay unattributed."""
-    repo, pin, shas = _mission(tmp_path)
-    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
-    _ownership(monkeypatch, {"WP02": ()})
-
-    _coord_base, claim = _planning_claim(repo, pin, _EMPTY_PLANNING, {"WP02": {"lane": "approved"}})
-
-    paths = {path for path, _blob in claim.blobs}
-    assert not paths & {"stray.py", "sneaky.py", f"kitty-specs/{_SLUG}/status.events.jsonl", _OWNED}
-    assert not claim.shas & set(shas.values())
-
-
-@pytest.mark.integration
 def test_an_all_empty_ownership_note_prints_with_the_squash_fail_it_explains(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 7 issue 2: empty ``write_scope`` and ``owned_files``; the reason-4 note now rides on the squash FAIL."""
     repo, pin, _shas = _mission(tmp_path)

@@ -19,20 +19,11 @@ remedy (ruling "guidance only": no migration).
 * :func:`test_planning_work_on_the_topic_branch_moves_into_review` (SC-001, SC-005) -- the
   reproduction: ``implement`` names the coordination worktree and the Mission branch; the owned
   file committed there moves into review unforced.
-* :func:`test_a_hollow_planning_work_package_is_still_refused` (SC-002) -- no owned change: refused,
-  the window ends at the Mission branch, and no "target branch only" addendum.
-* :func:`test_a_sibling_commit_is_not_the_work_packages_evidence` (FR-003, WP03 hand-off) -- two
-  planning work packages share the coordination worktree; a commit inside WP02's window that
-  touches only WP05's file refuses WP02 and moves WP05 into review.
-* :func:`test_pre_existing_owned_file_is_not_evidence` (FR-010) -- the owned file was written on the
-  Mission branch during planning, before the claim: refused.
-* :func:`test_target_only_planning_work_is_refused` (SC-004, FR-007) -- the owned file was committed
-  in the repository root checkout on the target: refused, naming that commit (not an unrelated
-  one) and both remedies.
-* :func:`test_explicit_topology_keeps_the_repository_root_checkout` (SC-003, FR-006) -- an explicit
-  ``--topology lanes_with_coord`` Mission keeps today's workspace and window.
 * :func:`test_a_removed_coordination_worktree_fails_closed` (NFR-002, residual 8a) -- with the
   coordination worktree gone, both claim verbs refuse at Mission lookup; nothing falls back.
+
+The finer cases (hollow, sibling, pre-existing, target-only, explicit topology) are pinned on the
+evidence window itself in ``tests/consolidation/test_planning_evidence_window_7860.py``.
 
 Drives the REAL CLI end to end in an isolated HOME. The bookkeeping helper stages only the files
 the CLI writes (never an owned file), so a status-residue commit can never fake the evidence.
@@ -58,8 +49,6 @@ _CLI = [sys.executable, "-m", "specify_cli"]
 _PLANNING_OWNED = "kitty-specs/{slug}/research/notes.md"
 _SIBLING_OWNED = "kitty-specs/{slug}/research/other.md"
 _MISSING = "IMPLEMENTATION_MISSING"
-_TARGET_ONLY = "found on the target branch only"
-_ATTEST = "--attest-no-implementation"
 #: The files the CLI itself writes in the Mission directory (status, metadata, manifests,
 #: subtask checkboxes). Owned planning files (``research/``) are never in this list.
 _TOOL_WRITTEN = (
@@ -313,98 +302,6 @@ def _assert_review_range_holds(mission: _Mission, owned_sha: str) -> None:
     assert review.status is not RangeStatus.UNAVAILABLE, f"the review range must be available; gap={review.gap}"
     assert review.gap != RangeGap.PLANNING_RANGE_BOOKKEEPING_ONLY, review
     assert owned_sha in {commit.sha for commit in review.commits}, f"the review range must list the owned commit {owned_sha}; range={review}"
-
-
-def test_a_hollow_planning_work_package_is_still_refused(tmp_path: Path) -> None:
-    """SC-002: no owned change anywhere is refused; the window and the remedy name the Mission branch."""
-    mission = setup_default_mission(tmp_path)
-    _implement_planning_wp(mission)
-
-    moved = _move_into_review(mission)
-    output = _flat(moved)
-
-    assert moved.returncode != 0, f"a planning work package with no owned change must still be refused. output:\n{output[-3000:]}"
-    assert _MISSING in output, output[-3000:]
-    assert f"..{mission.topic_branch} (lane-planning)" in output, f"the window must end at the Mission branch. output:\n{output[-3000:]}"
-    assert f"on the Mission branch {mission.topic_branch}" in output, f"the remedy must name the Mission branch. output:\n{output[-3000:]}"
-    assert _TARGET_ONLY not in output, f"a hollow work package never gets the in-flight addendum. output:\n{output[-3000:]}"
-
-
-def test_a_sibling_commit_is_not_the_work_packages_evidence(tmp_path: Path) -> None:
-    """Two planning WPs share the coordination worktree: a commit in WP02's window that touches only WP05's file is not WP02's evidence.
-
-    The ``for_review`` gate is coarse (any non-status commit since the claim base), so the evidence
-    axis is the real check: WP02 is refused, WP05 (whose file it is) moves into review.
-    """
-    mission = setup_default_mission(tmp_path)
-    workspace, _out = _implement_planning_wp(mission, "WP02")
-    _implement_planning_wp(mission, "WP05")
-    _write_and_commit(workspace, _SIBLING_OWNED.format(slug=mission.slug), "# WP05 research\n", "feat(WP05): other research")
-
-    refused = _move_into_review(mission, "WP02", "T2")
-    refused_output = _flat(refused)
-    moved = _move_into_review(mission, "WP05", "T5")
-    moved_output = _flat(moved)
-
-    assert refused.returncode != 0, f"a sibling's commit is not WP02's evidence. output:\n{refused_output[-3000:]}"
-    assert f"{_MISSING}: WP02" in refused_output, refused_output[-3000:]
-    assert moved.returncode == 0, f"the sibling's own work moves it into review. output:\n{moved_output[-3000:]}"
-
-
-def test_pre_existing_owned_file_is_not_evidence(tmp_path: Path) -> None:
-    """FR-010: an owned file written on the Mission branch during planning, before the claim, never counts."""
-    mission = setup_default_mission(tmp_path)
-    _write_and_commit(mission.topic_checkout, mission.owned, "planning-time draft\n", "docs: research draft written during planning")
-
-    _implement_planning_wp(mission)
-    moved = _move_into_review(mission)
-    output = _flat(moved)
-
-    assert moved.returncode != 0, f"content authored before the claim is not the work package's evidence. output:\n{output[-3000:]}"
-    assert _MISSING in output, output[-3000:]
-    assert _TARGET_ONLY not in output, output[-3000:]
-
-
-def test_target_only_planning_work_is_refused(tmp_path: Path) -> None:
-    """SC-004 / FR-007: work committed on the target only (the old guidance) is refused, naming that commit and both remedies.
-
-    Ruling A' no longer treats the repository root checkout on the target as the planning
-    workspace of a default Mission that has not landed. An unrelated commit made on the target
-    afterwards is the negative control: it is never named.
-    """
-    mission = setup_default_mission(tmp_path)
-    _implement_planning_wp(mission)
-    assert _git(mission.repo, "rev-parse", "--abbrev-ref", "HEAD") == "main", "fixture: the settlement returns the root checkout to the target"
-    owned_sha = _write_and_commit(mission.repo, mission.owned, "# WP02 research\n", "feat(WP02): research notes on the target")
-    unrelated_sha = _write_and_commit(mission.repo, "docs/unrelated.md", "# unrelated\n", "docs: unrelated change")
-
-    moved = _move_into_review(mission)
-    output = _flat(moved)
-
-    assert moved.returncode != 0, f"work on the target only is not evidence before the landing. output:\n{output[-3000:]}"
-    assert _MISSING in output, output[-3000:]
-    assert _TARGET_ONLY in output, f"the refusal must say the owned change is on the target only. output:\n{output[-3000:]}"
-    assert owned_sha in output, f"the refusal must name the owned commit. output:\n{output[-3000:]}"
-    assert unrelated_sha not in output, f"an unrelated commit is never named. output:\n{output[-3000:]}"
-    assert f"cherry-pick {owned_sha} onto the Mission branch {mission.topic_branch}" in output, output[-3000:]
-    assert f"{_ATTEST} WP02" in output, output[-3000:]
-
-
-def test_explicit_topology_keeps_the_repository_root_checkout(tmp_path: Path) -> None:
-    """SC-003 / FR-006: an explicit-topology Mission keeps the repository root checkout and the target window."""
-    mission = setup_default_mission(tmp_path, topology="lanes_with_coord")
-    meta = _meta(mission)
-    assert meta.get("topology_source") != "default", f"fixture: an explicit topology; meta={meta}"
-    assert mission.topic_checkout.resolve() == mission.repo.resolve(), "fixture: the planning artifacts stay in the repository root checkout"
-
-    workspace, implement_output = _implement_planning_wp(mission)
-
-    assert workspace.resolve() == mission.repo.resolve(), f"implement must name the repository root checkout. output:\n{implement_output[-3000:]}"
-    _write_and_commit(workspace, mission.owned, "# WP02 research\n", "feat(WP02): research notes")
-    moved = _move_into_review(mission)
-    output = _flat(moved)
-
-    assert moved.returncode == 0, f"work in the repository root checkout keeps passing for an explicit topology. output:\n{output[-3000:]}"
 
 
 _POLICY = json.dumps(
