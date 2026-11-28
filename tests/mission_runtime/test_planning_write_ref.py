@@ -387,3 +387,30 @@ def test_a_stored_coordination_topology_without_a_coordination_branch_field_gets
         "is not checked out anywhere; its planning work is written there until it lands. To restore the coordination "
         f"worktree, run `spec-kitty doctor coordination --mission {_SLUG} --fix`, then retry."
     )
+
+
+@pytest.mark.parametrize("coordination_branch", [None, "", "kitty/mission-x"])
+@pytest.mark.parametrize("has_code_lanes", [False, True])
+def test_the_ref_meta_coordination_answer_matches_the_full_derivation(coordination_branch: str | None, has_code_lanes: bool) -> None:
+    """An unstamped ref meta routes through coordination exactly when the full derivation says so (#7860).
+
+    ``_meta_routes_through_coordination`` reads no working-tree file for a ``meta.json`` taken
+    off another ref; this pins that the code-lane signal the full derivation also reads never
+    changes the answer.
+    """
+    from mission_runtime import unstamped_runtime_topology
+    from mission_runtime.context import routes_through_coordination
+    from mission_runtime.resolution import _meta_routes_through_coordination
+    from specify_cli.migration.backfill_topology import classify_topology
+
+    meta = {} if coordination_branch is None else {"coordination_branch": coordination_branch}
+    derived = routes_through_coordination(unstamped_runtime_topology(classify_topology(coordination_branch or None, has_code_lanes)))
+
+    assert _meta_routes_through_coordination(meta) is derived
+
+
+@pytest.mark.parametrize(("stored", "expected"), [("lanes_with_coord", True), ("single_branch", False), ("lanes", False)])
+def test_a_stored_topology_decides_the_ref_meta_coordination_answer(stored: str, expected: bool) -> None:
+    from mission_runtime.resolution import _meta_routes_through_coordination
+
+    assert _meta_routes_through_coordination({"topology": stored, "coordination_branch": "kitty/mission-x"}) is expected
