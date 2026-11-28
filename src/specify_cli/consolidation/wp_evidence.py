@@ -1408,7 +1408,6 @@ __all__ = [
     "lane_evidence_window",
     "mission_evidence_report",
     "planning_evidence_window",
-    "read_wp_ownership",
     "target_only_evidence_addendum",
     "widened_lane_paths",
 ]
