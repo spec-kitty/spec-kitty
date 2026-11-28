@@ -27,6 +27,7 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.lanes.compute import lane_created_branch
 from tests.lane_test_utils import commit_branch_implementation, create_lane_branches
+from tests._support.git_cli import real_git_command
 from tests.consolidation.executor_family import patch_executor_family
 from tests.integration.test_merge_lane_planning_data_loss import _seed_wp_done_raw, _write_wp_file
 
@@ -99,11 +100,13 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         call_log.append(tuple(cmd))
         if "merge-base" in cmd:
-            return (0, "abc123\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         # #5668: the approval-bound claim resolves its base ref through the git probe
-        # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim.
+        # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim,
+        # and a made-up SHA reaches the real ``git rev-list --merges`` probe (#7886) and fails
+        # closed. Ref lookups therefore run real git against the test repository (#7897, #7899).
         if "rev-parse" in cmd:
-            return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         if "update-index" in cmd and "--refresh" in cmd:
             # Allow caller to simulate divergence via non-zero return.
             return (refresh_returncode, "", "stat info differs")

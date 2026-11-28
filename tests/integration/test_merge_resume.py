@@ -42,6 +42,7 @@ from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
 from specify_cli.lanes.compute import lane_created_branch
 from tests.lane_test_utils import commit_branch_implementation, create_lane_branches, write_mission_meta
+from tests._support.git_cli import real_git_command
 from tests.consolidation.executor_family import patch_executor_family
 from tests.terminus.conftest import declare_owned_files, implementer_claim_events
 
@@ -170,13 +171,14 @@ def _patches(
 
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         if "merge-base" in cmd:
-            return (0, "abc123\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         # Modern mission (post-083 ULID identity): the baseline-capture phase
-        # reads ``git rev-parse <target>`` to anchor ``baseline_merge_commit``.
-        # Return a realistic 40-char SHA so record_baseline_merge_commit has a
-        # non-empty baseline instead of hard-failing the modern-mission invariant.
+        # reads ``git rev-parse <target>`` to anchor ``baseline_merge_commit``,
+        # and the claim resolves lane tips the same way. A made-up SHA would
+        # reach the real ``git rev-list --merges`` probe (#7886) and fail closed,
+        # so ref lookups run real git against the test repository (#7897, #7899).
         if "rev-parse" in cmd:
-            return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         # FR-037: model the real ``git rev-list --count <lane> ^<mission>``
         # integration check.  Return "0" (zero commits ahead = already
         # integrated) for any lane branch whose lane-id is in
