@@ -20,6 +20,7 @@ import pytest
 
 from runtime.next.prompt_builder import _completion_lines, _review_command_lines
 from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, is_shared_checkout_kind
 from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -195,8 +196,17 @@ def test_review_completion_lines_offer_approve_and_reject_without_a_fact() -> No
     assert not any("--owned-checkout" in line for line in lines)
 
 
+def _checkout_workspace(resolution_kind: str, branch_name: str | None) -> Any:
+    """A workspace stub that answers ``is_shared_checkout`` as ``ResolvedWorkspace`` does (#7860)."""
+    return SimpleNamespace(
+        resolution_kind=resolution_kind,
+        branch_name=branch_name,
+        is_shared_checkout=is_shared_checkout_kind(resolution_kind),
+    )
+
+
 def _root_workspace(branch_name: str | None) -> Any:
-    return SimpleNamespace(resolution_kind="repo_root", branch_name=branch_name)
+    return _checkout_workspace("repo_root", branch_name)
 
 
 def test_completion_lines_name_the_commit_step_only_where_move_task_will_not_commit(tmp_path: Path) -> None:
@@ -206,10 +216,12 @@ def test_completion_lines_name_the_commit_step_only_where_move_task_will_not_com
 
     root = _completion_lines("implement", "WP01", _SLUG, ["T001"], None, _root_workspace("main"))
     owned_root = _completion_lines("implement", "WP01", _SLUG, ["T001"], owned, _root_workspace("main"))
-    lane = _completion_lines("implement", "WP01", _SLUG, ["T001"], None, SimpleNamespace(resolution_kind="lane_workspace", branch_name="kitty/lane-a"))
+    lane = _completion_lines("implement", "WP01", _SLUG, ["T001"], None, _checkout_workspace("lane_workspace", "kitty/lane-a"))
+    mission_branch = _completion_lines("implement", "WP01", _SLUG, ["T001"], None, _checkout_workspace(MISSION_BRANCH_CHECKOUT_KIND, "kitty/mission-x"))
     no_branch = _completion_lines("implement", "WP01", _SLUG, ["T001"], None, _root_workspace(None))
     review = _completion_lines("review", "WP01", _SLUG, [], None, _root_workspace("main"))
 
     assert root[2] == commit_step
+    assert mission_branch[2] == commit_step.replace("--to-branch main", "--to-branch kitty/mission-x")
     for lines in (owned_root, lane, no_branch, review):
         assert not any("safe-commit" in line for line in lines)
