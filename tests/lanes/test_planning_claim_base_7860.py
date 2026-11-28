@@ -383,7 +383,7 @@ def test_agent_action_implement_records_the_claim_base_and_the_gate_passes_owned
     evidence axis is WP04's: until it is merged, its ``IMPLEMENTATION_MISSING`` refusal may still
     follow the gate, never the gate's own "no implementation commit since claim" refusal.
     """
-    from tests.integration.test_7860_planning_evidence_window import (
+    from tests.integration.test_planning_evidence_window_e2e import (
         _claim_planning_wp,
         _commit_owned,
         _move_into_review,

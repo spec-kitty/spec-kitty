@@ -25,7 +25,6 @@ from specify_cli.lanes import single_branch_landing
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status import read_events
 from specify_cli.status.models import Lane
 from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, REPO_ROOT_KIND, ResolvedWorkspace
 from tests._support.git_cli import git_out
@@ -266,35 +265,6 @@ def _default_mission(tmp_path: Path) -> tuple[Path, str]:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "chore: claim WP02")
     return repo, _git(repo, "rev-parse", "HEAD")
-
-
-@pytest.fixture
-def real_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
-    repo, claim_commit = _default_mission(tmp_path)
-    monkeypatch.setattr(move_task_module, "_mt_lanes_manifest", lambda _st: _manifest(_git(repo, "rev-parse", "main")))
-    monkeypatch.setattr(move_task_module, "_mt_owned_file_patterns", lambda _st: (_OWNED,))
-    monkeypatch.setattr(move_task_module, "_mt_status_events", lambda st: read_events(st.feature_dir))
-    return repo, claim_commit
-
-
-@pytest.mark.integration
-def test_real_git_owned_work_after_the_claim_moves_into_review(real_mission: tuple[Path, str]) -> None:
-    repo, _claim = real_mission
-    (repo / _OWNED).write_text("# WP02 research\n", encoding="utf-8")
-    _git(repo, "commit", "-qam", "feat(WP02): research notes")
-
-    move_task_module._mt_require_implementation_evidence(_state(repo))
-
-
-@pytest.mark.integration
-def test_real_git_a_pre_claim_draft_is_not_evidence(real_mission: tuple[Path, str]) -> None:
-    repo, claim_commit = real_mission
-
-    with pytest.raises(ActionContextError) as refused:
-        move_task_module._mt_require_implementation_evidence(_state(repo))
-
-    assert refused.value.code == wp_evidence.IMPLEMENTATION_MISSING
-    assert f"{claim_commit}..{_MISSION_BRANCH} ({PLANNING_LANE_ID})" in str(refused.value)
 
 
 # ---------------------------------------------------------------- T025: the auto-commit guard

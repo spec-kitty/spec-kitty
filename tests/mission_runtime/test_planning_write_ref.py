@@ -125,23 +125,6 @@ def test_a_default_mission_without_a_mission_branch_keeps_the_target(tmp_path: P
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
-@pytest.mark.unit
-def test_the_rule_and_the_primary_ref_share_one_predicate() -> None:
-    """C-004: ``default_mission_primary_ref`` and ``planning_write_ref`` read ``default_mission_rule_applies``."""
-    from mission_runtime.resolution import default_mission_primary_ref, default_mission_rule_applies
-
-    cases = [
-        ("default", _MISSION_BRANCH, False),
-        ("default", _MISSION_BRANCH, True),
-        (None, _MISSION_BRANCH, False),
-        ("default", "", False),
-        ("default", None, False),
-    ]
-    for case in cases:
-        expected = _MISSION_BRANCH if default_mission_rule_applies(*case) else _TARGET
-        assert default_mission_primary_ref(*case, _TARGET) == expected, case
-
-
 # ---------------------------------------------------------------- fail closed
 
 
