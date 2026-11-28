@@ -1,0 +1,26 @@
+target,operation,covering_surface,locus,classification,basis,gap
+local process,submit,spec-kitty-orchestrator executor (asyncio.create_subprocess_exec of the agent CLI),external coordination system,verified (if orchestrator e2e passes; see finding) else present but unverified,executed: orchestrator e2e fake-agent suite against core head (evidence/F/orch-e2e-summary.txt),Core has no submit: invocation/executor.py:508 does not spawn; spec-kitty next is pulled by the agent
+local process,inspect,core agent tasks status stale check (shell_pid liveness + commit heartbeat); spec-kitty-orchestrator status (provider state),core runtime (advisory) + external,verified (core stale-detection tests),executed: tests/specify_cli/core/test_stale_detection_snapshot_liveness.py; test_process_liveness.py,Advisory only; no host-side liveness of the executor beyond a recorded PID
+local process,attach,none found,none,missing,desk,No surface lets a person observe or take over a running unit
+local process,cancel,spec-kitty-orchestrator execute_with_timeout (SIGTERM then SIGKILL on timeout),external coordination system,verified (timeout-triggered only),executed probe evidence/F/timeout-probe.txt,On-demand cancel missing: orchestrator abort only records or deletes provider state (cli/main.py:280-297); core has no stop
+local process,collect,spec-kitty-orchestrator captures stdout/stderr to logs; core for_review gate counts lane commits; Op close with --evidence/--artifact/--commit,external + core runtime,verified (core Op close executed; evidence promotion test),executed: dispatch-op-lifecycle.json; tests/specify_cli/invocation/test_evidence_promotion.py,Op evidence is self-reported by the executor
+persistent session,submit,spec-kitty dispatch opens an Op and returns governance context; it does not start the session,core runtime (context only),missing (start); context preparation verified,executed: dispatch-op-lifecycle.json,Session start is the external agent tool or the person
+persistent session,inspect,session_presence open-Ops reminder; doctor ops lists orphan Ops,core runtime,verified (Op-level),executed: doctor ops --json exit 1 listing open Ops,Inspects records not the session; no session id is recorded
+persistent session,attach,none in ecosystem; the agent tool's own UI,external tool,missing,desk,No ecosystem surface
+persistent session,cancel,profile-invocation complete --outcome abandoned; doctor ops --close-stale (24h default),core runtime (record only),verified (record only),executed: op-complete.json; tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py,Closes the record; does not stop the session
+persistent session,collect,profile-invocation complete --evidence/--artifact/--commit,core runtime,verified,executed: dispatch-op-lifecycle.json,Self-reported
+ephemeral container,submit,spec-kitty-container image (human-run); fleet-kitty bin/local-docker-dispatch.py docker run --rm workers for GitHub issues,another ecosystem component (container) / external coordination system (fleet-kitty),missing for Mission units; fleet-kitty present but unverified,desk,Container repo provides an environment not a submit API; fleet-kitty works on GitHub issues not Missions
+ephemeral container,inspect,none for Mission units,none,missing,desk,
+ephemeral container,attach,none,none,missing,desk,
+ephemeral container,cancel,none for Mission units,none,missing,desk,
+ephemeral container,collect,fleet-kitty host-side PR gate (issues not Missions),external coordination system,present but unverified,desk,Not tied to Mission/WP identity
+remote worker,submit,orchestrator-api has no remote serving (delivery profile unavailable: remote_serving; ADR 2026-10-07-2 excludes remote serving for that delivery); fleet-kitty ssh harness to exe.dev,external coordination system (fleet-kitty),missing in core; fleet-kitty present but unverified,desk; executed contract-version delivery profile,ADR exclusion covers the API transport of one delivery; not a standing out-of-scope ruling
+remote worker,inspect,none,none,missing,desk,orchestrator-api watch unavailable (delivery profile)
+remote worker,attach,none,none,missing,desk,
+remote worker,cancel,none,none,missing,desk,leases/fences unavailable (delivery profile)
+remote worker,collect,none,none,missing,desk,
+CI,submit,host-boundary-rules.md describes CI pipelines as orchestrator-api clients (lines 35;162;170); no core workflow runs a Mission unit,document only,specified only,document-claim,
+CI,inspect,orchestrator-api mission-state / list-ready,core runtime,verified (contract tests),executed: tests/contract/test_orchestrator_api.py,Polling only; watch unavailable
+CI,attach,none,none,missing,desk,
+CI,cancel,orchestrator-api transition to blocked/canceled (record only),core runtime,present (record only),desk,No stop of a running unit
+CI,collect,orchestrator-api transition --evidence-json / accept-mission,core runtime,verified (contract/integration tests),executed: tests/agent/test_orchestrator_commands_integration.py,

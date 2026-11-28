@@ -1,0 +1,113 @@
+B3 mapping rules. Written 2026-11-28 BEFORE the documented table and the observed
+edge table were joined. At the time of writing the analyst had seen: the full
+documented-relationships table (A1), the component catalogue (A1), the
+units-without-recorded-internal-structure list (A1), the rename map (B1), the list of
+74 observed component names, the first 29 rows of component-edges-head.csv (to learn
+its columns), and, by mistake, B1's layer-edges-head.csv (a 14-row top-level aggregate
+of the same edge data; not on the permitted list; disclosed as a deviation). No
+classification count had been computed.
+
+Inputs
+  documented : evidence/A1/documented-relationships.csv  (73 rows, frozen by A1)
+  observed   : evidence/B1/component-edges-head.csv      (columns from,to,weight,load_time_weight)
+  revision   : spec-kitty 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 (head)
+
+0. Units
+  edge          = one row (from,to) of the observed table, from != to
+  weight        = column `weight` (all imports); assumed to be module-level import edges
+  load-time     = column `load_time_weight`; an edge is a load-time edge when it is > 0
+  top-level     = the six packages kernel, charter, glossary, runtime, mission_runtime,
+                  specify_cli. A component maps to its first dotted segment. Edges inside
+                  one top-level package vanish; weights of the others are summed.
+  full          = the 74 observed components as given.
+  Layer number  : kernel 0; charter 1; glossary, runtime, mission_runtime 2; specify_cli 3.
+
+1. Name mapping (documented name -> observed component names)
+  kernel                         -> kernel
+  charter / "charter (seam)"     -> charter, charter.activation, charter.offering
+  charter.offering               -> charter.offering
+  charter.offering.api           -> charter.offering   (coarser: the api module is not a component)
+  charter.activation.api         -> charter.activation (coarser, same reason)
+  glossary                       -> glossary
+  runtime                        -> runtime
+  mission_runtime                -> mission_runtime
+  "mission_runtime submodules"   -> mission_runtime    (coarser: root vs submodule not visible)
+  specify_cli / "spec-kitty CLI" / "specify_cli (launcher)" -> specify_cli and every specify_cli.*
+  CORE modules (ADR 2026-06-26-2 Set Definitions) -> specify_cli.core, specify_cli.status,
+                                    specify_cli.readiness, specify_cli.invocation
+  INTEGRATION modules (same ADR) -> specify_cli.orchestrator_api, specify_cli.tracker
+                                    (sync, saas, saas_client: no observed component)
+  landscape containers (04_implementation_mapping table, lines 56-64 at head):
+    Control Plane   -> specify_cli.cli
+    Kitty-core      -> specify_cli.core, specify_cli.mission_v1, specify_cli.missions,
+                       specify_cli.template, specify_cli.runtime
+    Event Store     -> specify_cli.status
+    Orchestration   -> specify_cli.orchestrator_api, specify_cli.consolidation,
+                       specify_cli.post_merge, specify_cli.lanes, specify_cli.workspace,
+                       specify_cli.tracker
+    Charter         -> charter (+ subcomponents);  Doctrine / Charter Offering -> charter.offering
+    Dashboard, Agent Tool Connectors -> no Python component in core (unmapped)
+  "status internals", "status read door (resolve_status_read)" -> inside specify_cli.status;
+                       facade vs internals is below component granularity (not resolvable)
+  "Mission Management" -> no package mapping found in the records read; unmapped
+  Every documented name that denotes another repository, a PyPI package, a service, a
+  wheel, a pack, a contract file or an external consumer is OUTSIDE the frame (the
+  observed table holds only in-repo Python components) and is listed as "outside frame".
+
+2. Inheritance
+  A documented relationship between two different top-level packages applies to every
+  pair of their subcomponents. It says nothing about pairs inside one top-level package.
+
+3. Documented relationships that can speak to an observed edge (frozen A1 rows only)
+  D1  kernel -> charter|glossary|runtime|mission_runtime|specify_cli   must-not
+  D2  charter -> kernel                                                may
+  D3  charter -> glossary|runtime|mission_runtime|specify_cli          must-not
+      (also rows "charter -> Kitty-core|Orchestration|Event Store" and
+       "charter (seam) -> specify_cli (launcher)": same pairs)
+  D4  charter.offering -> anything except kernel                       must-not
+      (includes charter.offering -> charter and -> charter.activation)
+  D5  glossary -> charter|kernel                                       may
+  D6  glossary -> specify_cli                                          must-not
+  D7  runtime -> specify_cli            must-not, except named ledger entries
+  D8  mission_runtime -> specify_cli    must-not, except named ledger entries
+  D9  specify_cli -> kernel|charter|glossary|runtime|mission_runtime   may
+      (with rows specify_cli -> charter.offering.api and -> charter.activation.api,
+       consumes-contract, on the same pairs)
+  D10 CORE modules -> INTEGRATION modules                              must-not
+  General rule G: the layer chain kernel <- charter <- {glossary, runtime, mission_runtime}
+      <- specify_cli. Under G a component may import one in a strictly lower layer.
+      G is silent on the order of the three layer-2 packages among themselves.
+
+4. Classification of one observed edge (first match wins)
+  c-strict   : matches D1, D3, D4, D6 or D10.
+  c-ledgered : matches D7 or D8. The record forbids the pair and at once names a
+               shrink-only ledger of existing exceptions; the ledger is in a test file,
+               not in a record, so membership of a given edge is not decided here.
+               Reported as its own sub-category of (c). NOT counted in M03b in the
+               primary variant; counted in variant V2.
+  a          : matches D2, D5 or D9.
+  b          : no D-row matches, the two ends are in different top-level packages and
+               layer(from) > layer(to)   (expected: runtime|mission_runtime -> charter|kernel).
+  d          : everything else: pairs inside one top-level package not covered by D4/D10,
+               and layer-2 peers (for example runtime -> mission_runtime).
+  Rows "any module outside Mission Management -> status internals" and "consumers of
+  mission_runtime -> mission_runtime submodules (root only)" and "every status read ->
+  status read door" are NOT applied: they distinguish modules inside one component, which
+  the component table cannot show. Edges into specify_cli.status and mission_runtime are
+  classified by the rules above only. A module-level check of these rows is exploratory.
+
+5. Measures
+  M03b = (a + b) / all edges, by edge count and by weight, for all imports and for
+         load-time imports, at top-level and at full granularity.
+  V0 primary        : as section 4.
+  V1 no general rule: b moved to d.              (brief step 5)
+  V2 ledger counted : c-ledgered counted as documented, with and without b.
+  V3 exploratory    : V0 plus four relationships that the analyst read in the records
+                      but that are NOT rows of the frozen table, applied before `d`:
+                      INTEGRATION -> CORE may (ADR 2026-06-26-2); Control Plane ->
+                      Kitty-core; Kitty-core -> Event Store; Orchestration -> Event Store
+                      (00_landscape Interaction Contracts). V3 is not M03b.
+  Documented-but-unused: for D2, D5, D9 list each (from top-level, to top-level) pair with
+                      no observed edge; and at full granularity each subcomponent of the
+                      target that no component of the source imports.
+  Must-not observed : every c-strict and c-ledgered pair, with weights.
