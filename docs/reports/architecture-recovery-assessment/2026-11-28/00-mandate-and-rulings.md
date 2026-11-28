@@ -24,6 +24,8 @@ Structural dependency compliance is not architectural coherence. The concerns ar
 
 ## Rulings
 
+R1 to R13 were given on approval of the approach; R14 to R20 with the authorisation to dispatch, the same day. Dispatch was authorised with no production implementation or remediation.
+
 | # | Ruling |
 |---|---|
 | R1 | Recorded decisions, approved changes and implementation choices are evidence, not deliberate intent beyond challenge. ADRs may be challenged. |
@@ -39,6 +41,13 @@ Structural dependency compliance is not architectural coherence. The concerns ar
 | R11 | Wayfinder stays prospective. Its scope follows from the needs found here and does not constrain this work. |
 | R12 | Independent architectural perspectives and challenge are kept. The experimental apparatus of the reconnaissance (pre-registration, blind replication, mutations, seeded reproduction, prediction packet) is not repeated. The reconnaissance findings are freely reusable. |
 | R13 | Storage: additive only, on the research branch, in this folder. No pull request unless asked. |
+| R14 | The necessity of a capability and the necessity of its present implementation are separate questions. Four leading questions: does the need require the present complexity; is the mechanism a remnant of an older design never fully extracted or retired; are several generations of solutions operating at once; could the capability be kept through a substantially simpler mechanism. |
+| R15 | Low use of a mission type, topology or capability inside Spec Kitty's own repositories is not sufficient evidence that it is unnecessary. Historical usage is supplementary evidence only. Counts from the code are indicators for where to look, not evidence of unnecessary complexity. |
+| R16 | Existing user data and capabilities are not disposable. For every breaking change: the consequences, viable migration strategies, affected consumers and costs, presented as a trade-off for the architect. Not every historical version needs a supported migration path; where upgrade support obstructs a coherent 4.0, name the trade-off and consider discontinuing the compatibility mechanism. |
+| R17 | Four things are kept apart: the intended target architecture, the current implementation, the transitional architecture needed to move between them, and legacy arrangements that can be retired. A temporary migration mechanism does not become a permanent requirement by default; each needs a stated end. |
+| R18 | Look for substantial deletion, consolidation and simplification, not a redistribution of the present implementation over cleaner boundaries. Ask whether lanes, worktrees, consolidation and topology management are independently necessary, or whether their complexity comes from interactions between abstractions that could be removed together. Replacement of a subsystem is an acceptable recommendation where repair is worse. Both the delete-first and the consolidate-in-place perspectives are approved. |
+| R19 | Wayfinder's requirements derive from the problems and remediation decisions found here. Its purpose is to help preserve architectural coherence and support deliberate evolution, not to preserve the existing architecture. |
+| R20 | The outside observer has received the consolidated findings of the reconnaissance and has given an assessment. The prospective prediction control of the reconnaissance is abandoned due to disclosure. No retrospective predictions are reconstructed. |
 
 ## Vehicle
 

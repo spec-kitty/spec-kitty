@@ -13,3 +13,6 @@ Two candidate architectures were written independently from different stances: A
 7. **Source references.** Spot-check twenty source references across the mechanism assessments and the duplication catalogue (seeded choice, seed 20261128, state how you drew them): does the code at that path say what the document claims?
 
 Write A/challenge/candidate-challenge.md (at most 4,000 words) and A/challenge/forks.csv (fork, CA_choice, CB_choice, cost_CA, cost_CB, decided_by). Grade your findings major (would change a disposition or the roadmap), minor, note.
+
+
+Also read A/dispatch/ADDENDUM-1.txt. Add to your checks: does each candidate separate target, transitional and legacy, give each transitional mechanism an end, and state the trade-off of each breaking change (R16, R17)? Does it delete, or only redistribute (R18)?

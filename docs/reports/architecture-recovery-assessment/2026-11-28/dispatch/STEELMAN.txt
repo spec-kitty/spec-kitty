@@ -14,3 +14,6 @@ Read A/mechanisms/M1.md to M8.md, A/duplication/catalogue.md and A/needs/needs-a
 Also name what the assessors did not look at that a removal would break: consumers in other repositories, documented user journeys, the principles in ruling R8.
 
 Write A/challenge/steelman.md (at most 3,500 words) and A/challenge/steelman.csv: mechanism, proposal, reason_found, source_reference, failure_scenario, still_needed_after_proposal (yes, no, partly, unknown), verdict, confidence. Lead with the items where the reason holds and the proposal loses it.
+
+
+Also read A/dispatch/ADDENDUM-1.txt. Existing user data and capabilities are not disposable (R16): for each proposed breaking change, say who and what is affected and whether the assessor named a migration.

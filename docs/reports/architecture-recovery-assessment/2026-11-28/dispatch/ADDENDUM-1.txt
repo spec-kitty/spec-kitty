@@ -1,0 +1,9 @@
+# Addendum 1 to the common brief (rulings given with the authorisation to dispatch)
+
+Read rulings R14 to R20 in A/00-mandate-and-rulings.md. In short, for every assessor and designer:
+
+1. Keep the necessity of a capability apart from the necessity of its present implementation. Ask four questions: does the need require this complexity; is this a remnant of an older design never fully extracted or retired; are several generations of solutions running at once (name each generation and what marks it); could the capability be kept by a substantially simpler mechanism.
+2. Low use inside Spec Kitty's own repositories is not evidence that something is unnecessary. Counts are pointers for where to look, not evidence of unnecessary complexity.
+3. Nothing existing is a fixed constraint, but user data and capabilities are not disposable: for each breaking change you propose, give the consequences, the affected consumers, viable migration strategies and their cost, as a trade-off for the architect.
+4. Label what you describe as one of four things: intended target, current implementation, transitional arrangement (with its stated end), or legacy that can be retired. Point out transitional mechanisms that have become permanent.
+5. Look for substantial deletion and consolidation, not redistribution over cleaner boundaries. Ask whether lanes, worktrees, consolidation and topology management are independently necessary, or whether their complexity comes from their interaction and they could be removed or replaced together. Replacement of a subsystem is an acceptable recommendation.

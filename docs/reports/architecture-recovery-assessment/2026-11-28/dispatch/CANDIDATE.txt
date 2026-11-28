@@ -18,3 +18,6 @@ Write A/candidates/<id>.md, at most 4,500 words:
 8. **What this design is worse at** than today, honestly, and for whom.
 9. **Alternatives you rejected** at the main forks (at least three forks), and what would make you choose them.
 10. **Dependencies on decisions** only the architect can make.
+
+
+Also read A/dispatch/ADDENDUM-1.txt. In addition to the sections above: (11) **Transition.** The transitional arrangements your target needs, each with its stated end, and the legacy arrangements that can simply be retired. (12) **Breaking changes.** For each: consequences, affected consumers and data, viable migration strategies and cost, as a trade-off for the architect. Consider replacing a subsystem where repair is worse, and consider whether lanes, worktrees, consolidation and topology management should be removed or replaced together.

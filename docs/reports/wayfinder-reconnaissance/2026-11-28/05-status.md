@@ -7,7 +7,7 @@ updated: '2026-11-28'
 
 | Stage | State | Where |
 |---|---|---|
-| 0. Predictions of the outside observer | Not yet returned. The coordinator disclosed no finding to the observer. All findings are on a pushed branch, so blindness rests on the architect's handling. | `02-prediction-packet.md` |
+| 0. Predictions of the outside observer | Abandoned due to disclosure. The human architect reported on 2026-11-28 that the outside observer had received the consolidated findings and had given an assessment. No predictions were recorded, and none are reconstructed after the fact. | `02-prediction-packet.md` |
 | 1. Investigation | Complete. 18 workstreams, 414 finding records (393 observations, 21 interpretations), 24 mutation patches. | `findings/`, `evidence/`, `workstream-reports/` |
 | 2. Synthesis | Complete. Three synthesisers, evidence-first. | `synthesis/` |
 | 3. Adversarial review | Complete. 162 findings sampled: 141 reproduced, 15 with a difference, 5 wider than their evidence, 1 mislabelled, 0 not reproduced. Two hypothesis verdicts overturned. | `review/` |
@@ -36,6 +36,6 @@ After the review had checked all hashes, the repository's terminology gate faile
 
 ## Still open
 
-- The outside observer's predictions, and the comparison with the results.
+- The comparison of prediction and result will not take place (stage 0 was abandoned). The report's statements that it is pending are superseded by this file.
 - The decisions listed in `synthesis/open-human-decisions.md`.
 - `spec-kitty-go` is not attached.

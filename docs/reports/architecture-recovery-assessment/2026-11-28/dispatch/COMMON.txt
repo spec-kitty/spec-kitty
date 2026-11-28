@@ -1,6 +1,6 @@
 # Common brief: architecture recovery assessment
 
-You take part in an architectural assessment and design exercise for the Spec Kitty ecosystem, commissioned by its human architect. Read this file fully, then A/00-mandate-and-rulings.md, then your own brief.
+You take part in an architectural assessment and design exercise for the Spec Kitty ecosystem, commissioned by its human architect. Read this file fully, then A/00-mandate-and-rulings.md, then A/dispatch/ADDENDUM-1.txt, then your own brief.
 
 A = /home/user/spec-kitty/docs/reports/architecture-recovery-assessment/2026-11-28/
 W = /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/   (an earlier reconnaissance; reusable)
