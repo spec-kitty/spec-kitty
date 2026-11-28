@@ -42,7 +42,7 @@ from tests.consolidation.test_planning_lane_authorship_7860 import (
     _wp02_claim,
 )
 
-pytestmark = [pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _PRE_TEXT = "".join(f"V{i} = {i}  # committed before finalize-tasks, never reviewed\n" for i in range(20))
 _OTHER = "curation/pkg/other.py"
@@ -87,7 +87,6 @@ def _assert_fails_on(result: VerifyResult, path: str) -> None:
     assert {blob_path for blob_path, _blob in result.divergence.unattributable_blobs} == {path}
 
 
-@pytest.mark.integration
 def test_a_pre_pin_file_a_credited_commit_edits_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 9 shape 1: 20 unreviewed lines committed before the pin ride a credited one-line edit."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {_SAME_PATH: _PRE_TEXT})
@@ -99,7 +98,6 @@ def test_a_pre_pin_file_a_credited_commit_edits_is_not_credited(tmp_path: Path, 
     _assert_fails_on(_squash(repo, coord_base, claim), _SAME_PATH)
 
 
-@pytest.mark.integration
 def test_a_pre_pin_file_a_credited_commit_edits_alone_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 9 shape 1 exactly: with nothing else credited, the squash axis has nothing to attribute and refuses."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {_SAME_PATH: _PRE_TEXT})
@@ -111,7 +109,6 @@ def test_a_pre_pin_file_a_credited_commit_edits_alone_is_refused(tmp_path: Path,
     assert _squash(repo, coord_base, claim).status is VerifyStatus.REFUSE
 
 
-@pytest.mark.integration
 def test_a_pre_pin_file_a_credited_commit_renames_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 9 shape 2: a 100% rename of a pre-pin owned file shows no content in the review diff."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {"curation/pkg/pre.py": _PRE_TEXT})
@@ -124,7 +121,6 @@ def test_a_pre_pin_file_a_credited_commit_renames_is_not_credited(tmp_path: Path
     _assert_fails_on(_squash(repo, coord_base, claim), "curation/pkg/moved.py")
 
 
-@pytest.mark.integration
 def test_a_pre_pin_non_owned_file_renamed_into_scope_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 9 shape 3: a pre-pin file outside every ``owned_files`` moved into scope by a credited commit."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {"elsewhere/x.py": _PRE_TEXT})
@@ -138,7 +134,6 @@ def test_a_pre_pin_non_owned_file_renamed_into_scope_is_not_credited(tmp_path: P
     _assert_fails_on(_squash(repo, coord_base, claim), "curation/pkg/x.py")
 
 
-@pytest.mark.integration
 def test_a_change_in_the_planning_pin_commit_itself_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The pin commit is walked too: an owned file it adds stays un-attributed under a later credited edit."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {_SPEC: "# spec\n\nmore\n"})
@@ -154,7 +149,6 @@ def test_a_change_in_the_planning_pin_commit_itself_is_not_credited(tmp_path: Pa
     _assert_fails_on(_squash(repo, coord_base, claim), _SAME_PATH)
 
 
-@pytest.mark.integration
 def test_pre_pin_bookkeeping_only_still_lands(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The control: a normal default Mission commits only spec, plan and tasks before the pin, and its owned change lands."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {f"kitty-specs/{_SLUG}/plan.md": "# plan\n", f"kitty-specs/{_SLUG}/tasks.md": "# tasks\n"})
@@ -179,7 +173,6 @@ def _walk(repo: Path, pin: str, lane: ExecutionLane, coord_base: str, mission_ba
     return planning_walk._planning_walk(repo, manifest, lane, {"WP02": {"lane": "approved"}}, coord_base, None, None, mission_base)
 
 
-@pytest.mark.integration
 def test_the_scoped_walk_reads_its_taint_spine_from_the_mission_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The credit spine keeps the pin; the taint spine runs from the Mission base and holds the pin and every commit below it."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {_SAME_PATH: _PRE_TEXT})
@@ -194,7 +187,6 @@ def test_the_scoped_walk_reads_its_taint_spine_from_the_mission_base(tmp_path: P
     assert pin in walk.first_parent
 
 
-@pytest.mark.integration
 @pytest.mark.parametrize("cause", ["unresolved", "not_below_the_pin", "unreadable"])
 def test_a_taint_spine_that_cannot_be_read_authors_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cause: str) -> None:
     """Fail closed: no Mission base, one that is not below the pin, or an unreadable range credits nothing."""
@@ -214,7 +206,6 @@ def test_a_taint_spine_that_cannot_be_read_authors_nothing(tmp_path: Path, monke
     assert walk.scope is None and walk.whole is None and walk.base == coord_base
 
 
-@pytest.mark.integration
 def test_the_claim_without_a_mission_base_credits_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``_collect_authored`` with no Mission base (``mission_base`` unavailable) leaves the planning lane authoring nothing."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {f"kitty-specs/{_SLUG}/plan.md": "# plan\n"})
@@ -258,7 +249,6 @@ def _resolved_base(repo: Path) -> MissionBase:
     return resolve_mission_base(repo, repo / "kitty-specs" / _SLUG, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG)
 
 
-@pytest.mark.integration
 def test_pre_scaffold_commit_below_derived_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 10 issue 1: a derived base sits above a pre-scaffold commit, so the planning lane authors nothing.
 
@@ -275,7 +265,6 @@ def test_pre_scaffold_commit_below_derived_base(tmp_path: Path, monkeypatch: pyt
     assert _squash(repo, coord_base, claim).status is VerifyStatus.REFUSE
 
 
-@pytest.mark.integration
 def test_pre_scaffold_commit_below_a_recorded_base_taints_its_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The control: with the cut recorded, the pre-scaffold commit is on the taint walk; ``other.py`` is still credited."""
     repo, pin, claim_commit, cut = _pre_scaffold_mission(tmp_path, recorded=True)
@@ -287,7 +276,6 @@ def test_pre_scaffold_commit_below_a_recorded_base_taints_its_path(tmp_path: Pat
     _assert_fails_on(_squash(repo, coord_base, claim), _SAME_PATH)
 
 
-@pytest.mark.integration
 def test_a_recorded_base_that_is_not_on_the_target_starts_no_taint_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review 11 issue 1: a hand-recorded pre-scaffold commit passes every Mission-base check but is not on ``main``.
 

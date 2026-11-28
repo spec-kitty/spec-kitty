@@ -28,8 +28,6 @@ from specify_cli.workspace.context import (
 )
 from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
-
 _SLUG = "pw-01M8BBBB"
 _MISSION_ID = "01M8BBBBBBBBBBBBBBBBBBBBBB"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
@@ -164,6 +162,8 @@ _PLANNING_LANE_WPS = [_PLANNING_WP, _PLANNING_LANE_CODE_WP]
 # --- case 1: default, not landed, settled lanes_with_coord ------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 @pytest.mark.parametrize(("wp_id", "execution_mode"), [(_PLANNING_WP, "planning_artifact"), (_PLANNING_LANE_CODE_WP, "code_change")])
 def test_a_default_missions_planning_wp_resolves_to_the_mission_branch_checkout(tmp_path: Path, wp_id: str, execution_mode: str) -> None:
     repo, holder = _settled_default_mission(tmp_path)
@@ -186,6 +186,8 @@ def test_a_default_missions_planning_wp_resolves_to_the_mission_branch_checkout(
     assert resolved.is_husk is False
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_default_missions_code_lane_wp_is_unchanged(tmp_path: Path) -> None:
     repo, _holder = _settled_default_mission(tmp_path)
 
@@ -195,6 +197,8 @@ def test_a_default_missions_code_lane_wp_is_unchanged(tmp_path: Path) -> None:
     assert resolved.lane_id == "lane-a"
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_planning_workspace_follows_the_one_planning_lane_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-005: the workspace reads ``planning_lane_target`` at call time, never a re-derived rule."""
     from specify_cli.coordination import planning_commit
@@ -211,6 +215,8 @@ def test_the_planning_workspace_follows_the_one_planning_lane_target(tmp_path: P
 # --- case 2: explicit topology -> today's values, byte for byte -------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_explicit_topology_keeps_the_repository_root_result(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init(repo)
@@ -227,6 +233,8 @@ def test_an_explicit_topology_keeps_the_repository_root_result(tmp_path: Path) -
 # --- case 3: default, landed -> the target --------------------------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_landed_default_mission_keeps_the_repository_root_result(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init(repo)
@@ -242,6 +250,8 @@ def test_a_landed_default_mission_keeps_the_repository_root_result(tmp_path: Pat
 # --- case 4: default single_branch repo-root lane -> unchanged -------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_default_single_branch_repo_root_lane_is_unchanged(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init(repo)
@@ -259,6 +269,8 @@ def test_a_default_single_branch_repo_root_lane_is_unchanged(tmp_path: Path) -> 
 # --- case 5: the coordination worktree is gone -> named refusal, never the root ----------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 @pytest.mark.parametrize("wp_id", [_PLANNING_WP, _PLANNING_LANE_CODE_WP])
 def test_a_removed_coordination_worktree_refuses_and_never_falls_back_to_the_root(tmp_path: Path, wp_id: str) -> None:
     repo, holder = _settled_default_mission(tmp_path)
@@ -275,6 +287,8 @@ def test_a_removed_coordination_worktree_refuses_and_never_falls_back_to_the_roo
     assert refused.value.to_dict()["mission_branch"] == _MISSION_BRANCH
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_mission_branch_no_checkout_holds_refuses_from_the_planning_arm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The WP index is readable but no checkout holds the Mission branch: refuse, never the root."""
     import mission_runtime
@@ -297,6 +311,8 @@ def test_a_mission_branch_no_checkout_holds_refuses_from_the_planning_arm(tmp_pa
 # --- case 6: an owned checkout -> the owned arm wins --------------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_owned_coordination_checkout_keeps_the_owned_planning_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.coordination import planning_commit
     from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
@@ -322,6 +338,8 @@ def test_an_owned_coordination_checkout_keeps_the_owned_planning_surface(tmp_pat
 # --- case 7: resume of a WP claimed before this change -----------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_resumed_claim_resolves_to_and_prints_the_mission_branch_checkout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A claim made before #7860 recorded its claim base at the repository root and no workspace record.
 
@@ -376,6 +394,7 @@ def _mission_branch_workspace(path: Path, wp_id: str = _PLANNING_WP) -> Resolved
     )
 
 
+@pytest.mark.unit
 def test_the_shared_checkout_predicate_classifies_every_kind() -> None:
     from specify_cli.workspace.context import is_shared_checkout_kind
 
@@ -386,6 +405,7 @@ def test_the_shared_checkout_predicate_classifies_every_kind() -> None:
     assert is_shared_checkout_kind(None) is False
 
 
+@pytest.mark.unit
 def test_stale_detection_never_reports_a_mission_branch_checkout_as_a_lane_worktree() -> None:
     from specify_cli.core.stale_detection import StaleCheckResult, StaleState
 
@@ -396,6 +416,7 @@ def test_stale_detection_never_reports_a_mission_branch_checkout_as_a_lane_workt
     assert lane.worktree_exists is True
 
 
+@pytest.mark.unit
 def test_the_status_view_fallback_treats_the_mission_branch_checkout_as_shared() -> None:
     from specify_cli.cli.commands.agent.tasks_status_view import build_stale_fallback_results
     from specify_cli.core.stale_detection import PLANNING_ARTIFACT_REPO_ROOT_REASON
@@ -409,6 +430,8 @@ def test_the_status_view_fallback_treats_the_mission_branch_checkout_as_shared()
     assert results[_CODE_WP].stale.reason == "stale_detection_unavailable"
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_dependency_alert_names_the_mission_branch_checkout_and_no_rebase(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.tasks_dependency_graph import _dependent_rebase_line
 
@@ -419,6 +442,8 @@ def test_the_dependency_alert_names_the_mission_branch_checkout_and_no_rebase(tm
     assert "git rebase" not in line
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_dependency_alert_keeps_todays_lines_for_other_shapes(tmp_path: Path) -> None:
     from dataclasses import replace
 
@@ -436,6 +461,8 @@ def test_the_dependency_alert_keeps_todays_lines_for_other_shapes(tmp_path: Path
     assert _dependent_rebase_line(_CODE_WP, lane, replace(current, branch_name="kitty/lane-b")).endswith("git rebase kitty/lane-b")
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_topology_names_the_mission_branch_for_the_planning_entry(tmp_path: Path) -> None:
     from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, _entry_branch_name, _topology_note, render_topology_json
 
@@ -461,6 +488,7 @@ def test_the_topology_names_the_mission_branch_for_the_planning_entry(tmp_path: 
     assert payload["diff_command"] == "git diff abc123..HEAD -- kitty-specs/x.md"
 
 
+@pytest.mark.unit
 def test_the_topology_note_keeps_todays_text_for_other_shapes() -> None:
     from specify_cli.core.worktree_topology import WPTopologyEntry, _topology_note
 
@@ -471,6 +499,8 @@ def test_the_topology_note_keeps_todays_text_for_other_shapes() -> None:
     assert _topology_note(WPTopologyEntry(wp_id="WP05", lane_id="lane-b", lane_wp_ids=["WP05"]), "WP05") == "WP05 owns lane lane-b alone."
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_next_prompt_names_the_mission_branch_and_asks_for_the_commit(tmp_path: Path) -> None:
     from runtime.next.prompt_builder import _self_commit_branch, _workspace_header_lines
 
@@ -482,6 +512,8 @@ def test_the_next_prompt_names_the_mission_branch_and_asks_for_the_commit(tmp_pa
     assert _self_commit_branch(workspace, None) == _MISSION_BRANCH
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_implement_banner_names_the_mission_branch_checkout(tmp_path: Path) -> None:
     from types import SimpleNamespace
 
@@ -499,6 +531,7 @@ def test_the_implement_banner_names_the_mission_branch_checkout(tmp_path: Path) 
     assert "repository root" not in printed
 
 
+@pytest.mark.unit
 def test_the_translated_refusal_carries_the_mission_branch_fields() -> None:
     import mission_runtime
     from specify_cli.workspace.context import PlanningWorkspaceMissing
@@ -520,6 +553,8 @@ def test_the_translated_refusal_carries_the_mission_branch_fields() -> None:
 # --- review cycle 1 ------------------------------------------------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_corrupt_meta_and_an_unknown_wp_keep_the_original_not_found_error(tmp_path: Path) -> None:
     """Finding 1: the missing-checkout probe never replaces the caller's own ``ValueError``."""
     repo = tmp_path / "repo"
@@ -531,6 +566,8 @@ def test_a_corrupt_meta_and_an_unknown_wp_keep_the_original_not_found_error(tmp_
         resolve_workspace_for_wp(repo, _SLUG, "WP99")
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_probe_that_cannot_decide_keeps_the_original_not_found_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Finding 1: any probe failure other than ``PlanningCheckoutMissing`` leaves the original error standing."""
     from specify_cli.coordination import planning_commit
@@ -546,6 +583,8 @@ def test_a_probe_that_cannot_decide_keeps_the_original_not_found_error(tmp_path:
         resolve_workspace_for_wp(repo, _SLUG, "WP99")
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_move_task_pre_review_workspace_fails_closed_when_the_coordination_worktree_is_gone(tmp_path: Path) -> None:
     """Finding 2: the move-task pre-review resolution does not degrade a missing Mission-branch checkout.
 
@@ -566,6 +605,8 @@ def test_move_task_pre_review_workspace_fails_closed_when_the_coordination_workt
     assert refused.value.error_code == "PLANNING_CHECKOUT_MISSING"
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_move_task_without_the_coordination_worktree_refuses_without_a_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A no-traceback guard on the refusal ``agent tasks move-task`` already gives.
 

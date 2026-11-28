@@ -20,8 +20,6 @@ import mission_runtime
 from mission_runtime.resolution import _default_mission_facts
 from tests._support.git_cli import git_out
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
-
 _SLUG = "fx-01M8AAAA"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
 _TARGET = "main"
@@ -77,6 +75,8 @@ def _default_meta(slug: str, branch: str) -> dict[str, object]:
 # ---------------------------------------------------------------- the rule
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_default_mission_before_landing_writes_on_its_mission_branch(tmp_path: Path) -> None:
     repo = _repo(tmp_path, _meta(topology_source="default", mission_branch=_MISSION_BRANCH, coordination_branch=_MISSION_BRANCH))
 
@@ -85,6 +85,8 @@ def test_a_default_mission_before_landing_writes_on_its_mission_branch(tmp_path:
     assert ref == mission_runtime.PlanningWriteRef(branch=_MISSION_BRANCH, on_mission_branch=True, landed=False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_landed_default_mission_writes_on_the_target(tmp_path: Path) -> None:
     repo = _repo(tmp_path, _meta(topology_source="default", mission_branch=_MISSION_BRANCH, merged_at="2026-11-25T00:00:00+00:00"))
 
@@ -93,6 +95,8 @@ def test_a_landed_default_mission_writes_on_the_target(tmp_path: Path) -> None:
     assert ref == mission_runtime.PlanningWriteRef(branch=_TARGET, on_mission_branch=False, landed=True)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_explicit_topology_keeps_the_target(tmp_path: Path) -> None:
     repo = _repo(tmp_path, _meta(mission_branch=_MISSION_BRANCH, coordination_branch=_MISSION_BRANCH))
 
@@ -101,6 +105,8 @@ def test_an_explicit_topology_keeps_the_target(tmp_path: Path) -> None:
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_explicit_single_branch_keeps_its_minted_write_branch_off_the_default_rule(tmp_path: Path) -> None:
     repo = _repo(tmp_path, _meta(topology="single_branch", mission_branch=_MISSION_BRANCH))
 
@@ -109,6 +115,8 @@ def test_an_explicit_single_branch_keeps_its_minted_write_branch_off_the_default
     assert (ref.branch, ref.on_mission_branch) == (_MISSION_BRANCH, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_default_mission_without_a_mission_branch_keeps_the_target(tmp_path: Path) -> None:
     repo = _repo(tmp_path, _meta(topology_source="default"))
 
@@ -117,6 +125,7 @@ def test_a_default_mission_without_a_mission_branch_keeps_the_target(tmp_path: P
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.unit
 def test_the_rule_and_the_primary_ref_share_one_predicate() -> None:
     """C-004: ``default_mission_primary_ref`` and ``planning_write_ref`` read ``default_mission_rule_applies``."""
     from mission_runtime.resolution import default_mission_primary_ref, default_mission_rule_applies
@@ -136,6 +145,8 @@ def test_the_rule_and_the_primary_ref_share_one_predicate() -> None:
 # ---------------------------------------------------------------- fail closed
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_malformed_meta_refuses(tmp_path: Path) -> None:
     repo = _repo(tmp_path, "{not json")
 
@@ -143,6 +154,8 @@ def test_a_malformed_meta_refuses(tmp_path: Path) -> None:
         mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_unreadable_landing_record_reads_as_not_landed_and_keeps_the_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``mission_has_landed`` is non-raising: a landing record it cannot read answers "not landed".
 
@@ -165,6 +178,8 @@ def test_an_unreadable_landing_record_reads_as_not_landed_and_keeps_the_mission_
     assert (ref.branch, ref.on_mission_branch, ref.landed) == (_MISSION_BRANCH, True, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_the_placement_reader_stays_non_raising_on_a_malformed_meta(tmp_path: Path) -> None:
     repo = _repo(tmp_path, "{not json")
 
@@ -174,6 +189,8 @@ def test_the_placement_reader_stays_non_raising_on_a_malformed_meta(tmp_path: Pa
 # ---------------------------------------------------------------- missing meta.json
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_legacy_mission_with_no_meta_anywhere_keeps_the_target(tmp_path: Path) -> None:
     repo = _repo(tmp_path, None)
 
@@ -182,6 +199,8 @@ def test_a_legacy_mission_with_no_meta_anywhere_keeps_the_target(tmp_path: Path)
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 @pytest.mark.parametrize(
     ("slug", "branch"),
     [
@@ -208,6 +227,8 @@ def test_a_mission_branch_with_no_checkout_refuses_and_names_the_real_branch(tmp
     assert f"spec-kitty doctor coordination --mission {slug} --fix" in str(refused.value)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_lane_branch_carrying_the_missions_meta_is_not_taken_for_the_mission_branch(tmp_path: Path) -> None:
     """A lane branch that merged the Mission branch carries its ``meta.json``, which names another branch."""
     repo = tmp_path / "repo"
@@ -224,6 +245,8 @@ def test_a_lane_branch_carrying_the_missions_meta_is_not_taken_for_the_mission_b
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 @pytest.mark.parametrize("broken", ["run_git", "blob_at"])
 def test_a_git_failure_while_probing_the_mission_branches_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, broken: str) -> None:
     import kernel.git
@@ -256,6 +279,8 @@ def _branch_with_meta(repo: Path, tmp_path: Path, branch: str, meta: dict[str, o
     git_out(repo, "worktree", "remove", "--force", str(holder))
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_explicit_single_branch_mission_off_its_branch_keeps_todays_behaviour(tmp_path: Path) -> None:
     """FR-006: a branch carrying an explicit Mission's meta never makes the probe refuse."""
     repo = tmp_path / "repo"
@@ -268,6 +293,8 @@ def test_an_explicit_single_branch_mission_off_its_branch_keeps_todays_behaviour
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_landed_default_missions_branch_is_not_claimed(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init(repo)
@@ -278,6 +305,8 @@ def test_a_landed_default_missions_branch_is_not_claimed(tmp_path: Path) -> None
     assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_fresh_clone_with_a_remote_only_mission_branch_refuses_with_the_fetch_remedy(tmp_path: Path) -> None:
     """NFR-002: the Mission branch exists only as ``origin/<branch>``; never a silent fallback to the target."""
     upstream = tmp_path / "upstream"
@@ -294,6 +323,8 @@ def test_a_fresh_clone_with_a_remote_only_mission_branch_refuses_with_the_fetch_
     assert f"spec-kitty doctor coordination --mission {_SLUG} --fix" in str(refused.value)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_local_mission_branch_wins_over_its_remote_tracking_copy(tmp_path: Path) -> None:
     upstream = tmp_path / "upstream"
     _init(upstream)
@@ -309,6 +340,8 @@ def test_a_local_mission_branch_wins_over_its_remote_tracking_copy(tmp_path: Pat
     assert "git branch" not in str(refused.value)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_tag_sharing_the_branch_name_does_not_hide_the_mission_branch(tmp_path: Path) -> None:
     """``refname:short`` would print ``heads/<branch>`` here; full refnames keep the match."""
     repo = tmp_path / "repo"
@@ -325,6 +358,8 @@ def test_a_tag_sharing_the_branch_name_does_not_hide_the_mission_branch(tmp_path
 # ---------------------------------------------------------------- review cycle 3
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_an_uncoordinated_default_mission_gets_the_switch_remedy_not_the_coordination_doctor(tmp_path: Path) -> None:
     """A default Mission settled ``single_branch`` has no coordination branch: switch the root checkout back."""
     repo = tmp_path / "repo"
@@ -344,6 +379,8 @@ def test_an_uncoordinated_default_mission_gets_the_switch_remedy_not_the_coordin
     )
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_remote_whose_name_contains_a_slash_is_still_probed(tmp_path: Path) -> None:
     """NFR-002: ``refs/remotes/my/fork/kitty/mission-*`` is found; the remote is ``my/fork``."""
     upstream = tmp_path / "upstream"
@@ -361,6 +398,7 @@ def test_a_remote_whose_name_contains_a_slash_is_still_probed(tmp_path: Path) ->
     assert f"git branch {_MISSION_BRANCH} my/fork/{_MISSION_BRANCH}" in str(refused.value)
 
 
+@pytest.mark.unit
 def test_remote_refs_off_the_mission_namespace_are_ignored() -> None:
     from mission_runtime.resolution import _branch_and_remote
 
@@ -370,6 +408,8 @@ def test_remote_refs_off_the_mission_namespace_are_ignored() -> None:
     assert _branch_and_remote(f"refs/heads/{_MISSION_BRANCH}") == (_MISSION_BRANCH, None)
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
 def test_a_stored_coordination_topology_without_a_coordination_branch_field_gets_the_doctor_remedy(tmp_path: Path) -> None:
     """Review cycle 4: one coordination check (the stored topology), never the ``coordination_branch`` field alone."""
     repo = tmp_path / "repo"
@@ -389,6 +429,7 @@ def test_a_stored_coordination_topology_without_a_coordination_branch_field_gets
     )
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("coordination_branch", [None, "", "kitty/mission-x"])
 @pytest.mark.parametrize("has_code_lanes", [False, True])
 def test_the_ref_meta_coordination_answer_matches_the_full_derivation(coordination_branch: str | None, has_code_lanes: bool) -> None:
@@ -409,6 +450,7 @@ def test_the_ref_meta_coordination_answer_matches_the_full_derivation(coordinati
     assert _meta_routes_through_coordination(meta) is derived
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(("stored", "expected"), [("lanes_with_coord", True), ("single_branch", False), ("lanes", False)])
 def test_a_stored_topology_decides_the_ref_meta_coordination_answer(stored: str, expected: bool) -> None:
     from mission_runtime.resolution import _meta_routes_through_coordination
