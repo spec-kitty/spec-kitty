@@ -367,6 +367,7 @@ def target_only_owned_commits(repo_root: Path, lanes_manifest: LanesManifest, mi
     already carries, limited to the owned paths. Raises :class:`GitProbeError` when it cannot be read.
     """
     from kernel.git import GitCommandError, run_git
+    from kernel.git.listing import commit_paths
 
     if not patterns:
         return ()
@@ -375,27 +376,22 @@ def target_only_owned_commits(repo_root: Path, lanes_manifest: LanesManifest, mi
         raise GitProbeError("lanes.json records no planning commit")
     target = lanes_manifest.target_branch
     base = _merge_base(repo_root, pin, target)
+    revs = f"{base}..{target}"
     try:
-        listing = run_git(
-            repo_root,
-            "log",
-            "--reverse",
-            "--no-renames",
-            "--format=%x00%H",
-            "--name-only",
-            f"{base}..{target}",
-            "--not",
-            mission_branch,
-            "--",
-            *_owned_log_pathspecs(patterns),
-        ).stdout.decode("utf-8", errors="replace")
+        listing = run_git(repo_root, "rev-list", "--reverse", revs, "--not", mission_branch, "--", *_owned_log_pathspecs(patterns)).stdout.decode(
+            "utf-8", errors="replace"
+        )
+        candidates = [line.strip() for line in listing.splitlines() if line.strip()]
+        shas = [
+            sha
+            for sha in candidates
+            if any(
+                matches_owned(name, patterns) and _is_evidence_path(name, lanes_manifest.mission_slug)
+                for name in (path.as_posix() for path in commit_paths(repo_root, sha))
+            )
+        ]
     except (GitCommandError, OSError) as exc:
-        raise GitProbeError(f"git log {base}..{target} could not be read ({exc})") from exc
-    shas: list[str] = []
-    for record in listing.split("\0"):
-        sha, _sep, names = record.strip().partition("\n")
-        if sha and any(matches_owned(name, patterns) and _is_evidence_path(name, lanes_manifest.mission_slug) for name in names.splitlines() if name):
-            shas.append(sha)
+        raise GitProbeError(f"the commits of {revs} could not be read ({exc})") from exc
     return tuple(shas)
 
 
