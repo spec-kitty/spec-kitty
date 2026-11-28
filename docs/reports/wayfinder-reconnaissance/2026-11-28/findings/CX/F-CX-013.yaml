@@ -28,7 +28,7 @@ evidence:
   kind: executed
   reference: evidence/CX/comparison.csv
   method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
-  sha256: '@@comparison.csv'
+  sha256: 'f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
@@ -36,7 +36,7 @@ evidence:
   kind: static-derived
   reference: evidence/CX/classification-rulesets-compared.txt
   method: static comparison
-  sha256: '@@classification-rulesets-compared.txt'
+  sha256: '8403ef779aa1c4f4b24f63c69c376cce98b8548bd85ffd3fb4db2a823adc42d8'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
@@ -44,7 +44,7 @@ evidence:
   kind: executed
   reference: evidence/CX/sample-frames.csv
   method: assembled from sample comparison
-  sha256: '@@sample-frames.csv'
+  sha256: '6a4e591c1cb8daf820418605f083683e47a319163aafb72c7bf33db2ef9674f7'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'

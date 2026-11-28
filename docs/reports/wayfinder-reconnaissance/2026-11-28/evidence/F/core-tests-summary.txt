@@ -1,0 +1,39 @@
+# Core named test files at 5c4fc5a, disposable clone (/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-F/core), PYTHONPATH=<clone>/src, /home/user/spec-kitty/.venv/bin/python (Python 3.11.15, pytest 9.0.3)
+# command per batch: python -m pytest <files> -q -n0 -p no:cacheprovider -o addopts= -rfE   (one process per batch; script: run_batches.sh below)
+# window: 2026-11-28T09:53:52Z .. 2026-11-28T10:04:56Z
+# Earlier attempts were OOM-killed by the shared memory cgroup during conftest's first wall-clock-assertion AST scan (about 2 GB); the scan cache was then copied from /home/user/spec-kitty/.pytest_cache/wall-clock-assertion-scan (content-addressed, relative paths) and all batches completed.
+# columns: batch, exit, summary, files
+batch1	0	278 passed in 4.72s	tests/status/test_actor_identities_independent.py tests/unit/status/test_review_roles.py tests/status/test_transitions.py tests/status/test_reducer.py
+batch2	0	100 passed, 1 warning in 9.62s	tests/specify_cli/status/test_resolved_binding_linkage.py tests/specify_cli/core/test_stale_detection_snapshot_liveness.py tests/specify_cli/core/test_process_liveness.py tests/status/test_doctor.py
+batch3	0	160 passed, 4 skipped, 96 warnings in 53.95s	tests/specify_cli/invocation/test_executor.py tests/specify_cli/invocation/test_router.py tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py tests/specify_cli/invocation/test_doctor_ops.py tests/specify_cli/invocation/test_evidence_promotion.py tests/specify_cli/invocation/test_propagator.py tests/specify_cli/invocation/test_op_custody.py
+batch4	0	65 passed, 3 xfailed, 282 warnings in 186.79s (0:03:06)	tests/specify_cli/invocation/cli/test_dispatch.py tests/charter/test_invocation_context.py
+batch5	0	94 passed in 5.06s	tests/status/test_adapters_contract.py tests/status/test_actor_identity_reconciliation_4665.py tests/agent/test_dependency_graph.py tests/specify_cli/cli/commands/agent/test_tasks_dependency_readiness.py
+batch6	0	30 passed in 5.99s	tests/contract/test_orchestrator_api.py tests/agent/test_orchestrator_lane_allocation.py
+batch7	0	72 passed in 13.14s	tests/agent/test_orchestrator_commands_integration.py
+batch8	0	49 passed in 21.03s	tests/lanes/test_worktree_allocator.py tests/specify_cli/lanes/test_recovery.py tests/specify_cli/lanes/test_for_review_gate_parity.py
+batch9	0	19 passed in 4.61s	tests/coordination/test_status_write_lane_refusal.py tests/git/test_protection_policy.py
+batch10	0	129 passed in 75.55s (0:01:15)	tests/consolidation/test_approved_bound.py tests/consolidation/test_single_rollback_authority.py tests/consolidation/test_approved_attestation.py tests/consolidation/test_canceled_attestation.py
+batch11	0	32 passed in 144.50s (0:02:24)	tests/consolidation/test_resume_frozen_anchors.py tests/consolidation/test_lane_cleanup_kept_report.py
+batch12	0	40 passed in 5.86s	tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py tests/specify_cli/cli/commands/test_consolidate_abort_rollback.py
+batch13	0	13 passed in 21.03s	tests/specify_cli/consolidation/test_single_branch_consolidate_e2e.py
+batch14	0	101 passed, 1 skipped in 41.81s	tests/mission_metadata/test_mission_identity.py tests/specify_cli/cli/commands/test_selector_resolution.py tests/status/test_read_surface_door.py tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py
+# total passed: 1182; failed: 0
+## run_batches.sh
+#!/usr/bin/env bash
+# Workstream F: run named test files in batches (one pytest process per batch), disposable clone at head.
+set -u
+W=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-F
+CLONE=$W/core; PY=/home/user/spec-kitty/.venv/bin/python
+cd "$CLONE"; export PYTHONPATH="$CLONE/src" PWHEADLESS=1
+mkdir -p $W/batchlogs
+n=0
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  n=$((n+1)); log=$W/batchlogs/batch$n.log
+  for attempt in 1 2 3; do
+    timeout 1500 $PY -m pytest $line -q -n0 -p no:cacheprovider -o addopts="" -rfE > $log 2>&1; rc=$?
+    [ $rc -ne 137 ] && break
+    echo "batch$n attempt$attempt OOM-killed (rc=137)" >> $W/batch-oom.txt; sleep 60
+  done
+  echo -e "batch$n\t$rc\t$(tail -1 $log)\t$line"
+done < "$1"

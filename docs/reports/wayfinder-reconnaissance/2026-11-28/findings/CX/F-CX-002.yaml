@@ -22,7 +22,7 @@ evidence:
   kind: executed
   reference: evidence/CX/class-confusion-all.csv
   method: python3 script-join.txt
-  sha256: '@@class-confusion-all.csv'
+  sha256: '86adf7cf70b958f94f700944fde88cb73aac0f75807c58177d714392e824c86b'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
@@ -30,7 +30,7 @@ evidence:
   kind: static-derived
   reference: evidence/CX/classification-rulesets-compared.txt
   method: manual comparison of evidence/C/classification-rules.txt and evidence/C2/classification-rules.txt
-  sha256: '@@classification-rulesets-compared.txt'
+  sha256: '8403ef779aa1c4f4b24f63c69c376cce98b8548bd85ffd3fb4db2a823adc42d8'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
@@ -38,7 +38,7 @@ evidence:
   kind: executed
   reference: evidence/CX/samples-output.txt
   method: python3 script-samples.txt
-  sha256: '@@samples-output.txt'
+  sha256: 'ca1efe13ec839514b6cdce2541c29491d27f73c5501ccd386fa01f03052bd1b1'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'

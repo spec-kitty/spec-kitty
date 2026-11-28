@@ -1,0 +1,15 @@
+# spec-kitty-orchestrator 8be32b1 e2e (fake agents) against core head 5c4fc5a via wrapper running python -m specify_cli with PYTHONPATH=<core clone>/src
+# command: SK_ORCH_E2E_SPEC_KITTY_BIN=<wrapper> .venv/bin/python -m pytest tests/e2e/test_contract_smoke.py tests/e2e/test_fake_agent_orchestration.py -m 'e2e and not real_agents' -v -rA --tb=short ; exit 1
+PASSED tests/e2e/test_contract_smoke.py::test_spec_kitty_orchestrator_api_is_json_without_json_flag
+PASSED tests/e2e/test_contract_smoke.py::test_host_client_can_query_seeded_ready_wp
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_happy_path_with_fake_primary_agents[claude-code-codex]
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_happy_path_with_fake_primary_agents[claude-code-opencode]
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_happy_path_with_fake_primary_agents[codex-claude-code]
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_happy_path_with_fake_primary_agents[opencode-claude-code]
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_rejection_rework_cycle_with_fake_agents
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_orchestrate_writes_status_for_blocked_implementation_failure
+PASSED tests/e2e/test_fake_agent_orchestration.py::test_status_resume_and_abort_commands_use_provider_state
+FAILED tests/e2e/test_contract_smoke.py::test_host_client_contract_version_works_against_real_spec_kitty
+24:E   AssertionError: assert '1.31.0' == '1.3.0'
+=================== 1 failed, 9 passed in 795.01s (0:13:15) ====================
+# the single failure is the provider test pinning api_version == '1.3.0' exactly; host reports 1.31.0

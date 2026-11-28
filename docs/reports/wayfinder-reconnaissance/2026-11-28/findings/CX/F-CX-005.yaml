@@ -23,7 +23,7 @@ evidence:
   kind: executed
   reference: evidence/CX/comparison.csv
   method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
-  sha256: '@@comparison.csv'
+  sha256: 'f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
@@ -31,7 +31,7 @@ evidence:
   kind: executed
   reference: evidence/CX/cochange-pairs-compared.csv
   method: 'python3 inline: union of pairs with >=10 joint commits per slice from both pair files'
-  sha256: '@@cochange-pairs-compared.csv'
+  sha256: '49d0b305e4b84efd614ece54504d9de21a32bcb4523b70600b3cdcc9ac15ce71'
   exit_code: 0
   environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
   observed_at: '2026-11-28T09:55:37Z'
