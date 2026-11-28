@@ -1,0 +1,75 @@
+section,statement,kind,source_files
+Executive summary,"32 documented capabilities, 12 rated core",current,needs/capabilities.csv; 01-capability-and-responsibility-map.md conclusion
+Executive summary,"Core is 524,936 Python lines",current,01-capability-and-responsibility-map.md section 5
+Executive summary,Excess is a third to a half of core (estimate),current,02-essential-vs-accidental-complexity.md conclusion
+Executive summary,Three to six generations live per mechanism,current,"02-essential-vs-accidental-complexity.md conclusion item 3, section 3"
+Executive summary,"Capabilities 28 retained, 3 simplified, 1 investigate; none core or important removed",disposition,06-capability-dispositions.md section 1; 06-capability-dispositions.csv
+Executive summary,"Mechanisms 19 removed, 12 replaced, 9 consolidated, 9 simplified, 5 retained, 5 investigate, of 59",disposition,06-capability-dispositions.md section 1; 06-capability-dispositions.csv
+Executive summary,7 of 36 proposed removals lose a reason that holds,current,challenge/steelman.md section 1; challenge/steelman.csv
+Executive summary,"20 load-bearing candidate claims: 13 true, 5 partly, 2 false",method,"challenge/candidate-challenge.md section 1, section 4; challenge/reference-checks.csv"
+Executive summary,15 roadmap steps; 4 steps and 10 probes need no ruling,transitional,"07-remediation-roadmap.md conclusion, section 1"
+Executive summary,27 open decisions; three gate most of the deletion,decision,09-open-decisions.md section 1
+Executive summary,Essential share of five packages is a fifth to a half,current,02-essential-vs-accidental-complexity.md conclusion item 2
+Executive summary,"One cause under four of eight mechanisms, named independently by four assessors",current,"02-essential-vs-accidental-complexity.md conclusion, section 4 RC1"
+Executive summary,Defects today: research Mission blocked; API lands without checks; rules text depends on checkout,current,02-essential-vs-accidental-complexity.md conclusion item 4
+Executive summary,Two candidates reached four structural choices independently; two conditional,target,04-candidate-architecture.md section 1; challenge/candidate-challenge.md section 1
+Executive summary,"End state of 25,000 to 40,000 lines withdrawn; corrected about 147,000",target,04-candidate-architecture.md sections 1 and 8; challenge/reference-checks.csv CA02
+Executive summary,Unknown who holds Missions in flight or reads the on-disk log,decision,"09-open-decisions.md section 1 item 5, section 5"
+Executive summary,"D1 to D3 decide about 96,000 lines in five packages",decision,09-open-decisions.md section 1 item 1
+Executive summary,API lands 'with no claim and no gate behind it (and no rollback)',current,03-duplication-and-competing-mechanisms.md conclusion item 3; 09-open-decisions.md D23
+Executive summary,"About 79,000 lines had no assessor; pilot decides D3",method,04-candidate-architecture.md section 8; 07-remediation-roadmap.md section 2
+Executive summary,Defaults: one break before 4.0.0; no import,decision,"09-open-decisions.md section 2 (D22, D8)"
+A.1,"Seriously, in a narrow and recoverable way; five statements",current,02-essential-vs-accidental-complexity.md conclusion
+A.1,"About 110,000 lines of excess plus 78,000 Python charter; floor of a third",current,02-essential-vs-accidental-complexity.md conclusion item 2
+A.1,41 amendment headings on five landing records; 8 amendments in six weeks,current,02-essential-vs-accidental-complexity.md conclusion item 5; challenge/reference-checks.csv R12
+A.2,Package line table,current,01-capability-and-responsibility-map.md section 5
+A.2,Command layer: one line in six is wiring; half in modules with no command,current,"01-capability-and-responsibility-map.md conclusion item 4, section 4"
+A.2,"Java charter about 137,000 main lines; read service no caller; charter service no client",current,01-capability-and-responsibility-map.md section 5
+A.3,"Root causes RC1 to RC7; answer on lanes, worktrees, landing, topology",current,02-essential-vs-accidental-complexity.md section 4
+A.4,Five defects that exist today,current,02-essential-vs-accidental-complexity.md conclusion item 4; 03-duplication-and-competing-mechanisms.md section 4; challenge/reference-checks.csv CA10
+B.1,"Per-mechanism table: need, what exists, essential share, generations",current,02-essential-vs-accidental-complexity.md section 1
+B.2,One shape repeats; the architect's example is one instance,current,03-duplication-and-competing-mechanisms.md conclusion item 1; 02 conclusion item 3
+B.2,Guard table keyed by type names at runtime_bridge_cores.py:859-864,current,03-duplication-and-competing-mechanisms.md D3.1; challenge/reference-checks.csv CB03
+B.2,Second landing executor; nine refusal functions,current,03-duplication-and-competing-mechanisms.md D4.1
+B.2,Schema gate with both bounds 3; 26 files carry own refusal,current,03-duplication-and-competing-mechanisms.md D8.1; challenge/reference-checks.csv CB08
+B.2,Keyword grouping of work packages at lanes/compute.py:302,current,02-essential-vs-accidental-complexity.md section 2 M1; challenge/reference-checks.csv R13
+B.3,"Ten patterns over 74 cases, ranked",current,03-duplication-and-competing-mechanisms.md section 1
+B.3,Landing: four fifths interaction; causes table,current,02-essential-vs-accidental-complexity.md section 2 M7
+B.4,Generations running at once,current; legacy; transitional,02-essential-vs-accidental-complexity.md section 3
+B.4,Seven transitional arrangements without an end,transitional,02-essential-vs-accidental-complexity.md section 3
+C.1,"Twelve journeys, 32 needs; 16 important, 3 optional, 1 speculative",current,needs/needs-and-journeys.md conclusion; needs/capabilities.csv
+C.1,"No documented need names lanes, topology, coordination branch; worktrees promised by name",current,needs/needs-and-journeys.md conclusion item 2
+C.1,Mechanisms per core capability,current,01-capability-and-responsibility-map.md section 2
+C.2,"Steelman verdict counts 7, 15, 9, 5 and the seven items",current,challenge/steelman.md sections 1 and 2; 02 section 5
+C.3,Three journeys without a carrier; capabilities without a journey,current,needs/needs-and-journeys.md section 4; 01 section 2
+C.4,Two contested needs: multi-clone writes; local landing,current,01-capability-and-responsibility-map.md section 6
+D.1,"Target concepts, five design rules, eight essential capabilities",target,04-candidate-architecture.md sections 2 and 3
+D.2,"Four choices; 1 conditional on D1 and D2, 3 on D3; further independent agreements",target,04-candidate-architecture.md section 1; challenge/candidate-challenge.md sections 1 and 8
+D.3,Seven major findings and their status; experiments for F1 and F2,target,04-candidate-architecture.md sections 1 and 5; challenge/candidate-challenge.md section 1
+D.4,"Forks: recommended, alternative, decided by",target,04-candidate-architecture.md section 6; challenge/forks.csv; 09-open-decisions.md D19
+D.4,Tracked-file alternative removes F2 at a price,target,04-candidate-architecture.md section 5 F2; challenge/candidate-challenge.md section 8
+D.5,Dispositions hold as a set; selected rows,disposition,06-capability-dispositions.md sections 1 and 4
+D.5,"Where assessor, steelman and challenge differ",disposition,06-capability-dispositions.md section 5
+D.6,What the target is worse at; principles; guarantee change,target,04-candidate-architecture.md sections 5 F1 and 13; 09-open-decisions.md D18
+D.6,Corrected size table,target,04-candidate-architecture.md section 8
+E.1,58 obstructions by kind; five readings,current,05-obstruction-map.md conclusion; 05-obstruction-map.csv
+E.2,Breaking changes as trade-offs,target,04-candidate-architecture.md section 12; challenge/steelman.md sections 6 and 7
+E.3,Missions in flight: three options; 859 landed Missions,decision,04-candidate-architecture.md section 5 F7; 09-open-decisions.md D8
+F.1,Steps T1 to T4 and probes P1 to P10,transitional,07-remediation-roadmap.md sections 2 and 3
+F.2,"Main line T5 to T11, side tracks T12 to T15, what each deletes",transitional,"07-remediation-roadmap.md sections 1, 4 and 5; 09-open-decisions.md D23, D27"
+F.3,Transitional arrangements and their ends,transitional,07-remediation-roadmap.md section 6; 04 section 11
+F.4,Legacy retired without an arrangement,legacy,04-candidate-architecture.md section 11
+G.1,"Decisions D1 to D27 in order, with defaults; five defaults challenge a record; dependencies",decision,"09-open-decisions.md sections 1, 2 and 4"
+G.2,Present gates pass with all ten patterns present,current,08-constraints-and-acceptance-scenarios.md section 1
+G.2,Derived requirements W-1 to W-8; comparison with the earlier proposal,target,08-constraints-and-acceptance-scenarios.md section 5
+G.2,"27 constraints, 23 acceptance scenarios, 4 erosion scenarios",target,"08-constraints-and-acceptance-scenarios.md sections 1, 2 and 4"
+H.1,"Seeded sample 20 of 437 rows: 19 true, 1 partly",method,challenge/candidate-challenge.md section 9; challenge/reference-checks.csv
+H.1,Consolidator re-reads (6 and 17 references); four experiments,method,03 Limits; 05 Limits; 04 sections 5 and 13
+H.2,"Not run, not built, not opened",method,04 section 5 F2; 05 Limits; 07 Limits; 08 section 6; challenge/candidate-challenge.md section 10; challenge/steelman.md section 8
+H.3,Estimates and judgements,method,02 section 1; 03 Limits; 04 section 8; 07 conclusion; 09 section 5
+H.4,"Not assessed: 79,000 lines, command layer in depth, tracker, consumers not asked",method,"04 section 8; 01 section 4; 06 C28, X.3; 07 P10"
+H.5,Representative evidence; counts are pointers; low own use is no evidence,method,"00-mandate-and-rulings.md R9, R15, R5"
+H.5,"Needs text says nine core, table twelve",method,01-capability-and-responsibility-map.md conclusion item 1
+Open risks,Ten risks with the decision that owns each,decision,"02 conclusion; 04 sections 5, 8, 12; 05 conclusion item 5; 07; 09"
+Appendix,"Method, stages, three departures",method,00-mandate-and-rulings.md; dispatch/REPORT.txt
+Appendix,All 59 mechanism dispositions; nine capability rows,disposition,"06-capability-dispositions.md sections 3 and 4; 09-open-decisions.md (D17, D21, D26)"
