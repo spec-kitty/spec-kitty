@@ -1,7 +1,8 @@
 """Work package kind normalisation for lane topologies (#7809, ADR 2026-11-06-3 Amendment 2026-11-22).
 
 In a lane topology a ``planning_artifact`` work package is placed on
-``lane-planning``, whose branch is the target branch. A docs work package that
+``lane-planning``, whose branch is the target branch, or the Mission branch
+before a default Mission lands (#7860). A docs work package that
 owns paths outside ``kitty-specs/`` does real work, so ``finalize-tasks``
 records it as ``code_change`` and it gets its own lane (operator ruling
 "Normalise kind"). The size-based topology settlement counts it the same way

@@ -5,12 +5,12 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-24T00:00:00Z'
+updated: '2026-11-25T00:00:00Z'
 ---
 
 # A default Mission topology is settled once, by size, at the first finalize
 
-**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264).
+**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264). Amendment 2026-11-25 proposed (#7860).
 
 **Date:** 2026-11-06
 
@@ -238,5 +238,19 @@ Operator rulings of 2026-11-22 (Decision Moments `specify.planning.lane_rule`, `
 - **`single_branch` is untouched.** A Mission that settles, or is stored, as `single_branch` keeps every authored kind and writes nothing new.
 - **The ownership warning.** `ownership.validation.validate_execution_mode_consistency` warns about a `code_change` work package that owns nothing under `src/` or `tests/`. It no longer warns when every owned path is under `docs/` (after the same path normalisation the `kitty-specs/` test uses: `./` and `\` are handled). This exemption applies on every topology, `single_branch` included, because the validator does not know the topology.
 - **Follow-up (C-004).** The `execution_mode` authoring guidance in the `spec-kitty-open-packs` templates should say that a docs work package is a lane of its own in a lane topology.
+
+Nothing else in this record changes.
+
+## Amendment 2026-11-25 (Proposed): a default Mission's planning lane writes to its Mission branch until it lands (#7860)
+
+*Proposed. The operator accepts or amends it on the pull request.*
+
+Operator rulings of 2026-11-25 on [#7860](https://github.com/spec-kitty/spec-kitty/issues/7860) (A', recorded on the issue), Mission `planning-lane-write-branch-01M8A725`. Related: [#7759](https://github.com/spec-kitty/spec-kitty/issues/7759).
+
+- **The gap.** Decision 5 (FR-061) keeps a default Mission's PRIMARY partition on its Mission branch until it lands; after a `lanes_with_coord` settlement that branch is the coordination branch, checked out in the coordination worktree. Amendment 2026-11-22 kept `lane-planning` on the target branch, so `implement` sent a planning work package to the repository root checkout on the target, the implementation-evidence window ended at the target, and the review range (ADR 2026-11-08-2, Q10/Q12) read the Mission branch. Planning work committed on the Mission branch was refused with `IMPLEMENTATION_MISSING` (#7860); planning work committed on the target was reviewed from a range that did not contain it (#7759).
+- **Decision.** Before a default Mission lands, its planning lane writes to its Mission branch, in the checkout that holds it (the coordination worktree once settled; the repository root checkout while it still holds the branch). One rule decides it: `mission_runtime.planning_write_ref` (the write branch, on `default_mission_primary_ref` and the one landed signal) and `coordination.planning_commit.planning_lane_target` (that branch and the checkout holding it, on `primary_partition_checkout`); the default-Mission predicate `default_mission_rule_applies` is shared with `default_mission_primary_ref`. `implement`, the claim base and the implementation-evidence window (ADR 2026-10-04-5, Amendment 2026-11-25) read it. After the landing, and for every explicit topology, the planning lane writes to the target, as before.
+- **Fail closed.** An unreadable PRIMARY `meta.json` or a git failure raises `PlanningWriteRefUnavailable`; neither reads as "not a default Mission". The one landing reader stays non-raising: a landing record it cannot read answers "not landed", so the Mission branch is kept and a reader of a deleted Mission branch fails closed downstream. When no PRIMARY `meta.json` is found locally, the local and remote-tracking `kitty/mission-*` refs are probed by full refname: a ref whose own `meta.json` records it as the `mission_branch` of a default Mission that has not landed (no name is guessed from the slug; a lane branch carrying a copy names another branch, and an explicit-topology Mission never qualifies) means its checkout is gone, or the branch was never created locally (a fresh clone). The reader then refuses with `PlanningCheckoutMissing` (`PLANNING_CHECKOUT_MISSING`). Its remedy names `spec-kitty doctor coordination --mission <slug> --fix` for a Mission whose stored topology routes through coordination (`routes_through_coordination`, the one check on both paths), or `git switch <branch>` in the repository root checkout for a default Mission settled `single_branch`; a remote-only branch (any remote name, one containing `/` included) is first created with `git branch <branch> <remote>/<branch>`. The same refusal applies when `meta.json` is found but no checkout holds the Mission branch. Only a Mission with no such `meta.json` on any ref (legacy, or an explicit topology) keeps the target, as today.
+- **#7759.** Planning work committed on the target before the landing, under the old guidance, is no longer the work package's evidence. The refusal names those commits and the remedies (operator ruling "guidance only"). There is no migration.
+- **Recorded drift risk.** The review range (`review/wp_range.py`) reads the same rule through `default_mission_primary_ref` with "not landed" assumed. Folding it onto `planning_write_ref` waits for #5604 (operator ruling).
 
 Nothing else in this record changes.

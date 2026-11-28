@@ -1,15 +1,22 @@
 """Workspace strategy for planning-artifact work packages.
 
-Provides :func:`create_planning_workspace`, which returns the path that a
-planning-artifact WP should use as its working directory.
+Provides :func:`create_planning_workspace`, which returns the repository root
+checkout path, the planning workspace of every Mission but one.
 
 Planning-artifact WPs produce documentation/specification changes only (no
-source-code changes).  They do not need an isolated git worktree because:
+source-code changes). They do not need an isolated lane worktree: they work in
+the planning surface, the checkout that holds the branch their planning lane
+writes to:
 
-* They work directly in the main repository root.
-* All planning files (kitty-specs/) are visible there by definition.
+* the repository root checkout, for an explicit-topology, landed or legacy
+  Mission and for a ``single_branch`` Mission;
+* the checkout holding the Mission branch (the coordination worktree once the
+  topology is settled) before a default Mission lands (#7860). That shape is
+  decided by :func:`specify_cli.coordination.planning_commit.planning_lane_target`
+  in ``workspace.context``, not here.
+
 The function returns ``repo_root`` so callers receive a consistent ``Path``
-whether the WP is ``code_change`` (worktree) or ``planning_artifact`` (repo root).
+whether the WP is ``code_change`` (lane worktree) or ``planning_artifact``.
 """
 
 from __future__ import annotations
@@ -23,10 +30,11 @@ def create_planning_workspace(
     owned_files: list[str],  # noqa: ARG001
     repo_root: Path,
 ) -> Path:
-    """Return the workspace path for a planning-artifact work package.
+    """Return the repository root checkout path for a planning-artifact work package.
 
-    Planning-artifact WPs work directly in-repo. No worktree is created, and
-    all files in the repository are accessible at ``repo_root``.
+    No worktree is created. Before a default Mission lands its planning work
+    package is worked in the checkout holding the Mission branch instead
+    (#7860); ``workspace.context`` resolves that shape before it calls this.
 
     Args:
         mission_slug: Feature identifier (e.g. ``"057-canonical-context-architecture-cleanup"``).

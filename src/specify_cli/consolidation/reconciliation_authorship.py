@@ -11,6 +11,11 @@ the presence scope and the lane content measured from each lane's own base (#578
 verdict :func:`unmet_approved_content` (#5571) and the dependency-merge attribution of a lane's reviewed
 merges (#7307). Moved verbatim out of ``reconciliation.py``; no verdict changed. That module re-exports
 every name, so no caller changes (C-005).
+
+Before a default Mission lands, its planning lane is walked on the Mission branch (#7860, FR-012),
+fail closed: that walk, its per-work-package windows and its final-state walk live in
+``planning_lane_walk`` (moved there in review 8, verdicts unchanged), and :func:`_collect_authored`
+reads it through :func:`_planning_walk` and :func:`_lane_final_walk`.
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ from specify_cli.consolidation.git_probes import (
     path_state_at,
     sha_reachable_from,
 )
+from specify_cli.consolidation.planning_lane_walk import _LaneAuthorshipWalk, _planning_walk, _scoped_final_walk
 from specify_cli.consolidation.reconciliation_canceled import _fully_canceled_lane_commits
 from specify_cli.consolidation.reconciliation_claim_types import (
     _GAP_ABSENT,
@@ -46,8 +52,8 @@ from specify_cli.consolidation.reconciliation_claim_types import (
     UnreviewedMerge,
 )
 from specify_cli.consolidation.reconciliation_kernel import (
-    _APPROVED_MEMBERSHIP_LANES,
     _dependency_lane_ids,
+    _is_approved_wp,
     _lane_branch_for,
     _lane_first_parent_spine,
     _lane_is_approved,
@@ -273,7 +279,7 @@ def _lane_content(
     """
     state: dict[str, str | None] = dict.fromkeys(lane_deletions)
     state.update(dict(lane_blobs))
-    approved_wps = tuple(wp for wp in lane.wp_ids if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    approved_wps = tuple(wp for wp in lane.wp_ids if _is_approved_wp(wp, work_packages))
     ancestors = _dependency_lane_ids(lanes_manifest, lane)
     return ApprovedLaneContent(
         lane_id=lane.lane_id,
@@ -292,7 +298,7 @@ def approved_wp_ids(lane: object, work_packages: Mapping[str, Mapping[str, objec
     The one approved-membership predicate of the reviewed-merge rule, read by the gate, the claim and
     ``implement --incorporate`` (squad-3 A5).
     """
-    return tuple(wp for wp in getattr(lane, "wp_ids", ()) if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    return tuple(wp for wp in getattr(lane, "wp_ids", ()) if _is_approved_wp(wp, work_packages))
 
 
 def own_approval_stamps(
@@ -809,6 +815,22 @@ def _presence_lane_content(
     return _lane_content(repo_root, lanes_manifest, lane, work_packages, spine, blobs, deletions)
 
 
+def _lane_final_walk(repo_root: Path, walk: _LaneAuthorshipWalk, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """:func:`_final_authored_walk` of *walk* less the *dropped* commits.
+
+    A scoped walk (#7860) reads the whole first-parent spine from the recorded Mission base through
+    :func:`_scoped_final_walk`: a path is attributed only when every change to it on that spine is
+    credited, so neither a merge that changed it (review 6), nor an owned-path change made before
+    the claim (review 7) or before the planning pin (review 9), nor one carried into a renamed or
+    copied path (review 8) rides in.
+    """
+    if walk.scope is None:
+        return _final_authored_walk(repo_root, [sha for sha in walk.spine if sha not in dropped])
+    # A typed local: under ``follow_imports = "skip"`` the imported walk reads as ``Any``.
+    scoped: tuple[set[tuple[str, str]], set[str]] = _scoped_final_walk(repo_root, walk.first_parent, walk.scope, dropped)
+    return scoped
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -822,6 +844,8 @@ def _collect_authored(
     own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
     unreviewed_candidates: Mapping[str, Sequence[str]] | None = None,
     attributes_source: str | None = None,
+    events: Callable[[], Sequence[Any] | None] | None = None,
+    mission_base: str | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -880,6 +904,13 @@ def _collect_authored(
     made outside every lane before the lane was cut would read as the lane's
     approved content. The authorship axes keep *coord_base_ref*. ``None`` measures
     from *coord_base_ref* too.
+
+    *events* (#7860) reads the status events for the planning lane's per-work-package windows
+    (:func:`_planning_window_starts`); without it a default Mission's planning lane authors nothing.
+    *mission_base* (#7860 review 9, the claim's one ``mission_base.resolve_mission_base`` answer,
+    passed only when it is recorded and a commit on the target: ``planning_lane_walk._taint_base``, reviews 10 and 11) is where that
+    lane's final-state taint walk starts (``planning_lane_walk._taint_spine``); ``None`` (no
+    recorded base) leaves the lane authoring nothing too.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
@@ -890,10 +921,10 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
-        first_parent = _lane_first_parent_spine(repo_root, base, branch)
+        walk = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window, events, mission_base)
+        base, branch, first_parent, whole = walk.base, walk.branch, walk.spine, walk.whole
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
-        full_blobs, full_deletions = _final_authored_walk(repo_root, full_authored)
+        full_blobs, full_deletions = _lane_final_walk(repo_root, walk, canceled_lane_commits)
         # #7307 review: a merge on the spine counts toward this lane's authorship only
         # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
         # tip). A merge made after the approval is the lane's unreviewed work: the
@@ -961,7 +992,9 @@ def _collect_authored(
             authoring = _authoring_merges(repo_root, authored, _trusted_history_roots(lanes_manifest, lane, work_packages, presence, coord_base_ref))
             if authoring:
                 lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored, authoring_merges=authoring)
-        for sha in authored:
+        # A scoped walk (#7860 review 2) admits by SHA and patch-id only the commits whose every
+        # path is in scope or bookkeeping (``whole``); a mixed commit keeps only its in-scope blobs.
+        for sha in authored if whole is None else [sha for sha in authored if sha in whole]:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:

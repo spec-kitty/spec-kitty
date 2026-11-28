@@ -110,6 +110,10 @@ _PUBLIC_SURFACE = sorted(
         # (this surface list is not a WP01 owned file, but every new
         # mission_runtime public symbol must be pinned here).
         "PlacementSeam",
+        # #7860: the planning lane's write branch, its facts value and its typed refusals.
+        "PlanningCheckoutMissing",
+        "PlanningWriteRef",
+        "PlanningWriteRefUnavailable",
         # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
         # output + input bundle of the surface→filesystem translation seam — the
         # true schema root. Package-root public symbols, so pinned here.
@@ -158,6 +162,8 @@ _PUBLIC_SURFACE = sorted(
         # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061);
         # the review range compares it with the coordination branch.
         "default_mission_primary_ref",
+        # #7860 (C-004): the one FR-061 predicate (the topic-holder locator reads it).
+        "default_mission_rule_applies",
         # owned-checkout-lifecycle-authority WP04 (review cycle 2, F4): the ONE
         # canonical handle-canonicalisation authority (slug / mid8 / full
         # mission-id forms) resolution.py and specify_cli.task_utils.support
@@ -207,6 +213,7 @@ _PUBLIC_SURFACE = sorted(
         "mission_context_for",
         "mission_has_landed",
         "placement_seam",
+        "planning_write_ref",
         # settled-placement-surface (#7595): core/paths.py and core/git_ops.py read a
         # Mission's target branch through it from the package root.
         "read_dir_for",

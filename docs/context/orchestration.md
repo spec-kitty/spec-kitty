@@ -175,7 +175,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Other sense** | **Execution lane**: a group of work packages that `finalize-tasks` computes into `lanes.json`, which runs in one place. A code lane has its own lane branch and `.worktrees/` lane worktree; the `lane-planning` lane has no lane branch and resolves to the [write checkout](./topology.md#write-checkout), normally the repository root checkout. Defined in [Context: Topology](./topology.md#code-lane) ([code lane](./topology.md#code-lane), [repo-root lane](./topology.md#repo-root-lane)). |
+| **Other sense** | **Execution lane**: a group of work packages that `finalize-tasks` computes into `lanes.json`, which runs in one place. A code lane has its own lane branch and `.worktrees/` lane worktree; the `lane-planning` lane has no lane branch and resolves to the [write checkout](./topology.md#write-checkout), normally the repository root checkout; before a default Mission lands, it resolves to the checkout that holds the Mission branch instead (the coordination worktree once settled, #7860). Defined in [Context: Topology](./topology.md#code-lane) ([code lane](./topology.md#code-lane), [repo-root lane](./topology.md#repo-root-lane)). |
 | **Do NOT use when** | Never write bare "lane" when the sense matters: say "status lane" for the lifecycle position defined here, and "execution lane", "code lane", "lane branch" or "lane worktree" for where work runs. |
 
 ---

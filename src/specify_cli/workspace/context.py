@@ -5,13 +5,15 @@ These files provide runtime visibility into workspace state for LLM agents and C
 
 Context files are:
 - Created during `spec-kitty implement` command
-- Stored in main repo's .kittify/workspaces/ directory
-- Readable from both main repo and worktrees (via relative path)
+- Stored in the repository root checkout's .kittify/workspaces/ directory
+- Readable from both the repository root checkout and worktrees (via relative path)
 - Cleaned up during merge or explicit workspace deletion
 
-Execution topology is determined by work-package execution mode:
+Execution topology is determined by work-package execution mode and lane:
 - code_change WPs resolve to a lane worktree
-- planning_artifact WPs resolve to the main repository root
+- planning-lane WPs resolve to the repository root checkout, except the planning
+  lane of a default Mission that has not landed: it resolves to the checkout
+  holding the Mission branch (the coordination worktree once settled, #7860)
 """
 
 from __future__ import annotations
@@ -20,12 +22,21 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Final
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.errors import StructuredError
 from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam, resolve_single_branch_write_ref, routes_through_coordination
+from mission_runtime import (
+    MissionArtifactKind,
+    OwnedCheckout,
+    PlanningCheckoutMissing,
+    placement_seam,
+    resolve_single_branch_write_ref,
+    routes_through_coordination,
+)
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -38,6 +49,7 @@ if TYPE_CHECKING:
     # WP01 campsite split: type-only -- the runtime import lives inside
     # ``_resolve_workspace_for_wp_impl`` (mirrors the module's existing
     # lazy-import style) to avoid a module-level cross-package import.
+    from specify_cli.coordination.planning_commit import PlanningLaneTarget
     from specify_cli.lanes.models import ExecutionLane
 
 
@@ -51,6 +63,71 @@ WORKSPACE_HUSK_RECOVERY_COMMAND = "spec-kitty doctor workspaces --fix"
 #: ``resolution_kind`` in ``context resolve --json``) — name it once here and
 #: never retype the literal (Sonar S1192).
 _OWNED_CHECKOUT_KIND = "owned_checkout"
+
+#: ``ResolvedWorkspace.resolution_kind`` of the repository root checkout: the
+#: planning lane of every Mission except a default one that has not landed, and
+#: every ``single_branch`` repo-root-lane WP. A ``serialized_keys`` value.
+REPO_ROOT_KIND: Final[str] = "repo_root"
+
+#: ``ResolvedWorkspace.resolution_kind`` of the planning lane of a default Mission
+#: that has not landed (#7860, FR-001): the checkout holding the Mission branch
+#: (the coordination worktree once settled). A shared checkout, never a lane
+#: worktree, so its status ``execution_mode`` is ``direct_repo``. A
+#: ``serialized_keys`` value.
+MISSION_BRANCH_CHECKOUT_KIND: Final[str] = "mission_branch_checkout"
+
+#: The kinds whose workspace is a checkout the Mission's planning-lane WPs share,
+#: with no lane worktree and no owned checkout: :func:`is_shared_checkout_kind`.
+SHARED_CHECKOUT_KINDS: Final[frozenset[str]] = frozenset({REPO_ROOT_KIND, MISSION_BRANCH_CHECKOUT_KIND})
+
+
+def is_shared_checkout_kind(resolution_kind: str | None) -> bool:
+    """Whether *resolution_kind* names a shared, non-owned checkout rather than a lane worktree (#7860).
+
+    The one predicate for readers that once compared ``resolution_kind == "repo_root"``
+    to mean "no lane worktree of its own, not an owned checkout": the repository
+    root checkout and the Mission-branch checkout of a default Mission's planning
+    lane. Readers holding only the serialized kind (stale detection, the status
+    view) call this; readers holding a :class:`ResolvedWorkspace` use
+    :attr:`ResolvedWorkspace.is_shared_checkout`.
+    """
+    return resolution_kind in SHARED_CHECKOUT_KINDS
+
+
+def mission_branch_label(branch: str | None) -> str:
+    """How every surface names a default Mission's planning write branch (#7860, FR-002, contract C1)."""
+    return f"the Mission branch {branch} (the coordination branch)"
+
+
+class PlanningWorkspaceMissing(StructuredError):
+    """No checkout holds the Mission branch a planning WP must be worked in (#7860, NFR-002).
+
+    The translation of :class:`mission_runtime.PlanningCheckoutMissing` for the
+    callers of :func:`resolve_workspace_for_wp`: a :class:`StructuredError`, which
+    the orchestrator API renders as a named envelope and both ``implement`` verbs
+    print as ``Error: PLANNING_CHECKOUT_MISSING: ...``. The resolution never falls
+    back to the repository root checkout. The message and the remedy are the
+    original's; the original is chained as ``__cause__``.
+    """
+
+    def __init__(self, source: PlanningCheckoutMissing) -> None:
+        self.error_code = source.error_code
+        self.mission_slug = source.mission_slug
+        self.mission_branch = source.mission_branch
+        self.remote: str | None = source.remote
+        self.coordinated = source.coordinated
+        super().__init__(str(source))
+
+    def to_dict(self) -> dict[str, Any]:
+        """The base envelope plus the Mission branch, the remote and the coordination flag."""
+        return {
+            **super().to_dict(),
+            "mission_slug": self.mission_slug,
+            "mission_branch": self.mission_branch,
+            "remote": self.remote,
+            "coordinated": self.coordinated,
+        }
+
 
 #: Glob matching a mission's WP prompt files under ``tasks/`` (Sonar S1192).
 _WP_FILE_GLOB = "WP*.md"
@@ -236,14 +313,25 @@ class ResolvedWorkspace:
     def runs_in_checkout_root(self) -> bool:
         """True when this workspace IS a checkout root, never a lane worktree.
 
-        Both a ``repo_root`` resolution (the primary checkout) and an
-        ``owned_checkout`` resolution (owned-checkout-lifecycle-authority WP05)
-        point at a whole checkout, CWD-invariant and never a ``.worktrees/``
-        entry. Downstream consumers that branch on ``resolution_kind ==
-        "repo_root"`` to mean "a checkout root, not a lane worktree" should use
-        this instead, so they treat the owned kind the same way.
+        A ``repo_root`` resolution (the repository root checkout), a
+        ``mission_branch_checkout`` resolution (the checkout holding a default
+        Mission's branch, #7860) and an ``owned_checkout`` resolution
+        (owned-checkout-lifecycle-authority WP05) each point at a whole
+        checkout, CWD-invariant and never a lane worktree. Downstream consumers
+        that mean "a checkout root, not a lane worktree" should use this, so
+        they treat every such kind the same way; consumers that must exclude
+        the owned kind use :attr:`is_shared_checkout`.
         """
-        return self.resolution_kind in ("repo_root", _OWNED_CHECKOUT_KIND)
+        return self.is_shared_checkout or self.resolution_kind == _OWNED_CHECKOUT_KIND
+
+    @property
+    def is_shared_checkout(self) -> bool:
+        """True for the repository root checkout or a default Mission's Mission-branch checkout (#7860).
+
+        :func:`is_shared_checkout_kind` over this workspace: a checkout the
+        planning-lane WPs share, with no lane worktree, and not an owned checkout.
+        """
+        return is_shared_checkout_kind(self.resolution_kind)
 
     @property
     def status_execution_mode(self) -> str:
@@ -251,7 +339,8 @@ class ResolvedWorkspace:
 
         ``"direct_repo"`` when this workspace resolves to a checkout root
         (:attr:`runs_in_checkout_root` -- a ``repo_root`` planning-artifact /
-        single_branch repo-root-lane WP, or an ``owned_checkout`` WP), else
+        single_branch repo-root-lane WP, a ``mission_branch_checkout`` planning
+        WP of a default Mission (#7860), or an ``owned_checkout`` WP), else
         ``"worktree"``. This is
         the SINGLE derivation every status-emit call site uses; it replaces
         three previously copied ``"direct_repo" if ... else "worktree"``
@@ -271,8 +360,8 @@ class ResolvedWorkspace:
         through to the primary repository. Note git worktrees carry a ``.git``
         *file* (not directory), so this checks entry existence, not type.
         The ``.git``-marker requirement applies to lane workspaces only; a
-        checkout-root resolution (``repo_root`` or ``owned_checkout``) points
-        at a whole checkout and exists whenever the path exists.
+        checkout-root resolution (:attr:`runs_in_checkout_root`) points at a
+        whole checkout and exists whenever the path exists.
         """
         if not self.worktree_path.exists():
             return False
@@ -793,8 +882,11 @@ def resolve_workspace_for_wp(
        topology) -> the owned checkout itself (owned-checkout-lifecycle-
        authority WP05, FR-006/FR-011)
     1. Normalize WP metadata and execution mode once per process
-    2. planning_artifact -> repository root
-    3. `lanes.json` repo-root lane (single_branch, #5100 M8) -- BEFORE the
+    2. planning_artifact -> the planning workspace (:func:`_planning_workspace`):
+       the repository root checkout, or, for a default Mission that has not
+       landed, the checkout holding its Mission branch (#7860)
+    3. `lanes.json` repo-root lane (single_branch, #5100 M8; the planning lane of
+       every other topology, through the same planning workspace) -- BEFORE the
        persisted context lookup, so a stale context record can never shadow it
     4. Existing lane workspace context for code_change
     5. `lanes.json` lane mapping for code_change
@@ -871,6 +963,86 @@ def _planning_surface_root(repo_root: Path, owned: OwnedCheckout | None) -> Path
     return owned.owned_root if owned is not None else repo_root
 
 
+@dataclass(frozen=True)
+class _PlanningArm:
+    """The inputs every planning arm shares (#7860): one value for :func:`_planning_workspace`."""
+
+    repo_root: Path
+    mission_slug: str
+    wp_id: str
+    normalized_wp: NormalizedWorkPackage
+    execution_mode: WorkProductKind
+    lane_wp_ids: list[str]
+    owned: OwnedCheckout | None
+
+
+def _recorded_target_branch(repo_root: Path, mission_slug: str) -> str:
+    """The target branch ``meta.json`` records (no checked-out-branch guess), for a Mission without ``lanes.json``."""
+    from specify_cli.core.paths import get_feature_target_branch
+
+    return get_feature_target_branch(repo_root, mission_slug)
+
+
+def planning_mission_branch_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget | None:
+    """The planning lane's Mission-branch target of a default Mission that has not landed, else ``None``.
+
+    Reads the one authority, :func:`specify_cli.coordination.planning_commit.planning_lane_target`,
+    looked up at call time so a monkeypatch reaches it. ``None`` when that target is not the
+    Mission branch (an explicit topology, a landed or a legacy Mission) and for a stored
+    ``single_branch`` Mission, whose planning lane is the write checkout's repo-root lane and
+    keeps its own write-branch rule and refusals (``WRITE_CHECKOUT_*``) unchanged. A Mission
+    branch no checkout holds raises :class:`PlanningWorkspaceMissing` (NFR-002); an unreadable
+    ``meta.json`` raises :class:`mission_runtime.PlanningWriteRefUnavailable`.
+    """
+    import mission_runtime
+    from specify_cli.coordination import planning_commit
+
+    if mission_runtime.is_single_branch(mission_runtime.resolve_topology(repo_root, mission_slug)):
+        return None
+    try:
+        target = planning_commit.planning_lane_target(repo_root, mission_slug, target_branch)
+    except mission_runtime.PlanningCheckoutMissing as exc:
+        raise PlanningWorkspaceMissing(exc) from exc
+    return target if target.on_mission_branch else None
+
+
+def _planning_workspace(
+    arm: _PlanningArm,
+    *,
+    target_branch: Callable[[], str],
+    repo_root_path: Path,
+    repo_root_branch: Callable[[], str | None],
+) -> ResolvedWorkspace:
+    """The ONE planning-lane workspace every planning arm returns (#7860, FR-001/FR-006).
+
+    For a non-owned default Mission that has not landed (and is not ``single_branch``), the
+    checkout holding the Mission branch, under :data:`MISSION_BRANCH_CHECKOUT_KIND`, naming
+    that branch. Every other shape gets the arm's own ``repo_root`` result unchanged:
+    *repo_root_path* and *repo_root_branch* are each arm's pre-#7860 values, and an owned
+    checkout keeps its planning surface without reading the planning lane target.
+    """
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    mission_branch_target = None if arm.owned is not None else planning_mission_branch_target(arm.repo_root, arm.mission_slug, target_branch())
+    if mission_branch_target is not None:
+        kind, path, branch = MISSION_BRANCH_CHECKOUT_KIND, mission_branch_target.checkout, mission_branch_target.branch
+    else:
+        kind, path, branch = REPO_ROOT_KIND, repo_root_path, repo_root_branch()
+    return ResolvedWorkspace(
+        mission_slug=arm.mission_slug,
+        wp_id=arm.wp_id,
+        execution_mode=arm.execution_mode.value,
+        mode_source=arm.normalized_wp.mode_source,
+        resolution_kind=kind,
+        workspace_name=f"{arm.mission_slug}-{PLANNING_LANE_ID}",
+        worktree_path=path,
+        branch_name=branch,
+        lane_id=PLANNING_LANE_ID,
+        lane_wp_ids=arm.lane_wp_ids,
+        context=None,
+    )
+
+
 def _resolve_planning_artifact_arm(
     repo_root: Path,
     mission_slug: str,
@@ -880,22 +1052,22 @@ def _resolve_planning_artifact_arm(
     *,
     owned: OwnedCheckout | None = None,
 ) -> ResolvedWorkspace | None:
-    """Resolve a ``planning_artifact`` WP to the repo-root ``lane-planning`` lane.
+    """Resolve a ``planning_artifact`` WP to the ``lane-planning`` lane's planning workspace.
 
     Returns ``None`` when ``execution_mode`` is not ``PLANNING_ARTIFACT``, so
     the caller falls through to the next arm. WP01 campsite split (behaviour-
-    preserving) out of ``_resolve_workspace_for_wp_impl``.
+    preserving) out of ``_resolve_workspace_for_wp_impl``. The workspace is
+    :func:`_planning_workspace`'s: the repository root checkout (branch
+    ``None``, as before #7860), or the Mission-branch checkout of a default
+    Mission that has not landed.
     """
     if execution_mode != WorkProductKind.PLANNING_ARTIFACT:
         return None
 
     # planning_artifact WPs are first-class lane-owned entities assigned to
-    # "lane-planning".  That lane resolves to the main repository checkout
-    # (or, for an owned coordination-topology mission, the owned checkout
-    # itself — the mission's planning surface, review cycle 1 HIGH-1).
-    # We still call create_planning_workspace() for the path, but we now
-    # populate lane_id so the ResolvedWorkspace contract is uniform.
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    # "lane-planning". We still call create_planning_workspace() for the
+    # repository-root path, but we populate lane_id so the ResolvedWorkspace
+    # contract is uniform.
     from specify_cli.lanes.persistence import read_lanes_json
 
     planning_workspace = create_planning_workspace(
@@ -918,18 +1090,19 @@ def _resolve_planning_artifact_arm(
         if planning_lane is not None:
             lane_wp_ids = list(planning_lane.wp_ids)
 
-    return ResolvedWorkspace(
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        execution_mode=execution_mode.value,
-        mode_source=normalized_wp.mode_source,
-        resolution_kind="repo_root",
-        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-        worktree_path=planning_workspace,
-        branch_name=None,
-        lane_id=PLANNING_LANE_ID,
-        lane_wp_ids=lane_wp_ids,
-        context=None,
+    return _planning_workspace(
+        _PlanningArm(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            normalized_wp=normalized_wp,
+            execution_mode=execution_mode,
+            lane_wp_ids=lane_wp_ids,
+            owned=owned,
+        ),
+        target_branch=lambda: lanes_manifest.target_branch if lanes_manifest is not None else _recorded_target_branch(repo_root, mission_slug),
+        repo_root_path=planning_workspace,
+        repo_root_branch=lambda: None,
     )
 
 
@@ -1002,8 +1175,11 @@ def _resolve_repo_root_lane_arm(
     dispatched to :func:`_owned_checkout_workspace` first). For an owned
     mission the write branch is the validated fact's own ``target_branch``
     (already the #5100 write branch -- see ``owned_mission.expected_write_branch``).
+    The planning lane of a default Mission that has not landed (any settled
+    topology but ``single_branch``) resolves instead to the checkout holding
+    its Mission branch, through :func:`_planning_workspace` (#7860).
     """
-    from specify_cli.lanes.compute import PLANNING_LANE_ID, is_repo_root_lane
+    from specify_cli.lanes.compute import is_repo_root_lane
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_read_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.LANE_STATE)
@@ -1014,26 +1190,30 @@ def _resolve_repo_root_lane_arm(
     if lane is None or not is_repo_root_lane(lane):
         return None
 
-    worktree_path = _planning_surface_root(repo_root, owned)
+    target_branch = lanes_manifest.target_branch
+
     # The write branch comes from the ONE mission_runtime rule over meta.json
     # (stored single_branch + meta.mission_branch, else the target branch) --
     # never from ``lanes.json.mission_branch``, which is a stale copy after a
     # protected landing clears the meta field, and which names the
     # integration branch (not the write branch) for a lanes/coord mission
     # whose code WP happens to sit in ``lane-planning``.
-    branch_name = owned.write_branch if owned is not None else resolve_single_branch_write_ref(repo_root, mission_slug, lanes_manifest.target_branch)
-    return ResolvedWorkspace(
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        execution_mode=execution_mode.value,
-        mode_source=normalized_wp.mode_source,
-        resolution_kind="repo_root",
-        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-        worktree_path=worktree_path,
-        branch_name=branch_name,
-        lane_id=PLANNING_LANE_ID,
-        lane_wp_ids=list(lane.wp_ids),
-        context=None,
+    def _write_branch() -> str:
+        return owned.write_branch if owned is not None else resolve_single_branch_write_ref(repo_root, mission_slug, target_branch)
+
+    return _planning_workspace(
+        _PlanningArm(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            normalized_wp=normalized_wp,
+            execution_mode=execution_mode,
+            lane_wp_ids=list(lane.wp_ids),
+            owned=owned,
+        ),
+        target_branch=lambda: target_branch,
+        repo_root_path=_planning_surface_root(repo_root, owned),
+        repo_root_branch=_write_branch,
     )
 
 
@@ -1057,24 +1237,26 @@ def _resolve_planning_lane_arm(
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
 
-    # lane-planning resolves to the mission's planning surface: the primary
-    # checkout for a non-owned mission, or the owned checkout itself for an
-    # owned coordination-topology mission (review cycle 1, HIGH-1) — never a
-    # .worktrees/ path.
+    # lane-planning resolves to the mission's planning workspace: the
+    # repository root checkout for a non-owned mission (or the Mission-branch
+    # checkout of a default Mission that has not landed, #7860), or the owned
+    # checkout itself for an owned coordination-topology mission (review
+    # cycle 1, HIGH-1).
     if not is_planning_lane(lane):
         return None
-    return ResolvedWorkspace(
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        execution_mode=execution_mode.value,
-        mode_source=normalized_wp.mode_source,
-        resolution_kind="repo_root",
-        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-        worktree_path=_planning_surface_root(repo_root, owned),
-        branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, target_branch=target_branch),
-        lane_id=PLANNING_LANE_ID,
-        lane_wp_ids=list(lane.wp_ids),
-        context=None,
+    return _planning_workspace(
+        _PlanningArm(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            normalized_wp=normalized_wp,
+            execution_mode=execution_mode,
+            lane_wp_ids=list(lane.wp_ids),
+            owned=owned,
+        ),
+        target_branch=lambda: target_branch,
+        repo_root_path=_planning_surface_root(repo_root, owned),
+        repo_root_branch=lambda: lane_branch_name(mission_slug, PLANNING_LANE_ID, target_branch=target_branch),
     )
 
 
@@ -1147,6 +1329,52 @@ def _owned_checkout_workspace(repo_root: Path, owned: OwnedCheckout, wp_id: str)
     )
 
 
+def _planning_checkout_missing(repo_root: Path, mission_slug: str) -> PlanningCheckoutMissing | None:
+    """WP01's refusal when the Mission branch holding the Mission is checked out nowhere, else ``None``.
+
+    A default Mission's work packages live on its Mission branch until it lands, so once the
+    coordination worktree is gone no WP of it can be read from any checkout. The one authority
+    (``planning_lane_target``) recognises that shape from the branch's own ``meta.json``. Every
+    other outcome of the probe -- no refusal, or the probe itself failing (a corrupt ``meta.json``,
+    an unreadable write branch, git or topology errors) -- answers ``None``, so the caller's
+    original error stands (review cycle 1, finding 1).
+    """
+    from kernel.errors import GuardedReadError
+    from specify_cli.coordination import planning_commit
+
+    try:
+        planning_commit.planning_lane_target(repo_root, mission_slug, _recorded_target_branch(repo_root, mission_slug))
+    except PlanningCheckoutMissing as exc:
+        return exc
+    except (GuardedReadError, RuntimeError, OSError, ValueError):
+        # The probe cannot decide; the caller's own "not found" error is the accurate one.
+        return None
+    return None
+
+
+def _normalized_wp_or_planning_refusal(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    *,
+    owned: OwnedCheckout | None,
+) -> NormalizedWorkPackage:
+    """:func:`get_normalized_wp`, naming a missing Mission-branch checkout when that is why the WP is unreadable (#7860).
+
+    A WP that cannot be found is reported as ``PLANNING_CHECKOUT_MISSING`` when no checkout holds
+    the default Mission's branch (NFR-002: never a fall back to the repository root checkout);
+    otherwise the original ``ValueError`` propagates unchanged. The probe runs only on that
+    failure, so a resolution that succeeds pays nothing for it. An owned checkout is never probed.
+    """
+    try:
+        return get_normalized_wp(repo_root, mission_slug, wp_id, owned=owned)
+    except ValueError:
+        missing = _planning_checkout_missing(repo_root, mission_slug) if owned is None else None
+        if missing is not None:
+            raise PlanningWorkspaceMissing(missing) from missing
+        raise
+
+
 def _resolve_workspace_for_wp_impl(
     repo_root: Path,
     mission_slug: str,
@@ -1181,7 +1409,7 @@ def _resolve_workspace_for_wp_impl(
     if owned is not None and not routes_through_coordination(owned.topology):
         return _owned_checkout_workspace(repo_root, owned, wp_id)
 
-    normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id, owned=owned)
+    normalized_wp = _normalized_wp_or_planning_refusal(repo_root, mission_slug, wp_id, owned=owned)
     execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
 
     planning_artifact_workspace = _resolve_planning_artifact_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode, owned=owned)
@@ -1428,6 +1656,7 @@ __all__ = [
     "build_normalized_wp_index",
     "build_feature_context_index",
     "clear_workspace_resolution_caches",
+    "planning_mission_branch_target",
     "get_normalized_wp",
     "get_workspaces_dir",
     "get_context_path",

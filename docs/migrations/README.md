@@ -48,6 +48,7 @@ Use these pages when an existing project, script, or operator habit predates the
 - [Mission ID canonical identity](mission-id-canonical-identity.md)
 - [Repair a Mission whose status snapshot misses work packages](backfill-wp-status.md) — `spec-kitty migrate backfill-wp-status`.
 - [Legacy topology to the coordination model](legacy-to-coordination.md)
+- [Planning lane writes to the Mission branch](planning-lane-write-branch.md) — a default Mission's planning work package refused with `IMPLEMENTATION_MISSING` after upgrading (#7860).
 - [Mission type flag deprecation](mission-type-flag-deprecation.md)
 - [Feature flag deprecation](feature-flag-deprecation.md)
 - [Tracker egress refusal](tracker-egress-refusal.md) — your `beads`/`fp`

@@ -241,7 +241,21 @@ from kernel.clock import now_utc_iso
 # ``for_review``, an independent approval, re-run); text only, no new field. A call that could
 # answer ``success: true`` now refuses, so a minor bump; no field or ``error_code`` is removed or
 # renamed.
-CONTRACT_VERSION = "1.31.0"
+# 1.32.0 (#7860): a repo-root-lane WP's workspace resolution on ``start-implementation`` and
+# ``resolve-workspace`` (and the ``transition`` / ``start-review`` stamp path) never puts an
+# unregistered code in the envelope ``error_code`` (#5642 / PR-CONTRACT-002): a refusal whose code
+# the contract does not register (``PLANNING_CHECKOUT_MISSING``, ``WRITE_CHECKOUT_WRONG_BRANCH`` /
+# ``_OCCUPIED`` / ``_DIRTY``, which used to leak on ``start-implementation``) is reported under the
+# existing ``LANE_ALLOCATION_FAILED`` (``TRANSITION_REJECTED`` on the stamp path) with the real code
+# in the new optional ``data.workspace_error_code``; a failure with no code (an unreadable
+# ``meta.json``, a WP that cannot be resolved) is named in the new optional ``data.error_type``.
+# ``resolve-workspace`` on a planning-lane WP now resolves the workspace and can fail with these.
+# For a default Mission's planning WP before it lands, ``workspace_path`` / ``lane_branch`` now name
+# the Mission-branch checkout and the Mission branch (values, not keys), and the ``execution_mode``
+# stamp of a planning-lane WP is ``direct_repo`` on every topology. Additive optional keys plus a
+# changed ``error_code`` on previously-leaking refusals, so a minor bump; no key is removed or
+# renamed.
+CONTRACT_VERSION = "1.32.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

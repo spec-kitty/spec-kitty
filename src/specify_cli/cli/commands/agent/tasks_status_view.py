@@ -127,6 +127,7 @@ def build_stale_fallback_results(
         StaleCheckResult,
         StaleState,
     )
+    from specify_cli.workspace.context import is_shared_checkout_kind
 
     results: dict[str, StaleCheckResult] = {}
     for wp in doing_wps:
@@ -144,7 +145,8 @@ def build_stale_fallback_results(
         # "stale_detection_unavailable" the moment the primary detector
         # raises, when it would have reported the SAME not_applicable
         # verdict as a planning_artifact WP had detection succeeded.
-        fallback_reason = PLANNING_ARTIFACT_REPO_ROOT_REASON if workspace_kind == "repo_root" else "stale_detection_unavailable"
+        # #7860: a default Mission's Mission-branch checkout is shared the same way.
+        fallback_reason = PLANNING_ARTIFACT_REPO_ROOT_REASON if is_shared_checkout_kind(workspace_kind) else "stale_detection_unavailable"
         results[str(wp_id)] = StaleCheckResult(
             wp_id=str(wp_id),
             stale=StaleState(status="not_applicable", reason=fallback_reason),

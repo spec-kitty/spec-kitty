@@ -83,11 +83,16 @@ from mission_runtime.resolution import (
     ActionContextError,
     IssueMatrixRefReadError,
     PlacementSeam,
+    PlanningCheckoutMissing,
+    PlanningWriteRef,
+    PlanningWriteRefUnavailable,
     coord_read_dir_for,
     declared_read_surface,
     default_mission_primary_ref,
+    default_mission_rule_applies,
     mission_context_for,
     placement_seam,
+    planning_write_ref,
     read_dir_for,
     resolve_action_context,
     resolve_artifact_surface,
@@ -157,6 +162,10 @@ __all__ = [
     "OwnedCheckout",
     "OwnedRefusalCode",
     "PlacementSeam",
+    # #7860: the planning lane's write branch and its typed refusals.
+    "PlanningCheckoutMissing",
+    "PlanningWriteRef",
+    "PlanningWriteRefUnavailable",
     "ReadDegradeStrategy",
     "ReadDirDecision",
     # coord-artifact-single-home-01M3V4BE WP03: the seed-operation result value
@@ -184,6 +193,8 @@ __all__ = [
     "declared_read_surface",
     # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061), read by the review range.
     "default_mission_primary_ref",
+    # #7860 (C-004): the one FR-061 predicate, shared by every reader of the default-Mission rule.
+    "default_mission_rule_applies",
     "enforce_checkout_identity",
     "handle_names_mission",
     "is_primary_artifact_kind",
@@ -199,6 +210,8 @@ __all__ = [
     "mission_file_basenames_for_kind",
     "mission_has_landed",
     "placement_seam",
+    # #7860: one write-branch rule for the planning lane (workspace, claim base, evidence window).
+    "planning_write_ref",
     # settled-placement-surface (#7595): the PRIMARY-metadata reader the core
     # target-branch helpers use (not PlacementSeam.read_dir, which recurses via
     # resolve_lifecycle_phase); they may only import it from the package root.

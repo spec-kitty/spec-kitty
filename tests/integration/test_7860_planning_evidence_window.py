@@ -1,33 +1,48 @@
-"""#7860: a planning-artifact work package's evidence window ends at the branch its work is written to.
+"""#7860 acceptance suite: a default Mission's planning lane is written, reviewed and evidenced on its Mission branch.
 
 Background (#7860, P1). A Mission created without ``--topology`` mints one topic branch and settles
 its topology at the first ``finalize-tasks`` by size; with more than one code lane it settles
 ``lanes_with_coord``, the topic branch becoming the coordination branch (ADR ``2026-11-06-3``).
 Until the Mission lands, its PRIMARY partition, and with it every planning-artifact work package's
-work, is written to that topic branch (FR-061, :func:`mission_runtime.resolution.default_mission_primary_ref`).
-The #6715 evidence axis nevertheless ended a planning lane's window at the TARGET branch, which
-holds none of that work before the landing, so ``move-task --to for_review`` refused every planning
-work package with ``IMPLEMENTATION_MISSING`` (reproduced in spec-kitty-open-packs, Mission
-``pack-doctor-alignment``).
+work, is written to that topic branch, the Mission branch (FR-061). The #6715 evidence axis
+nevertheless ended a planning lane's window at the TARGET branch and ``implement`` named the
+repository root checkout (on the target) as the workspace, so ``move-task --to for_review``
+refused every planning work package with ``IMPLEMENTATION_MISSING`` (reproduced in
+spec-kitty-open-packs, Mission ``pack-doctor-alignment``).
 
-After the settlement the repository root checkout is back on the target and ``implement`` names
-it as the planning lane's workspace, so work committed where ``implement`` says lands on the
-target. Both places must count; the rule that reconciles them is pending an operator ruling.
+Operator ruling A' (2026-11-25, recorded on #7860) is in force: before the landing, ``implement``
+places such a planning work package in the coordination worktree (the checkout holding the
+Mission branch), and its evidence window runs from the commit that introduced its claim to the
+Mission branch. Work committed on the target only (the old guidance) is refused with the in-flight
+remedy (ruling "guidance only": no migration).
 
-* :func:`test_planning_work_on_the_topic_branch_moves_into_review` -- the reproduction: the owned
-  file is committed on the topic branch and the unforced move into review passes.
-* :func:`test_planning_work_where_implement_puts_it_moves_into_review` -- the control: work
-  committed in the root checkout on the target keeps passing.
-* :func:`test_a_hollow_planning_work_package_is_still_refused` -- the negative control: with no
-  owned change the move is still refused.
+* :func:`test_planning_work_on_the_topic_branch_moves_into_review` (SC-001, SC-005) -- the
+  reproduction: ``implement`` names the coordination worktree and the Mission branch; the owned
+  file committed there moves into review unforced.
+* :func:`test_a_hollow_planning_work_package_is_still_refused` (SC-002) -- no owned change: refused,
+  the window ends at the Mission branch, and no "target branch only" addendum.
+* :func:`test_a_sibling_commit_is_not_the_work_packages_evidence` (FR-003, WP03 hand-off) -- two
+  planning work packages share the coordination worktree; a commit inside WP02's window that
+  touches only WP05's file refuses WP02 and moves WP05 into review.
+* :func:`test_pre_existing_owned_file_is_not_evidence` (FR-010) -- the owned file was written on the
+  Mission branch during planning, before the claim: refused.
+* :func:`test_target_only_planning_work_is_refused` (SC-004, FR-007) -- the owned file was committed
+  in the repository root checkout on the target: refused, naming that commit (not an unrelated
+  one) and both remedies.
+* :func:`test_explicit_topology_keeps_the_repository_root_checkout` (SC-003, FR-006) -- an explicit
+  ``--topology lanes_with_coord`` Mission keeps today's workspace and window.
+* :func:`test_a_removed_coordination_worktree_fails_closed` (NFR-002, residual 8a) -- with the
+  coordination worktree gone, both claim verbs refuse at Mission lookup; nothing falls back.
 
-Drives the REAL CLI end to end in an isolated HOME.
+Drives the REAL CLI end to end in an isolated HOME. The bookkeeping helper stages only the files
+the CLI writes (never an owned file), so a status-residue commit can never fake the evidence.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -35,10 +50,31 @@ from pathlib import Path
 
 import pytest
 
+# Each case drives a dozen real CLI calls on a fresh repository; the default budget is too tight
+# on a loaded runner, so the cases carry their own (pytest.ini: mark, never raise the default).
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(900)]
 
 _CLI = [sys.executable, "-m", "specify_cli"]
 _PLANNING_OWNED = "kitty-specs/{slug}/research/notes.md"
+_SIBLING_OWNED = "kitty-specs/{slug}/research/other.md"
+_MISSING = "IMPLEMENTATION_MISSING"
+_TARGET_ONLY = "found on the target branch only"
+_ATTEST = "--attest-no-implementation"
+#: The files the CLI itself writes in the Mission directory (status, metadata, manifests,
+#: subtask checkboxes). Owned planning files (``research/``) are never in this list.
+_TOOL_WRITTEN = (
+    "status.events.jsonl",
+    "status.json",
+    "meta.json",
+    "lanes.json",
+    "analysis-report.md",
+    "acceptance-matrix.json",
+    "issue-matrix.json",
+    "decisions",
+    "tasks.md",
+    "tasks",
+)
+_WORKSPACE_LINE = re.compile(r"Workspace:\s+(?:cd\s+)?(\S+)")
 
 
 @dataclass(frozen=True)
@@ -51,8 +87,12 @@ class _Mission:
 
     @property
     def feature_dir(self) -> Path:
-        """The Mission directory on the topic branch (its checkout after the settlement)."""
+        """The Mission directory in the checkout holding its PRIMARY partition."""
         return self.topic_checkout / "kitty-specs" / self.slug
+
+    @property
+    def owned(self) -> str:
+        return _PLANNING_OWNED.format(slug=self.slug)
 
 
 def _env(home: Path) -> dict[str, str]:
@@ -65,6 +105,8 @@ def _env(home: Path) -> dict[str, str]:
         SPEC_KITTY_NO_UPGRADE_CHECK="1",
         SPEC_KITTY_WORKTREE_REMOVAL_DELAY="0",
         SPEC_KITTY_ENABLE_SAAS_SYNC="0",
+        # Wide enough that rich never wraps a SHA, a branch or a phrase the assertions read.
+        COLUMNS="500",
     )
     for key in ("home", "xc", "xcache", "xd"):
         (home / key).mkdir(parents=True, exist_ok=True)
@@ -97,16 +139,22 @@ _WPS = (
     ("WP02", "T2", _PLANNING_OWNED, True),
     ("WP03", "T3", "src/m3/**", False),
     ("WP04", "T4", "src/m4/**", False),
+    ("WP05", "T5", _SIBLING_OWNED, True),
 )
 
 
-def setup_default_mission(tmp_path: Path) -> _Mission:
-    """A Mission created WITHOUT ``--topology``: three code WPs (three lanes) and one planning WP02.
+def setup_default_mission(tmp_path: Path, *, topology: str | None = None) -> _Mission:
+    """Three code WPs (three lanes) and two planning WPs sharing ``lane-planning``.
 
-    ``finalize-tasks`` settles it ``lanes_with_coord`` by size, its topic branch becoming the
-    coordination branch; the repository root checkout stays on that topic branch.
+    WP02 owns ``kitty-specs/<slug>/research/notes.md``; its sibling WP05 owns ``research/other.md``.
+
+    Without *topology* the Mission is a default Mission: ``finalize-tasks`` settles it
+    ``lanes_with_coord`` by size, its topic branch becoming the coordination branch, checked out
+    in the coordination worktree. With *topology* it is an explicit-topology Mission (FR-006).
     """
     env = _env(tmp_path)
+    if topology is not None:
+        env["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
@@ -117,9 +165,10 @@ def setup_default_mission(tmp_path: Path) -> _Mission:
     (repo / "README.md").write_text("# fixture\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "init")
+    explicit = ("--topology", topology) if topology is not None else ()
     created = _sk(
         (repo, env),
-        *("agent", "mission", "create", "fx", "--mission-type", "software-dev"),
+        *("agent", "mission", "create", "fx", "--mission-type", "software-dev", *explicit),
         *("--branch-strategy", "already-confirmed", "--target-branch", "main", "--friendly-name", "fx"),
         *("--purpose-tldr", "fx", "--purpose-context", "QA fixture.", "--json"),
         check=True,
@@ -132,16 +181,15 @@ def setup_default_mission(tmp_path: Path) -> _Mission:
     sections = "".join(f"## Work Package {wp}: {wp}\n\n**Dependencies**: None\n\nRequirement refs: FR-001\n\n- [ ] {t} do\n\n" for wp, t, _o, _p in _WPS)
     (fd / "tasks.md").write_text(f"# Tasks\n\n{sections}", encoding="utf-8")
     for wp, subtask, owned, planning in _WPS:
-        owned_path = owned.format(slug=slug)
-        (fd / "tasks" / f"{wp}-work.md").write_text(_wp_file(wp, subtask, owned_path, planning=planning), encoding="utf-8")
+        (fd / "tasks" / f"{wp}-work.md").write_text(_wp_file(wp, subtask, owned.format(slug=slug), planning=planning), encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "planning")
-    topic_branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    planning_branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     _sk((repo, env), "agent", "mission", "finalize-tasks", "--mission", slug, "--json", check=True)
-    mission = _Mission(repo, env, slug, topic_branch, _checkout_of(repo, topic_branch))
+    mission = _Mission(repo, env, slug, planning_branch, _checkout_of(repo, planning_branch))
     (tmp_path / "analysis.md").write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
     _sk(mission, "agent", "mission", "record-analysis", "--mission", slug, "--input-file", str(tmp_path / "analysis.md"), check=True)
-    _commit_bookkeeping(mission.topic_checkout)
+    _commit_bookkeeping(mission)
     return mission
 
 
@@ -156,10 +204,17 @@ def _checkout_of(repo: Path, branch: str) -> Path:
     raise AssertionError(f"fixture: no checkout of {branch}")
 
 
-def _commit_bookkeeping(repo: Path) -> None:
-    if _git(repo, "status", "--porcelain", "--", "kitty-specs"):
-        _git(repo, "add", "-A", "kitty-specs")
-        _git(repo, "commit", "-qm", "status residue")
+def _commit_bookkeeping(mission: _Mission) -> None:
+    """Commit only the files the CLI writes in the Mission directory; an owned file is never staged here."""
+    checkout = mission.topic_checkout
+    paths = [f"kitty-specs/{mission.slug}/{name}" for name in _TOOL_WRITTEN if (checkout / "kitty-specs" / mission.slug / name).exists()]
+    if paths:
+        _git(checkout, "add", "--", *paths)
+    staged = _git(checkout, "diff", "--cached", "--name-only")
+    owned = {mission.owned, _SIBLING_OWNED.format(slug=mission.slug)}
+    assert not owned.intersection(staged.splitlines()), f"fixture: the bookkeeping helper must never stage the owned file; staged={staged}"
+    if staged:
+        _git(checkout, "commit", "-qm", "status residue")
 
 
 def _meta(mission: _Mission) -> dict[str, object]:
@@ -167,28 +222,54 @@ def _meta(mission: _Mission) -> dict[str, object]:
     return loaded
 
 
-def _claim_planning_wp(mission: _Mission) -> str:
-    """Claim WP02 and return its owned path (the Mission directory sits on the topic branch)."""
+def _implement_planning_wp(mission: _Mission, wp: str = "WP02") -> tuple[Path, str]:
+    """Claim *wp* through ``agent action implement``; return the workspace it names and its full output."""
+    implemented = _sk(mission, "agent", "action", "implement", wp, "--agent", "alice", "--mission", mission.slug, check=True)
+    output = implemented.stdout + implemented.stderr
+    found = _WORKSPACE_LINE.search(output)
+    assert found is not None, f"implement must name the workspace. output:\n{output[-3000:]}"
+    _commit_bookkeeping(mission)
+    return Path(found.group(1)), output
+
+
+def _assert_default_mission(mission: _Mission) -> None:
     meta = _meta(mission)
     assert meta.get("topology") == "lanes_with_coord", f"fixture: the size rule must settle lanes_with_coord; meta={meta}"
     assert meta.get("topology_source") == "default", f"fixture: a Mission created without --topology; meta={meta}"
     assert meta.get("coordination_branch") == mission.topic_branch, f"fixture: the topic branch is the coordination branch; meta={meta}"
-    _sk(mission, "agent", "action", "implement", "WP02", "--agent", "alice", "--mission", mission.slug, check=True)
-    return _PLANNING_OWNED.format(slug=mission.slug)
+    assert mission.topic_checkout != mission.repo, "fixture: the settlement moves the Mission branch into the coordination worktree"
+
+
+def _write_and_commit(checkout: Path, relpath: str, text: str, message: str) -> str:
+    target = checkout / relpath
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    _git(checkout, "add", "--", relpath)
+    _git(checkout, "commit", "-qm", message)
+    return _git(checkout, "rev-parse", "HEAD")
+
+
+def _claim_planning_wp(mission: _Mission) -> str:
+    """Claim WP02 of a settled default Mission and return its owned path (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    _assert_default_mission(mission)
+    _implement_planning_wp(mission)
+    return mission.owned
 
 
 def _commit_owned(checkout: Path, relpath: str) -> None:
-    owned = checkout / relpath
-    owned.parent.mkdir(parents=True, exist_ok=True)
-    owned.write_text("# WP02 research\n", encoding="utf-8")
-    _git(checkout, "add", "--", relpath)
-    _git(checkout, "commit", "-qm", "feat(WP02): research notes")
+    """Commit WP02's owned file in *checkout* (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    _write_and_commit(checkout, relpath, "# WP02 research\n", "feat(WP02): research notes")
 
 
-def _move_into_review(mission: _Mission) -> subprocess.CompletedProcess[str]:
-    _sk(mission, "agent", "tasks", "mark-status", "T2", "--status", "done", "--mission", mission.slug)
-    _commit_bookkeeping(mission.topic_checkout)
-    return _sk(mission, "agent", "tasks", "move-task", "WP02", "--to", "for_review", "--agent", "alice", "--note", "done", "--mission", mission.slug)
+def _move_into_review(mission: _Mission, wp: str = "WP02", subtask: str = "T2") -> subprocess.CompletedProcess[str]:
+    _sk(mission, "agent", "tasks", "mark-status", subtask, "--status", "done", "--mission", mission.slug)
+    _commit_bookkeeping(mission)
+    return _sk(mission, "agent", "tasks", "move-task", wp, "--to", "for_review", "--agent", "alice", "--note", "done", "--mission", mission.slug)
+
+
+def _flat(proc: subprocess.CompletedProcess[str]) -> str:
+    """The command's whole output with every run of whitespace collapsed (a wrapped line still matches)."""
+    return " ".join((proc.stdout + proc.stderr).split())
 
 
 def _on_branch(mission: _Mission, branch: str, relpath: str) -> bool:
@@ -196,38 +277,178 @@ def _on_branch(mission: _Mission, branch: str, relpath: str) -> bool:
 
 
 def test_planning_work_on_the_topic_branch_moves_into_review(tmp_path: Path) -> None:
-    """The #7860 shape: the work is committed on the topic (coordination) branch. Red on main @ e6b18eeb."""
+    """SC-001 / SC-005: implement names the coordination worktree; work committed there moves into review unforced."""
     mission = setup_default_mission(tmp_path)
-    relpath = _claim_planning_wp(mission)
-    _commit_owned(mission.topic_checkout, relpath)
-    assert not _on_branch(mission, "main", relpath), "fixture: the target branch must not carry the planning work before the landing"
+    _assert_default_mission(mission)
+
+    workspace, implement_output = _implement_planning_wp(mission)
+
+    assert workspace.resolve() == mission.topic_checkout.resolve(), f"implement must name the coordination worktree. output:\n{implement_output[-3000:]}"
+    assert mission.topic_branch in implement_output, f"implement must name the Mission branch. output:\n{implement_output[-3000:]}"
+    owned_sha = _write_and_commit(workspace, mission.owned, "# WP02 research\n", "feat(WP02): research notes")
+    assert not _on_branch(mission, "main", mission.owned), "fixture: the target branch must not carry the planning work before the landing"
 
     moved = _move_into_review(mission)
-    output = moved.stdout + moved.stderr
+    output = _flat(moved)
 
-    assert "IMPLEMENTATION_MISSING" not in output, f"planning work on the topic branch is the work package's evidence. output:\n{output[-3000:]}"
+    assert _MISSING not in output, f"planning work on the Mission branch is the work package's evidence. output:\n{output[-3000:]}"
     assert moved.returncode == 0, f"the unforced move into review must pass. output:\n{output[-3000:]}"
+    _assert_review_range_holds(mission, owned_sha)
 
 
-def test_planning_work_where_implement_puts_it_moves_into_review(tmp_path: Path) -> None:
-    """Control: implement names the repository root checkout, on the target branch; work committed there passes today."""
-    mission = setup_default_mission(tmp_path)
-    relpath = _claim_planning_wp(mission)
-    assert _git(mission.repo, "rev-parse", "--abbrev-ref", "HEAD") == "main", "fixture: the settlement returns the root checkout to the target"
-    _commit_owned(mission.repo, relpath)
+def _assert_review_range_holds(mission: _Mission, owned_sha: str) -> None:
+    """C-001 ratchet: the review range (not folded onto the shared reader until #5604) agrees with the one authority.
 
-    moved = _move_into_review(mission)
-    output = moved.stdout + moved.stderr
+    ``review/wp_range.py`` reads ``default_mission_primary_ref`` on its own (it assumes "not
+    landed"); this pins that, for the reproduction, its range is available, not withheld as
+    bookkeeping-only, and lists the owned commit, which sits only on the branch
+    :func:`mission_runtime.planning_write_ref` names. Read only.
+    """
+    import mission_runtime
+    from specify_cli.review.wp_range import RangeGap, RangeStatus, resolve_wp_review_range
 
-    assert moved.returncode == 0, f"work committed where implement puts it must pass. output:\n{output[-3000:]}"
+    assert mission_runtime.planning_write_ref(mission.repo, mission.slug, "main").branch == mission.topic_branch
+    review = resolve_wp_review_range(mission.repo, mission.slug, "WP02", owned_files=[mission.owned])
+
+    assert review.status is not RangeStatus.UNAVAILABLE, f"the review range must be available; gap={review.gap}"
+    assert review.gap != RangeGap.PLANNING_RANGE_BOOKKEEPING_ONLY, review
+    assert owned_sha in {commit.sha for commit in review.commits}, f"the review range must list the owned commit {owned_sha}; range={review}"
 
 
 def test_a_hollow_planning_work_package_is_still_refused(tmp_path: Path) -> None:
+    """SC-002: no owned change anywhere is refused; the window and the remedy name the Mission branch."""
     mission = setup_default_mission(tmp_path)
-    _claim_planning_wp(mission)
+    _implement_planning_wp(mission)
 
     moved = _move_into_review(mission)
-    output = moved.stdout + moved.stderr
+    output = _flat(moved)
 
     assert moved.returncode != 0, f"a planning work package with no owned change must still be refused. output:\n{output[-3000:]}"
-    assert "IMPLEMENTATION_MISSING" in output, output[-3000:]
+    assert _MISSING in output, output[-3000:]
+    assert f"..{mission.topic_branch} (lane-planning)" in output, f"the window must end at the Mission branch. output:\n{output[-3000:]}"
+    assert f"on the Mission branch {mission.topic_branch}" in output, f"the remedy must name the Mission branch. output:\n{output[-3000:]}"
+    assert _TARGET_ONLY not in output, f"a hollow work package never gets the in-flight addendum. output:\n{output[-3000:]}"
+
+
+def test_a_sibling_commit_is_not_the_work_packages_evidence(tmp_path: Path) -> None:
+    """Two planning WPs share the coordination worktree: a commit in WP02's window that touches only WP05's file is not WP02's evidence.
+
+    The ``for_review`` gate is coarse (any non-status commit since the claim base), so the evidence
+    axis is the real check: WP02 is refused, WP05 (whose file it is) moves into review.
+    """
+    mission = setup_default_mission(tmp_path)
+    workspace, _out = _implement_planning_wp(mission, "WP02")
+    _implement_planning_wp(mission, "WP05")
+    _write_and_commit(workspace, _SIBLING_OWNED.format(slug=mission.slug), "# WP05 research\n", "feat(WP05): other research")
+
+    refused = _move_into_review(mission, "WP02", "T2")
+    refused_output = _flat(refused)
+    moved = _move_into_review(mission, "WP05", "T5")
+    moved_output = _flat(moved)
+
+    assert refused.returncode != 0, f"a sibling's commit is not WP02's evidence. output:\n{refused_output[-3000:]}"
+    assert f"{_MISSING}: WP02" in refused_output, refused_output[-3000:]
+    assert moved.returncode == 0, f"the sibling's own work moves it into review. output:\n{moved_output[-3000:]}"
+
+
+def test_pre_existing_owned_file_is_not_evidence(tmp_path: Path) -> None:
+    """FR-010: an owned file written on the Mission branch during planning, before the claim, never counts."""
+    mission = setup_default_mission(tmp_path)
+    _write_and_commit(mission.topic_checkout, mission.owned, "planning-time draft\n", "docs: research draft written during planning")
+
+    _implement_planning_wp(mission)
+    moved = _move_into_review(mission)
+    output = _flat(moved)
+
+    assert moved.returncode != 0, f"content authored before the claim is not the work package's evidence. output:\n{output[-3000:]}"
+    assert _MISSING in output, output[-3000:]
+    assert _TARGET_ONLY not in output, output[-3000:]
+
+
+def test_target_only_planning_work_is_refused(tmp_path: Path) -> None:
+    """SC-004 / FR-007: work committed on the target only (the old guidance) is refused, naming that commit and both remedies.
+
+    Ruling A' no longer treats the repository root checkout on the target as the planning
+    workspace of a default Mission that has not landed. An unrelated commit made on the target
+    afterwards is the negative control: it is never named.
+    """
+    mission = setup_default_mission(tmp_path)
+    _implement_planning_wp(mission)
+    assert _git(mission.repo, "rev-parse", "--abbrev-ref", "HEAD") == "main", "fixture: the settlement returns the root checkout to the target"
+    owned_sha = _write_and_commit(mission.repo, mission.owned, "# WP02 research\n", "feat(WP02): research notes on the target")
+    unrelated_sha = _write_and_commit(mission.repo, "docs/unrelated.md", "# unrelated\n", "docs: unrelated change")
+
+    moved = _move_into_review(mission)
+    output = _flat(moved)
+
+    assert moved.returncode != 0, f"work on the target only is not evidence before the landing. output:\n{output[-3000:]}"
+    assert _MISSING in output, output[-3000:]
+    assert _TARGET_ONLY in output, f"the refusal must say the owned change is on the target only. output:\n{output[-3000:]}"
+    assert owned_sha in output, f"the refusal must name the owned commit. output:\n{output[-3000:]}"
+    assert unrelated_sha not in output, f"an unrelated commit is never named. output:\n{output[-3000:]}"
+    assert f"cherry-pick {owned_sha} onto the Mission branch {mission.topic_branch}" in output, output[-3000:]
+    assert f"{_ATTEST} WP02" in output, output[-3000:]
+
+
+def test_explicit_topology_keeps_the_repository_root_checkout(tmp_path: Path) -> None:
+    """SC-003 / FR-006: an explicit-topology Mission keeps the repository root checkout and the target window."""
+    mission = setup_default_mission(tmp_path, topology="lanes_with_coord")
+    meta = _meta(mission)
+    assert meta.get("topology_source") != "default", f"fixture: an explicit topology; meta={meta}"
+    assert mission.topic_checkout.resolve() == mission.repo.resolve(), "fixture: the planning artifacts stay in the repository root checkout"
+
+    workspace, implement_output = _implement_planning_wp(mission)
+
+    assert workspace.resolve() == mission.repo.resolve(), f"implement must name the repository root checkout. output:\n{implement_output[-3000:]}"
+    _write_and_commit(workspace, mission.owned, "# WP02 research\n", "feat(WP02): research notes")
+    moved = _move_into_review(mission)
+    output = _flat(moved)
+
+    assert moved.returncode == 0, f"work in the repository root checkout keeps passing for an explicit topology. output:\n{output[-3000:]}"
+
+
+_POLICY = json.dumps(
+    {
+        "orchestrator_id": "qa-orch",
+        "orchestrator_version": "0.1.0",
+        "agent_family": "claude",
+        "approval_mode": "supervised",
+        "sandbox_mode": "sandbox",
+        "network_mode": "restricted",
+        "dangerous_flags": [],
+    }
+)
+
+
+def test_a_removed_coordination_worktree_fails_closed(tmp_path: Path) -> None:
+    """Residual 8a (pinned, not fixed): with the coordination worktree gone, both claim verbs refuse at Mission lookup.
+
+    ``lanes.json`` and the Mission directory exist only on the Mission branch, so the Mission
+    lookup refuses before the workspace resolver can say ``PLANNING_CHECKOUT_MISSING``: the
+    orchestrator API answers a lookup code (``WP_NOT_FOUND`` here, ``MISSION_NOT_FOUND`` when no
+    Mission directory is found at all) and ``agent action implement`` refuses with "Error locating
+    work package: ... has no tasks directory".
+    Both fail closed: no claim is recorded, no workspace is named and nothing falls back to the
+    repository root checkout. The lookup refusal does not yet name contract C1's remedy
+    (``spec-kitty doctor coordination --mission <slug> --fix``); recorded as a residual in
+    ``docs/migrations/planning-lane-write-branch.md``. When the lookup learns that remedy, update
+    this pin.
+    """
+    mission = setup_default_mission(tmp_path)
+    _git(mission.repo, "worktree", "remove", "--force", str(mission.topic_checkout))
+
+    implemented = _sk(mission, "agent", "action", "implement", "WP02", "--agent", "alice", "--mission", mission.slug)
+    started = _sk(mission, "orchestrator-api", "start-implementation", "--mission", mission.slug, "--wp", "WP02", "--actor", "alice", "--policy", _POLICY)
+    implement_output = _flat(implemented)
+
+    assert implemented.returncode != 0, f"implement must refuse without the Mission branch checkout. output:\n{implement_output[-3000:]}"
+    # Today's order: the work package lookup refuses first ("no tasks directory"), not the resolver.
+    assert "Error locating work package" in implement_output, implement_output[-3000:]
+    assert f"Workspace: {mission.repo}" not in implement_output and f"Workspace: cd {mission.repo} " not in implement_output, implement_output[-3000:]
+    assert started.returncode != 0, started.stdout[-3000:]
+    # A lookup refusal, never a workspace: WP_NOT_FOUND on this real-CLI shape (the repository root
+    # checkout no longer carries the Mission's work packages); MISSION_NOT_FOUND where no Mission
+    # directory is found at all (WP03 review, residual 8a).
+    assert json.loads(started.stdout)["error_code"] in {"WP_NOT_FOUND", "MISSION_NOT_FOUND"}, started.stdout[-3000:]
+    claim_refs = _git(mission.repo, "for-each-ref", "--format=%(refname)", "refs/spec-kitty/")
+    assert "WP02" not in claim_refs, f"no claim base may be recorded; refs={claim_refs}"
