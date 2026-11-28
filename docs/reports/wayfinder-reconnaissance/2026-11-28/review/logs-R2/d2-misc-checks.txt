@@ -1,0 +1,19 @@
+service-v0.1.0-rc.2 {'command-cli-0.1.0-rc.2.jar': '453311d2af99e1e5', 'conformance-fixtures-0.1.0-rc.2.tar.gz': '5ee05deb34b5da47', 'contract-bundles-0.1.0-rc.2.tar.gz': 'be3f4af17961369a', 'contract-tools-0.1.0-rc.2.tar.gz': 'b15ef3a511367775', 'mission-status-api-0.1.0-rc.2.jar': 'ee4d2505c6f3059b'}
+service-v0.1.0-rc.1 {'conformance-fixtures-0.1.0-rc.1.tar.gz': '30b1a462b64b28fa', 'contract-bundles-0.1.0-rc.1.tar.gz': 'fbfa6f97dea2acd3', 'contract-tools-0.1.0-rc.1.tar.gz': '8ac707a2b30abfbc', 'mission-status-api-0.1.0-rc.1.jar': 'ee4d2505c6f3059b'}
+open-packs head packs declaring pack_level built-in: 7
+19
+activation corpus references in charter and events heads: 0
+# Activation ledger conformance table (FR-015, FR-024; data-model.md section 8).
+#
+# The portable corpus of core's fixed activation answers, for spec-kitty-charter
+# and open-packs to port. There is no export script: this file is the corpus.
+#
+# Rules:
+# * Plain data only. No expressions, and no repository path except the legacy
+#   surface names (charter_yaml, config_yaml, ledger).
+# * Every case lists each artifact it names under `artifacts`, in both
+#   spellings: {kind, stem, declared_id}. `declared_id == stem` when the
+#   artifact has no distinct declared id. Ids such as A, B, D are synthetic;
+#   ids such as 003-decision-documentation-requirement are built-in artifacts.
+rc.3: ok 46 errors 0 | ok: the charter service accepts every pack and refuses every invalid fixture exit=0 
+rc.1: ok 4 errors 14 | ok: non-vacuity: case-variant-readme refused at registration with validation_failed ok: non-vacuity: legacy-shapes refus

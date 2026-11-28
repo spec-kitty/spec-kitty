@@ -20,3 +20,12 @@ hatch_build.py:70:    if pack_fetch.check_pack(pin, dest) is pack_fetch.PackTree
 7:$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)
 10:$ unshare -n spec-kitty agent status validate --mission mission-base-window-bound-01M78XB4
 32:$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)
+## committed vs rebuilt, per work package, keys present in both that differ
+WP01 lane done done | differing shared keys ['agent', 'shell_pid', 'shell_pid_created_at'] | keys only in rebuilt 7 | only in committed ['implementer_of_record']
+WP02 lane done done | differing shared keys ['agent', 'shell_pid', 'shell_pid_created_at'] | keys only in rebuilt 8 | only in committed ['implementer_of_record']
+WP03 lane done done | differing shared keys ['agent', 'shell_pid', 'shell_pid_created_at'] | keys only in rebuilt 7 | only in committed ['implementer_of_record']
+WP04 lane done done | differing shared keys ['agent', 'shell_pid', 'shell_pid_created_at'] | keys only in rebuilt 7 | only in committed ['implementer_of_record']
+WP05 lane done done | differing shared keys ['agent', 'shell_pid', 'shell_pid_created_at'] | keys only in rebuilt 7 | only in committed ['implementer_of_record']
+   WP03 agent claude::python-pedro -> claude::reviewer-renata
+   WP03 shell_pid 7305 -> 9588
+   WP03 shell_pid_created_at 1794526523.26 -> 1794528499.83

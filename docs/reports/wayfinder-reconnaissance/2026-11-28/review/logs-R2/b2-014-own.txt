@@ -1,0 +1,3 @@
+units 44
+named by module path in docs/, README.md, COMPATIBILITY.md: 21 never: 23
+never named: ['_iso8601', 'analytics', 'build_lifecycle', 'clock', 'collaboration', 'connector', 'coordination_message', 'crdt', 'decision_moment', 'decisionpoint', 'error_log', 'gates', 'merge', 'mission_next', 'ops_invocation', 'profile_invocation', 'project_lifecycle', 'retrospective', 'storage', 'topology', 'validation_errors', 'work_observation', 'work_replay']

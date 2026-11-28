@@ -1,0 +1,23 @@
+mission | wps | wps with a changed value in a shared key | keys changed | wps losing a key | keys lost | wps gaining keys
+019-autonomous-multi-agent-orchestration-research | 8 | 0 | [] | 0 | [] | 0
+artifact-none-single-meaning-01M5365S | 3 | 3 | ['agent', 'shell_pid', 'shell_pid_created_at'] | 0 | [] | 3
+built-in-pack-from-open-packs-01M59V4T | 9 | 9 | ['shell_pid', 'shell_pid_created_at'] | 0 | [] | 9
+gate-scan-scope-completeness-01M6BTVM | 2 | 0 | [] | 0 | [] | 2
+implement-review-retrospect-reliability-01KQQSCW | 6 | 0 | [] | 0 | [] | 6
+integration-boundary-01KW0PBE | 5 | 0 | [] | 0 | [] | 0
+mission-base-window-bound-01M78XB4 | 5 | 5 | ['agent', 'shell_pid', 'shell_pid_created_at'] | 0 | [] | 5
+per-project-sync-consent-ledgers-01KZKMQZ | 11 | 0 | [] | 0 | [] | 7
+review-merge-gate-hardening-3-2-x-01KRC57C | 8 | 0 | [] | 0 | [] | 8
+stability-and-hygiene-hardening-2026-04-01KQ4ARB | 8 | 0 | [] | 0 | [] | 8
+terminus-reconciliation-attribution-integrity-01M3D4RW | 2 | 2 | ['shell_pid', 'shell_pid_created_at'] | 0 | [] | 2
+verification-trust-3115-01KYVYWM | 13 | 0 | [] | 0 | [] | 12
+TOTAL wps 80 {'changed': 19, 'lost': 0, 'gained': 62, 'missions_changed': 4, 'missions_lost': 0}
+committed:
+['actor', 'agent', 'force_count', 'implementer_of_record', 'lane', 'last_event_id', 'last_transition_at', 'review_result', 'shell_pid', 'shell_pid_created_at'] | agent = claude::python-pedro | ior = claude::python-pedro
+deleted then materialize (run A, no PYTHONPATH):
+['actor', 'agent', 'agent_profile', 'agent_profile_version', 'force_count', 'implementer_of_record', 'lane', 'last_event_id', 'last_transition_at', 'model', 'notes', 'provider', 'review_result', 'role', 'shell_pid', 'shell_pid_created_at', 'subtasks'] | agent = claude::reviewer-renata | ior = claude::python-pedro
+not deleted, materialize over the committed file:
+['actor', 'agent', 'agent_profile', 'agent_profile_version', 'force_count', 'lane', 'last_event_id', 'last_transition_at', 'model', 'notes', 'provider', 'review_result', 'role', 'shell_pid', 'shell_pid_created_at', 'subtasks'] | agent = claude::reviewer-renata | ior = None
+deleted then materialize with PYTHONPATH=<clone>/src:
+['actor', 'agent', 'agent_profile', 'agent_profile_version', 'force_count', 'implementer_of_record', 'lane', 'last_event_id', 'last_transition_at', 'model', 'notes', 'provider', 'review_result', 'role', 'shell_pid', 'shell_pid_created_at', 'subtasks'] | agent = claude::reviewer-renata | ior = claude::python-pedro
+0

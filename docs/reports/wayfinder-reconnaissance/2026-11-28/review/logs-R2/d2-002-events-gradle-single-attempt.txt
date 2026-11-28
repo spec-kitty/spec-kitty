@@ -1,0 +1,15 @@
+$ GRADLE_USER_HOME=<scratch>/gh-ev ./gradlew --no-daemon --max-workers=2 tasks --all   (single attempt, heap capped at 1g)
+exit 1
+26:* What went wrong:
+28:> Could not resolve all files for configuration ':build-logic:compilePluginsBlocksPluginClasspathElements'.
+29:   > Could not resolve org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.4.10.
+33:         > Could not resolve org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.4.10.
+34:            > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.4.10/kotlin-scripting-compiler-embeddable-2.4.10.pom'.
+35:               > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.4.10/kotlin-scripting-compiler-embeddable-2.4.10.pom'.
+36:                  > Received status code 429 from server: Too Many Requests
+45:BUILD FAILED in 2m 27s
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 27s
+3 actionable tasks: 3 executed
+Configuration cache entry stored.

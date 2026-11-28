@@ -1,0 +1,5 @@
+charter releases in artefact: 7 ['service-v0.1.0-rc.3', 'contract-packs-v0.1.0-rc.2', 'contract-charter-v0.2.0-rc.3', 'service-v0.1.0-rc.1', 'contract-charter-v0.2.0-rc.2', 'contract-packs-v0.1.0-rc.1', 'contract-charter-v0.2.0-rc.1']
+smoke: references 13 distinct 5
+rows 5 cells 25 {'not established': 3, 'partly': 12, 'established': 3, 'established as a unit, started by a user or ci only': 2, 'not assessable': 3, 'established as a unit': 1, 'established for the released artefact (8 of 8 pinned digests match; runs from the asset); build from a clean clone not assessable (dependency retrieval answered http 429) [f-d2-003, f-d2-002]': 1}
+{'logical': {'not established': 3, 'partly': 2}, 'contract': {'partly': 5}, 'source': {'partly': 3, 'not assessable': 2}, 'distribution': {'established': 3, 'established for the released artefact (8 of 8 pinned digests match; runs from the asset); build from a clean clone not assessable (dependency retrieval answered http 429) [f-d2-003, f-d2-002]': 1, 'partly': 1}, 'deployment': {'established as a unit, started by a user or ci only': 2, 'established as a unit': 1, 'partly': 1, 'not assessable': 1}}
+requests.json
