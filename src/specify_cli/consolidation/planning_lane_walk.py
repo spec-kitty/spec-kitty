@@ -10,9 +10,11 @@ Before a default Mission lands, its planning lane is walked on the Mission branc
 ``lanes.json``'s planning pin to the coordination base (:func:`_lane_walk_range`). Each approved
 work package is credited only inside its own window, from the commit that introduced its claim on
 the Mission branch (``wp_evidence.planning_evidence_window``, the evidence axis' one decision) to
-the coordination base, counting only the commits that descend from that claim commit (``git rev-list
+the commit that introduced its newest review approval, else its newest forced move into ``approved``
+(:func:`_planning_window_ends`, ``wp_evidence.planning_approval_end``; review M1), counting only the commits that descend from that claim commit (``git rev-list
 --ancestry-path``: a commit a merge brought in beside the claim never came after it), and only for
-its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2, 2026-11-27). No merge commit
+its own ``owned_files``, read as committed at the coordination base (:func:`_planning_ownership`, review M2;
+``--resume`` already freezes that base), (:func:`_planning_scope`, operator ruling R2, 2026-11-27). No merge commit
 is in any window, so no merge is credited by SHA, patch-id, blob or deletion: a merge that resolved
 a conflict lists the resolved path, and its blob can carry a change made before the claim (review
 6). The final-state walk (:func:`_scoped_final_walk`) reads the whole first-parent spine from the
@@ -39,17 +41,13 @@ in flight, or with no status row: the claim admits a commit by its paths, never 
 operator ruling R1), when any ``owned_files`` cannot be read, when a pattern has fewer than two
 literal leading path segments and names no top-level file (:func:`_is_whole_tree_pattern`,
 ``planning_lane_scope``), when every ``owned_files`` list is empty, when any approved work package's
-window start cannot be proven, or when the Mission records no Mission base (a derived one is not
+window start or end (its approval commit) cannot be proven, or when the Mission records no Mission base (a derived one is not
 trusted), its recorded base is not a commit on the target or not below the pin, or its spine cannot
 be read. No attestation lifts this planning-lane credit rule. An un-attributable FAIL about the
 lane's paths then names the lane, the reason, the work packages and the remedy
 (``planning_lane_scope.planning_lane_notes``), with no change to the verdict.
 
-Residuals of that window. The planning lane has no approval-stamp bound: a change to an approved
-work package's owned path made after its approval, by any commit on the Mission branch, still
-counts as approved authorship. ``owned_files`` is read from the working tree's task files (the
-placement seam's ``tasks/`` directory), not at ``coord_base_ref``, and ``--resume`` does not freeze
-it, so an ``owned_files`` edit between runs changes the scope. And two shapes read as an added
+Residuals of that window. Two shapes read as an added
 file, credited as the commit's own work, whose whole content the review diff shows as added lines:
 a copy whose source the same commit left unchanged (copy detection is git's default ``-C``, not
 ``--find-copies-harder``, whose cost grows with the tree: about 170 ms a commit on a 41,000-file
@@ -144,12 +142,16 @@ def _lane_walk_range(
     return coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id), ()
 
 
-def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str]) -> dict[str, tuple[str, ...]]:
-    """*wp_ids*' authored ``owned_files`` globs, read through the evidence axis' one reader; an unresolved id is absent."""
-    from specify_cli.consolidation.wp_evidence import read_wp_ownership
+def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str], ref: str) -> dict[str, tuple[str, ...]]:
+    """*wp_ids*' authored ``owned_files`` globs as committed at *ref* (the Mission-branch tip judged); an unresolved id is absent.
 
-    # ``feature_dir`` is unused by the reader (it reads the placement seam's tasks dir, never a fallback).
-    resolved, _reasons, _tasks_dir = read_wp_ownership(repo_root, mission_slug, repo_root, tuple(wp_ids))
+    Read from the committed task files (``wp_evidence.read_wp_ownership_at_ref``), never the
+    working tree, so an uncommitted widening cannot widen the credit (review M2). *ref* is the
+    claim's coordination base, which ``--resume`` already freezes (``pre_mutation_coord_sha``).
+    """
+    from specify_cli.consolidation.wp_evidence import read_wp_ownership_at_ref
+
+    resolved, _reasons = read_wp_ownership_at_ref(repo_root, mission_slug, tuple(wp_ids), ref)
     return dict(resolved)
 
 
@@ -158,8 +160,9 @@ def _approved_planning_scope(
     lanes_manifest: LanesManifest,
     lane: ExecutionLane,
     work_packages: Mapping[str, Mapping[str, object]],
+    coord_base_ref: str,
 ) -> dict[str, tuple[str, ...]]:
-    """Each planning work package's ``owned_files``, or ``{}`` when they cannot scope the window (fail closed).
+    """Each planning work package's ``owned_files`` committed at *coord_base_ref*, or ``{}`` when they cannot scope the window (fail closed).
 
     ``{}`` when any work package of the lane is not approved (:func:`_is_approved_wp`: canceled,
     in flight, or with no status row; operator ruling R1, 2026-11-27): the claim admits a commit by
@@ -170,7 +173,7 @@ def _approved_planning_scope(
     """
     if not lane.wp_ids or not all(_is_approved_wp(wp, work_packages) for wp in lane.wp_ids):
         return {}
-    owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids, coord_base_ref)
     if any(wp not in owned for wp in lane.wp_ids):
         return {}
     if any(_is_whole_tree_pattern(pattern) for patterns in owned.values() for pattern in patterns):
@@ -207,11 +210,37 @@ def _planning_window_starts(
     return starts
 
 
+def _planning_window_ends(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    wp_ids: Sequence[str],
+    events: Callable[[], Sequence[Any] | None] | None,
+) -> dict[str, str] | None:
+    """Each work package's window end, the commit on the Mission branch that introduced its newest approval, or ``None``.
+
+    The planning lane's approval bound (review M1, mirroring ``approved_bound`` on a code lane): a
+    change to an owned path after the approval is not approved authorship, so it is
+    un-attributable and the gate FAILs. ``None`` (the lane then authors nothing) when no event
+    reader was given or any end cannot be proven.
+    """
+    from specify_cli.consolidation.wp_evidence import PlanningWindowUnresolved, planning_approval_end
+
+    if events is None:
+        return None
+    ends: dict[str, str] = {}
+    for wp_id in wp_ids:
+        try:
+            ends[wp_id] = planning_approval_end(repo_root, lanes_manifest, wp_id, events())
+        except PlanningWindowUnresolved:
+            return None
+    return ends
+
+
 @dataclass(frozen=True)
 class _PlanningScope:
     """Per approved work package: its ``owned_files`` and its window's commits (ruling R2).
 
-    The window holds the commits of ``<claim commit>..<coordination base>`` that descend from the claim
+    The window holds the commits of ``<claim commit>..<approval commit>`` that descend from the claim
     commit, less every merge commit (review 6): a merge that resolved a conflict lists the resolved path
     and its blob can carry a change made before the claim, so no merge is ever credited.
     """
@@ -246,17 +275,20 @@ def _planning_scope(
     """The :class:`_PlanningScope` of a planning lane, or ``None`` when the lane authors nothing (fail closed).
 
     ``None`` when :func:`_approved_planning_scope` gives nothing, when any work package's window
-    start cannot be computed (:func:`_planning_window_starts`), or when a window's commits cannot be
+    start or end cannot be computed (:func:`_planning_window_starts`, :func:`_planning_window_ends`), or when a window's commits cannot be
     read. A scope whose every ``owned_files`` list is empty has no patterns and keeps today's range.
     """
-    owned = _approved_planning_scope(repo_root, lanes_manifest, lane, work_packages)
+    owned = _approved_planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref)
     if not owned:
         return None
     starts = _planning_window_starts(repo_root, lanes_manifest, lane, tuple(owned), events)
     if starts is None or any(wp not in starts for wp in owned):
         return None
+    ends = _planning_window_ends(repo_root, lanes_manifest, tuple(owned), events)
+    if ends is None or any(wp not in ends for wp in owned):
+        return None
     try:
-        windows = tuple((owned[wp], frozenset(commits_on_ancestry_path(repo_root, starts[wp], coord_base_ref, no_merges=True))) for wp in owned)
+        windows = tuple((owned[wp], frozenset(commits_on_ancestry_path(repo_root, starts[wp], ends[wp], no_merges=True))) for wp in owned)
     except GitProbeError:
         return None
     return _PlanningScope(windows)
@@ -277,15 +309,12 @@ def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: _PlanningScope,
     commit may enter the claim by SHA and patch-id: a mixed commit (a credited path plus any other)
     would otherwise attribute its other change, and every cherry-picked copy of it, on the merge /
     rebase closed world. Its credited blobs are still attributed. Bookkeeping is the gate's own
-    :func:`_is_bookkeeping`. An unreadable commit is dropped (fail closed).
+    :func:`_is_bookkeeping`. A commit whose paths cannot be read raises :class:`GitProbeError` (the gate REFUSEs).
     """
     touching: list[str] = []
     whole: set[str] = set()
     for sha in shas:
-        try:
-            paths = changed_paths_of(repo_root, sha)
-        except GitProbeError:
-            continue
+        paths = changed_paths_of(repo_root, sha)
         credited = [scope.owns(sha, path) for path in paths]
         if not any(credited):
             continue
@@ -466,6 +495,7 @@ __all__ = [
     "_planning_ownership",
     "_planning_scope",
     "_planning_walk",
+    "_planning_window_ends",
     "_planning_window_starts",
     "_scoped_final_walk",
     "_taint_base",

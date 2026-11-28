@@ -204,6 +204,7 @@ def _why_unscoped(
     lane: ExecutionLane,
     work_packages: Mapping[str, Mapping[str, object]],
     events: Callable[[], Sequence[Any] | None] | None,
+    coord_base_ref: str,
 ) -> str:
     """The first reason, in the claim's own order, why *lane* credits nothing, with its remedy."""
     from specify_cli.consolidation import planning_lane_walk as walk
@@ -213,10 +214,13 @@ def _why_unscoped(
     if not_approved:
         states = ", ".join(f"{wp} is {_lane_state(wp, work_packages)}" for wp in not_approved)
         return f"{states}. {_not_approved_remedy(not_approved, work_packages, lanes_manifest.mission_slug)}"
-    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids, coord_base_ref)
     unreadable = [wp for wp in lane.wp_ids if wp not in owned]
     if unreadable:
-        return f"the owned_files of {_named(unreadable)} cannot be read. Restore each task file with its owned_files list, {_RERUN}"
+        return (
+            f"the owned_files of {_named(unreadable)} cannot be read from its task file committed on the Mission branch. "
+            f"Commit each task file with its owned_files list, {_RERUN}"
+        )
     broad = [f"{wp} '{pattern}'" for wp in lane.wp_ids for pattern in owned[wp] if is_whole_tree_pattern(pattern)]
     if broad:
         return (
@@ -230,16 +234,23 @@ def _why_unscoped(
             for wp in unproven
         )
         return f"the commit that introduced the claim of {_named(unproven)} on the Mission branch cannot be proven. Recovery, {steps}"
+    unended = [wp for wp in lane.wp_ids if walk._planning_window_ends(repo_root, lanes_manifest, (wp,), events) is None]
+    if unended:
+        return (
+            f"the commit that introduced the review approval of {_named(unended)} on the Mission branch cannot be proven, so the "
+            f"work after its approval cannot be told from the approved work. Commit the status events of the approval on the Mission "
+            f"branch (a work package approved again after rework needs its newest approval committed), {_RERUN}"
+        )
     if not any(owned.values()):
         return f"every planning work package's owned_files list is empty. List the paths each one changes in its owned_files, {_RERUN}"
     return f"the commits of a work package's window on the Mission branch cannot be read. Make the Mission branch readable, {_RERUN}"
 
 
-def _note_patterns(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane) -> tuple[str, ...]:
+def _note_patterns(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, coord_base_ref: str) -> tuple[str, ...]:
     """The lane's ``write_scope`` and every readable ``owned_files`` pattern of its work packages: what a note covers."""
     from specify_cli.consolidation import planning_lane_walk as walk
 
-    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids, coord_base_ref)
     return tuple(sorted({*lane.write_scope, *(pattern for patterns in owned.values() for pattern in patterns)}))
 
 
@@ -336,9 +347,9 @@ def planning_lane_notes(
                 continue
             reason = _no_taint_base_reason(mission_base, taint_base, lanes_manifest.target_branch)
         else:
-            reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)
+            reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events, coord_base_ref)
         text = f"The planning lane {lane.lane_id} credits none of its work on the Mission branch to any work package (#7860): {reason}."
-        patterns = _note_patterns(repo_root, lanes_manifest, lane)
+        patterns = _note_patterns(repo_root, lanes_manifest, lane, coord_base_ref)
         commits, paths = _note_coverage(repo_root, window, patterns, lanes_manifest.mission_slug)
         notes.append(PlanningLaneNote(text, patterns, commits, paths))
     return tuple(notes)

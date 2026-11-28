@@ -464,6 +464,11 @@ def _newest_approval(events: Sequence[StatusEvent], wp_id: str) -> StatusEvent |
     return newest
 
 
+def newest_approval_event(events: Sequence[StatusEvent], wp_id: str) -> StatusEvent | None:
+    """*wp_id*'s newest approval event (the one :func:`approval_stamp` reads), or ``None`` when it has none."""
+    return _newest_approval(events, wp_id)
+
+
 def approval_metadata(events: Sequence[StatusEvent], wp_id: str) -> Mapping[str, object] | None:
     """The ``policy_metadata`` of *wp_id*'s newest approval (the input of :func:`effective_stamp`), ``None`` when it has none."""
     newest = _newest_approval(events, wp_id)
