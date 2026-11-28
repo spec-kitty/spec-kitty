@@ -1,0 +1,15 @@
+$ HOME=<scratch> spec-kitty --version
+exit 0
+top-level entries in scratch HOME after:
+$ HOME=<scratch> spec-kitty agent profile list
+exit 1
+╰─────────────────────────────────────────────────────────────────�
+TaskCliError: Unable to locate repository root (missing .git or .kittify).
+top-level entries in scratch HOME after:
+.agents
+.claude
+.kilocode
+.kittify
+.qwen
+.spec-kitty-cold-install
+cwd entries:

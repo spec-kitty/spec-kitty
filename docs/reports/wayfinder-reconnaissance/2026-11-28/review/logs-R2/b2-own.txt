@@ -1,0 +1,3 @@
+events py graph (own extractor):
+{"modules": 70, "lines": 23310, "components": 1, "edges_all": 204, "edges_load": 192, "xcomp_all": 0, "xcomp_load": 0, "per_kloc": 0.0, "scc_all": [3, 3, 1], "scc_load": [0, 0, 0], "comp_pairs": 0, "top": {}}
+__all__ 461 461

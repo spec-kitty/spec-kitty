@@ -1,0 +1,6 @@
+file entries 3357
+primary N 3357 overlap 30 of 30; same order False
+secondary-excluding-ruff-baselines N 1092 overlap 12 of 30; same order False
+secondary-excluding-ruff-baselines N 1092 overlap 28 of 30; same order False
+mine not theirs set()
+theirs not mine set()

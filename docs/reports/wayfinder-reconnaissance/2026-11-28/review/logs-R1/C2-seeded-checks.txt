@@ -1,0 +1,11 @@
+nonmerge since 2025-12-31 19807 since 2026-01-01 19807
+nonbulk 19785 code 6345
+Counter({'docs-only': 7111, 'code': 6345, 'tests-only': 3224, 'other': 2861, 'four-trees': 244})
+Counter({'converged': 3026, 'pre-fork': 2339, 'experimental': 703, 'public': 277})
+n 50 po 0.76 kappa 0.618
+T1 commits with new-to-tree pairs 29
+T2 commits with new-to-tree pairs 13
+T3 commits with new-to-tree pairs 7
+T1 corrective added per commit top [75, 7, 5, 2, 1, 1] sum 95
+T1 {'period': 'T1', 'line': 'all-lines', 'component': 'charter/offering', 'code_commits_touching': '204', 'code_commits_in_period': '947', 'share': '0.2154'}
+T3 {'period': 'T3', 'line': 'all-lines', 'component': 'charter/offering', 'code_commits_touching': '203', 'code_commits_in_period': '3026', 'share': '0.0671'}

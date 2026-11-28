@@ -1,0 +1,7 @@
+$ own search: cross-repository/pin/test reads in acceptance
+src/specify_cli/acceptance/__init__.py:1762:    subprocess -- safe to run while the status lock is held) runs INSIDE
+src/specify_cli/acceptance/execution_context.py:305:    # ``result.stdout`` widens to ``Any`` across the subprocess boundary; bind
+src/specify_cli/acceptance/matrix.py:15:import subprocess
+src/specify_cli/acceptance/matrix.py:595:    check/subprocess AND before this lock is acquired, and reused unchanged
+src/specify_cli/acceptance/matrix.py:808:    acceptance-record write (never a subprocess -- that could deadlock on
+src/specify_cli/acceptance/matrix.py:1374:        result = subprocess.run(

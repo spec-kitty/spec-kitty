@@ -1,0 +1,28 @@
+install 4.0.0rc8 exit 0
+4.0.0rc8 | --version | exit 0 | spec-kitty-cli version 4.0.0rc8
+4.0.0rc8 | --help | exit 0 |   workflow            Manage mission workflow definitions
+4.0.0rc8 | doctor --help | exit 0 | 
+4.0.0rc8 | agent --help | exit 0 | 
+4.0.0rc8 | service --help | exit 0 | 
+4.0.0rc8 | service status | exit 0 | No service is pinned in this spec-kitty version yet.
+4.0.0rc8 | charter --help | exit 0 | 
+4.0.0rc8 | migrate --help | exit 0 | 
+install 3.2.7 exit 0
+3.2.7 | --version | exit 0 | spec-kitty-cli version 3.2.7
+3.2.7 | --help | exit 0 |   workflow            Manage mission workflow definitions
+3.2.7 | doctor --help | exit 0 | 
+3.2.7 | agent --help | exit 0 | 
+3.2.7 | service --help | exit 2 | ╰─────────────────────────────────────────────�
+3.2.7 | service status | exit 2 | ╰─────────────────────────────────────────────�
+3.2.7 | charter --help | exit 0 | 
+3.2.7 | migrate --help | exit 0 | 
+anyio==4.16.0
+certifi==2026.11.20
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.29.0
+idna==3.20
+spec-kitty-tracker==0.5.2
+typing-extensions==4.16.0
+0.5.2 116
+tracker import exit 0

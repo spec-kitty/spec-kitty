@@ -1,0 +1,10 @@
+ledgers 75 entries 4969 leaves 30
+
+real	1m55.500s
+user	1m44.307s
+sys	0m10.485s
+rerun rows 75 committed rows 75
+DIFF spec-kitty layer-ledger-runtime-allowed-specify-cli {'note': ('31 commits to file on first-parent history', '31 commits to file on first-parent history; added/removed in range are a parsing artefact of one revision in which the block did not parse (22 added, 22 removed); the ratchet leaf test_layer_rules.runtime_allowed_specify_cli shows 23 -> 22 over the range')}
+rows differing 1
+dict_keys(['repo', 'ledger', 'path', 'key', 'first_seen', 'age_days', 'issue', 'adr', 'retire', 'owner', 'rationale', 'approval', 'blob'])
+4969

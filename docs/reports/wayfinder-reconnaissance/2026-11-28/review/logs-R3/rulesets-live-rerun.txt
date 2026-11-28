@@ -1,0 +1,27 @@
+## spec-kitty
+26307330	1.x-maintenance	active
+26307323	main-1	active
+26307324	main-2	active
+## spec-kitty-charter
+24998670	Protect main	active
+## spec-kitty-events
+26558116	main	active
+26752412	service-release-tags	active
+## spec-kitty-open-packs
+26594729	main	active
+## doc-kitty
+26307384	m1	active
+26307385	m2	active
+26307386	m3	active
+## spec-kitty ruleset 26307324
+{"bypass":[["RepositoryRole","always"]],"enforcement":"active","name":"main-2","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":[],"reviews":0,"strict":null,"type":"pull_request"},{"ctx":["Clean install verification","router gate","CI Modules gate"],"reviews":null,"strict":false,"type":"required_status_checks"}]}
+## spec-kitty ruleset 26307323
+{"bypass":[["User","always"]],"enforcement":"active","name":"main-1","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"deletion"},{"ctx":[],"reviews":null,"strict":null,"type":"non_fast_forward"},{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":[],"reviews":0,"strict":null,"type":"pull_request"}]}
+## spec-kitty-charter ruleset 24998670
+{"bypass":[["User","always"]],"enforcement":"active","name":"Protect main","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"deletion"},{"ctx":[],"reviews":null,"strict":null,"type":"non_fast_forward"},{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":[],"reviews":0,"strict":null,"type":"pull_request"},{"ctx":["gate"],"reviews":null,"strict":false,"type":"required_status_checks"}]}
+## spec-kitty-events ruleset 26558116
+{"bypass":[["User","always"]],"enforcement":"active","name":"main","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"deletion"},{"ctx":[],"reviews":null,"strict":null,"type":"non_fast_forward"},{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":[],"reviews":0,"strict":null,"type":"pull_request"},{"ctx":["acceptance","service-gate","cross-repo-harness-tests","docs-build"],"reviews":null,"strict":false,"type":"required_status_checks"}]}
+## spec-kitty-open-packs ruleset 26594729
+{"bypass":[["User","always"],["User","always"]],"enforcement":"active","name":"main","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"deletion"},{"ctx":[],"reviews":null,"strict":null,"type":"non_fast_forward"},{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":[],"reviews":0,"strict":null,"type":"pull_request"},{"ctx":["Validate packs gate","Charter service validation"],"reviews":null,"strict":false,"type":"required_status_checks"}]}
+## doc-kitty ruleset 26307385
+{"bypass":[["RepositoryRole","always"]],"enforcement":"active","name":"m2","rules":[{"ctx":[],"reviews":null,"strict":null,"type":"required_linear_history"},{"ctx":["ci-ok"],"reviews":null,"strict":true,"type":"required_status_checks"}]}

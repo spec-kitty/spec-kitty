@@ -1,0 +1,18 @@
+('2026-01', 'pre-fork') 182 35.2
+('2026-02', 'pre-fork') 319 27.0
+('2026-03', 'pre-fork') 62 48.4
+('2026-04', 'pre-fork') 218 66.1
+('2026-05', 'pre-fork') 291 48.5
+('2026-06', 'pre-fork') 438 53.0
+('2026-07', 'pre-fork') 504 41.3
+('2026-08', 'experimental') 479 30.1
+('2026-08', 'pre-fork') 325 37.8
+('2026-08', 'public') 183 45.4
+('2026-09', 'converged') 799 34.4
+('2026-09', 'experimental') 224 34.4
+('2026-09', 'public') 94 35.1
+('2026-10', 'converged') 1167 36.9
+('2026-11', 'converged') 1060 31.5
+Counter({'multi-component': 617, 'contract': 27, 'pin-lock': 10, 'multi-component+contract': 9, 'multi-component+pin-lock': 3})
+fisher 0.0673
+meta 857 accepted_at 430

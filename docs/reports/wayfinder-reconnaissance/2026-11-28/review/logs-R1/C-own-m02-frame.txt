@@ -1,0 +1,5 @@
+window fix commits 2276 A 666 B 1262 neither 348
+m02a investigator frame 666 mine 666 common 666 only inv 0 only mine 0
+m02a seeded sample of investigator frame equals traced sample: True 30
+m02b investigator frame 1262 mine 1262 common 1262 only inv 0 only mine 0
+m02b seeded sample of investigator frame equals traced sample: True 30

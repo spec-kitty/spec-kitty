@@ -1,0 +1,20 @@
+spec-kitty-events curl exit 0
+spec-kitty-tracker curl exit 0
+spec-kitty-cli curl exit 0
+spec-kitty-events releases 29 latest ['10.4.6', '10.5.0', '10.5.1', '11.0.0', '11.3.0']
+  in range >=11.3.0,<12 : ['11.3.0'] yanked: []
+spec-kitty-tracker releases 7 latest ['0.3.0', '0.4.1', '0.4.2', '0.4.3', '0.5.2']
+  in range >=0.5.2,<0.6 : ['0.5.2'] yanked: []
+spec-kitty-cli releases 177 latest ['4.0.0rc6', '4.0.0rc7', '4.0.0rc8', '4.1.5', '4.2.0a1']
+3:version = "4.0.0rc9"
+70:    # spec-kitty-events / spec-kitty-tracker: public shared-package
+80:    "spec-kitty-events>=11.3.0,<12",
+81:    "spec-kitty-tracker>=0.5.2,<0.6",
+    { name = "spec-kitty-events" },
+    { name = "spec-kitty-tracker" },
+    { name = "toml" },
+--
+    { name = "spec-kitty-events", specifier = ">=11.3.0,<12" },
+    { name = "spec-kitty-services", marker = "extra == 'services'", editable = "packages/spec-kitty-services" },
+    { name = "spec-kitty-tracker", specifier = ">=0.5.2,<0.6" },
+    { name = "toml", specifier = ">=0.10.2" },

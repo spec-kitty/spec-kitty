@@ -1,0 +1,40 @@
+Counter({'replicated': 342, 'not replicated': 121, 'descriptive': 9, 'not comparable': 5})
+('M01c mean components', 'not replicated') 11
+('M01c mean components', 'replicated') 45
+('M01c median components', 'not replicated') 6
+('M01c median components', 'replicated') 49
+('M01c p90 components', 'not replicated') 13
+('M01c p90 components', 'replicated') 29
+('M01d share >=2 components', 'not replicated') 9
+('M01d share >=2 components', 'replicated') 47
+('M01d share >=2 top-level packages', 'not replicated') 19
+('M01d share >=2 top-level packages', 'replicated') 23
+('M01f', 'descriptive') 3
+('M01f', 'not replicated') 17
+('M01f', 'replicated') 4
+('M01g', 'not comparable') 1
+('M01g', 'replicated') 9
+('M02', 'not replicated') 1
+('M02a', 'descriptive') 1
+('M02a', 'not comparable') 2
+('M02a', 'not replicated') 4
+('M02a', 'replicated') 5
+('M02b', 'descriptive') 1
+('M02b', 'not replicated') 2
+('M02b', 'replicated') 5
+('classification', 'descriptive') 4
+('classification', 'replicated') 2
+('co-change', 'not replicated') 2
+('co-change', 'replicated') 41
+('convergence merge', 'replicated') 6
+('events sibling', 'not comparable') 1
+('events sibling', 'not replicated') 3
+('events sibling', 'replicated') 18
+('recurrence', 'not replicated') 2
+('recurrence', 'replicated') 3
+('refix within 14 days', 'not comparable') 1
+('refix within 14 days', 'not replicated') 2
+('refix within 14 days', 'replicated') 1
+('volume', 'not replicated') 30
+('volume', 'replicated') 55
+[('T1', 14, 216, 173), ('T2-pooled', 15, 120, 108), ('T2-public-pooled(sum)', 14, 78, 54), ('T2-experimental', 15, 15, 15), ('T3', 15, 127, 123)]

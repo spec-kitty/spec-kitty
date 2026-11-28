@@ -1,0 +1,55 @@
+./conformance/classifier-cases.yaml vendored=a9a2404ca4016224 pinned=e3b0c44298fc1c14 charter_head=d86c4484b199cc3b in_lock=1
+./file-kinds.yaml vendored=1fb9480f95669a21 pinned=e3b0c44298fc1c14 charter_head=ea62329c7ef3ad74 in_lock=1
+./schemas/pack-descriptor.schema.json vendored=15e5260de3ab8202 pinned=e3b0c44298fc1c14 charter_head=15938e85fa371c2f in_lock=1
+./schemas/pack-document.schema.json vendored=41331d15e99f7b7d pinned=e3b0c44298fc1c14 charter_head=41331d15e99f7b7d in_lock=1
+./schemas/pack-manifest.schema.json vendored=2dd287b8f59e2f50 pinned=e3b0c44298fc1c14 charter_head=2dd287b8f59e2f50 in_lock=1
+./schemas/policy.schema.json vendored=276d2f0873902202 pinned=e3b0c44298fc1c14 charter_head=276d2f0873902202 in_lock=1
+./schemas/preset.schema.json vendored=34842e591b9b9c44 pinned=e3b0c44298fc1c14 charter_head=34842e591b9b9c44 in_lock=1
+commits 33f3ad46..head: 182
+commits touching contracts/packs since pin: 14
+contract-packs-v0.1.0-rc.2
+33f3ad46e9e33e895d4cd3a077d928d91b4f025f
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/x/spec-kitty-charter/contracts/packs:
+CHANGELOG.md
+README.md
+conformance
+file-kinds.yaml
+schemas
+
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/x/spec-kitty-charter/contracts/packs/schemas:
+agent-profile.schema.json
+anti-pattern.schema.json
+asset.schema.json
+charter.schema.json
+directive.schema.json
+glossary.schema.json
+graph-shard.schema.json
+guard.schema.json
+lifecycle.schema.json
+mission-step-guidelines.schema.json
+mission-step-prompt.schema.json
+mission-type.schema.json
+org-fragment.schema.json
+pack-descriptor.schema.json
+pack-document.schema.json
+pack-manifest.schema.json
+paradigm.schema.json
+policy.schema.json
+preset.schema.json
+procedure.schema.json
+prompt-fragment.schema.json
+routing-catalog.schema.json
+skill.schema.json
+step-enhancement.schema.json
+styleguide.schema.json
+tactic.schema.json
+toolguide-guide.schema.json
+toolguide.schema.json
+corrected rerun (path prefix ./ removed):
+conformance/classifier-cases.yaml vendored=a9a2404ca4016224 pinned=a9a2404ca4016224 charter_head=d86c4484b199cc3b
+file-kinds.yaml vendored=1fb9480f95669a21 pinned=1fb9480f95669a21 charter_head=ea62329c7ef3ad74
+schemas/pack-descriptor.schema.json vendored=15e5260de3ab8202 pinned=15e5260de3ab8202 charter_head=15938e85fa371c2f
+schemas/pack-document.schema.json vendored=41331d15e99f7b7d pinned=41331d15e99f7b7d charter_head=41331d15e99f7b7d
+schemas/pack-manifest.schema.json vendored=2dd287b8f59e2f50 pinned=2dd287b8f59e2f50 charter_head=2dd287b8f59e2f50
+schemas/policy.schema.json vendored=276d2f0873902202 pinned=276d2f0873902202 charter_head=276d2f0873902202
+schemas/preset.schema.json vendored=34842e591b9b9c44 pinned=34842e591b9b9c44 charter_head=34842e591b9b9c44

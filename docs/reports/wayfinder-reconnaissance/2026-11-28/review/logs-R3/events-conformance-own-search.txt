@@ -1,0 +1,258 @@
+$ git grep -n pyargs events head
+.kittify/charter/charter.md:16:- Every PR also passes `uv run pytest --pyargs spec_kitty_events.conformance` (the packaged conformance gate) and a green Gradle check: `./gradlew verifyAll` runs every module's `check`; `m
+.kittify/charter/charter.md:43:- Quality Gates: pytest, committed schema generation checks, and mypy --strict must pass before merge. Every PR also passes `uv run pytest --pyargs spec_kitty_events.conformance` and a gree
+.kittify/charter/interview/answers.yaml:22:    before merge. Every PR also passes uv run pytest --pyargs
+.kittify/evidence/01M6NRWWS9V8TDQTY59V84GJQA/evidence.md:59:- Command: `uv run pytest --pyargs spec_kitty_events.conformance` (this repo's packaged contract gate)
+AGENTS.md:62:| Packaged conformance gate — every PR | `uv run pytest --pyargs spec_kitty_events.conformance` |
+CHANGELOG.md:414:  `pytest --pyargs spec_kitty_events.conformance`. Non-normative until the ADR 0001 cutover
+CHANGELOG.md:1296:- `conformance/test_pyargs_entrypoint.py` excludes the `zeitgeist_attrs`
+CHANGELOG.md:1300:  `pytest --pyargs spec_kitty_events.conformance` failed all 13 codec
+CHANGELOG.md:1890:  `pytest --pyargs spec_kitty_events.conformance`. Manifest-driven tests covering all event types,
+CHANGELOG.md:1944:   pytest --pyargs spec_kitty_events.conformance -v
+COMPATIBILITY.md:689:- Packaged tests, so `pytest --pyargs spec_kitty_events.conformance` runs both fixture sets.
+README.md:230:uv run pytest --pyargs spec_kitty_events.conformance   # packaged conformance gate — every PR
+contracts/coordination-message.md:171:(`pytest --pyargs spec_kitty_events.conformance`,
+docs/api/python-package.md:140:uv run pytest --pyargs spec_kitty_events.conformance -v
+docs/architecture/producer-row-schemas/README.md:47:| Packaged conformance tests (run by `pytest --pyargs spec_kitty_events.conformance`), in-repo tests, `COMPATIBILITY.md` and `CHANGELOG.md` entries | `src/spec_kitty_ev
+docs/guides/contributing.md:77:| Packaged conformance gate — **every PR** | `uv run pytest --pyargs spec_kitty_events.conformance` |
+docs/guides/service-cutover-runbook.md:389:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-ops/op-events-row-schemas/reviews/op-verify.final.yaml:5:  conformance_pyargs: "664 passed"
+kitty-specs/005-event-contract-conformance-suite/contracts/conformance-api.md:132:  run: pytest --pyargs spec_kitty_events.conformance -v
+kitty-specs/005-event-contract-conformance-suite/plan.md:12:3. **Conformance Suite** — Dual-layer validator (Pydantic-first + JSON Schema secondary), canonical fixtures with manifest, pytest `--pyargs` entry point.
+kitty-specs/005-event-contract-conformance-suite/plan.md:78:│   ├── test_pyargs_entrypoint.py  # pytest --pyargs entry point
+kitty-specs/005-event-contract-conformance-suite/quickstart.md:21:6. Run conformance: `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/005-event-contract-conformance-suite/quickstart.md:27:- `python3.11 -m pytest --pyargs spec_kitty_events.conformance` — full conformance suite.
+kitty-specs/005-event-contract-conformance-suite/quickstart.md:80:  run: pytest --pyargs spec_kitty_events.conformance -v
+kitty-specs/005-event-contract-conformance-suite/research.md:23:## R2: pytest `--pyargs` Conformance Pattern
+kitty-specs/005-event-contract-conformance-suite/research.md:25:**Decision**: Ship conformance tests inside `src/spec_kitty_events/conformance/` as a proper Python package with `test_pyargs_entrypoint.py`.
+kitty-specs/005-event-contract-conformance-suite/research.md:28:- `pytest --pyargs spec_kitty_events.conformance` resolves the installed package path via `importlib.util.find_spec()`, then applies normal test collection 
+kitty-specs/005-event-contract-conformance-suite/research.md:31:- Consumer's `testpaths` config does NOT interfere with `--pyargs` resolution.
+kitty-specs/005-event-contract-conformance-suite/research.md:36:- Shipping tests outside the package: Rejected — makes `--pyargs` impossible since pytest needs the files installed.
+kitty-specs/005-event-contract-conformance-suite/spec.md:28:A CI pipeline in `spec-kitty` or `spec-kitty-saas` runs `pytest --pyargs spec_kitty_events.conformance` as a required check. The conformance suite validates tha
+kitty-specs/005-event-contract-conformance-suite/spec.md:36:1. **Given** a consumer CI pipeline pins `spec-kitty-events>=2.0.0,<3.0.0`, **When** `pytest --pyargs spec_kitty_events.conformance` runs, **Then** all conforma
+kitty-specs/005-event-contract-conformance-suite/spec.md:129:- **FR-015**: Package MUST provide a pytest-runnable conformance suite invocable via `pytest --pyargs spec_kitty_events.conformance`.
+kitty-specs/005-event-contract-conformance-suite/spec.md:158:- **SC-001**: Both `spec-kitty` (CLI) and `spec-kitty-saas` CI pipelines pass `pytest --pyargs spec_kitty_events.conformance` with zero failures against the pu
+kitty-specs/005-event-contract-conformance-suite/tasks.md:94:**Goal**: Create `test_pyargs_entrypoint.py`, `conftest.py`, and `pytest_helpers.py` in the conformance subpackage. Tests are manifest-driven. Verify `pytest -
+kitty-specs/005-event-contract-conformance-suite/tasks.md:103:- [x] T031: Create `conformance/test_pyargs_entrypoint.py` with manifest-driven conformance tests
+kitty-specs/005-event-contract-conformance-suite/tasks.md:105:- [x] T033: Verify `pytest --pyargs spec_kitty_events.conformance` works after editable install
+kitty-specs/005-event-contract-conformance-suite/tasks/WP03-conformance-validator.md:58:   Run: pytest --pyargs spec_kitty_events.conformance
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:32:Create the pytest conformance suite that consumers run via `pytest --pyargs spec_kitty_events.conformance`. This includes `test_p
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:36:Per research (R2), `pytest --pyargs spec_kitty_events.conformance` resolves the installed package path and runs all `test_*.py` f
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:45:- `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:190:### T031: Create `test_pyargs_entrypoint.py` with manifest-driven tests
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:192:**Purpose**: The primary conformance test file consumers run via `pytest --pyargs`.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:195:1. Create `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:201:Run: pytest --pyargs spec_kitty_events.conformance
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:313:- [ ] `pytest --pyargs spec_kitty_events.conformance -v` runs and passes
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:331:- [ ] `python3.11 -m pytest --cov` doesn't count `test_pyargs_entrypoint.py` or `conftest.py` as source
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:333:### T033: Verify `pytest --pyargs` works end-to-end
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:339:2. Run `pytest --pyargs spec_kitty_events.conformance -v`.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:345:- [ ] `pytest --pyargs spec_kitty_events.conformance` exits 0
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:353:- [ ] `test_pyargs_entrypoint.py` with manifest-driven tests, lane mapping tests, schema tests
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:354:- [ ] `pytest --pyargs spec_kitty_events.conformance` passes end-to-end
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:361:- **conftest.py discovery**: pytest may not automatically discover `conftest.py` inside installed packages. If fixtures aren't f
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:363:- **Lane mapping fixture format**: Lane mapping fixtures have a different structure (array of objects) vs event fixtures (single
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:367:- Run `pytest --pyargs spec_kitty_events.conformance -v` and verify output shows meaningful test names.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:376:- 2026-02-12T11:17:13Z – claude-opus – shell_pid=5916 – lane=for_review – Ready for review: pytest conformance entry poi
+kitty-specs/005-event-contract-conformance-suite/tasks/WP05-pytest-conformance-suite.md:378:- 2026-02-12T11:18:44Z – codex – shell_pid=11015 – lane=done – Review passed: conformance pyargs entrypoint, fixtures, h
+kitty-specs/005-event-contract-conformance-suite/tasks/WP06-version-graduation.md:118:3. Also run `pytest --pyargs spec_kitty_events.conformance -v` separately.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP06-version-graduation.md:123:- [ ] `pytest --pyargs spec_kitty_events.conformance` exits 0
+kitty-specs/005-event-contract-conformance-suite/tasks/WP06-version-graduation.md:147:- [ ] `pytest --pyargs spec_kitty_events.conformance` passes
+kitty-specs/005-event-contract-conformance-suite/tasks/WP06-version-graduation.md:154:- **Coverage drop**: New conformance test files (test_pyargs_entrypoint.py, conftest.py) should be omitted from coverage source (done 
+kitty-specs/005-event-contract-conformance-suite/tasks/WP06-version-graduation.md:161:- Verify conformance suite runs independently via `--pyargs`.
+kitty-specs/005-event-contract-conformance-suite/tasks/WP07-docs-and-changelog.md:67:- **Conformance Test Suite**: Pytest-runnable via `pytest --pyargs spec_kitty_events.conformance`. Manifest-driven fixtures covering al
+kitty-specs/005-event-contract-conformance-suite/tasks/WP07-docs-and-changelog.md:87:4. Add conformance CI step: `pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/005-event-contract-conformance-suite/tasks/WP07-docs-and-changelog.md:174:   pytest --pyargs spec_kitty_events.conformance -v
+kitty-specs/006-mission-collaboration-soft-coordination-contracts/quickstart.md:176:pytest --pyargs spec_kitty_events.conformance
+kitty-specs/006-mission-collaboration-soft-coordination-contracts/spec.md:93:A consumer repo (`spec-kitty` CLI or `spec-kitty-saas`) runs `pytest --pyargs spec_kitty_events.conformance` and the conformance suite includes
+kitty-specs/006-mission-collaboration-soft-coordination-contracts/tasks/WP08-conformance-fixtures-and-tests.md:132:  3. Use `event_type` (singular) and `expected_result` (`valid`/`invalid`) to match the existing pyargs c
+kitty-specs/010-mission-audit-lifecycle-contracts/plan.md:157:4. `pytest --pyargs spec_kitty_events.conformance` — all mission_audit fixtures pass
+kitty-specs/010-mission-audit-lifecycle-contracts/spec.md:50:**Independent Test**: Run `pytest --pyargs spec_kitty_events.conformance` and all mission-audit fixtures pass validation.
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks.md:105:**Independent Test**: `pytest --pyargs spec_kitty_events.conformance` passes (all mission_audit fixtures load and validate). `python -c "from spec_kitty_even
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks/WP03-conformance-integration.md:43:**Independent Test**: `pytest --pyargs spec_kitty_events.conformance` passes (all mission_audit fixtures load and validate). `pyt
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks/WP03-conformance-integration.md:499:- [ ] `pytest --pyargs spec_kitty_events.conformance` passes with mission_audit fixtures present
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks/WP03-conformance-integration.md:546:pytest --pyargs spec_kitty_events.conformance -v
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks/WP04-conformance-tests-public-api-release.md:439:pytest --pyargs spec_kitty_events.conformance -v
+kitty-specs/010-mission-audit-lifecycle-contracts/tasks/WP04-conformance-tests-public-api-release.md:472:3. Run `pytest --pyargs spec_kitty_events.conformance -v` — all mission_audit fixtures pass.
+kitty-specs/011-wp03-decisionpoint-lifecycle-contracts/plan.md:85:4. `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/011-wp03-decisionpoint-lifecycle-contracts/tasks/WP02-conformance-replay-versioning-notes.md:70:- `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/011-wp03-decisionpoint-lifecycle-contracts/tasks/WP02-conformance-replay-versioning-notes.md:101:    - `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/012-wp04-events-connector-sync-contracts/plan.md:96:5. `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/012-wp04-events-connector-sync-contracts/tasks/WP02-conformance-replay-compatibility.md:204:- `python3.11 -m pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/014-mission-contract-cutover/lanes.json:41:        "src/spec_kitty_events/conformance/test_pyargs_entrypoint.py",
+kitty-specs/014-mission-contract-cutover/plan.md:76:    └── test_pyargs_entrypoint.py       # Conformance entrypoint coverage
+kitty-specs/014-mission-contract-cutover/tasks/WP01-cutover-artifact-and-envelope-foundation.md:39:- src/spec_kitty_events/conformance/test_pyargs_entrypoint.py
+kitty-specs/014-mission-contract-cutover/tasks/WP01-cutover-artifact-and-envelope-foundation.md:82:- `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/014-mission-contract-cutover/tasks/WP01-cutover-artifact-and-envelope-foundation.md:116:- `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/014-mission-contract-cutover/tasks/WP01-cutover-artifact-and-envelope-foundation.md:173:- `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/lanes.json:78:        "src/spec_kitty_events/conformance/test_pyargs_entrypoint.py"
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/plan.md:17:The mission also fixes the currently-red pyargs conformance entrypoint by teaching the test to extract `.input` from class_taxonomy/historical_
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/plan.md:72:│   ├── test_pyargs_entrypoint.py        # MODIFY: detect class_taxonomy wrapper, extract .input
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/plan.md:145:- Pyargs entrypoint green: `pytest --pyargs spec_kitty_events.conformance -q`.
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/plan.md:228:`/spec-kitty.tasks` — generate the WP decomposition. The WP shape is sketched in the orchestrator brief (WP01: semantic dispatch; WP02: seve
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:31:The pyargs conformance entrypoint (`conformance/test_pyargs_entrypoint.py`) is currently red on 22 fixtures; this mission fixes all three failu
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:74:- **Pyargs fixture wrappers (`{class, expected, input, notes}`)** — these are taxonomy meta-fixtures, not raw envelopes. The pyargs test must
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:94:| FR-014 | The pyargs conformance entrypoint (`pytest --pyargs spec_kitty_events.conformance`) MUST run green. Class-taxonomy / historical-row 
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:104:| NFR-002 | The full pyargs conformance suite MUST complete in ≤ 10 seconds on a developer laptop with cold caches. Baseline pre-mission is 
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:125:2. The `pytest --pyargs spec_kitty_events.conformance` command exits with code 0; no fixture is skipped without a documented `fixture_type` op
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:146:- The pyargs entrypoint failures are stable across `uv` and `pip` resolvers — the failures are purely fixture-shape and semantic-validation 
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/spec.md:172:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/status.events.jsonl:9:{"aggregate_id": "WP04", "aggregate_type": "WorkPackage", "event_id": "01KS7M4C3VWQN3BVNP2RQ6XGR0", "event_type": "WPCreated", "payl
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/status.events.jsonl:37:{"actor": "user", "at": "2026-05-22T11:00:45.526943+00:00", "event_id": "01KS7NGHAPNYRN86HAH6HR3EA6", "evidence": {"review": {"refe
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/status.events.jsonl.pre-migration.bak:9:{"aggregate_id": "WP04", "aggregate_type": "WorkPackage", "event_id": "01KS7M4C3VWQN3BVNP2RQ6XGR0", "event_type": 
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/status.events.jsonl.pre-migration.bak:37:{"actor": "user", "at": "2026-05-22T11:00:45.526943+00:00", "event_id": "01KS7NGHAPNYRN86HAH6HR3EA6", "evidence":
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:15:- **WP04** depends on WP01, WP02, WP03 — it's the public-surface integration hub that owns `__init__.py` and `manifest.json` (exports + all 
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:23:| WP04 | Public-surface integration, manifest registrations, pyargs entrypoint health | T010, T011b, T016, T017b, T019–T022 | ~360 | WP01, W
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:52:| T019 | Modify `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py` to detect class_taxonomy / historical_row / lane_mapping wrapper
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:55:| T022 | Verify `uv run pytest --pyargs spec_kitty_events.conformance -q` exits 0 with all 22 pre-mission failures resolved. | WP04 | |
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:56:| T023 | Add `[Unreleased]` entry to `CHANGELOG.md` covering: semantic validation enforcement on `WPStatusChanged`, `legacy_envelope_v1` contr
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:76:| FR-014 (pyargs entrypoint green; wrapper extraction) | WP04 |
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:81:| NFR-002 (pyargs suite ≤ 10s) | WP04 |
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:177:### WP04 — Public-surface integration, manifest registrations, pyargs entrypoint health
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:179:**Goal**: Land the file edits that must come last — `__init__.py` re-exports, `manifest.json` registrations (seven event fixtures + two leg
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:181:**Independent test**: `uv run pytest --pyargs spec_kitty_events.conformance -q` exits 0.
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:185:- `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:203:- [x] T022 Verify pyargs entrypoint is green (WP04)
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks.md:207:**Goal**: Document the new conformance semantics, legacy-envelope contract, seven new event-type contracts, `LOCAL_ONLY_EVENT_TYPES` surface,
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP03-legacy-envelope-normalizer.md:354:Register both in `conformance/fixtures/manifest.json`. The pyargs entrypoint already filters fixtures by `eve
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP03-legacy-envelope-normalizer.md:379:Note: the pyargs entrypoint already excludes fixtures whose `event_type == "LaneMapping"` and `fixture_type i
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:3:title: Public-surface integration, manifest registrations, pyargs entrypoint health
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:48:- src/spec_kitty_events/conformance/test_pyargs_entrypoint.py
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:95:3. **Pyargs entrypoint wrapper-shape extraction** (`test_pyargs_entrypoint.py`):
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:100:5. **Verification**: `uv run pytest --pyargs spec_kitty_events.conformance -q` must exit 0 (FR-014, NFR-002).
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:120:- T022: re-run pyargs and verify 0 failures.
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:228:**File**: `src/spec_kitty_events/conformance/test_pyargs_entrypoint.py`
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:335:### T022 — Verify pyargs entrypoint is green
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:340:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:363:- [ ] `uv run pytest --pyargs spec_kitty_events.conformance -q` exits 0.
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:377:- **Risk**: An unaudited fixture type fails after the filter change. **Mitigation**: T022 explicitly re-runs the p
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:379:- **Risk**: A reviewer-time question whether the legacy fixtures should also go through the wrapper extraction. **
+kitty-specs/canonical-producer-contracts-legacy-envelope-01KS7JM3/tasks/WP04-pyargs-entrypoint-fix.md:386:- 2026-05-22T11:00:45Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=76882 – Approved: public surfa
+kitty-specs/cloudevents-envelope-registry-upcaster-01M5Z6VM/plan.md:23:**Testing**: pytest + hypothesis (property tests), the packaged conformance gate (`pytest --pyargs spec_kitty_events.conformance`), JUnit 5 via `make
+kitty-specs/cloudevents-envelope-registry-upcaster-01M5Z6VM/tasks/WP03-corpus-goldens-validator.md:111:`uv run pytest --pyargs spec_kitty_events.conformance` and the new tests pass; generator
+kitty-specs/decision-glossary-contract-reconciliation-01M57TCP/tasks/WP04-conformance-registries.md:76:- `uv run pytest --pyargs spec_kitty_events.conformance` is green, and `schemas.generate --check` is clean.
+kitty-specs/docs-site-overhaul-01M6GBDP/plan.md:30:**Testing**: `uv run pytest --no-cov -q tests/test_changelog_fragments.py tests/test_ci_gate_workflows.py tests/test_schema_pages.py tests/test_docs_index.py tests/test_
+kitty-specs/docs-site-overhaul-01M6GBDP/quickstart.md:47:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:30:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T13:19:13.022088+00:00", "delta": {"note": "- 2026-11-0
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:42:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T13:47:21.573294+00:00", "delta": {"note": "- 2026-11-0
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:54:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T14:10:18.979931+00:00", "delta": {"note": "- 2026-11-0
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:68:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T15:33:18.589784+00:00", "delta": {"note": "- 2026-11-0
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:82:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T16:23:37.820677+00:00", "delta": {"note": "- 2026-11-0
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:103:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T17:22:41.120790+00:00", "delta": {"note": "- 2026-11-
+kitty-specs/docs-site-overhaul-01M6GBDP/status.events.jsonl:104:{"actor": {"model": null, "profile": null, "role": "implementer", "tool": "claude"}, "at": "2026-11-03T17:23:28.747931+00:00", "delta": {"note": "- 2026-11-
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:31:        "- 2026-11-03T13:19:13Z – claude – shell_pid=3881442 – WP01 complete (lane-a). T001: auth OK (npm view @spec-kitty/doc-toolkit@0.6.0 -> 0.6.0); package
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:65:        "- 2026-11-03T13:47:21Z – claude – shell_pid=3896639 – Verification sweep (lane-b worktree, commit 426ca4e4): (1) uv run pytest --no-cov -q tests/test_
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:100:        "- 2026-11-03T14:10:18Z – claude – shell_pid=3932002 – Implemented T012-T018 (commit 024af6ca). Out-of-map edits: site/astro.config.mjs, site/package.
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:139:        "- 2026-11-03T15:33:18Z – claude – shell_pid=3957973 – T024 verification (commands -> counts): uv run pytest --no-cov -q tests/test_schema_pages.py te
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:175:        "- 2026-11-03T16:23:37Z – claude – shell_pid=4027478 – T028 verification (lane-e worktree, toolkit 0.6.0): (1) uv run pytest --no-cov -q tests/test_ch
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:247:        "- 2026-11-03T17:22:41Z – claude – shell_pid=4115635 – T036 FRAGMENTS: four fragments created per docs/changelog/unreleased/README.md + scripts/change
+kitty-specs/docs-site-overhaul-01M6GBDP/status.json:248:        "- 2026-11-03T17:23:28Z – claude – shell_pid=4115635 – T038 PR BODY SKELETON (operator opens the real PR; agents never merge):\n\n---\nTitle: docs: si
+kitty-specs/docs-site-overhaul-01M6GBDP/tasks/WP01-toolkit-bump-and-exclude.md:199:  2. `uv run pytest --pyargs spec_kitty_events.conformance`.
+kitty-specs/docs-site-overhaul-01M6GBDP/tasks/WP02-build-mode-diagram-rendering.md:250:- `uv run pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/docs-site-overhaul-01M6GBDP/tasks/WP06-truth-pass.md:250:- AGENTS.md commands table still matches the real scripts (`make lint`, `uv run pytest --pyargs …`).
+kitty-specs/docs-site-overhaul-01M6GBDP/tasks/WP07-fragments-and-final-gates.md:138:2. `uv run pytest --pyargs spec_kitty_events.conformance`.
+kitty-specs/events-domain-services-home-01M64MSB/acceptance-matrix.json:121:      "evidence": "git diff --stat -- src/spec_kitty_events/ is empty for every mission PR range; Gate 1 uv run pytest --pyargs spec_kitty_event
+kitty-specs/events-domain-services-home-01M64MSB/mission-review-report.md:59:- Command: `uv run pytest --pyargs spec_kitty_events.conformance` (this repo's packaged contract gate)
+kitty-specs/events-domain-services-home-01M64MSB/plan.md:49:- `uv run pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/events-domain-services-home-01M64MSB/quickstart.md:13:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/events-domain-services-home-01M64MSB/spec.md:67:2. **Given** the Python package, **When** `uv run pytest --pyargs spec_kitty_events.conformance` runs, **Then** it passes unchanged.
+kitty-specs/events-domain-services-home-01M64MSB/spec.md:148:| NFR-001 | Python line untouched | `uv run pytest --pyargs spec_kitty_events.conformance`, `make test-fast` and `ruff check . && ruff format --check .` pass w
+kitty-specs/events-domain-services-home-01M64MSB/tasks/WP02-charter-amendment.md:68:  - add `./gradlew check` green, strict Gradle dependency verification, SHA-pinned workflow actions, and `uv run pytest --pyargs spec_ki
+kitty-specs/events-domain-services-home-01M64MSB/tasks/WP03-gradle-root-binding.md:137:  - `uv run pytest --pyargs spec_kitty_events.conformance`
+kitty-specs/events-write-core-01M6TP6W/plan.md:43:| Packaged conformance gate on every PR | `status_append` and the parity corpus's shape check run under `uv run pytest --pyargs spec_kitty_events.conformance` |
+kitty-specs/events-write-core-01M6TP6W/quickstart.md:5:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/events-write-core-01M6TP6W/tasks/WP01-python-reference-encoder.md:74:  `uv run pytest --pyargs spec_kitty_events.conformance` holds this package to the fixtures.
+kitty-specs/events-write-core-01M6TP6W/tasks/WP01-python-reference-encoder.md:134:- Run `uv run pytest --pyargs spec_kitty_events.conformance` whenever a fixture changes.
+kitty-specs/events-write-core-01M6TP6W/tasks/WP01-python-reference-encoder.md:321:5. Run: `uv run pytest --pyargs spec_kitty_events.conformance -k status_append -q`, then the
+kitty-specs/events-write-core-01M6TP6W/tasks/WP01-python-reference-encoder.md:325:- [ ] `uv run pytest --pyargs spec_kitty_events.conformance` green (every family).
+kitty-specs/events-write-core-01M6TP6W/tasks/WP01-python-reference-encoder.md:384:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/events-write-core-01M6TP6W/tasks/WP04-parity-corpus.md:136:- Run `uv run pytest --pyargs spec_kitty_events.conformance` whenever a fixture changes.
+kitty-specs/events-write-core-01M6TP6W/tasks/WP04-parity-corpus.md:346:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/events-write-core-01M6TP6W/tasks/WP05-java-encoder.md:241:uv run pytest --pyargs spec_kitty_events.conformance -k status_append -q   # the Python side of the same fixtures
+kitty-specs/events-write-core-01M6TP6W/tasks/WP06-write-domain-fsm-guards.md:339:uv run pytest --pyargs spec_kitty_events.conformance -k parity -q   # the corpus shape, unchanged by you
+kitty-specs/events-write-core-01M6TP6W/tasks/WP07-write-domain-deps-claims-batch.md:238:uv run pytest --pyargs spec_kitty_events.conformance -k parity -q
+kitty-specs/events-write-core-01M6TP6W/tasks/WP08-write-service-cut-over.md:484:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/executable-event-timestamp-semantics-01KRNME2/plan.md:22:**Testing**: pytest, hypothesis, committed schema drift check, conformance fixture suite (already exposed via `pytest --pyargs spec_kitty_events.confor
+kitty-specs/executable-event-timestamp-semantics-01KRNME2/tasks.md:67:**Independent Test**: `pytest --pyargs spec_kitty_events.conformance` plus the new `tests/test_timestamp_semantics.py` pass. A deliberately-broken fak
+kitty-specs/executable-event-timestamp-semantics-01KRNME2/tasks/WP02-conformance-helper-fixtures-and-tests.md:214:- **Risk**: Conformance `tests/` directory does not exist; ad-hoc placement breaks pytest discovery. **Mit
+kitty-specs/ledger-write-contract-seam-01M57P5Q/lanes.json:34:        "src/spec_kitty_events/conformance/test_pyargs_entrypoint.py"
+kitty-specs/ledger-write-contract-seam-01M57P5Q/plan.md:13:`min_version` `10.8.0`. A packaged runner drives that category under `pytest --pyargs
+kitty-specs/ledger-write-contract-seam-01M57P5Q/quickstart.md:11:Validate a second binding: `uv run pytest --pyargs spec_kitty_events.conformance -k ledger_append`.
+kitty-specs/ledger-write-contract-seam-01M57P5Q/spec.md:106:| FR-008 | The packaged conformance suite (`pytest --pyargs spec_kitty_events.conformance`) MUST run the append fixtures against the Python `append_event`. | Pr
+kitty-specs/ledger-write-contract-seam-01M57P5Q/tasks/WP02-ledger-append-fixtures.md:33:- src/spec_kitty_events/conformance/test_pyargs_entrypoint.py
+kitty-specs/ledger-write-contract-seam-01M57P5Q/tasks/WP02-ledger-append-fixtures.md:66:  Make sure `test_pyargs_entrypoint.py` keeps these documents out of the generic event gate, and add a regression guard mirroring th
+kitty-specs/ledger-write-contract-seam-01M57P5Q/tasks/WP02-ledger-append-fixtures.md:69:- `uv run pytest --pyargs spec_kitty_events.conformance` is green, with the new cases collected.
+kitty-specs/ledger-write-contract-seam-01M57P5Q/tasks/WP03-release-and-docs.md:57:- **T013:** Run `make test-fast`, the version guard (`tests/test_compatibility_doc.py`, `tests/test_support_matrix.py`), `uv run pytest --
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/plan.md:20:**Testing**: pytest (in-repo `tests/` + packaged `--pyargs spec_kitty_events.conformance`), schema drift test `tests/integration/test_schema_drift.py`, 
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/quickstart.md:6:uv run --frozen pytest --pyargs spec_kitty_events.conformance -q   # >= 727 passed, 0 failed
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/research/grounding.md:23:`uv run --frozen pytest --pyargs spec_kitty_events.conformance -q` gives 727 passed in 7.8s (12.6s wall). Lint: `ruff check . && ruff form
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/research/mission-brief.md:42:- The packaged conformance gate stays green: `uv run --frozen pytest --pyargs spec_kitty_events.conformance` (baseline 727 passed, abo
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/reviews/WP01-cycle-1.md:5:1. **New conformance fixtures are not shipped in the wheel.** `tests/test_wheel_contents.py::test_every_tracked_conformance_file_is_packa
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/tasks/WP01-raci-decision-events.md:134:uv run --frozen pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/tasks/WP01-raci-decision-events/review-cycle-1.md:15:1. **New conformance fixtures are not shipped in the wheel.** `tests/test_wheel_contents.py::test_every_tracke
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/tasks/WP02-lifecycle-conformance-breadth.md:110:uv run --frozen pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/lifecycle-reconciliation-completion-01M59CQF/tasks/WP03-reconciliation-and-release.md:99:uv run --frozen pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/mission-lifecycle-reconciliation-01M574ET/plan.md:21:**Testing**: pytest + the packaged conformance gate `uv run pytest --pyargs spec_kitty_events.conformance`; `tests/integration/test_schema_drift.py` for sc
+kitty-specs/mission-lifecycle-reconciliation-01M574ET/spec.md:104:| FR-009 | The packaged conformance gate (`uv run pytest --pyargs spec_kitty_events.conformance`) MUST pass with the new schemas and fixtures. | Draft | [
+kitty-specs/mission-lifecycle-reconciliation-01M574ET/tasks.md:31:  5. Verify: `tests/integration/test_schema_drift.py`, `uv run pytest --pyargs spec_kitty_events.conformance`, mypy --strict, ruff; prove additions-only w
+kitty-specs/mission-lifecycle-reconciliation-01M574ET/tasks/WP01-lifecycle-event-schema-fixtures.md:63:- **Mechanism**: schemas are generated by `src/spec_kitty_events/schemas/generate.py` and guarded by `tests/integrati
+kitty-specs/mission-lifecycle-reconciliation-01M574ET/tasks/WP01-lifecycle-event-schema-fixtures.md:101:1. Run `uv run pytest --pyargs spec_kitty_events.conformance`, `tests/integration/test_schema_drift.py`, `mypy --str
+kitty-specs/review-ref-gated-rewinds-01M4ZJJ0/acceptance-matrix.json:21:      "evidence": "uv run --frozen pytest --pyargs spec_kitty_events.conformance -q: 673 passed (+9 new manifest rows)",
+kitty-specs/review-ref-gated-rewinds-01M4ZJJ0/plan.md:15:**Testing**: pytest; the packaged conformance gate (`uv run pytest --pyargs spec_kitty_events.conformance`); `tests/unit/test_fixtures.py`
+kitty-specs/review-ref-gated-rewinds-01M4ZJJ0/tasks/WP01-contract-family-and-fixtures.md:122:- 9 fixtures plus 9 manifest rows. `uv run --frozen pytest --pyargs spec_kitty_events.conformance -q` passes, with the count up
+kitty-specs/review-ref-gated-rewinds-01M4ZJJ0/tasks/WP02-diary-docs-and-release.md:81:uv run --frozen pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/sonar-coverage-hygiene-01M70TKQ/plan.md:15:- **Charter gates**: pytest, `mypy --strict`, `uv run pytest --pyargs spec_kitty_events.conformance`, `./gradlew verifyAll` (or `make test-gradle`), `ruff`, `scripts
+kitty-specs/subtask-skipped-status-01M54C8D/contracts/README.md:19:(`uv run pytest --pyargs spec_kitty_events.conformance`).
+kitty-specs/subtask-skipped-status-01M54C8D/plan.md:33:(`uv run pytest --pyargs spec_kitty_events.conformance`); existing diary-parse
+kitty-specs/subtask-skipped-status-01M54C8D/tasks/WP01-subtask-status-vocabulary.md:213:uv run pytest --pyargs spec_kitty_events.conformance -q
+kitty-specs/write-fold-encoder-parity-01M74ZY0/plan.md:21:**Testing**: pytest + hypothesis; packaged conformance gate (`uv run pytest --pyargs spec_kitty_events.conformance`); `./gradlew verifyAll` (JUnit, ArchUnit, JaCo
+kitty-specs/write-fold-encoder-parity-01M74ZY0/quickstart.md:7:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/write-fold-encoder-parity-01M74ZY0/tasks/WP03-reference-encoder.md:127:   `uv run pytest --pyargs spec_kitty_events.conformance -k status_append` under 3.11 and 3.13
+kitty-specs/write-fold-encoder-parity-01M74ZY0/tasks/WP03-reference-encoder.md:138:- Packaged conformance gate green: `uv run pytest --pyargs spec_kitty_events.conformance`.
+kitty-specs/write-fold-encoder-parity-01M74ZY0/tasks/WP04-validate-transition-edges.md:137:- `uv run pytest --pyargs spec_kitty_events.conformance` green.
+kitty-specs/write-service-cutover-readiness-01M70THX/plan.md:27:- **Python:** `uv run pytest tests/test_generate_transition_parity.py` and `uv run pytest --pyargs spec_kitty_events.conformance`.
+kitty-specs/write-service-cutover-readiness-01M70THX/plan.md:219:  - `uv run pytest --pyargs spec_kitty_events.conformance`;
+kitty-specs/write-service-cutover-readiness-01M70THX/quickstart.md:9:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/write-service-cutover-readiness-01M70THX/research/wp01-contract-tool-run.md:298:uv run pytest --pyargs spec_kitty_events.conformance
+kitty-specs/write-service-cutover-readiness-01M70THX/tasks/WP04-evidence-wire-field.md:170:- **Tests.** Keep `parity_corpus.py` and the packaged test green (`uv run pytest --pyargs spec_kitty_events.conformance`).
+kitty-specs/write-service-cutover-readiness-01M70THX/tasks/WP04-evidence-wire-field.md:217:  - `uv run pytest tests/test_generate_transition_parity.py` and `uv run pytest --pyargs spec_kitty_events.conformance` are green
+src/spec_kitty_events/conformance/README.md:57:(`test_pyargs_entrypoint.py`), so consumers running
+src/spec_kitty_events/conformance/README.md:58:`pytest --pyargs spec_kitty_events.conformance` see them without this
+src/spec_kitty_events/conformance/__init__.py:3:Run: pytest --pyargs spec_kitty_events.conformance
+src/spec_kitty_events/conformance/test_lifecycle_reducer_replay.py:3:``test_pyargs_entrypoint.py`` excludes ``replay_stream`` / ``reducer_output``
+src/spec_kitty_events/conformance/test_lifecycle_reducer_replay.py:5:collected by ``pytest --pyargs spec_kitty_events.conformance`` when a module
+src/spec_kitty_events/conformance/test_pyargs_entrypoint.py:3:Run: pytest --pyargs spec_kitty_events.conformance
+src/spec_kitty_events/conformance/test_pyargs_entrypoint.py:37:# legacy_shape]}. The raw event lives under .input. The pyargs test must
+src/spec_kitty_events/conformance/test_pyargs_entrypoint.py:144:    this module's event tests against them) while ``pytest --pyargs
+src/spec_kitty_events/conformance/test_pyargs_entrypoint.py:307:# `pytest --pyargs spec_kitty_events.conformance` never see.
+src/spec_kitty_events/conformance/test_pyargs_entrypoint.py:403:    consumers running `pytest --pyargs` can see it (their envelope shapes
+src/spec_kitty_events/conformance/test_status_diary_reducer_replay.py:3:``test_pyargs_entrypoint.py`` deliberately excludes ``replay_stream`` /
+src/spec_kitty_events/conformance/test_status_diary_reducer_replay.py:7:exclusion meant ``pytest --pyargs spec_kitty_events.conformance`` collected
+src/spec_kitty_events/conformance/test_status_diary_reducer_replay.py:15:packaged golden pairs so a downstream consumer running the pyargs entrypoint
+src/spec_kitty_events/conformance/test_status_diary_reducer_replay.py:23:legacy-shape golden to close that gap for pyargs consumers.
+src/spec_kitty_events/conformance/test_zeitgeist_attrs_codec.py:3:``test_pyargs_entrypoint.py`` deliberately excludes ``zeitgeist_attrs/``
+src/spec_kitty_events/conformance/test_zeitgeist_attrs_codec.py:10:ships in the wheel. A consumer running ``pytest --pyargs
+tests/test_zeitgeist_attrs_conformance.py:16:by ``pytest --pyargs spec_kitty_events.conformance``), so downstream
+tests/test_zeitgeist_attrs_conformance.py:221:    ``conformance/test_pyargs_entrypoint.py`` guards its ``zeitgeist_attrs``
+tests/test_zeitgeist_attrs_conformance.py:226:    --pyargs spec_kitty_events.conformance`` fails every codec entry for
+tests/test_zeitgeist_attrs_conformance.py:230:    from spec_kitty_events.conformance.test_pyargs_entrypoint import (
+tests/test_zeitgeist_attrs_conformance.py:247:        "envelopes turns pytest --pyargs spec_kitty_events.conformance red "
+tests/test_zeitgeist_attrs_conformance.py:254:    from spec_kitty_events.conformance.test_pyargs_entrypoint import (
+$ testpaths
+pyproject.toml:139:testpaths = ["tests"]
+pyproject.toml-140-python_files = "test_*.py"
+pyproject.toml-141-python_classes = "Test*"
+pyproject.toml-142-python_functions = "test_*"
+$ conformance in workflows/Makefile
+.github/workflows/acceptance.yml:85:          python -m pip install -e ".[dev,conformance]" build
+.github/workflows/service-release.yml:2:# four natives, the JVM jar, the contract bundles, the contract tools and the conformance fixtures,
+.github/workflows/service-release.yml:190:            echo "Events domain services ${VER}: the Mission Status API and the write service (command-cli) natives (linux-x64, linux-arm64, macos-arm64, windows-x64) and JVM jar
+.github/workflows/service.yml:41:      # The Java conformance runners consume these core-generated oracles.
+.github/workflows/service.yml:42:      - "src/spec_kitty_events/conformance/fixtures/status_append/**"
+.github/workflows/service.yml:43:      - "src/spec_kitty_events/conformance/status_transition_parity/**"
+.github/workflows/service.yml:44:      - "scripts/conformance/**"
+.github/workflows/service.yml:124:          PATTERN='^(service/|contracts/|java/|build-logic/|gradle/|settings\.gradle\.kts$|build\.gradle\.kts$|gradle\.properties$|gradlew$|gradlew\.bat$|src/spec_kitty_events/producer_c
+.github/workflows/service.yml:639:        run: SPEC_KITTY_CORE_CHECKOUT="$GITHUB_WORKSPACE/core" core/.venv/bin/python scripts/conformance/generate_status_append.py --check | tee -a "$GITHUB_STEP_SUMMARY"
+.github/workflows/service.yml:641:        run: SPEC_KITTY_CORE_CHECKOUT="$GITHUB_WORKSPACE/core" core/.venv/bin/python scripts/conformance/generate_transition_parity.py --check | tee -a "$GITHUB_STEP_SUMMARY"
+.github/workflows/service.yml:643:        run: SPEC_KITTY_CORE_CHECKOUT="$GITHUB_WORKSPACE/core" core/.venv/bin/python scripts/conformance/extract_ack_bytes.py --check | tee -a "$GITHUB_STEP_SUMMARY"
+.github/workflows/service.yml:645:        run: core/.venv/bin/python scripts/conformance/generate_fromisoformat_vectors.py --check | tee -a "$GITHUB_STEP_SUMMARY"

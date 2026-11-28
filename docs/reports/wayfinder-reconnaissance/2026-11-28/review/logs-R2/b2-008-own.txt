@@ -1,0 +1,9 @@
+tracked files: 6064
+('.gradle', 'main') 3 70
+('.java', 'main') 277 17167
+('.java', 'test') 389 38727
+('.kt', 'main') 1 6
+('.kts', 'main') 14 1196
+('.py', 'main') 130 36870
+('.py', 'test') 171 42160
+('.sh', 'main') 3 227

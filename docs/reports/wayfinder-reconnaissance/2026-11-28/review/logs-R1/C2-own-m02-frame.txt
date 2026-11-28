@@ -1,0 +1,4 @@
+cand 2553 A 698 B 1264 non 591 | A members whose only contract paths are under kitty-specs/: 40 of which in A for that reason alone: 23
+sample A equal True 30 sample B equal True 30
+C vs my-C2 frames: A common 665 C only 1 C2 only 33 ; B common 1249
+fixes traced by both C and C2: ['046e9e28ea75', '2446a12cd9c8', 'f2a6e8db0f29', '126dd7e1666d', '5f5b523d8a31', '4f92c5d72c7e']

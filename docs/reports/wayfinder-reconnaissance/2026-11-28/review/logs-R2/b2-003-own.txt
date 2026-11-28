@@ -1,0 +1,4 @@
+modules with main java 14 ['activations', 'artifacts-edge', 'deployable', 'kernel', 'missions', 'missions-edge', 'pack-doctor', 'pack-validation', 'packs', 'profiles', 'profiles-edge', 'routing', 'routing-edge', 'web-transport'] files 1003 packages 78 split packages []
+static import module edges 37
+modules on a cycle []
+jdeps edges 44 mine not in jdeps [] jdeps not mine [('activations', 'charter-api'), ('artifacts-edge', 'charter-api'), ('missions-edge', 'charter-api'), ('packs', 'charter-api'), ('profiles-edge', 'charter-api'), ('routing-edge', 'charter-api'), ('web-transport', 'charter-api')]

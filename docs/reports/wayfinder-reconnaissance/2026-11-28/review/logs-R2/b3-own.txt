@@ -1,0 +1,9 @@
+edges 656 weight 4855 load weight 3112 load edges 466
+a 157 1410 1067 135
+b 5 54 44 4
+c-ledgered 29 128 51 12
+d 465 3263 1950 315
+M03b full by edge 0.247 by weight 0.3015 load weight 0.357
+V2 with ledger by edge 0.2912 by weight 0.3279
+strict pairs []
+top-level {'b': 3, 'd': 1, 'c-ledgered': 2, 'a': 8} {'b': 54, 'd': 13, 'c-ledgered': 128, 'a': 1410} M03b top edge 0.7857 weight 0.9121

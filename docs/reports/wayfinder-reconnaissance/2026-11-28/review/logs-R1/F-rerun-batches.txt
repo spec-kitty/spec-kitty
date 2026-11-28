@@ -1,0 +1,14 @@
+# first attempt failed at collection with BuiltInPackMissing (fresh clone has no fetched pack tree); pack tree copied from /home/user/spec-kitty/packs (pin files identical between 5c4fc5a and the checkout); second attempt below
+## tests/coordination/test_status_write_lane_refusal.py tests/git/test_protection_policy.py
+...................                                                      [100%]
+19 passed in 31.43s
+rc=0
+## tests/status/test_actor_identities_independent.py tests/unit/status/test_review_roles.py
+........................................................................ [ 94%]
+....                                                                     [100%]
+76 passed in 1.13s
+rc=0
+## tests/status/test_actor_identity_reconciliation_4665.py tests/status/test_adapters_contract.py
+...............................                                          [100%]
+31 passed in 2.86s
+rc=0

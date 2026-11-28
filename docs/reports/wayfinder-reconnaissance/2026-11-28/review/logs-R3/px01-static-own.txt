@@ -1,0 +1,68 @@
+$ git grep -n source_documented H -- src
+src/runtime/next/runtime_bridge_composition.py:10:(:func:`_count_source_documented_events` / :func:`_publication_approved` /
+src/runtime/next/runtime_bridge_composition.py:38:``_count_source_documented_events`` and ``_publication_approved`` through a
+src/runtime/next/runtime_bridge_composition.py:347:def _count_source_documented_events(feature_dir: Path) -> int:
+src/runtime/next/runtime_bridge_composition.py:348:    """Return the number of ``source_documented`` events in the mission event log.
+src/runtime/next/runtime_bridge_composition.py:353:    record, and counts those whose ``type`` equals ``"source_documented"``.
+src/runtime/next/runtime_bridge_composition.py:371:            if isinstance(entry, dict) and entry.get("type") == "source_documented":
+src/runtime/next/runtime_bridge_cores.py:578:    if snapshot.status_facts["source_documented_count"] < 3:
+src/runtime/next/runtime_bridge_io.py:46:``_count_source_documented_events``, ``_publication_approved``,
+src/runtime/next/runtime_bridge_io.py:1615:    ``runtime_bridge_guards`` (#2560); ``_count_source_documented_events``,
+src/runtime/next/runtime_bridge_io.py:1710:        "source_documented_count": _composition._count_source_documented_events(feature_dir),
+$ git grep -n "emit_event(" -- src
+src/runtime/next/next_invocation_lifecycle.py:474:    emit_event(
+src/specify_cli/mission_v1/events.py:133:def emit_event(
+$ gate_passed|publication_approved in src
+src/charter/offering/skills/spec-kitty-mission-system/SKILL.md:358:`gate_passed(...)`, `all_wp_status(...)`, `any_wp_status(...)`,
+src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md:169:| `gate_passed` | `gate_passed("review_gate")` | Gate event in mission-events.jsonl |
+src/runtime/next/runtime_bridge_composition.py:10:(:func:`_count_source_documented_events` / :func:`_publication_approved` /
+src/runtime/next/runtime_bridge_composition.py:38:``_count_source_documented_events`` and ``_publication_approved`` through a
+src/runtime/next/runtime_bridge_composition.py:378:def _publication_approved(feature_dir: Path) -> bool:
+src/runtime/next/runtime_bridge_composition.py:379:    """Return True iff the mission event log carries a ``publication_approved`` gate event.
+src/runtime/next/runtime_bridge_composition.py:381:    Mirrors the v1 ``gate_passed`` guard primitive: a gate event is recorded
+src/runtime/next/runtime_bridge_composition.py:382:    as ``{"type": "gate_passed", "name": "<gate_name>"}`` in
+src/runtime/next/runtime_bridge_composition.py:388:    (``gate_passed("publication_approved")``) for both the source-side gate
+src/runtime/next/runtime_bridge_composition.py:406:            if isinstance(entry, dict) and entry.get("type") == "gate_passed" and entry.get("name") == "publication_approved":
+src/runtime/next/runtime_bridge_cores.py:585:    if not snapshot.status_facts["publication_approved"]:
+src/runtime/next/runtime_bridge_io.py:46:``_count_source_documented_events``, ``_publication_approved``,
+src/runtime/next/runtime_bridge_io.py:1616:    ``_publication_approved`` and ``_has_generated_docs`` are owned by
+src/runtime/next/runtime_bridge_io.py:1711:        "publication_approved": bool(_composition._publication_approved(feature_dir)),
+$ mission-events.jsonl writers
+src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md:169:| `gate_passed` | `gate_passed("review_gate")` | Gate event in mission-events.jsonl |
+src/runtime/next/next_invocation_lifecycle.py:451:    from specify_cli.mission_v1.events import MISSION_EVENTS_FILE, emit_event
+src/runtime/next/next_invocation_lifecycle.py:453:    # WP09/FR-001 (kind-correct): ``mission-events.jsonl`` is a legacy
+src/runtime/next/next_invocation_lifecycle.py:487:    if feature_dir is None or not (feature_dir / MISSION_EVENTS_FILE).is_file():
+src/runtime/next/next_invocation_lifecycle.py:489:    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, surface_root, in_coordination_worktree, mission_landed=landed)
+src/runtime/next/runtime_bridge_composition.py:352:    ``feature_dir / "mission-events.jsonl"``, treats each line as a JSON
+src/runtime/next/runtime_bridge_composition.py:358:    log_path = feature_dir / "mission-events.jsonl"
+src/runtime/next/runtime_bridge_composition.py:383:    ``feature_dir / "mission-events.jsonl"``. Missing or unreadable logs
+src/runtime/next/runtime_bridge_composition.py:394:    log_path = feature_dir / "mission-events.jsonl"
+src/specify_cli/audit/classifiers/mission_events.py:1:"""Classifier for mission-events.jsonl mission artifacts."""
+src/specify_cli/audit/classifiers/mission_events.py:87:    """Classify mission-events.jsonl for legacy keys, forbidden keys, and corruption.
+src/specify_cli/audit/classifiers/mission_events.py:96:    path = mission_dir / "mission-events.jsonl"
+src/specify_cli/audit/classifiers/mission_events.py:97:    return _classify_jsonl_file(path, "mission-events.jsonl", "mission_event_row")
+src/specify_cli/audit/engine.py:189:        # 4. mission-events.jsonl
+src/specify_cli/audit/shape_registry.py:178:    # mission-events.jsonl rows (MissionNextInvoked and similar mission-level events)
+src/specify_cli/cli/commands/_events_tail_logs.py:108:        mission_events: Path = resolved.feature_dir / "mission-events.jsonl"
+src/specify_cli/cli/commands/accept.py:289:    The shape this happens with is the mission-root ``mission-events.jsonl``:
+src/specify_cli/cli/commands/implement_cores.py:326:    ``mission-events.jsonl`` is legacy observability, not planning input. A
+src/specify_cli/cli/commands/init.py:396:    "kitty-specs/**/mission-events.jsonl linguist-generated=true",
+src/specify_cli/lanes/implement_support.py:141:    (``mission-events.jsonl``) and its invocation records under ``kitty-ops/``
+src/specify_cli/lanes/implement_support.py:165:        f"kitty-specs/{mission_slug}/mission-events.jsonl",
+src/specify_cli/mission_v1/events.py:5:``<feature_dir>/mission-events.jsonl``, one JSON object per line.
+src/specify_cli/mission_v1/events.py:30:MISSION_EVENTS_FILE = "mission-events.jsonl"
+src/specify_cli/mission_v1/events.py:34:    """True for a Mission's own event log, ``kitty-specs/<mission>/mission-events.jsonl`` (depth-exact).
+src/specify_cli/mission_v1/events.py:42:    A file of the same name anywhere else (``src/app/mission-events.jsonl``,
+src/specify_cli/mission_v1/events.py:43:    ``kitty-specs/<m>/research/mission-events.jsonl``) does not match.
+src/specify_cli/mission_v1/events.py:46:    return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == MISSION_EVENTS_FILE
+src/specify_cli/mission_v1/events.py:170:    events_file = feature_dir / MISSION_EVENTS_FILE
+src/specify_cli/mission_v1/events.py:191:    events_file = feature_dir / MISSION_EVENTS_FILE
+src/specify_cli/review/dirty_classifier.py:73:    - the mission-root ``mission-events.jsonl`` (#5669) is spec-kitty's own
+src/specify_cli/review/dirty_classifier.py:130:    # Mission-root mission-events.jsonl (#5669) — bullet 4. ``spec-kitty next``
+src/specify_cli/review/dirty_classifier.py:139:    # whole string: a user file merely named ``mission-events.jsonl`` elsewhere
+src/specify_cli/review/dirty_classifier.py:140:    # (``src/app/mission-events.jsonl``) or one level too deep
+src/specify_cli/review/dirty_classifier.py:141:    # (``kitty-specs/<slug>/research/mission-events.jsonl``) still blocks.
+src/specify_cli/status/lifecycle_events.py:124:MISSION_EVENTS_FILENAME = "status.events.jsonl"
+src/specify_cli/status/lifecycle_events.py:189:    return feature_dir / MISSION_EVENTS_FILENAME
+src/specify_cli/status/lifecycle_events.py:1191:    "MISSION_EVENTS_FILENAME",
+src/specify_cli/upgrade/migrations/m_3_2_0rc28_github_diff_attributes.py:20:    "kitty-specs/**/mission-events.jsonl linguist-generated=true",

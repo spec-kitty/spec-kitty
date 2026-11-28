@@ -1,0 +1,6 @@
+046e9e28ea75 | C: m02a untraceable  unknown c | C2: A03 untraceable 5245 yes   c-report
+2446a12cd9c8 | C: m02a same-pr  n/a (same pull request) a | C2: A12 traced-weak 7615 no(same-PR, pre-main) settled-placement-surface-01M78GR4 accepted_at=2026-11-12T22 a-automated-pre-main
+f2a6e8db0f29 | C: m02a untraceable  unknown c | C2: A13 untraceable EXP#308 yes   unstated-post-main
+126dd7e1666d | C: m02a same-pr  n/a (same pull request) untraceable | C2: A19 traced-weak 7591 no(same-PR, pre-main) next-lifecycle-integrity-01M77BWP accepted_at=2026-11-12T12 pre-main-unstated
+5f5b523d8a31 | C: m02b same-pr  n/a (same pull request) c | C2: B02 traced-weak 7814 no(same-PR, pre-main)   c-reviewer-pre-main
+4f92c5d72c7e | C: m02b same-pr  n/a (same pull request) untraceable | C2: B21 traced 6747 no(same-PR, pre-main)   pre-main-unstated

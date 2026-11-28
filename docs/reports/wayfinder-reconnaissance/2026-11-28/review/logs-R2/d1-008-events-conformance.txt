@@ -1,0 +1,9 @@
+install exit 0
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: ev
+spec-kitty-events==11.3.0
+........................................................................ [ 90%]
+........................................................................ [ 96%]
+................................................                         [100%]
+1200 passed in 7.82s
+pytest exit 0

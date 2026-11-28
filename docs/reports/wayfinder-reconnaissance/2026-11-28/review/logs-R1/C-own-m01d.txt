@@ -1,0 +1,7 @@
+non-merge commits 20454 code 6574 bulk 22
+T1 947 517 0.5459 mean 2.797
+T2 1809 668 0.3693 mean 1.857
+T3 3026 1040 0.3437 mean 1.684
+T2 pre-fork 829 331 0.3993
+T2 public 277 116 0.4188
+T2 experimental 703 221 0.3144

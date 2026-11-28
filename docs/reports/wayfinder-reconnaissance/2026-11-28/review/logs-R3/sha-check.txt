@@ -1,0 +1,59 @@
+F-E1-018 decisive | E1:evidence/E1/ledgers.csv:OK ; E2:evidence/E1/ledger-totals.json:OK
+F-E1-020 decisive | E1:evidence/E1/ledgers.csv:OK ; E2:evidence/E1/ledger-totals.json:OK
+F-E1-025 decisive | E1:evidence/E1/ledger-sample-30.csv:OK
+F-E1-028 decisive | E1:evidence/E1/px01-command-log.txt:OK ; E2:evidence/E1/px01-summary.txt:OK
+F-E1-029 decisive | E1:evidence/E1/static-searches.txt:OK ; E2:src/runtime/next/runtime_bridge_composition.py:347-409 and runtime_bri:NOFILE sha=None kind=document-claim ; E3:packs/built-in/missions/mission-steps/research/gathering/prompt.md at :NOFILE sha=None kind=document-claim
+F-E1-030 decisive | E1:evidence/E1/px01-command-log.txt:OK ; E2:evidence/E1/static-searches.txt:OK
+F-E1-032 decisive | E1:evidence/E1/acceptance-checks.csv:OK ; E2:evidence/E1/static-searches.txt:OK
+F-E1-003 seeded | E1:evidence/E1/gates.csv:OK
+F-E1-004 seeded | E1:evidence/E1/rulesets-live-2026-11-28.json:OK ; E2:evidence/E1/ci-required-checks.csv:OK
+F-E1-012 seeded | E1:evidence/E1/static-searches.txt:OK ; E2:AGENTS.md Commands table at 646e330b89:NOFILE sha=None kind=document-claim
+F-E1-022 seeded | E1:evidence/E1/ratchet-baseline-leaves.csv:OK ; E2:.kittify/charter/charter.md:763-768 at 5c4fc5a79d:NOFILE sha=None kind=document-claim ; E3:docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md:77-84 :NOFILE sha=None kind=document-claim
+F-E1-031 seeded | E1:evidence/E1/px01-command-log.txt:OK ; E2:evidence/E1/static-searches.txt:OK
+F-E1-033 seeded | E1:evidence/E1/acceptance-checks.csv:OK ; E2:src/specify_cli/cli/commands/review/__init__.py:1-13,66-70,215-300 at :NOFILE sha=None kind=document-claim ; E3:evidence/E1/static-searches.txt:OK
+F-E2-001 seeded | E1:evidence/E2/apply-check.txt:OK ; E2:evidence/E2/syntax-import-check.txt:OK ; E3:evidence/E2/mutations.csv:OK ; E4:evidence/E2/events-java-syntax-check.txt:OK ; E5:evidence/E2/charter-java-check.txt:OK
+F-E2-002 seeded | E1:evidence/E2/ambiguity-counts.txt:OK
+F-E2-004 seeded | E1:spec-kitty-charter contracts/charter/CHANGELOG.md:3-17:NOFILE sha=None kind=document-claim ; E2:spec-kitty-charter docs/adr/0022-contract-versions-start-at-0-x.md:3:NOFILE sha=None kind=document-claim ; E3:spec-kitty-events contracts/mission-status/CHANGELOG.md:6-12 at 646e33:NOFILE sha=None kind=document-claim
+F-E2-006 seeded | E1:spec-kitty-events docs/adr/0002-events-domain-owns-its-services.md:98 :NOFILE sha=None kind=document-claim ; E2:spec-kitty .kittify/charter/charter.md:382:NOFILE sha=None kind=document-claim ; E3:spec-kitty-events pyproject.toml [project].dependencies at 646e330b: p:NOFILE sha=None kind=static-derived
+F-E2-007 seeded | E1:src/charter/activation/context_contract.py:14-32 at 5c4fc5a7 (module d:NOFILE sha=None kind=document-claim ; E2:evidence/E2/ambiguity-counts.txt:OK
+F-E3-002 decisive | E1:evidence/E3/detection.csv:OK ; E2:evidence/E3/detection-counts.txt:OK ; E3:evidence/E3/runs-M-PI-1.txt:OK ; E4:evidence/E3/runs-batchA.txt:OK ; E5:evidence/E3/runs-charter-gradle.txt:OK
+F-E3-003 decisive | E1:evidence/E3/detection.csv:OK ; E2:evidence/E3/detection-counts.txt:OK ; E3:evidence/E3/runs-batchA.txt:OK ; E4:evidence/E3/runs-charter-gradle.txt:OK ; E5:evidence/E3/runs-ev-M-RD-4.txt:OK
+F-E3-006 decisive | E1:evidence/E3/detection.csv:OK ; E2:evidence/E3/detection-counts.txt:OK ; E3:evidence/E3/gate-selection.json:OK
+F-E3-009 seeded | E1:evidence/E3/runs-charter-gradle.txt:OK
+F-E3-012 seeded | E1:evidence/E3/runs-M-OB-4.txt:OK ; E2:evidence/E3/runs-supp.txt:OK
+F-E3-013 seeded | E1:evidence/E3/runs-charter-gradle.txt:OK
+F-E3-016 seeded | E1:evidence/E3/runs-supp.txt:OK
+F-E3-019 seeded | E1:evidence/E3/runs-op-M-IC-5.txt:OK ; E2:evidence/E3/runs-op-M-IC-5-regenerated.txt:OK
+F-G1-001 decisive | E1:evidence/G1/I1_core_head_vs_rc8.json:OK ; E2:evidence/G1/core-head-I1_cycles.json:OK ; E3:evidence/G1/core-rc8-I1_cycles.json:OK
+F-G1-002 decisive | E1:evidence/G1/I1_charter_head_vs_rc3.json:OK ; E2:evidence/G1/charter-head-I1_cycles.json:OK ; E3:evidence/G1/charter-rc3-I1_cycles.json:OK
+F-G1-003 decisive | E1:evidence/G1/core-head-I2_private_access.csv:OK ; E2:evidence/G1/core-head-summary.json:OK
+F-G1-004 decisive | E1:evidence/G1/charter-head-I2_private_access.csv:OK ; E2:evidence/G1/charter-head-summary.json:OK
+F-G1-005 decisive | E1:evidence/G1/core-head-I3_reverse_layer.csv:OK ; E2:evidence/G1/core-head-summary.json:OK ; E3:evidence/G1/core-I3-library-repos-output.txt:OK ; E4:evidence/G1/core-I6-build-B-clone-synced.txt:OK
+F-G1-006 decisive | E1:evidence/G1/charter-head-I3_reverse_and_inward.csv:OK ; E2:evidence/G1/charter-I3-core-dependency-output.txt:OK ; E3:evidence/G1/charter-head-summary.json:OK
+F-G1-007 decisive | E1:evidence/G1/core-head-I4_cli_in_domain.csv:OK ; E2:evidence/G1/core-head-summary.json:OK
+F-G1-008 decisive | E1:evidence/G1/charter-head-I4_cli_in_domain.csv:OK ; E2:evidence/G1/charter-head-summary.json:OK
+F-G1-009 decisive | E1:evidence/G1/core-head-I5_state_literals.csv:OK ; E2:evidence/G1/core-head-I5-summary.txt:OK
+F-G1-011 decisive | E1:evidence/G1/core-I6-build-A-archive-copy.txt:OK ; E2:evidence/G1/core-I6-build-B-clone-synced.txt:OK ; E3:evidence/G1/core-I6-sync-packs.txt:OK ; E4:evidence/G1/core-I6-named-checks.txt:OK
+F-G1-010 seeded | E1:evidence/G1/charter-head-I5_file_writes.csv:OK ; E2:evidence/G1/charter-head-summary.json:OK
+F-G1-012 seeded | E1:evidence/G1/charter-I6-build.txt:OK
+F-G2-001 decisive | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/check_g2_core.txt:OK ; E3:evidence/G2/core_L1_edge_counts.csv:OK ; E4:evidence/G2/core_existing_gates_full_run.txt:OK
+F-G2-002 decisive | E1:evidence/G2/charter_java_checks.json:OK ; E2:evidence/G2/check_g2_java.txt:OK ; E3:evidence/G2/charter_cross_slice_package_edges.csv:OK
+F-G2-003 decisive | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/check_g2_core.txt:OK ; E3:evidence/G2/core_L1_edge_counts.csv:OK
+F-G2-004 decisive | E1:evidence/G2/charter_java_checks.json:OK ; E2:evidence/G2/check_g2_java.txt:OK ; E3:evidence/G2/charter_cross_slice_package_edges.csv:OK
+F-G2-005 decisive | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/check_g2_core.txt:OK ; E3:evidence/G2/core_L1_edge_counts.csv:OK
+F-G2-006 decisive | E1:evidence/G2/charter_java_checks.json:OK ; E2:evidence/G2/check_g2_java.txt:OK ; E3:evidence/G2/charter_cross_slice_package_edges.csv:OK ; E4:evidence/G2/charter_I3_crossrepo_grep.txt:OK
+F-G2-007 decisive | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/check_g2_core.txt:OK ; E3:evidence/G2/core_L1_edge_counts.csv:OK
+F-G2-008 decisive | E1:evidence/G2/charter_java_checks.json:OK ; E2:evidence/G2/check_g2_java.txt:OK ; E3:evidence/G2/charter_cross_slice_package_edges.csv:OK
+F-G2-009 decisive | E1:evidence/G2/core_i5.json:OK ; E2:evidence/G2/check_g2_core_i5.txt:OK ; E3:evidence/G2/core_checks.json:OK
+F-G2-011 decisive | E1:evidence/G2/I6_core_build_install_test.txt:OK ; E2:evidence/G2/core_existing_gates_full_run.txt:OK
+F-G2-010 seeded | E1:evidence/G2/charter_java_checks.json:OK ; E2:evidence/G2/check_g2_java.txt:OK ; E3:evidence/G2/charter_cross_slice_package_edges.csv:OK
+F-G2-012 seeded | E1:evidence/G2/I6_charter_gradle.txt:OK
+F-G2-013 seeded | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/check_g2_core.txt:OK ; E3:evidence/G2/core_L1_edge_counts.csv:OK
+F-G2-014 seeded | E1:evidence/G2/core_checks.json:OK ; E2:evidence/G2/core_i5.json:OK
+F-G2-015 seeded | E1:evidence/G2/invariant-results.csv:OK
+F-H06b-013 decisive | E1:evidence/H06b/checks.csv:OK ; E2:evidence/H06b/checks-run2.csv:OK ; E3:evidence/H06b/counts.json:OK ; E4:evidence/H06b/code-checks-log.txt:OK ; E5:evidence/H06b/contradiction-searches-log.txt:OK
+F-H06b-001 seeded | E1:evidence/H06b/code-checks-log.txt:OK ; E2:evidence/H06b/contradiction-searches-log.txt:OK ; E3:evidence/H06b/checks.csv:OK ; E4:evidence/H06b/checks-run2.csv:OK
+F-H06b-007 seeded | E1:evidence/H06b/code-checks-log.txt:OK ; E2:evidence/H06b/contradiction-searches-log.txt:OK ; E3:evidence/H06b/checks.csv:OK ; E4:evidence/H06b/service-status.txt:OK ; E5:evidence/H06b/checks-run2.csv:OK
+F-H06b-008 seeded | E1:evidence/H06b/code-checks-log.txt:OK ; E2:evidence/H06b/contradiction-searches-log.txt:OK ; E3:evidence/H06b/checks.csv:OK ; E4:evidence/H06b/wheel-listing.txt:OK ; E5:evidence/H06b/checks-run2.csv:OK
+F-H06b-009 seeded | E1:evidence/H06b/code-checks-log.txt:OK ; E2:evidence/H06b/contradiction-searches-log.txt:OK ; E3:evidence/H06b/checks.csv:OK
+F-H06b-011 seeded | E1:evidence/H06b/code-checks-log.txt:OK ; E2:evidence/H06b/contradiction-searches-log.txt:OK ; E3:evidence/H06b/checks.csv:OK ; E4:evidence/H06b/checks-run2.csv:OK

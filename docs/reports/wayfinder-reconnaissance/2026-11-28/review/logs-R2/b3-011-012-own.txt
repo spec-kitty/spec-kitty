@@ -1,0 +1,11 @@
+charter.offering from outside charter : pairs 17 through door 0 bypass 17 importing modules 11 bypassing modules 11
+charter.offering from specify_cli : pairs 15 through door 0 bypass 15 importing modules 9 bypassing modules 9
+charter.offering from runtime/mission_runtime/glossary : pairs 2 through door 0 bypass 2 importing modules 2 bypassing modules 2
+charter.offering from rest of charter : pairs 242 through door 5 bypass 237 importing modules 85 bypassing modules 82
+charter.activation from outside charter : pairs 271 through door 39 bypass 232 importing modules 101 bypassing modules 80
+charter.activation from specify_cli : pairs 256 through door 38 bypass 218 importing modules 96 bypassing modules 75
+charter.activation from runtime/mission_runtime/glossary : pairs 15 through door 1 bypass 14 importing modules 5 bypassing modules 5
+charter.activation from rest of charter : pairs 3 through door 0 bypass 3 importing modules 2 bypassing modules 2
+all outside->charter pairs 447 [('charter.activation', 271), ('charter.drg', 41), ('charter.bundle', 24), ('charter.missions', 18), ('charter.offering', 17), ('charter.packs', 15), ('charter.profiles', 14), ('charter.resolution', 13)]
+mission_runtime inbound pairs 213 root 213 submodule 0 importing modules 213 modules importing submodule 0
+specify_cli.status inbound pairs 245 root 202 submodule 43 importing modules 206 modules importing submodule 24

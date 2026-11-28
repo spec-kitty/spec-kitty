@@ -1,0 +1,20 @@
+M-PI-1 ast_ok src/specify_cli/status/reducer.py
+M-PI-2 ast_ok src/specify_cli/charter_activate.py
+M-PI-3 ast_ok src/specify_cli/events/decision_log.py
+M-PI-5 ast_ok src/specify_cli/drg_writers/registry.py
+M-RD-1 ast_ok src/kernel/site_urls.py
+M-RD-2 ast_ok src/charter/hasher.py
+M-RD-3 ast_ok src/runtime/next/prompt_builder.py
+M-RD-5 ast_ok src/kernel/glossary_runner.py
+M-OB-1 ast_ok src/specify_cli/mission_brief.py
+M-OB-2 ast_ok src/specify_cli/charter_activate.py
+M-OB-3 ast_ok src/specify_cli/upgrade/finalize.py
+M-OB-4 ast_ok src/specify_cli/services/resolution.py
+M-OB-6 ast_ok src/specify_cli/policy/audit.py
+M-IC-4 ast_ok src/specify_cli/orchestrator_api/envelope.py
+M-IC-6 ast_ok src/specify_cli/status/wp_window.py
+M-RD-4 ast_ok src/spec_kitty_events/status_log.py
+M-IC-1 ast_ok src/spec_kitty_events/gates.py
+M-IC-1 json_ok src/spec_kitty_events/schemas/gate_failed_payload.schema.json
+M-IC-1 json_ok src/spec_kitty_events/schemas/gate_passed_payload.schema.json
+0

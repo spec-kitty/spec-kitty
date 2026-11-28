@@ -1,0 +1,281 @@
+### CMD [2026-11-28T14:00:48Z]
+$ spec-kitty agent mission create px01-research-probe --mission-type research --topology single_branch --json
+{"result": "success", "mission_slug": "px01-research-probe-01M8H7B3", "mission_number": null, "mission_id": "01M8H7B30GYWMSXVE4WG1K8WGG", "mission_type": "research", "slug": "px01-research-probe-01M8H7B3", "friendly_name": "px01 research probe", "purpose_tldr": "px01 research probe", "purpose_context": "This mission advances px01 research probe on px01-main so stakeholders can track the work from mission creation onward.", "mission_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "feature_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "spec_file": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/spec.md", "meta_file": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/meta.json", "created_at": "2026-11-28T14:00:58.849303+00:00", "created_files": ["<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/spec.md", "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/meta.json", "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/tasks/README.md"], "mission_branch": null, "commit_to_target": null, "uncommitted_artifacts": [{"path": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/spec.md", "reason": "Scaffolded empty at create time; populated and committed with substantive content later (#846).", "responsible_command": "/spec-kitty.specify"}], "write_mode": "update_existing_files", "scaffold_only": true, "requires_agent_authoring": true, "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", "next_step": "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`.", "origin_binding": {"attempted": false, "succeeded": false, "error": null}, "coordination_branch": null, "coordination_branch_created": false, "topology": "single_branch", "topology_source": "explicit", "topology_provisional": false, "target_replacement": null, "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T14:00:59Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T14:00:59Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD [2026-11-28T14:01:07Z]
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8H7B3 --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "scoping",
+  "timestamp": "2026-11-28T14:01:09.039569+00:00",
+  "action": "scoping",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "<scratch>/rv-R3/px/home/.spec-kitty/spec-kitty-prompts/9201a8ed39350c9e/spec-kitty-next-claude-px01-research-probe-01M8H7B3-scoping.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "<scratch>/rv-R3/px/home/.kittify/missions/research"
+  },
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "scoping",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD [2026-11-28T14:01:15Z]
+$ /root/.local/share/uv/tools/spec-kitty-cli/bin/python scripts/sync_packs.py --pack all
+built-in: synced a79c36318b7a
+internal: synced ecda7b00c789
+### EXIT 0
+
+### CMD [2026-11-28T14:01:18Z]
+$ git add kitty-specs/px01-research-probe-01M8H7B3/spec.md
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:18Z]
+$ git commit -q -m docs(px01): author research spec
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:18Z]
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8H7B3 --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "methodology",
+  "timestamp": "2026-11-28T14:01:19.875929+00:00",
+  "action": "methodology",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "<scratch>/rv-R3/px/home/.spec-kitty/spec-kitty-prompts/9201a8ed39350c9e/spec-kitty-next-claude-px01-research-probe-01M8H7B3-methodology.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "<scratch>/rv-R3/px/home/.kittify/missions/research"
+  },
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "methodology",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD [2026-11-28T14:01:33Z]
+$ spec-kitty agent mission setup-plan --mission px01-research-probe-01M8H7B3 --json
+{"result": "blocked", "phase_complete": false, "blocked_reason": "spec.md must be committed AND substantive before setup-plan can run. Under the exact 'Research Question & Scope' heading, populate the primary research question and a bare '**Scope**:' line with an in-scope boundary; author at least one substantive DR/AR/QR requirement each, replacing shipped template lines; commit spec.md, then re-run setup-plan.", "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", "mission_slug": "px01-research-probe-01M8H7B3", "mission_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "feature_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "spec_file": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/spec.md", "spec_committed": true, "spec_substantive": false, "spec_commit_surfaces_checked": ["HEAD:kitty-specs/px01-research-probe-01M8H7B3/spec.md (cwd=<scratch>/rv-R3/px/repo): hit"], "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T14:01:36Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T14:01:36Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD [2026-11-28T14:01:44Z]
+$ git add kitty-specs/px01-research-probe-01M8H7B3/spec.md
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:44Z]
+$ git commit -q -m docs(px01): make research requirements specific
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:44Z]
+$ spec-kitty agent mission setup-plan --mission px01-research-probe-01M8H7B3 --json
+{"result": "success", "phase_complete": false, "mission_slug": "px01-research-probe-01M8H7B3", "plan_file": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/plan.md", "mission_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "feature_dir": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3", "spec_file": "<scratch>/rv-R3/px/repo/kitty-specs/px01-research-probe-01M8H7B3/spec.md", "plan_substantive": false, "requirement_id_warnings": [], "scaffold_only": true, "current_branch": "px01-main", "CURRENT_BRANCH": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "TARGET_BRANCH": "px01-main", "BASE_BRANCH": "px01-main", "planning_base_branch": "px01-main", "PLANNING_BASE_BRANCH": "px01-main", "merge_target_branch": "px01-main", "MERGE_TARGET_BRANCH": "px01-main", "EXPECTED_TARGET_BRANCH": "px01-main", "EXPECTED_BASE_BRANCH": "px01-main", "branch_matches_target": true, "BRANCH_MATCHES_TARGET": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main.", "runtime_vars": {"now_utc_iso": "2026-11-28T14:01:48Z", "current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "branch_matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "NOW_UTC_ISO": "2026-11-28T14:01:48Z", "branch_context": {"current_branch": "px01-main", "target_branch": "px01-main", "base_branch": "px01-main", "planning_base_branch": "px01-main", "merge_target_branch": "px01-main", "expected_checkout_branch": "px01-main", "matches_target": true, "branch_strategy_summary": "Current branch at workflow start: px01-main. Planning/base branch for this mission: px01-main. Completed changes must merge into px01-main."}, "spec_kitty_version": "4.0.0rc9"}
+### EXIT 0
+
+### CMD [2026-11-28T14:01:49Z]
+$ git add kitty-specs/px01-research-probe-01M8H7B3/plan.md
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:49Z]
+$ git commit -q -m docs(px01): author research plan
+
+### EXIT 0
+
+### CMD [2026-11-28T14:01:49Z]
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8H7B3 --result success --json
+{
+  "kind": "step",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T14:01:50.891542+00:00",
+  "action": "gathering",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "<scratch>/rv-R3/px/home/.spec-kitty/spec-kitty-prompts/9201a8ed39350c9e/spec-kitty-next-claude-px01-research-probe-01M8H7B3-gathering.md",
+  "reason": null,
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "<scratch>/rv-R3/px/home/.kittify/missions/research"
+  },
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 0
+
+### CMD [2026-11-28T14:02:04Z]
+$ git add kitty-specs/px01-research-probe-01M8H7B3/research
+
+### EXIT 0
+
+### CMD [2026-11-28T14:02:04Z]
+$ git commit -q -m docs(px01): register sources and evidence
+
+### EXIT 0
+
+### CMD [2026-11-28T14:02:04Z]
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8H7B3 --result success --json
+{
+  "kind": "blocked",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T14:02:06.285700+00:00",
+  "action": "gathering",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "<scratch>/rv-R3/px/home/.spec-kitty/spec-kitty-prompts/9201a8ed39350c9e/spec-kitty-next-claude-px01-research-probe-01M8H7B3-gathering.md",
+  "reason": "Required artifact missing: source-register.csv",
+  "guard_failures": [
+    "Required artifact missing: source-register.csv",
+    "Insufficient sources documented (need >=3)"
+  ],
+  "guard_failure_paths": {
+    "source-register.csv": "kitty-specs/px01-research-probe-01M8H7B3/source-register.csv"
+  },
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "<scratch>/rv-R3/px/home/.kittify/missions/research"
+  },
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 1
+
+### CMD [2026-11-28T14:02:19Z]
+$ spec-kitty next --mission px01-research-probe-01M8H7B3 --json
+{
+  "kind": "query",
+  "agent": null,
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T14:02:20.820832+00:00",
+  "action": null,
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": null,
+  "reason": "No eligible steps: remaining steps have unmet dependencies.",
+  "guard_failures": [],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {},
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": true,
+  "preview_step": null,
+  "next_command": "spec-kitty next --agent <agent> --mission px01-research-probe-01M8H7B3 --result success"
+}
+### EXIT 0
+
+### REVIEWER PROBE (not in the investigator's run): register copied to the Mission root
+### CMD [2026-11-28T14:02:31Z]
+$ git add kitty-specs/px01-research-probe-01M8H7B3/source-register.csv
+
+### EXIT 0
+
+### CMD [2026-11-28T14:02:31Z]
+$ git commit -q -m probe: register at mission root
+
+### EXIT 0
+
+### CMD [2026-11-28T14:02:31Z]
+$ spec-kitty next --agent claude --mission px01-research-probe-01M8H7B3 --result success --json
+{
+  "kind": "blocked",
+  "agent": "claude",
+  "mission_slug": "px01-research-probe-01M8H7B3",
+  "mission_number": "",
+  "mission_type": "research",
+  "mission": "research",
+  "mission_state": "gathering",
+  "timestamp": "2026-11-28T14:02:33.567533+00:00",
+  "action": "gathering",
+  "wp_id": null,
+  "workspace_path": null,
+  "prompt_file": "<scratch>/rv-R3/px/home/.spec-kitty/spec-kitty-prompts/9201a8ed39350c9e/spec-kitty-next-claude-px01-research-probe-01M8H7B3-gathering.md",
+  "reason": "Insufficient sources documented (need >=3)",
+  "guard_failures": [
+    "Insufficient sources documented (need >=3)"
+  ],
+  "guard_failure_paths": {},
+  "progress": null,
+  "origin": {
+    "mission_tier": "global_mission",
+    "mission_path": "<scratch>/rv-R3/px/home/.kittify/missions/research"
+  },
+  "run_id": "f88e3e3710df4a5695d30c0af7175cf4",
+  "step_id": "gathering",
+  "decision_id": null,
+  "input_key": null,
+  "question": null,
+  "options": null,
+  "is_query": false,
+  "preview_step": null
+}
+### EXIT 1
+

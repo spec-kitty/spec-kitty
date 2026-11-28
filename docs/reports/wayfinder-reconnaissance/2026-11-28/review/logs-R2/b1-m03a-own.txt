@@ -1,0 +1,11 @@
+_EXCLUDED_FROM_LAYER_ENFORCEMENT 0
+_DEFINED_LAYERS 6
+_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI 10
+_RUNTIME_ALLOWED_SPECIFY_CLI 22
+_DYNAMIC_IMPORT_CALLABLE_NAMES 3
+_MERGE_CLI_CONSOLE_IMPORTERS 16
+mission_runtime edges 30 importing modules 7 subpackages 10 out of ledger [] stale []
+runtime edges 98 importing modules 20 subpackages 22 out of ledger [] stale []
+kernel/charter/glossary upward edges []
+runtime->specify_cli.cli []
+consolidation->cli edges 16 importers 16 {'specify_cli.cli.console'}

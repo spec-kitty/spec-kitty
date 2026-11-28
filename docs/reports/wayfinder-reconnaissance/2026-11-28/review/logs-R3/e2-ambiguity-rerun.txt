@@ -1,0 +1,28 @@
+core HEAD=5c4fc5a79de1c1c299ab221ca26e5555c68ef533; grep grep (GNU grep) 3.11
+A1 import statements of runtime.next._internal_runtime under src/specify_cli: lines=11 files=8 of_py_files=1119
+A4 import statements of specify_cli under src/kernel: lines=0 files=0 of_py_files=45
+A4 import statements of specify_cli under src/charter: lines=0 files=0 of_py_files=252
+A4 import statements of specify_cli under src/glossary: lines=0 files=0 of_py_files=22
+A4 import statements of specify_cli under src/runtime: lines=138 files=20 of_py_files=36
+A4 import statements of specify_cli under src/mission_runtime: lines=90 files=7 of_py_files=16
+A6 modules importing kernel.event_log_append.append_event_log_lines: files=9
+   src/runtime/next/_internal_runtime/engine.py
+   src/charter/activation/_io.py
+   src/specify_cli/policy/audit.py
+   src/specify_cli/events/decision_log.py
+   src/specify_cli/missions/_archive.py
+   src/specify_cli/mission_v1/events.py
+   src/specify_cli/invocation/lifecycle.py
+   src/specify_cli/invocation/writer.py
+   src/specify_cli/invocation/propagator.py
+A6 public module-level append_* functions in src/specify_cli/status/store.py: 6
+   379:def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
+   499:def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
+   509:def append_annotations_atomic_verified(
+   535:def append_event_stream_atomic_verified(
+   571:def append_events_atomic_verified(feature_dir: Path, events: list[StatusEvent]) -> None:
+   587:def append_primary_checkout_events_atomic_verified(
+A6 'append_event_log_lines' in kernel.event_log_append.__all__: 1
+A2 CONTEXT_SCHEMA_VERSION: 40:CONTEXT_SCHEMA_VERSION = "1.4.0"
+IC-4 CONTRACT_VERSION: 244:CONTRACT_VERSION = "1.31.0"
+IC-6 WP_WINDOW_SCHEMA_VERSION: 28:WP_WINDOW_SCHEMA_VERSION: Final = 1

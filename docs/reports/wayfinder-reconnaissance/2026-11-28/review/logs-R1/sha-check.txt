@@ -1,0 +1,123 @@
+F-A1-029 E1 document-claim evidence/A1/component-catalogue.csv OK 
+F-A1-001 E1 document-claim evidence/A1/source-authority-map.csv OK 
+F-A1-001 E2 document-claim spec-kitty:.kittify/charter/charter.md:313-314 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+F-A1-001 E3 document-claim spec-kitty:docs/architecture/README.md:32-52 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 3cc1892dace7d452bfea342bfbef36f65c74277e42d4e394a348ff670a9c865e
+F-A1-001 E4 document-claim spec-kitty:docs/architecture/06_unified_charter_bundle.md:206-219 @ 5c4fc5a79de1c1c299ab22 NOT-A-FILE 2afbafd8c1f355d1060e5ca8eb2bc4cfce75940a06b1aaeb9702af895189e9e0
+F-A1-001 E5 document-claim spec-kitty:.kittify/charter/charter.md:670-672 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+F-A1-007 E1 document-claim spec-kitty-planning:PROGRAM.md:42-55 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe NOT-A-FILE 4391f668ce1f1be1b2f59384764cd44bc4cf92a1c63f5d02b399cf469cfd94ec
+F-A1-007 E2 document-claim spec-kitty-events:.kittify/charter/charter.md:72-72 @ 646e330b896b96d7a11f53b34aa3d0c0baa6 NOT-A-FILE 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+F-A1-007 E3 document-claim spec-kitty:.kittify/charter/charter.md:382-388 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+F-A1-007 E4 document-claim evidence/A1/supersession-chains.csv OK 
+F-A1-008 E1 document-claim spec-kitty-planning:PROGRAM.md:5-9 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe NOT-A-FILE 4391f668ce1f1be1b2f59384764cd44bc4cf92a1c63f5d02b399cf469cfd94ec
+F-A1-008 E2 document-claim spec-kitty-planning:GOAL.md:1-6 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe NOT-A-FILE 1e90aba4aea3c127a121d869e632249d7a26f16091b8d2fe70681660888dfce9
+F-A1-008 E3 document-claim spec-kitty:docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md: NOT-A-FILE 0d3ca9d320c5fab8fdd86833c705d7f0ab4fa390cb1721e06733e6c2b3c6bf12
+F-A1-008 E4 document-claim spec-kitty:.kittify/charter/charter.md:521-521 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+F-A1-012 E1 document-claim spec-kitty-open-packs:.kittify/charter/charter.md:15-20 @ f9a557510dc7ff04597a0b8aba87f736 NOT-A-FILE c9e7571c51e2baf7d2936ebd273295d4cb60cb60cc8bb6f7da33e01ee05bf847
+F-A1-012 E2 document-claim spec-kitty:.kittify/charter/charter.md:425-433 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+F-A1-012 E3 document-claim spec-kitty-charter:docs/adr/0010-cutover-scope-and-seam-boundary.md:73-90 @ 06cdfbe94856e8 NOT-A-FILE 7be99dae8499514d35d058bad389da0322fc960947e56bad25a29be1229a0054
+F-A1-025 E1 document-claim doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:36-80 NOT-A-FILE 2c65a64ca069598015c7e754a7f6de8fc1bf61e6aa58d8113dcf1128dbde25d2
+F-A1-025 E2 document-claim doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:300-3 NOT-A-FILE 2c65a64ca069598015c7e754a7f6de8fc1bf61e6aa58d8113dcf1128dbde25d2
+F-A1-025 E3 document-claim spec-kitty-events:.kittify/charter/charter.md:86-93 @ 646e330b896b96d7a11f53b34aa3d0c0baa6 NOT-A-FILE 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+F-A1-026 E1 document-claim evidence/A1/decision-timeline.csv OK 
+F-A1-031 E1 document-claim evidence/A1/documented-relationships.csv OK 
+F-A1-031 E2 document-claim evidence/A1/units-without-recorded-internal-structure.csv OK 
+F-A2-002 E1 static-derived evidence/A2/static-verifications.txt OK 
+F-A2-002 E2 static-derived evidence/A2/code-identifiers.txt OK 
+F-A2-002 E3 document-claim spec-kitty-events@646e330:src/spec_kitty_events/harness_observation.py:1 NOT-A-FILE None
+F-A2-004 E1 static-derived evidence/A2/code-identifiers.txt OK 
+F-A2-004 E2 static-derived evidence/A2/multi-sense.csv OK 
+F-A2-008 E1 static-derived evidence/A2/drg-tier-names.csv OK 
+F-A2-008 E2 static-derived evidence/A2/drift.csv OK 
+F-A2-008 E3 document-claim spec-kitty@5c4fc5a:.kittify/charter/charter.md:452 NOT-A-FILE None
+F-A2-012 E1 static-derived evidence/A2/drift.csv OK 
+F-A2-012 E2 document-claim spec-kitty-charter@06cdfbe:docs/glossary/charter/README.md:246 NOT-A-FILE None
+F-A2-018 E1 static-derived evidence/A2/core-glossary-index.txt OK 
+F-C-008 E1 history-derived evidence/C/m01c-m01d-components-per-commit.csv OK 
+F-C-018 E1 history-derived evidence/C/m02a-frame.csv OK 
+F-C-018 E2 history-derived evidence/C/m02-trace-sample.csv OK 
+F-C-019 E1 history-derived evidence/C/m02-trace-sample.csv OK 
+F-C-020 E1 history-derived evidence/C/m02b-frame.csv OK 
+F-C-020 E2 history-derived evidence/C/m02-trace-sample.csv OK 
+F-C-021 E1 history-derived evidence/C/m02-trace-sample.csv OK 
+F-C-003 E1 history-derived evidence/C/source-lines-at-points.csv OK 
+F-C-003 E2 history-derived evidence/C/source-lines-by-component.csv OK 
+F-C-007 E1 history-derived evidence/C/m01c-m01d-components-per-commit.csv OK 
+F-C-009 E1 history-derived evidence/C/cochange-top15.csv OK 
+F-C-009 E2 history-derived evidence/C/cochange-pairs.csv OK 
+F-C-009 E3 history-derived evidence/C/component-touch-counts.csv OK 
+F-C-012 E1 history-derived evidence/C/convergence-merge-effect-by-component.csv OK 
+F-C-012 E2 history-derived evidence/C/source-lines-at-points.csv OK 
+F-C-025 E1 history-derived evidence/C/narrative-chains-summary.csv OK 
+F-C-025 E2 history-derived evidence/C/narrative-chains.csv OK 
+F-C-027 E1 history-derived evidence/C/narrative-chains-summary.csv OK 
+F-C-027 E2 history-derived evidence/C/narrative-chains.csv OK 
+F-C2-010 E1 history-derived evidence/C2/M01c-M01d-components-per-code-commit.csv OK 
+F-C2-018 E1 history-derived evidence/C2/M02-tracing.csv OK 
+F-C2-018 E2 executed evidence/C2/M02-enriched-traces.json OK 
+F-C2-018 E3 history-derived evidence/C2/M02-coding-decisions.txt OK 
+F-C2-019 E1 history-derived evidence/C2/M02-tracing.csv OK 
+F-C2-019 E2 executed evidence/C2/M02-enriched-traces.json OK 
+F-C2-020 E1 history-derived evidence/C2/M02-tracing.csv OK 
+F-C2-020 E2 executed evidence/C2/M02-enriched-traces.json OK 
+F-C2-020 E3 history-derived evidence/C2/M02-coding-decisions.txt OK 
+F-C2-001 E1 history-derived evidence/C2/summary.json OK 
+F-C2-001 E2 history-derived evidence/C2/volume-denominators.csv OK 
+F-C2-005 E1 history-derived evidence/C2/classification-rules.txt OK 
+F-C2-005 E2 history-derived evidence/C2/classification-validation.csv OK 
+F-C2-005 E3 history-derived evidence/C2/classification-validation-readings.txt OK 
+F-C2-006 E1 history-derived evidence/C2/summary.json OK 
+F-C2-006 E2 history-derived evidence/C2/class-by-month-line.csv OK 
+F-C2-006 E3 history-derived evidence/C2/code-commits-classified.csv OK 
+F-C2-014 E1 static-derived evidence/C2/M01f-import-edges-aggregate.csv OK 
+F-C2-014 E2 static-derived evidence/C2/M01f-import-edges-sample.csv OK 
+F-C2-015 E1 static-derived evidence/C2/M01f-import-edges-aggregate.csv OK 
+F-C2-028 E1 history-derived evidence/C2/component-touch-counts-per-period.csv OK 
+F-CX-004 E1 executed evidence/CX/comparison.csv OK 
+F-CX-004 E2 executed evidence/CX/component-count-differences.csv OK 
+F-CX-008 E1 executed evidence/CX/comparison.csv OK 
+F-CX-008 E2 executed evidence/CX/m02-overlap-traces.csv OK 
+F-CX-008 E3 executed evidence/CX/sample-frames.csv OK 
+F-CX-005 E1 executed evidence/CX/comparison.csv OK 
+F-CX-005 E2 executed evidence/CX/cochange-pairs-compared.csv OK 
+F-CX-006 E1 executed evidence/CX/comparison.csv OK 
+F-CX-006 E2 executed evidence/CX/m01f-sensitivity.csv OK 
+F-CX-006 E3 executed evidence/CX/samples-output.txt OK 
+F-CX-011 E1 executed evidence/CX/comparison.csv OK 
+F-CX-012 E1 executed evidence/CX/comparison.csv OK 
+F-CX-013 E1 executed evidence/CX/comparison.csv OK 
+F-CX-013 E2 static-derived evidence/CX/classification-rulesets-compared.txt OK 
+F-CX-013 E3 executed evidence/CX/sample-frames.csv OK 
+F-F-001 E1 static-derived evidence/F/m07a-execution-responsibilities.csv OK 
+F-F-001 E2 executed evidence/F/core-tests-summary.txt OK 
+F-F-001 E3 executed evidence/F/timeout-probe.txt OK 
+F-F-001 E4 executed evidence/F/dispatch-op-lifecycle.json OK 
+F-F-002 E1 static-derived evidence/F/coordination-responsibilities.txt OK 
+F-F-002 E2 static-derived evidence/F/m07b-coordination-classification.csv OK 
+F-F-002 E3 executed evidence/F/core-tests-summary.txt OK 
+F-F-017 E1 executed evidence/F/core-tests-summary.txt OK 
+F-F-017 E2 executed evidence/F/orch-unit-tests.txt OK 
+F-F-017 E3 executed evidence/F/orch-e2e-summary.txt OK 
+F-F-017 E4 static-derived evidence/F/static-anchors-core.txt OK 
+F-F-004 E1 executed evidence/F/dispatch-op-lifecycle.json OK 
+F-F-004 E2 static-derived evidence/F/static-anchors-core.txt OK 
+F-F-008 E1 static-derived evidence/F/oa-rename-history.txt OK 
+F-F-008 E2 static-derived evidence/F/external-loci-survey.txt OK 
+F-F-010 E1 static-derived evidence/F/static-anchors-core.txt OK 
+F-F-010 E2 static-derived evidence/F/external-loci-survey.txt OK 
+F-F-025 E1 static-derived evidence/F/static-anchors-core.txt OK 
+F-F-025 E2 static-derived evidence/F/unit-identifiers.csv OK 
+F-H06a-002 E1 document-claim spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md:151-166 at 5c4fc5a79de1c NOT-A-FILE None
+F-H06a-002 E2 executed evidence/H06a/answers-run1.csv OK 
+F-H06a-002 E3 executed evidence/H06a/search-log-run1.txt OK 
+F-H06a-011 E1 document-claim spec-kitty/docs/architecture/README.md:32-50 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 NOT-A-FILE None
+F-H06a-011 E2 executed evidence/H06a/answers-run1.csv OK 
+F-H06a-011 E3 executed evidence/H06a/search-log-run1.txt OK 
+F-H06a-012 E1 document-claim spec-kitty/docs/development/reference/events-in-core.md:155-170 at 5c4fc5a79de1c1c299ab221 NOT-A-FILE None
+F-H06a-012 E2 executed evidence/H06a/answers-run1.csv OK 
+F-H06a-012 E3 executed evidence/H06a/search-log-run1.txt OK 
+F-H06a-016 E1 document-claim spec-kitty/docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md:48-53 at 5c4fc NOT-A-FILE None
+F-H06a-016 E2 executed evidence/H06a/answers-run1.csv OK 
+F-H06a-016 E3 executed evidence/H06a/search-log-run1.txt OK 
+F-H06a-020 E1 document-claim spec-kitty/docs/plans/4-0-0-milestone-roadmap.md:28-32 at 5c4fc5a79de1c1c299ab221ca26e5555 NOT-A-FILE None
+F-H06a-020 E2 executed evidence/H06a/answers-run1.csv OK 
+F-H06a-020 E3 executed evidence/H06a/search-log-run1.txt OK 

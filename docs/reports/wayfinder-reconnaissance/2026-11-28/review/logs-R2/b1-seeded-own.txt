@@ -1,0 +1,8 @@
+M03c total 524936 consolidation 36414 ref_advance 1238 share none 0.9283
+CLI libs: modules outside adapter importing 59 / 1296 components 19 / 73 adapter 147 / 194
+{'typer': 39, 'click': 4, 'rich': 33} ['charter.activation.synthesizer.errors', 'glossary.checkpoint', 'glossary.observation', 'runtime.next.runtime_bridge_retrospective']
+sites 1313 dict_keys(['component', 'module', 'line', 'path_key_full', 'path_key', 'classification'])
+W/RW 139
+sample match True
+Counter({'yes': 6, 'no': 3, 'ambiguous': 2, 'probable': 1})
+keys 185 2+ comps 82 2+ writer comps 16
