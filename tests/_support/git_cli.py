@@ -26,3 +26,14 @@ def commit_init_leftovers(repo: Path, message: str) -> bool:
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", message], check=True, capture_output=True)
     return True
+
+
+def real_git_command(cmd: list[str] | tuple[str, ...], cwd: Path) -> tuple[int, str, str]:
+    """Run *cmd* (a ``git ...`` argv) for real in *cwd* and return ``run_command``'s triple.
+
+    For a ``run_command`` double that fakes most git but must answer ref lookups with
+    objects that exist: the consolidation claim feeds every resolved tip into further
+    real git probes (``rev-list``, ``cat-file``), which fail closed on a made-up SHA.
+    """
+    result = subprocess.run(list(cmd), cwd=cwd, check=False, capture_output=True, text=True)
+    return result.returncode, result.stdout, result.stderr

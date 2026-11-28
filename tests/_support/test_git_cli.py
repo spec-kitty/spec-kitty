@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests._support.git_cli import commit_init_leftovers, git_out
+from tests._support.git_cli import commit_init_leftovers, git_out, real_git_command
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -38,3 +38,23 @@ def test_makes_no_commit_on_a_clean_tree(tmp_path: Path) -> None:
     assert commit_init_leftovers(repo, "second") is False
 
     assert git_out(repo, "rev-list", "--count", "HEAD") == "1"
+
+
+def test_real_git_command_resolves_an_existing_ref_in_the_given_repo(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "a.txt").write_text("a\n", encoding="utf-8")
+    commit_init_leftovers(repo, "first")
+
+    ret, out, _err = real_git_command(["git", "rev-parse", "main"], repo)
+
+    assert (ret, out.strip()) == (0, git_out(repo, "rev-parse", "HEAD"))
+
+
+def test_real_git_command_reports_an_unknown_object_instead_of_raising(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+
+    ret, out, err = real_git_command(["git", "rev-parse", "--verify", "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2^{commit}"], repo)
+
+    assert ret != 0
+    assert out.strip() == ""
+    assert err.strip() != ""
