@@ -1024,6 +1024,7 @@ def _planning_workspace(
     from specify_cli.lanes.compute import PLANNING_LANE_ID
 
     mission_branch_target = None if arm.owned is not None else planning_mission_branch_target(arm.repo_root, arm.mission_slug, target_branch())
+    branch: str | None  # the repository-root arm may name no branch (``ResolvedWorkspace.branch_name``)
     if mission_branch_target is not None:
         kind, path, branch = MISSION_BRANCH_CHECKOUT_KIND, mission_branch_target.checkout, mission_branch_target.branch
     else:
