@@ -1,0 +1,34 @@
+service-v0.1.0-rc.3 prerelease True 2026-11-20T19:23:27Z assets 13
+contract-packs-v0.1.0-rc.2 prerelease True 2026-11-20T16:26:04Z assets 3
+contract-charter-v0.2.0-rc.3 prerelease True 2026-11-20T16:21:13Z assets 4
+service-v0.1.0-rc.1 prerelease True 2026-11-18T08:08:38Z assets 11
+contract-charter-v0.2.0-rc.2 prerelease True 2026-11-18T07:32:22Z assets 4
+contract-packs-v0.1.0-rc.1 prerelease True 2026-11-17T06:09:52Z assets 3
+contract-charter-v0.2.0-rc.1 prerelease True 2026-11-17T06:04:34Z assets 4
+   service-v0.1.0-rc.3 pack-check-0.1.0-rc.3.jar 9095896 sha256:adde1dfff5d02efb
+   service-v0.1.0-rc.3 SHA256SUMS 666 sha256:d5a86cdeb31be968
+   service-v0.1.0-rc.3 spec-kitty-charter-service-0.1.0-rc.3-linux-arm64 132778104 sha256:2d104e673c95bd49
+   service-v0.1.0-rc.3 spec-kitty-charter-service-0.1.0-rc.3-linux-x64 137103624 sha256:8f45a29809c82806
+   service-v0.1.0-rc.3 spec-kitty-charter-service-0.1.0-rc.3-macos-arm64 128223128 sha256:769d3a3132d2752f
+   service-v0.1.0-rc.3 spec-kitty-charter-service-0.1.0-rc.3-windows-x64.exe 134696960 sha256:f37506b0e8682aeb
+   service-v0.1.0-rc.3 spec-kitty-charter-service-0.1.0-rc.3.jar 31763155 sha256:763536af1c56cc29
+   service-v0.1.0-rc.1 SHA256SUMS 574 sha256:5673509a269118a8
+   service-v0.1.0-rc.1 spec-kitty-charter-service-0.1.0-rc.1-linux-arm64 129960056 sha256:eac9b1ac2d8e7a0e
+   service-v0.1.0-rc.1 spec-kitty-charter-service-0.1.0-rc.1-linux-x64 134285576 sha256:7d22a88b3931f6e6
+   service-v0.1.0-rc.1 spec-kitty-charter-service-0.1.0-rc.1-macos-arm64 125560376 sha256:ca371bf54f7e43f9
+   service-v0.1.0-rc.1 spec-kitty-charter-service-0.1.0-rc.1-windows-x64.exe 131883008 sha256:2045b84b2ff15155
+   service-v0.1.0-rc.1 spec-kitty-charter-service-0.1.0-rc.1.jar 31275877 sha256:596a7861b8efbf27
+service-v0.1.0-rc.1 service-v0.1.0-rc.2 service-v0.1.0-rc.3 
+cb9b15426d17c402b06204185a17ebfbc65f22ff
+# The charter this repository's packs are proven against (charter ADR-0070).
+#
+# One pin, read by every check that needs the charter:
+#   - scripts/ci/validate_pack_schemas.py fetches the pack schemas (contracts/packs/) at `commit`;
+#   - the "Charter service validation" job builds, or downloads, the charter service for the same
+#     `commit` and asks it to compose and register every pack (scripts/ci/charter_service_check.py).
+#   - the same job gates every pack on the charter's whole-pack check, pack-check (each pack, the closure and the
+#     round trip; #252): the release's pack-check jar on a release pin, built from `commit` on a main pin
+#     (scripts/ci/charter_pack_check_jar.sh, scripts/ci/charter_pack_check.py).
+#
+# Pin policy (operator ruling, 2026-11-18): pin a charter release or pre-release tag by default; pin
+# charter `main` HEAD (a commit, with `release_tag` and both digests empty) only on demand.

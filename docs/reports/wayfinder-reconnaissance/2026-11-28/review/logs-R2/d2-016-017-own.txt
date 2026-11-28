@@ -1,0 +1,18 @@
+## D2-017 own: service commands in a disposable git project (head source CLI)
+$ spec-kitty service status -> exit 0 | No service is pinned in this spec-kitty version yet.
+$ spec-kitty service status --service read-service -> exit 0 |   instance: absent
+$ spec-kitty service status --service write-service -> exit 0 | No service is pinned in this spec-kitty version yet.
+$ spec-kitty service fetch --all -> exit 0 | No service is pinned in this spec-kitty version yet.
+$ spec-kitty service stop -> exit 0 | not running
+0
+## callers of the launcher outside src/specify_cli/services at head
+      5 ./specify_cli/cli/commands/service.py
+## pins at head
+pins/README.md
+pins/read-service.source.yaml
+## D2-016 own: charter head counts
+['service/packs/src/testFixtures/resources/planted/core-verdicts.json']
+records 55 top type list 
+core commits named [('9554e7b26afe7a61519f7744d0147346ab36f197', 51)]
+divergences entries 118 Counter({'open': 111, 'retired': 4, 'withdrawn': 3})
+contracts/charter paths 71 schemas 191 packs schemas 28

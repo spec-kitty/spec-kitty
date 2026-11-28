@@ -1,0 +1,29 @@
+## spot check of cited contradicting passages at core head
+status: Accepted
+doc_status: active
+supersedes:
+
+1. `spec-kitty-events` publishes contract releases to PyPI.
+2. `spec-kitty` and `spec-kitty-saas` pin `spec-kitty-events` with exact `==` versions.
+--
+> **No pin exists yet.** `pins/` holds only its `README.md` until a service repository cuts its first
+> `service-v*` release. Until then `make sync-services` prints `no service pinned` and exits 0, and
+> every command that needs a service refuses with `SERVICE_PIN_INVALID`. The pull request that adds
+> the first pin also wires the `sync-services` action into CI and `sync-services` into `make dev-setup`.
+Nothing, normally: the first command that needs a service fetches, verifies and starts it.
+README.md
+read-service.source.yaml
+--
+along the way. As of this writing there are exactly four mission types, each
+defined by its own `mission.yaml` under `src/specify_cli/missions/` (the built-in pack
+carries an identical copy under `packs/built-in/missions/<type>/`, beside the
+`mission-runtime.yaml` step DAG):
+--
+kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
+status: Accepted
+doc_status: active
+--
+The CLI itself never ran either service. The wheel ships no server (2026-10-01-2 D-7), and the write-service launcher (#6676) is unbuilt. Moving the code costs core nothing at runtime, but it does change how core gets the write binary once #6195 binds the EventBridge to it.
+- **the pinned service build**, which core pins with one lockfile per service
+  (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only through
+  `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored:

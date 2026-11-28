@@ -1,0 +1,73 @@
+## disconfirmation search for F-D2-008: a declared contract for the on-disk inputs
+contracts/mission-status/schemas/DriftFinding.yaml
+contracts/mission-status/schemas/DriftKind.yaml
+contracts/mission-status/schemas/ArtifactListing.yaml
+contracts/mission-status/paths/missions_missionId_artifacts_content.yaml
+contracts/mission-status/paths/missions_missionId_artifacts.yaml
+contracts/mission-status/examples/DriftReport.truncated.yaml
+contracts/mission-status/examples/DriftReport.populated.yaml
+contracts/mission-status/CHANGELOG.md
+contracts/README.md
+contracts/mission-write/schemas/StatusLogRepairAck.yaml
+contracts/mission-write/examples/StatusLogRepairAck.quarantined.yaml
+contracts/versioning-and-compatibility.md
+-- schemas in the Python package naming the status row:
+lane.schema.json
+status_transition_payload.schema.json
+sync_lane_v1.schema.json
+sync_lane_v2.schema.json
+user_connection_status.schema.json
+132
+-- meta.json / lanes.json / config.yaml schema anywhere in contracts/ or package schemas:
+contracts/mission-status/schemas/Topology.yaml
+contracts/mission-status/schemas/MissionHead.yaml
+contracts/mission-status/schemas/DriftFinding.yaml
+contracts/mission-status/schemas/Project.yaml
+contracts/mission-status/schemas/LogTruncatedEvent.yaml
+contracts/mission-status/schemas/Workspace.yaml
+contracts/mission-status/schemas/DriftKind.yaml
+contracts/mission-status/schemas/StatusTransitionEvent.yaml
+contracts/mission-status/schemas/MissionLifecycleEvent.yaml
+contracts/mission-status/schemas/WorkPackageDetailRefusalCode.yaml
+-- does Java main read the packaged schema?
+service/src/main/java/org/speckitty/missionstatus/adapter/in/http/ProblemBody.java:6: * The shared Problem of the contract ({@code _shared/schemas/Problem.yaml}) as written: only t
+# spec-kitty-events Contracts
+
+This directory is the canonical entry point for the contracts published by the
+`spec-kitty-events` library.
+
+---
+
+## Durable Contracts
+
+Policy documents that apply to **every** release. These govern; per-mission
+contract folders under `kitty-specs/*/contracts/` are historical artifacts
+recording one application of a policy.
+
+| Contract | Governs |
+|---|---|
+| [`lane-vocabulary.md`](./lane-vocabulary.md) | The canonical `Lane` vocabulary, its authoritative location, and the major-bump rule for changing it |
+| [`versioning-and-compatibility.md`](./versioning-and-compatibility.md) | Package version vs on-wire envelope schema version; what requires a major bump; required artifacts on bump |
+| [`total-order.md`](./total-order.md) | The total order over event-log rows in CloudEvents form (Lamport clock, time, id, source), its error rows and dedupe rule (proposed; non-normative until the ADR 0001 cutover), and
+| [`durable-work-observation.md`](./durable-work-observation.md) | The durable live-work observation contract and its Lamport-ordered replay (`work_replay`, LW-10: a clock is required) |
+| [`coordination-message.md`](./coordination-message.md) | The bounded, volatile cross-mission coordination message and its relay projection |
+
+See also [`../COMPATIBILITY.md`](../COMPATIBILITY.md) — the public compatibility
+policy and the single declaration of the current package version.
+
+---
+
+## Event Contracts
+
+Event contracts are defined in Python using Pydantic v2 models and are available
+from the top-level package. The mission-audit family documented below has been
+available since **v2.5.0**; this section has not been extended to cover families
+added in later releases — consult `CHANGELOG.md` and the package's
+`__all__` for the current surface.
+
+---
+
+## 11.0.0 contract changes
+
+`11.0.0` is a major release (#120). The full migration for each role is in
+[`../COMPATIBILITY.md`](../COMPATIBILITY.md); in short:

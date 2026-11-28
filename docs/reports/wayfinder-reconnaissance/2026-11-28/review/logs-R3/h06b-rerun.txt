@@ -1,0 +1,12 @@
+code-checks script re-run: 401 lines, diff against committed log: 0 lines
+
+$ unzip -p <own wheel built at head> */METADATA | grep spec-kitty-(events|tracker)
+Requires-Dist: spec-kitty-events<12,>=11.3.0
+Requires-Dist: spec-kitty-tracker<0.6,>=0.5.2
+
+$ spec-kitty service status --json (empty git repository, scratch HOME)
+{
+  "message": "No service is pinned in this spec-kitty version yet.",
+  "services": []
+}
+exit=0

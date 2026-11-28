@@ -1,0 +1,43 @@
+7786 /bin/bash -c source /root/.claude/shell-snapshots/snapshot-bash-1795864965144-ox8k1s.sh 2>/dev/null || true && \bui
+7788 timeout 1500 python3 scripts/ci/charter_service_check.py --jar /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-cae
+7789 python3 scripts/ci/charter_service_check.py --jar /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+  public static final List<Entry> ENTRIES =
+      List.of(
+          new Entry(PathClass.LEDGER, "<read-dir>/status.events.jsonl", "the event ledger of the resolved read directory"),
+          new Entry(PathClass.MISSION_META, "<primary-dir>/meta.json", "identity, dates and stored topology, from the Mission's own primary directory only"),
+          new Entry(PathClass.LANES_JSON, "<primary-dir>/lanes.json", "the lanes signal, only when the topology is absent and must be classified"),
+          new Entry(PathClass.CONFIG_YAML, ".kittify/config.yaml", "project.slug"),
+          new Entry(PathClass.METADATA_YAML, ".kittify/metadata.yaml", "spec_kitty.version and spec_kitty.schema_version"),
+          new Entry(PathClass.GIT_HEAD, ".git/HEAD", "the branch name, when .git is a directory"),
+          new Entry(PathClass.GIT_POINTER, ".git (pointer file) and <gitdir>/HEAD", "the branch name, when .git is a pointer file: its gitdir line and the one file HEAD o
+          new Entry(PathClass.SPECS_DIR, "kitty-specs/ (names only)", "the Mission directory names"),
+          new Entry(PathClass.WORKTREES_DIR, ".worktrees/ (names only)", "listing for the coordination worktree roots"),
+          new Entry(PathClass.COORD_MISSION_DIR, ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/ (stat only)", "whether the coordination Mission directory exis
+          new Entry(PathClass.COORD_META, ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)", "whether the coordination Mission directory ho
+
+## core layout literals in main Java (own grep)
+     25 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java
+     10 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ArtifactAllowlist.java
+      2 service/src/main/java/org/speckitty/missionstatus/domain/readmodel/artifact/StatusRecordNames.java
+      2 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver.java
+      2 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Listing.java
+      2 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceProject.java
+      2 service/command-cli/src/main/java/org/speckitty/commandcli/adapter/out/mission/FilesystemMissionCatalog.java
+      1 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java
+      1 service/event-log/src/main/java/org/speckitty/missionstatus/adapter/out/statuslog/StatusLogAppender.java
+      1 service/event-log/src/main/java/org/speckitty/missionstatus/adapter/out/statuslog/LockedStatusLogSession.java
+      1 service/command-cli/src/main/java/org/speckitty/commandcli/adapter/in/http/operations/StatusLogRepairController.java
+files: 11
+## x-source citations in rc.1 bundle
+mission-status: lines citing src/specify_cli: 319; x-source keys: 243; distinct core files: 40
+mission-write: lines citing src/specify_cli: 182; x-source keys: 113; distinct core files: 5
+README.md
+_shared
+build.gradle
+coordination-message.md
+durable-work-observation.md
+lane-vocabulary.md
+lint
+mission-status
+mission-write
+tools

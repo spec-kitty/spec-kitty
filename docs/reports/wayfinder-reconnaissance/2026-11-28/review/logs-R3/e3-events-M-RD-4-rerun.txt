@@ -1,0 +1,44 @@
+sync exit=0
+## search for an import-direction check in events (own disconfirmation)
+tests/unit/test_validate_transition_core_edges.py
+tests/test_lane_vocabulary.py
+tests/test_diary_decode_actor.py
+tests/test_generate_transition_parity.py
+scripts/conformance/generate_transition_parity.py
+scripts/conformance/extract_ack_bytes.py
+scripts/conformance/generate_status_append.py
+(end)
+## M-RD-4 applied:  1 file changed, 7 insertions(+)
++
++
++def normalize_lane_token(token: str) -> str:
++    """Resolve a lane token the way the CLI does at its input boundary."""
++    from specify_cli.status.transitions import resolve_lane_alias  # type: ignore[import-not-found]
++
++    return str(resolve_lane_alias(token))
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0
+$ .venv/bin/ruff format --check .
+1383 files already formatted
+exit=0
+$ .venv/bin/mypy src/spec_kitty_events --strict
+Success: no issues found in 71 source files
+exit=0
+$ .venv/bin/python -m pytest --pyargs spec_kitty_events.conformance -q -p no:cacheprovider --no-cov
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+..............................................................           [100%]
+1358 passed in 5.56s
+exit=0
+$ .venv/bin/python -m pytest tests/test_status_log.py -q -p no:cacheprovider --no-cov
+......................................................................   [100%]
+70 passed in 3.48s
+exit=0
+## own disconfirmation: the 5 test files under tests/ that parse or walk source (AST scans), with M-RD-4 applied
+$ pytest tests/test_scenario_contract.py tests/test_local_only_removed.py tests/test_zeitgeist_attrs_conformance.py tests/test_zeitgeist_forbidden_keys_drill.py tests/test_lane_vocabulary.py
+....................................................................s... [ 99%]
+.                                                                        [100%]
+288 passed, 1 skipped in 6.57s

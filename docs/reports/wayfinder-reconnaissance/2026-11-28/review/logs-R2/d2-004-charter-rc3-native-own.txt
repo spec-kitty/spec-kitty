@@ -1,0 +1,19 @@
+spec-kitty-charter-service-0.1.0-rc.3-linux-x64 exit 0 size 137103624 sha 8f45a29809c82806
+spec-kitty-charter-service-0.1.0-rc.3.jar exit 0 size 31763155 sha 763536af1c56cc29
+SHA256SUMS exit 0 size 666 sha d5a86cdeb31be968
+spec-kitty-charter-service-0.1.0-rc.1.jar exit 0 size 31275877 sha 596a7861b8efbf27
+spec-kitty-charter-service-0.1.0-rc.3-linux-x64: OK
+spec-kitty-charter-service-0.1.0-rc.3.jar: OK
+sha256sum -c exit 0
+19
+ready after 1s status 200
+offering packs 0
+no token: 401
+health: {"title":"Unauthorized","status":401}
+  version: 0.2.0-SNAPSHOT
+POST activation {schemaVersion:2}: 201
+{"activationId":"01M8H8418TFBRK0NXQVRNTX6JZ","revision":"sha256:bafebd36189ad3688b7b3915ea55d461e0bfcfbdde11e54b0a123999
+stopped
+second attempt, config root = directory holding packs/: ready after 1s status 200
+offering packs 19 {'packs': [{'packId': 'foundation', 'descriptorPackId': '01M75HSYR9S9KPA372PHGT0EX3', 'level': 'built-in', 'name': 'foundation', 'version': '3.7.0', 'dependsOn': [], '_links': {'artifacts': {'href': '
+health with token: {"status":"UP"}

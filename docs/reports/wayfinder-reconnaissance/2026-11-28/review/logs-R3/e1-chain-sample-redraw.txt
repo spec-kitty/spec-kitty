@@ -1,0 +1,9 @@
+{'frame_A_population': 39, 'frame_B_population': 50, 'seed': 20261128, 'sample_A': 'list6', 'sample_B': 'list6', 'frame_A': 'list39', 'frame_B': 'list50'}
+recorded A idx [0, None, 7, 24, 25, 29] own draw A idx [29, 7, 6, 0, 25, 24] match False
+recorded B idx [None, None, None, None, None, None] continued generator [23, 35, 44, 3, 14, 22] match False | fresh generator [29, 7, 46, 6, 0, 40] match False
+A frame item: {'idx': 6, 'line': 400, 'section': 'External Contract Packages', 'text': '**the pinned service build**, which core pins with one lockfile per service (`pins/<se
+A sample items: ["{'idx': 0, 'line': 384, 'section': 'External Contract Packages', 'text': 'Consume released", "{'idx': 6, 'line': 400, 'section': 'External Contract Packages', 'text': '**the pinned ser", "{'idx': 7, 'line': 446, 'section': 'Internal Runtime Boundary', 'text': 'Runtime code used", "{'idx': 24, 'line': 527, 'section': 'Development Principles', 'text': 'All new features ta", "{'idx': 25, 'line': 528, 'section': 'Development Principles', 'text': 'Breaking changes ar", "{'idx': 29, 'line': 548, 'section': 'Agent Push Authorization (binding)', 'text': 'Create "]
+B frame item: DIRECTIVE_001
+B sample: ["{'idx': 3, 'id': 'DIRECTIVE_018', 'source': 'built-in', 'tit", "{'idx': 14, 'id': 'DIRECTIVE_036', 'source': 'built-in', 'ti", "{'idx': 22, 'id': 'DIRECTIVE_044', 'source': 'built-in', 'ti", "{'idx': 23, 'id': 'DIRECTIVE_045', 'source': 'built-in', 'ti", "{'idx': 35, 'id': 'USE_C4_MODEL_TECHNIQUES', 'source': 'buil", "{'idx': 44, 'id': 'DIR-008', 'source': 'project', 'title': '"]
+A own index draw [0, 6, 7, 24, 25, 29]
+B own index draw [0, 6, 7, 29, 40, 46]

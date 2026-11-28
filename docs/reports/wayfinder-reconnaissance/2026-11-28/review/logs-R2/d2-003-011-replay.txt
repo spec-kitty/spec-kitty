@@ -4,3 +4,7 @@ rc.1 replay exit 0
 rc.2 replay exit 0
 {"requests": 53, "all_checks_ok": 53, "status_ok": 53, "golden_compared": 21, "golden_bytes_equal": 21, "golden_unavailable": 12, "failed_ids": [], "launch": ["mission-status-api-0.1.0-rc.2-linux-x64"]}
 {"requests": 53, "all_checks_ok": 53, "status_ok": 53, "golden_compared": 21, "golden_bytes_equal": 21, "golden_unavailable": 12, "failed_ids": [], "launch": ["mission-status-api-0.1.0-rc.2-linux-x64"]}
+rc.1 replay (smoke dir = .../nativesmoke/golden) exit 0
+{"requests": 53, "all_checks_ok": 53, "status_ok": 53, "golden_compared": 33, "golden_bytes_equal": 33, "golden_unavailable": 0, "failed_ids": [], "launch": ["mission-status-api-0.1.0-rc.1-linux-x64"]}
+rc.2 replay (smoke dir = .../nativesmoke/golden) exit 0
+{"requests": 53, "all_checks_ok": 53, "status_ok": 53, "golden_compared": 33, "golden_bytes_equal": 33, "golden_unavailable": 0, "failed_ids": [], "launch": ["mission-status-api-0.1.0-rc.2-linux-x64"]}
