@@ -376,21 +376,22 @@ class ApprovedWpCommitSet:
     # on a hand-built claim and on a compound refusal. Appended last so positional constructions stay valid.
     window_gaps: tuple[GapEntry, ...] = ()
 
-    # #7860 review 5: one note per planning lane of a default, not-landed Mission that credits none of
-    # its Mission-branch work (``planning_lane_scope.planning_lane_notes``): the lane, the reason, the
-    # work packages and the remedy. Printed with an un-attributable FAIL about that lane (review 6,
-    # :meth:`PlanningLaneNote.explains`); it changes no verdict. Empty on a hand-built claim, on a
-    # REFUSE-shaped claim and on every other shape.
-    planning_lane_notes: tuple[PlanningLaneNote, ...] = ()
-
     # FR-006 (Mission approved-lane-resolution-route-01M7WW0Z, WP04): every merge the authored-content
     # walk dropped from an approved code lane's spine because no approval stamp of that lane reaches it
     # (#7307), in manifest lane order then spine order, filled by ``_collect_authored`` in the production
     # claim builder. Advisory data for the gate's hint, never authorship and never a verdict: an entry is
     # skipped when its own-content probe raises, so the absence of an entry never means "the merge has no
-    # own content". Empty on a hand-built claim and on a refusal. Appended last so positional
-    # constructions stay valid.
+    # own content". Empty on a hand-built claim and on a refusal. Appended after ``window_gaps`` so
+    # every earlier positional construction stays valid.
     unreviewed_merges: tuple[UnreviewedMerge, ...] = ()
+
+    # #7860 review 5: one note per planning lane of a default, not-landed Mission that credits none of
+    # its Mission-branch work (``planning_lane_scope.planning_lane_notes``): the lane, the reason, the
+    # work packages and the remedy. Printed with an un-attributable FAIL about that lane (review 6,
+    # :meth:`PlanningLaneNote.explains`); it changes no verdict. Empty on a hand-built claim, on a
+    # REFUSE-shaped claim and on every other shape. Appended last, after ``unreviewed_merges``, so
+    # every earlier positional construction (``unreviewed_merges`` included) stays valid.
+    planning_lane_notes: tuple[PlanningLaneNote, ...] = ()
 
     @property
     def is_vacuous_against_manifest(self) -> bool:
