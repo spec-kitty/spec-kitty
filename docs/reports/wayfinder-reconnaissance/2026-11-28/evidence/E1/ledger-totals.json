@@ -1,0 +1,358 @@
+{
+ "definition": "file ledgers = one tracked file (or one named block of a file) holding entries; marker scans = inline markers found by git grep at two endpoints",
+ "range": "2026-09-07 .. 2026-11-28 (start revision core 3a4f92b414, last first-parent commit before 2026-09-07T00:00Z)",
+ "file_ledgers_all": {
+  "ledgers": 57,
+  "non_empty": 28,
+  "entries_now": 3357,
+  "entries_at_2026_09_07": 3261,
+  "added": 1429,
+  "removed": 1333,
+  "with_ref": 420,
+  "share_with_ref": 0.125,
+  "with_issue": 391,
+  "with_adr": 48,
+  "with_retirement": 132,
+  "trend": {
+   "growing": 19,
+   "shrinking": 6,
+   "flat": 32
+  }
+ },
+ "file_ledgers_excluding_two_ruff_baselines": {
+  "ledgers": 55,
+  "non_empty": 26,
+  "entries_now": 1092,
+  "entries_at_2026_09_07": 279,
+  "added": 1079,
+  "removed": 266,
+  "with_ref": 336,
+  "share_with_ref": 0.308,
+  "with_issue": 308,
+  "with_adr": 47,
+  "with_retirement": 49,
+  "trend": {
+   "growing": 18,
+   "shrinking": 5,
+   "flat": 32
+  }
+ },
+ "marker_scans_all": {
+  "ledgers": 18,
+  "non_empty": 17,
+  "entries_now": 1612,
+  "entries_at_2026_09_07": 1412,
+  "added": 585,
+  "removed": 446,
+  "with_ref": 159,
+  "share_with_ref": 0.099,
+  "with_issue": 139,
+  "with_adr": 5,
+  "with_retirement": 19,
+  "trend": {
+   "growing": 12,
+   "shrinking": 3,
+   "not computed": 3
+  }
+ },
+ "marker_scans_excluding_src_noqa": {
+  "ledgers": 17,
+  "non_empty": 16,
+  "entries_now": 429,
+  "entries_at_2026_09_07": 247,
+  "added": 184,
+  "removed": 63,
+  "with_ref": 44,
+  "share_with_ref": 0.103,
+  "with_issue": 42,
+  "with_adr": 2,
+  "with_retirement": 3,
+  "trend": {
+   "growing": 11,
+   "shrinking": 3,
+   "not computed": 3
+  }
+ },
+ "by_repo_spec-kitty": {
+  "file": {
+   "ledgers": 55,
+   "non_empty": 27,
+   "entries_now": 3328,
+   "entries_at_2026_09_07": 3252,
+   "added": 1409,
+   "removed": 1333,
+   "with_ref": 399,
+   "share_with_ref": 0.12,
+   "with_issue": 385,
+   "with_adr": 29,
+   "with_retirement": 132,
+   "trend": {
+    "growing": 18,
+    "shrinking": 6,
+    "flat": 31
+   }
+  },
+  "scan": {
+   "ledgers": 7,
+   "non_empty": 7,
+   "entries_now": 1405,
+   "entries_at_2026_09_07": 1389,
+   "added": 460,
+   "removed": 444,
+   "with_ref": 153,
+   "share_with_ref": 0.109,
+   "with_issue": 134,
+   "with_adr": 5,
+   "with_retirement": 18,
+   "trend": {
+    "growing": 4,
+    "shrinking": 3
+   }
+  }
+ },
+ "by_repo_spec-kitty-charter": {
+  "file": {
+   "ledgers": 1,
+   "non_empty": 0,
+   "entries_now": 0,
+   "entries_at_2026_09_07": 0,
+   "added": 0,
+   "removed": 0,
+   "with_ref": 0,
+   "share_with_ref": null,
+   "with_issue": 0,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {
+    "flat": 1
+   }
+  },
+  "scan": {
+   "ledgers": 3,
+   "non_empty": 2,
+   "entries_now": 61,
+   "entries_at_2026_09_07": 0,
+   "added": 0,
+   "removed": 0,
+   "with_ref": 0,
+   "share_with_ref": 0.0,
+   "with_issue": 0,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {
+    "not computed": 3
+   }
+  }
+ },
+ "by_repo_spec-kitty-events": {
+  "file": {
+   "ledgers": 0,
+   "non_empty": 0,
+   "entries_now": 0,
+   "entries_at_2026_09_07": 0,
+   "added": 0,
+   "removed": 0,
+   "with_ref": 0,
+   "share_with_ref": null,
+   "with_issue": 0,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {}
+  },
+  "scan": {
+   "ledgers": 4,
+   "non_empty": 4,
+   "entries_now": 76,
+   "entries_at_2026_09_07": 11,
+   "added": 66,
+   "removed": 1,
+   "with_ref": 2,
+   "share_with_ref": 0.026,
+   "with_issue": 1,
+   "with_adr": 0,
+   "with_retirement": 1,
+   "trend": {
+    "growing": 4
+   }
+  }
+ },
+ "by_repo_spec-kitty-open-packs": {
+  "file": {
+   "ledgers": 0,
+   "non_empty": 0,
+   "entries_now": 0,
+   "entries_at_2026_09_07": 0,
+   "added": 0,
+   "removed": 0,
+   "with_ref": 0,
+   "share_with_ref": null,
+   "with_issue": 0,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {}
+  },
+  "scan": {
+   "ledgers": 1,
+   "non_empty": 1,
+   "entries_now": 36,
+   "entries_at_2026_09_07": 0,
+   "added": 36,
+   "removed": 0,
+   "with_ref": 2,
+   "share_with_ref": 0.056,
+   "with_issue": 2,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {
+    "growing": 1
+   }
+  }
+ },
+ "by_repo_doc-kitty": {
+  "file": {
+   "ledgers": 1,
+   "non_empty": 1,
+   "entries_now": 29,
+   "entries_at_2026_09_07": 9,
+   "added": 20,
+   "removed": 0,
+   "with_ref": 21,
+   "share_with_ref": 0.724,
+   "with_issue": 6,
+   "with_adr": 19,
+   "with_retirement": 0,
+   "trend": {
+    "growing": 1
+   }
+  },
+  "scan": {
+   "ledgers": 3,
+   "non_empty": 3,
+   "entries_now": 34,
+   "entries_at_2026_09_07": 12,
+   "added": 23,
+   "removed": 1,
+   "with_ref": 2,
+   "share_with_ref": 0.059,
+   "with_issue": 2,
+   "with_adr": 0,
+   "with_retirement": 0,
+   "trend": {
+    "growing": 3
+   }
+  }
+ },
+ "non_empty_file_ledgers_header_flags": {
+  "n": 28,
+  "header_names_issue": 17,
+  "header_names_owner": 5,
+  "header_names_retirement_condition": 4
+ },
+ "file_ledgers_created_after_2026_09_07_with_entries": [
+  "dead-symbol-allowlist",
+  "dead-symbol-widened-grandfathered-470",
+  "charter-activation-boundary-baseline",
+  "builtin-pack-provenance-baseline",
+  "p1-census-surfaces",
+  "superseded-migrations",
+  "foreign-coverage-dark-roots",
+  "foreign-coverage-truly-dark-packages",
+  "foreign-coverage-in-matrix-dark-packages",
+  "ci-out-of-matrix-test-dirs",
+  "exemptions/os-detect-ban-deferred",
+  "exemptions/os-detect-ban-mypy-narrowing",
+  "exemptions/os-detect-ban-sanctioned-raw",
+  "exemptions/root_vacuous_denial",
+  "global-state-allowlist/S7",
+  "global-state-allowlist/S8"
+ ],
+ "age_file_entries_all": {
+  "n": 3357,
+  "buckets_days": {
+   "0-30": 23,
+   "31-60": 822,
+   "61-90": 2075,
+   "91-180": 159,
+   "181+": 278
+  },
+  "median": 84,
+  "p90": 117,
+  "max": 279
+ },
+ "age_file_entries_excluding_two_ruff_baselines": {
+  "n": 1092,
+  "buckets_days": {
+   "0-30": 23,
+   "31-60": 568,
+   "61-90": 304,
+   "91-180": 156,
+   "181+": 41
+  },
+  "median": 58.0,
+  "p90": 117,
+  "max": 279
+ },
+ "age_marker_entries_with_blame_date": {
+  "n": 429,
+  "buckets_days": {
+   "0-30": 133,
+   "31-60": 97,
+   "61-90": 35,
+   "91-180": 57,
+   "181+": 107
+  },
+  "median": 55,
+  "p90": 235,
+  "max": 382
+ },
+ "entry_keyword_flags_file_entries_excluding_ruff": {
+  "n": 1092,
+  "issue": 308,
+  "adr": 47,
+  "retire": 49,
+  "owner": 3,
+  "rationale": 474,
+  "approval": 58
+ },
+ "entry_keyword_flags_file_entries_all": {
+  "n": 3357,
+  "issue": 391,
+  "adr": 48,
+  "retire": 132,
+  "owner": 3,
+  "rationale": 484,
+  "approval": 59
+ },
+ "file_ledgers_existing_on_2026_09_07": {
+  "ledgers": 27,
+  "non_empty": 12,
+  "start": 3261,
+  "now": 2530,
+  "trend": {
+   "shrinking": 6,
+   "flat": 18,
+   "growing": 3
+  }
+ },
+ "file_ledgers_existing_on_2026_09_07_excluding_two_ruff_baselines": {
+  "ledgers": 25,
+  "non_empty": 10,
+  "start": 279,
+  "now": 265,
+  "trend": {
+   "shrinking": 5,
+   "flat": 18,
+   "growing": 2
+  }
+ },
+ "file_ledgers_created_after_2026_09_07": {
+  "ledgers": 30,
+  "non_empty": 16,
+  "start": 0,
+  "now": 827,
+  "trend": {
+   "growing": 16,
+   "flat": 14
+  }
+ }
+}

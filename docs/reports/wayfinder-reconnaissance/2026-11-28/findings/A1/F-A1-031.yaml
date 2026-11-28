@@ -11,7 +11,7 @@ subject:
   repository: "ecosystem"
   revision: "heads per COMMON"
   revision_kind: head
-claim: "72 component relationships are allowed, forbidden or required by records (evidence/A1/documented-relationships.csv): 26 must-not-depend or must-not-ship-type rows, 16 consumes-contract, 12 pins, 12 may-depend, 2 ships, plus 4 qualified variants; 23 are recorded as enforced by a named test (2 of them only per CLAUDE.md) and 49 are documented only. 9 units have no recorded intended internal structure or only a partial one (evidence/A1/units-without-recorded-internal-structure.csv), including kernel, glossary, runtime, orchestrator-api and the specify_cli subpackages beyond the four bounded modules."
+claim: "72 component relationships are allowed, forbidden or required by records (evidence/A1/documented-relationships.csv): by relation family (qualifiers in parentheses folded in): 26 must-not-depend, 17 consumes-contract, 12 may-depend, 12 pins, 2 ships, 2 must-not-ship, 1 oracle-parity; 23 are recorded as enforced by a named test (2 of them only per CLAUDE.md) and 49 are documented only. 9 units have no recorded intended internal structure or only a partial one (evidence/A1/units-without-recorded-internal-structure.csv), including kernel, glossary, runtime, orchestrator-api and the specify_cli subpackages beyond the four bounded modules."
 evidence:
   - id: E1
     kind: "document-claim"

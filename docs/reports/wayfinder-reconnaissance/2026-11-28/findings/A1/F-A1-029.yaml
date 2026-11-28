@@ -11,7 +11,7 @@ subject:
   repository: "ecosystem"
   revision: "heads per COMMON"
   revision_kind: head
-claim: "40 components or capabilities are named by the records (evidence/A1/component-catalogue.csv). Declared independence across the 40: logical claimed 30, contested 2, silent 7; contract claimed 22, contested 1, silent 15; source claimed 13, silent 25; distribution claimed 16, explicitly-not-pursued 4 (kernel wheel for now, charter extraction, charter as package, spec-kitty-runtime), silent 18; deployment claimed 8, silent 21, n/a 11. Deployment independence is claimed only for the events read/write services, the charter service (per-worktree daemon or hosted), the external orchestrator, the doc-kitty MCP server, the hosted backend and the charter offering after cutover."
+claim: "40 components or capabilities are named by the records (evidence/A1/component-catalogue.csv). Declared independence across the 40: logical claimed 30, contested 2, silent 7; contract claimed 22, contested 1, silent 15; source claimed 13, silent 25; distribution claimed 16, explicitly-not-pursued 4 (kernel wheel for now, charter extraction, charter as package, spec-kitty-runtime), silent 18; deployment claimed 8, silent 21, n/a 11. The 8 deployment claims are: the core CLI as one process, the events read/write services, the charter service (per-worktree daemon or hosted), the external orchestrator, the doc-kitty MCP server, the hosted backend and the charter offering after cutover."
 evidence:
   - id: E1
     kind: "document-claim"

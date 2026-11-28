@@ -1,0 +1,10 @@
+month,line,nonmerge_commits_with_cherry_pick_trailer,of_which_code_commits
+2026-02,public,7,7
+2026-07,public,16,16
+2026-08,experimental,166,99
+2026-08,public,22,18
+2026-09,experimental,154,68
+2026-09,main-post,63,36
+2026-09,public,9,9
+2026-10,main-post,66,36
+2026-11,main-post,73,31
