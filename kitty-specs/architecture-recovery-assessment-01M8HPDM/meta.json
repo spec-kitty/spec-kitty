@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-11-28T18:24:37.877168+00:00",
+  "flattened": false,
+  "friendly_name": "Architecture recovery assessment",
+  "mid8": "01M8HPDM",
+  "mission_id": "01M8HPDMCQ7NQAX6310ZBT9YQE",
+  "mission_number": null,
+  "mission_slug": "architecture-recovery-assessment-01M8HPDM",
+  "mission_type": "plan",
+  "purpose_context": "Recovery-oriented architectural assessment and design exercise for the 4.0 release: necessity before quality, desired architecture, obstruction map, dispositions and an incremental roadmap. No implementation.",
+  "purpose_tldr": "Establish which mechanisms deserve to remain and what a simpler coherent architecture looks like",
+  "slug": "architecture-recovery-assessment-01M8HPDM",
+  "target_branch": "claude/spec-kitty-arch-reconnaissance-fdeicj",
+  "topology": "single_branch",
+  "topology_source": "explicit"
+}
