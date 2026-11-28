@@ -605,7 +605,7 @@ def _planning_lane_stamp_workspace(main_repo_root: Path, mission: str, wp: str) 
     try:
         assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
     except (ValueError, FileNotFoundError, GuardedReadError) as exc:
-        logger.debug("execution_mode stamp keeps 'worktree' for %s/%s: %s", mission, wp, exc)
+        logger.warning("execution_mode stamp keeps 'worktree' for %s/%s: %s", mission, wp, exc)
         return None
     if isinstance(assignment, _StartWorkspace) or not is_repo_root_lane(assignment[1]):
         return None
