@@ -1,0 +1,49 @@
+id,claim,reference,tag
+E1,README states the need: isolated git worktrees so implementation can happen in parallel,"core:README.md:13 (also :46, :59)",read
+E2,"Tutorial gives the reasons for parallel development: shorter delivery, isolation, fewer conflicts",core:docs/guides/tutorials/multi-agent-workflow.md:24,read
+E3,Glossary: four topologies; topic branch is also the coordination branch for a default Mission; protected target; explicit lanes refused on a protected target,"core:docs/context/topology.md:21 (Topology), :47 (Topic branch), :99 (Protected target)",read
+E4,"ADR drivers: one source of truth, a working tree is a second copy that can diverge",core:docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md:47-66,read
+E5,Lane work tip: hidden ref written by hooks so a destroyed lane's work stays detectable,core:docs/context/topology.md:125; core:src/specify_cli/lanes/lane_tip.py:1,read
+E6,Owned checkout exists because agents routinely operate from a task-owned linked worktree,core:docs/adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md:11,read
+E7,"Topology vocabulary in 4 of 95 guide pages, all landing/acceptance how-tos; coordination branch called internal",grep -rlE 'topology|single_branch|lanes_with_coord|coordination branch' docs/guides; core:docs/guides/how-to/missions/accept-and-merge.md:69,executed
+E8,Package sizes: lanes 29 files/16574 lines; workspace 6/2872; coordination 24/15036; mission_runtime 16/6868; resolution.py 3379,find <dir> -name '*.py' -not -path '*__pycache__*' | xargs cat | wc -l,executed
+E9,Read-path resolver 2286 lines and status read door 835 lines; probe_coord_state and resolve_status_read,core:src/specify_cli/missions/_read_path_resolver.py:290; core:src/specify_cli/status/read_surface.py:223,read
+E10,"Dedicated tests: 273 test files, about 84000 lines; 1727 of 4369 test files mention lanes.json, coordination_branch or worktree","find/wc over tests/lanes, tests/coordination, tests/mission_runtime, tests/specify_cli/{lanes,coordination,workspace}; grep -rl -iE 'lanes\.json|coordination_branch|worktree' tests",executed
+E11,"MissionTopology has four members, the 2x2 of coordination and lanes",core:src/mission_runtime/context.py:44,read
+E12,"Default Mission is provisional single_branch until first finalize settles it by size (limits 2 WPs, 1 code lane)","core:src/specify_cli/lanes/topology_settlement.py:1-28, :60-61",read
+E13,A Mission with no stored topology reads as lanes at runtime although the backfill writer persists single_branch,core:src/mission_runtime/context.py:105,read
+E14,"Allocator has its own LaneTopology (COORD, LEGACY) and four allocation routes incl. FRESH_LEGACY",core:src/specify_cli/lanes/worktree_allocator.py:77-88,read
+E15,CoordState enum discriminates coordination worktree states for the read path,core:src/specify_cli/missions/_read_path_resolver.py:253,read
+E16,TopologySurface has five members; MissionArtifactKind has 23; two frozensets partition the kinds,"core:src/mission_runtime/artifacts.py:23, :63, :187",read
+E17,"About 140 distinct upper-case literals with lane/worktree/coord/topology/owned/write-checkout prefixes, roughly 120 of them refusal codes; over 40 COORD*, 18 OWNED_*, 7 SINGLE_BRANCH_*","grep -rhoE '""(WRITE_CHECKOUT|LANE|DESTROYED|COORD|TOPOLOGY|SINGLE_BRANCH|LANES|OWNED|STATUS_WRITE|WORKTREE|DEPENDENCY|PLANNING|MISSION_BRANCH|PROJECTION|TARGET)[A-Z_]{4,}""' src | sort -u",executed
+E18,Legacy Missions (no coordination_branch) write bookkeeping into the operator's lane worktree,core:src/specify_cli/coordination/legacy_resolution.py:10-14,read
+E19,"Earlier generation: under coordination topology every planning artifact was written to the coordination branch, causing a deadlock the partition repaired",core:docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md:12,read
+E20,single_branch write checkout occupancy module; owned checkout proof object,core:src/specify_cli/lanes/checkout_occupancy.py:1; core:src/mission_runtime/owned_checkout.py:1,read
+E21,"Settlement to lanes_with_coord commits the Mission dir, moves the root checkout, materializes the coordination worktree, re-stamps meta.json, with an undo stack; because git forbids one branch in two worktrees",core:src/specify_cli/lanes/topology_settlement.py:14-27,read
+E22,ADR (status Proposed) retires the coordination worktree and lists five refusal codes caused by it,"core:docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md:4, :47",read
+E23,Default Mission: PRIMARY partition writes to the topic branch (meta.mission_branch) until landing whatever its settled topology,core:src/mission_runtime/resolution.py:1087,read
+E24,Placement passes through five layers (L0 to L4) before reaching a path,core:docs/architecture/artifact-placement-seam.md:56,read
+E25,"coord_seed.py (1278 lines): establish, seed from repository root checkout, restore from branch, refuse","core:src/specify_cli/coordination/coord_seed.py:1, :1164",read
+E26,Lane cut from the coordination branch has no common ancestor with the planning commit on the target; recorded pin is merged in and classified ORPHANED/FOREIGN,core:src/specify_cli/lanes/worktree_allocator.py:1540-1575,read
+E27,An orphaned pin is followed by patch-id after a rebase,core:src/specify_cli/lanes/planning_base.py:100,read
+E28,One lane-checkout helper applies a sparse exclusion of status files; a status write aimed at a lane checkout refuses,core:src/specify_cli/lanes/lane_checkout.py:21-26; core:src/specify_cli/coordination/status_service.py:70; core:src/specify_cli/coordination/workspace.py:381,read
+E29,single_branch gets a one-lane manifest with lane-planning holding every WP; is_repo_root_lane shares the backing of is_planning_lane,"core:src/specify_cli/lanes/compute.py:773, :84",read
+E30,"Lane computation collapses WPs on shared keyword-inferred surfaces (substrings such as api, view, remov, template, dashboard)",core:src/specify_cli/lanes/compute.py:302,read
+E31,TODO(#1666): planning-lane classification expected to become charter/mission-type-derived,core:src/specify_cli/lanes/compute.py:60,read
+E32,Events contract Topology enum adds unknown and is pinned to core's MissionTopology symbol,spec-kitty-events:contracts/mission-status/schemas/Topology.yaml:1-17,read
+E33,lane_invocation probes where a lane's tests load code from (the #1907 foreign-code case),core:src/specify_cli/lanes/lane_invocation.py:1-11,read
+E34,Lane tip recorder activity depends on hooks path rules,core:src/specify_cli/policy/lane_tip_recorder.py:214,read
+E35,"79 single/sole/one authority-seam-owner-door claims in 23 files of lanes, workspace, coordination, mission_runtime",grep -rniE '(single|sole|one) (canonical )?(authority|seam|owner|door|definition|home|chokepoint)' over those packages (plus _read_path_resolver.py and read_surface.py for the line count),executed
+E36,"163 distinct resolve_* functions for dir/surface/worktree/branch/checkout/root/placement/target/location/ref in src, charter and template resolvers excluded",grep -rhoE 'def _?resolve_[a-z_]*(dir|surface|worktree|workspace|branch|checkout|root|placement|target|location|ref)[a-z_]*' src | filter | sort -u | wc -l,executed
+E37,Java ReadDirResolver restates the read-directory rule from stored topology and directory existence; FilesystemMissionCatalog also reads topology,spec-kitty-events:service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver.java:12-36,read
+E38,classify_topology derives topology from signals; classify_worktree_topology classifies from worktree shape,core:src/mission_runtime/context.py:82; core:src/specify_cli/coordination/surface_resolver.py:603,read
+E39,Four single-branch predicates,"core:src/mission_runtime/context.py:148; core:src/specify_cli/lanes/single_branch_landing.py:262, :277; core:src/specify_cli/lanes/checkout_occupancy.py:52",read
+E40,Mission branch name and coordination branch name come from two modules and are one name,core:src/specify_cli/lanes/branch_naming.py:275; core:src/specify_cli/missions/_create.py:292,read
+E41,lanes.json.mission_branch is called a stale copy of the meta.json value,core:src/mission_runtime/resolution.py:1073,read
+E42,WorkspaceContext records persisted under .kittify/workspaces beside lanes.json,"core:src/specify_cli/workspace/context.py:1-10, :157",read
+E43,Allocator imports merge machinery from lanes/consolidation and merges dependency lane tips at allocation,"core:src/specify_cli/lanes/worktree_allocator.py:49-54, :1063",read
+E44,Orchestrator executor uses workspace_path from the host API and creates a provider-local worktree for older hosts,spec-kitty-orchestrator:src/spec_kitty_orchestrator/executor.py:4-5,read
+E45,"coordination_branch appears in 93 src files, single_branch in 122, mission_branch in 99, owned_checkout in 43; MissionTopology members referenced 67 times in 21 files",grep -rn/-rl --include=*.py --exclude-dir=__pycache__ <term> src | wc -l,executed
+E46,"Other repositories mentioning lanes.json: spec-kitty-events 24 files, open-packs 7, doc-kitty 6, spec-kitty-charter 6; coordination_branch: spec-kitty-events 22, open-packs 4, charter 4, event-router 2","grep -rIl excluding .git, node_modules, kitty-specs",executed
+E47,mission-write WriteSurface names the coordination worktree append it replaces; ADR says the contract must change before 1.0.0,spec-kitty-events:contracts/mission-write/schemas/WriteSurface.yaml:12; core:docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md:66,read
+E48,29 ADR files mention the coordination branch,grep -rli 'coordination branch|coordination-branch|coord branch' docs/adr | wc -l,executed
