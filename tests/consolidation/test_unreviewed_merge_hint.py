@@ -17,6 +17,7 @@ the two probe call sites against a real repository (the committed ``merge=union`
 
 from __future__ import annotations
 
+import dataclasses
 import subprocess
 from pathlib import Path
 
@@ -29,6 +30,7 @@ from specify_cli.consolidation.reconciliation_claim_types import (
     ApprovedWpCommitSet,
     CanceledDependencyContent,
     LaneContribution,
+    PlanningLaneNote,
     UnreviewedMerge,
 )
 from specify_cli.consolidation.reconciliation_verifier import Divergence, MergeOutcomeVerifier, VerifyResult, _with_attribution_hint
@@ -76,7 +78,9 @@ def _claim(*merges: UnreviewedMerge, slug: str | None = SLUG, refs: tuple[str, .
 
 
 def _hint(divergence: Divergence, claim: ApprovedWpCommitSet) -> str | None:
-    return _with_attribution_hint(VerifyResult.failed(divergence), claim).attribution_hint
+    # A typed local: under ``follow_imports = "skip"`` the verifier's result reads as ``Any`` here.
+    hint: str | None = _with_attribution_hint(VerifyResult.failed(divergence), claim).attribution_hint
+    return hint
 
 
 def _assert_re_review(hint: str | None, merge: UnreviewedMerge) -> None:
@@ -181,6 +185,28 @@ def test_partial_match_with_a_merge_naming_no_work_package_keeps_dependency_ref_
 def test_declared_dependency_ref_keeps_no_hint() -> None:
     result = VerifyResult.failed(Divergence(unattributable_blobs=(("src/x.py", BLOB_X),)))
     assert _with_attribution_hint(result, _claim(MERGE, refs=("dep",))) is result
+
+
+#: A #7860 planning-lane note whose walk could not be read (``commits=None``): it explains every
+#: un-attributable commit, so it rides on the same FAIL as the dropped merge below.
+PLANNING_NOTE_TEXT = "The planning lane lane-planning credits none of its work on the Mission branch to any work package (#7860): Remedy."
+PLANNING_NOTE = PlanningLaneNote(PLANNING_NOTE_TEXT, ("curation/pkg/**",), None)
+
+
+@pytest.mark.unit
+def test_one_fail_prints_the_planning_lane_note_then_the_re_review_route() -> None:
+    """Review of PR #7894: one FAIL whose claim carries both a matching planning-lane note and a dropped merge.
+
+    Both halves print, the planning-lane note first, then the FR-006 re-review route, and no
+    ``--dependency-ref`` hint (the dropped merge explains the whole FAIL).
+    """
+    claim = dataclasses.replace(_claim(MERGE), planning_lane_notes=(PLANNING_NOTE,))
+    hint = _hint(Divergence(unattributable_content=((MERGE_SHA, PATCH_ID),)), claim)
+
+    assert hint is not None
+    assert hint.startswith(f"{PLANNING_NOTE_TEXT} ")
+    _assert_re_review(hint.removeprefix(f"{PLANNING_NOTE_TEXT} "), MERGE)
+    assert hint.index(PLANNING_NOTE_TEXT) < hint.index(f"Merge {MERGE_SHA[:7]}")
 
 
 @pytest.mark.unit
