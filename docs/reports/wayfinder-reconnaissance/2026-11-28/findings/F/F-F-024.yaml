@@ -1,0 +1,54 @@
+finding_id: F-F-024
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "human attachment"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "No surface in core, spec-kitty-orchestrator, spec-kitty-mcp, spec-kitty-container or the orchestrator-api delivery profile (watch unavailable) lets a person observe or take over a running unit of agent work. Core's human touchpoints are step-boundary inputs (decision moments answered via `next --answer` or answer-decision), status reads, and forced transitions recorded as further implementers (review_roles.py:264). Classified missing; no record places it anywhere."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/static-anchors-core.txt"
+    method: "git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)"
+    sha256: "0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/F/oa-contract-version.json"
+    method: "contract-version"
+    sha256: "2e76029eca23ba0d7d86419ae01a436658ef60dc384dd9160b021b7f4f81f50f"
+    exit_code: 0
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Repositories read"
+  not_covered: "Agent tools' own UIs"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rni 'attach|takeover|take over|watch' in core src, orchestrator src, mcp README"
+  result: "Only the review_roles docstring mention of a takeover as a forced claim; no attach surface"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

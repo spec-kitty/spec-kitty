@@ -1,0 +1,47 @@
+finding_id: F-F-015
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "spec-kitty-events execution vocabularies"
+  repository: spec-kitty/spec-kitty-events
+  revision: "646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "spec-kitty-events at head defines execution-observation vocabularies that core does not produce: WorkObservation (25 kinds in 6 families incl. session.started, session.delegation_started, narrative.handoff_performed) with SessionIdentity, FactoryAttemptRef and ProducerIdentity; OpsInvocationStarted/Completed with an (invocation_id, attempt) key whose module states no CLI emitter ships; ProfileInvocationStarted 3.1.0 with Completed and Failed reserved. Core imports spec_kitty_events from 11 module paths and none of work_observation, harness_observation, ops_invocation or profile_invocation; core's own Op events (invocation/record.py) have no attempt field. The only core reference to these vocabularies is the event_type string 'ProfileInvocationStarted' built by the dormant invocation propagator (propagator.py:19,205), which has no registered transport."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/events-vocabulary-check.txt"
+    method: "grep in spec-kitty-events src and core src"
+    sha256: "7d793d9638d302ecef1bf80f9b943bc3da8d054901bd96240ae637e591212e00"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "events src modules named; core src imports"
+  not_covered: "Hosted consumers in event-router (no code)"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn 'work_observation|WorkObservation|FactoryAttemptRef|harness_observation|ops_invocation|profile_invocation' core src/"
+  result: "0 matches"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+  - "interoperability"
+candidate_invariants: []
+open_questions: []

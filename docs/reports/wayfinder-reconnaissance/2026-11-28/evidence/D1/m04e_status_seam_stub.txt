@@ -1,0 +1,21 @@
+# m04e_status_seam_stub: register a stub handler on the status produce seam and emit one transition
+# usage: <core dev venv>/bin/python m04e_status_seam_stub.txt   (cwd: a core source checkout; writes only under a temp dir)
+import tempfile, pathlib, json, subprocess, sys
+from specify_cli.status import adapters
+seen=[]
+adapters.register_status_fanout_handler(lambda **kw: seen.append(sorted(kw)))
+adapters.register_lifecycle_fanout_handler(lambda **kw: seen.append(("lifecycle",sorted(kw))))
+from specify_cli.status.emit import emit_status_transition
+with tempfile.TemporaryDirectory() as t:
+    repo=pathlib.Path(t)/"proj"; fd=repo/"kitty-specs"/"stub-mission"; fd.mkdir(parents=True)
+    subprocess.run(["git","init","-q","-b","main",str(repo)],check=True)
+    (fd/"meta.json").write_text(json.dumps({"mission_slug":"stub-mission","mission_id":"01M7ZZZZZZZZZZZZZZZZZZZZZZ","mission_type":"software-dev","target_branch":"main","topology":"single_branch"}))
+    (fd/"tasks").mkdir(); (fd/"tasks"/"WP01-x.md").write_text("---\nwork_package_id: WP01\ntitle: x\n---\n")
+    try:
+        for lane in ("planned","claimed"):
+            ev=emit_status_transition(feature_dir=fd, mission_slug="stub-mission", wp_id="WP01", to_lane=lane, actor="ws-d1-stub")
+        print("emitted", getattr(ev,"event_id",ev) is not None, "log_lines", len((fd/"status.events.jsonl").read_text().splitlines()))
+    except Exception as e:
+        print("emit raised", type(e).__name__, str(e)[:300])
+print("stub handler invocations:", len(seen)); print("first invocation kwargs:", seen[0] if seen else None)
+print("consumer files edited: 0 (handler registered through adapters.register_*_fanout_handler only)")

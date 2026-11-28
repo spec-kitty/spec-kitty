@@ -1,0 +1,78 @@
+import importlib.util, os
+_spec = importlib.util.spec_from_file_location("ds", os.path.join(os.path.dirname(__file__), "data_static.py"))
+ds = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(ds)
+ENV, AT, SA, SA_M, ev = ds.ENV, ds.AT, ds.SA, ds.SA_M, ds.ev
+TENV = "core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src"
+TAT = "2026-11-28T10:04:56Z"
+DEV07B = "Brief asks to commit the list before classifying; the envelope forbids commits by workstreams. The list was written to evidence/F/coordination-responsibilities.txt at 09:05:36Z, before any classification, for the coordinator to commit."
+
+F = {f["id"]: f for f in ds.FINDINGS_STATIC}
+
+F["F-F-015"]["claim"] = F["F-F-015"]["claim"] + " The only core reference to these vocabularies is the event_type string 'ProfileInvocationStarted' built by the dormant invocation propagator (propagator.py:19,205), which has no registered transport."
+
+F["F-F-001"] = dict(id="F-F-001", measure="M07a", component="execution responsibilities (15)",
+ claim="Of 15 execution responsibilities: locus core runtime 11 (resource identity, context preparation, workspace provisioning, profile selection, handover record, evidence collection, local event writing, reconciliation, repository authority limits, dependency eligibility, unit acceptance), external coordination system 2 (dispatch, lifecycle supervision; spec-kitty-orchestrator), none 2 (cancellation, human attachment). State: verified by execution 12, delegated by recorded intent 1 (dispatch), missing 2 (on-demand cancellation, human attachment). Share verified among responsibilities not delegated or out of scope by recorded intent: 12/14 = 85.7% (excluded: X04 dispatch, delegated by multi-agent-orchestration.md:18-21 and ADR 2026-06-02-1/2). Restricted to responsibilities whose locus is core runtime: 11/11. The core-held verified responsibilities record, prepare or gate; supervision and starting are held outside core and stopping is held nowhere.",
+ evidence=[ev("static-derived","evidence/F/m07a-execution-responsibilities.csv","classification table; evidence per row"),
+           ev("executed","evidence/F/core-tests-summary.txt","14 batches of named core test files; 1182 passed, 0 failed",0,env=TENV,at=TAT),
+           ev("executed","evidence/F/timeout-probe.txt","orchestrator timeout probe",0),
+           ev("executed","evidence/F/dispatch-op-lifecycle.json","dispatch/doctor ops/complete in a disposable clone",0)],
+ scope=dict(covered="core 5c4fc5a, spec-kitty-orchestrator 8be32b1, spec-kitty-events 646e330, mcp/container/fleet-kitty READMEs", not_covered="Agent CLIs' internals; fleet-kitty runtime", population="15 responsibilities (fixed by the brief)"),
+ disc_search="For each 'missing' item searched all read repositories for a verb, command or code path; for each 'verified' item checked the named test exercises the code path rather than a stub",
+ disc_result="No surface found for on-demand cancellation or attachment; the verified tests call the named modules directly (e.g. test_stale_detection_snapshot_liveness exercises live-PID suppression)",
+ relations=[{"type":"supports","target":"F-F-005"}],
+ oq=["Verified by execution means named tests pass at head; it does not establish that a test covers every path of the responsibility."])
+
+F["F-F-002"] = dict(id="F-F-002", measure="M07b", deviation=DEV07B, component="mission-coordination responsibilities (15)",
+ claim="Of the 15 pre-registered mission-coordination responsibilities (C01-C15), locus core runtime 14 and another ecosystem component 1 (C04 ordering of status events, held by spec-kitty-events' diary reducer called through status.reducer); state verified by execution 15/15 (0 delegated, 0 out of scope, 0 missing; denominator 15). Exception attestations (C14) and resume (C15) are reachable only from the host CLI, not from orchestrator-api.",
+ evidence=[ev("static-derived","evidence/F/coordination-responsibilities.txt","written before classification"),
+           ev("static-derived","evidence/F/m07b-coordination-classification.csv","classification table"),
+           ev("executed","evidence/F/core-tests-summary.txt","named core test files; 1182 passed",0,env=TENV,at=TAT)],
+ scope=dict(covered="Named test files per responsibility (core-tests-summary.txt)", not_covered="Heavy e2e consolidation scenarios beyond test_single_branch_consolidate_e2e.py", population="15 responsibilities (pre-registered list)"),
+ disc_search="Looked for any coordination responsibility a record delegates outside core (orchestrator-api docs, multi-agent-orchestration.md: 'The host, not either agent, decides which lane transitions are legal')",
+ disc_result="None delegated; external providers are told to call the host for every state change",
+ relations=[],
+ oq=["The contrast with F-F-001 (12/14 vs 15/15) is a measured difference in allocation, not a quality judgement."])
+
+F["F-F-017"] = dict(id="F-F-017", measure="interruption and recovery", component="interruption knowledge per holder",
+ claim="What each holder can tell about a unit that stopped mid-way, and the documented and tested recovery: (1) work package status: last lane and actor from status.events.jsonl, claim PID liveness and last lane commit time (stale_detection.py); recovery `implement --recover` (lanes/recovery.py, never advances past in_progress; tests/specify_cli/lanes/test_recovery.py passed). (2) consolidation: state.json with pre-mutation snapshot; `consolidate --resume/--abort` with single rollback authority (test_resume_frozen_anchors.py, test_consolidate_abort_rollback.py, test_single_rollback_authority.py passed). (3) Op: open record without completed line; `doctor ops` lists it, `--close-stale` closes after 24 h (test_doctor_ops.py, test_lifecycle_abandoned_7346.py passed; executed). (4) external provider: run-state file; resume adopts orphaned claimed/in_progress/for_review/in_review WPs (orchestrator tests/test_resume_orphaned.py passed; e2e resume/abort test passed). (5) the executor process itself: nothing beyond the recorded shell PID; no holder records what it was doing.",
+ evidence=[ev("executed","evidence/F/core-tests-summary.txt","named core tests",0,env=TENV,at=TAT),
+           ev("executed","evidence/F/orch-unit-tests.txt","orchestrator unit tests (90 passed)",0,env="spec-kitty-orchestrator 8be32b1; uv venv; Python 3.11; pytest 9.2.0"),
+           ev("executed","evidence/F/orch-e2e-summary.txt","orchestrator e2e vs core head",1,env="spec-kitty-orchestrator 8be32b1 + core 5c4fc5a"),
+           ev("static-derived",SA,SA_M)],
+ scope=dict(covered="Four holders with code and tests", not_covered="next run interruption (run_lock, StaleAdvancePlan) not tested here; agent tool session recovery"),
+ disc_search="Looked for any record of the executor's in-flight progress (WorkObservation producer, heartbeat writer) in core",
+ disc_result="None; progress narrative vocabulary exists only as spec-kitty-events contracts (F-F-015)")
+
+F["F-F-018"] = dict(id="F-F-018", measure="external loci", component="spec-kitty-orchestrator against core head", repository="spec-kitty/spec-kitty-orchestrator", revision="8be32b14d15a48bb035a436cf13d49c8fa231c2f",
+ claim="spec-kitty-orchestrator 8be32b1 run against core head through orchestrator-api only: 9 of 10 fake-agent e2e tests passed (4 implement/review agent pairs, a rejection-rework cycle, blocked implementation, status/resume/abort, two contract smoke tests); the 1 failure is the provider's own assertion that api_version equals '1.3.0' exactly (host returns '1.31.0'). Its 90 unit and conformance tests passed. The provider spawns real subprocesses for the agent and the host.",
+ evidence=[ev("executed","evidence/F/orch-e2e-summary.txt","SK_ORCH_E2E_SPEC_KITTY_BIN=<wrapper> pytest tests/e2e/... -v",1,env="spec-kitty-orchestrator 8be32b1 (uv venv, Python 3.11, pytest 9.2.0); core 5c4fc5a via PYTHONPATH",at="2026-11-28T10:30:00Z"),
+           ev("executed","evidence/F/orch-unit-tests.txt","pytest tests/conformance/test_contract.py tests/test_agent_invokers.py tests/test_resume_orphaned.py",0,env="spec-kitty-orchestrator 8be32b1; Python 3.11; pytest 9.2.0")],
+ scope=dict(covered="Fake agents (scripted binaries) only", not_covered="Real agent CLIs (real_agents marker; needs credentials)", population="10 e2e tests", sample="all non-real-agent e2e tests in two files"),
+ disc_search="Ran the full non-real-agent e2e selection rather than a subset", disc_result="1 failure, attributable to a stale exact-version pin in the provider test",
+ relations=[{"type":"refines","target":"F-F-008"}], qa=["interoperability"])
+
+F["F-F-026"] = dict(id="F-F-026", measure="exploratory", component="coverage limit: core test execution",
+ claim="Coverage limit, not an architectural observation: the first 4 attempts to run named core test files were OOM-killed in the shared memory cgroup (dmesg 'Memory cgroup out of memory' for python at about 2.0 GB anon-rss) during conftest's first-run wall-clock-assertion scan, which parses every test file. Seeding the content-addressed scan cache from the main checkout let all 14 batches complete (1182 passed, 0 failed).",
+ evidence=[ev("executed","evidence/F/core-tests-summary.txt","see header",0,env=TENV,at=TAT)],
+ scope=dict(covered="This workstream's runs", not_covered="Other workstreams' memory use"),
+ disc_search="Checked whether the kills were caused by the tests themselves (faulthandler dump at 25 s)", disc_result="Stack was in tests/_support/wall_clock_assertions.py scanning sources; with the cache present a 23-test file ran in 51 s",
+ confidence="high")
+
+F["F-F-027"] = dict(id="F-F-027", classification="interpretation", view="observed", measure="M07a", component="allocation pattern",
+ claim="Allocation splits along a record/act line: core holds the responsibilities that record, prepare and gate a unit of agent work, while starting, supervising and stopping an executor are held by an external provider or by no one.",
+ evidence=[], derived_from=["F-F-001","F-F-002","F-F-003","F-F-011","F-F-012","F-F-024"],
+ interpretation="Across the two sets, 25 of 25 responsibilities whose locus is core runtime are verified (11 in M07a, 14 in M07b), and every responsibility that requires acting on a running process (dispatch, timeout, cancel, attach) is outside core; two of those four have no holder in any repository read.",
+ scope=dict(covered="Derived from the cited observations", not_covered=""),
+ disc_search="Looked for any core responsibility that acts on a running executor process", disc_result="None; the only process signals in core target its own test subprocess and the services launcher",
+ confidence="medium")
+
+F["F-F-028"] = dict(id="F-F-028", classification="interpretation", view="observed", measure="orchestrator-api contract", component="contract versioning as a compatibility signal",
+ claim="The orchestrator-api version number does not by itself signal verb removal to consumers: a removal shipped inside 1.6.0, and both read consumers gate on a minimum version that the removal leaves satisfied.",
+ evidence=[], derived_from=["F-F-007","F-F-008","F-F-018"],
+ interpretation="A consumer that passes the version gate can still call a verb that no longer exists; in the two consumers read, the affected path is either uncalled (orchestrator) or exposed as a tool (mcp).",
+ scope=dict(covered="Derived", not_covered="Consumers outside attached repositories"),
+ disc_search="Checked whether any consumer checks the verb list (delivery_profile.supported) instead of the version", disc_result="Neither consumer reads delivery_profile",
+ confidence="medium")
+
+ORDER = ["F-F-001","F-F-002","F-F-003","F-F-004","F-F-005","F-F-006","F-F-007","F-F-008","F-F-009","F-F-010","F-F-011","F-F-012","F-F-013","F-F-014","F-F-015","F-F-016","F-F-017","F-F-018","F-F-019","F-F-020","F-F-021","F-F-022","F-F-023","F-F-024","F-F-025","F-F-026","F-F-027","F-F-028"]
+FINDINGS = [F[k] for k in ORDER]

@@ -1,0 +1,198 @@
+# Static (test-independent) finding records for workstream F.
+ENV = "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+AT = "2026-11-28T09:40:00Z"
+CORE = "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+SA = "evidence/F/static-anchors-core.txt"
+SA_M = "git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)"
+
+def ev(kind, ref, method, exit=None, env=None, at=None):
+    d = {"kind": kind, "ref": ref, "method": method}
+    if exit is not None: d["exit"] = exit
+    if env: d["env"] = env
+    if at: d["at"] = at
+    return d
+
+F = []
+
+F.append(dict(id="F-F-003", measure="dispatch-vs-context-preparation", component="governed invocation (spec-kitty dispatch / ProfileInvocationExecutor)",
+ claim="In core at head, `spec-kitty dispatch` routes a request to a profile, assembles governance context, writes an Op started record and returns; it starts no executor. The invoke path's docstring states it does not spawn any LLM call (src/specify_cli/invocation/executor.py:508), and no subprocess call in src/ launches an agent CLI (0 matches for agent CLI argv patterns; the 5 Popen sites found serve the services launcher, the pre-review test gate and the upgrade check). Selection of the executor and starting it are left to the caller.",
+ evidence=[ev("executed","evidence/F/dispatch-op-lifecycle.json","dispatch --json --profile analyst-annie in a disposable clone; doctor ops --json; profile-invocation complete --outcome abandoned",0),
+           ev("static-derived",SA,SA_M),
+           ev("executed","evidence/F/dispatch-help.txt","COLUMNS=160 spec-kitty dispatch --help",0)],
+ scope=dict(covered="src/specify_cli/invocation, src/specify_cli/cli/commands/dispatch.py, grep of src/ for Popen and agent CLI argv", not_covered="Agent harness hooks outside the repository"),
+ disc_search="grep -rn for Popen/start_new_session and agent CLI argv (claude -p, codex exec, --output-format) across src/; read spec-kitty next --help",
+ disc_result="5 Popen sites, none starting an agent; next --help says agents call next in a loop (pull model)",
+ relations=[{"type":"supports","target":"F-F-005"}]))
+
+F.append(dict(id="F-F-004", measure="dispatch-vs-context-preparation", component="Op record (kitty-ops)",
+ claim="The Op record written by dispatch holds 10 keys on its started line (action, actor, event, governance_context_available, governance_context_hash, invocation_id, mode_of_work, profile_id, request_text, started_at); mission_id and wp_id appear only when supplied. It carries no process id, host, session id, model or attempt counter. The record lives in kitty-ops/<invocation_id>.jsonl and was committed by the CLI when the Op was closed (commit 'op(analyst-annie): review [01M8GQ2S]' in the disposable clone). doctor ops lists unclosed Ops and exits 1 when any exist.",
+ evidence=[ev("executed","evidence/F/dispatch-op-lifecycle.json","dispatch; doctor ops --json; profile-invocation complete (disposable clone)",0),
+           ev("static-derived",SA,SA_M)],
+ scope=dict(covered="One Op opened and closed in a disposable clone; writer.py EVENTS_DIR", not_covered="Op records written into owned checkouts (--owned-checkout)", sample="purposive, 1 Op"),
+ disc_search="Looked for liveness fields (pid, session, host, heartbeat) in invocation/record.py models and in the written record",
+ disc_result="None present; the only executor-identity fields are actor (caller string) and profile_id",
+ relations=[{"type":"refines","target":"F-F-003"}]))
+
+F.append(dict(id="F-F-005", view="recorded-intent", measure="M07a", component="allocation of agent execution",
+ claim="Recorded intent at head places running agents outside core: docs/architecture/multi-agent-orchestration.md:18-21 says external providers such as spec-kitty-orchestrator run agents and call orchestrator-api, and that core provides no `spec-kitty orchestrate`; ADR 2026-06-02-1 (lines 23, 37) and ADR 2026-06-02-2 (lines 25, 39) place agent invokers in the external spec-kitty-orchestrator package. The charter's Collaboration Strategy says the SkyKitty fleet is switched off and that the operator delegates execution to a governed orchestrator.",
+ evidence=[ev("document-claim","docs/architecture/multi-agent-orchestration.md:18-21 at 5c4fc5a","git show 5c4fc5a:docs/architecture/multi-agent-orchestration.md | sed -n 15,22p"),
+           ev("document-claim","docs/adr/3.x/2026-06-02-1-pi-agent-skill-only-support.md:23,37 at 5c4fc5a","git show 5c4fc5a:<path> | grep -n 'belongs in the external'"),
+           ev("document-claim",".kittify/charter/charter.md (Collaboration Strategy) at 5c4fc5a","grep -n SkyKitty .kittify/charter/charter.md"),
+           ev("static-derived",SA,SA_M)],
+ scope=dict(covered="core docs/architecture, docs/adr/3.x, charter", not_covered="Planning-repo decisions beyond a keyword search"),
+ disc_search="Searched core docs and ADRs for a record placing dispatch, supervision or cancellation inside core (grep orchestrat|spawn|executor|supervis)",
+ disc_result="None found; the only in-core execution primitive is the context-only invocation executor",
+ relations=[{"type":"supports","target":"F-F-001"}]))
+
+F.append(dict(id="F-F-006", measure="orchestrator-api contract", component="orchestrator-api",
+ claim="At head the orchestrator-api exposes 27 verbs (contract-version through next), CONTRACT_VERSION 1.31.0 and MIN_PROVIDER_VERSION 0.1.0. Its delivery profile declares semantic_contract spec-kitty.orchestrator/2 with full_go_conformance false and lists 13 capabilities as unavailable, among them leases, fences, runtime_epochs, native_async, watch, durable_operation_replay, remote_serving and tracker_publication; receipts are 'nonportable between clones' and locking is 'cooperative API writers only'.",
+ evidence=[ev("executed","evidence/F/oa-contract-version.json","spec-kitty orchestrator-api contract-version",0),
+           ev("executed","evidence/F/oa-help.txt","COLUMNS=200 spec-kitty orchestrator-api --help",0),
+           ev("document-claim","docs/adr/4.x/2026-10-07-2-governed-planning-application-seam.md (explicitly excludes ...) at 5c4fc5a","git show 5c4fc5a:<path> | grep -n 'explicitly excludes'")],
+ scope=dict(covered="Verb list and delivery profile at head", not_covered="Behaviour of each verb beyond the named tests"),
+ disc_search="Compared the help verb list with the delivery profile 'supported' array",
+ disc_result="Both list the same 27 verbs",
+ qa=["interoperability","evolvability"]))
+
+F.append(dict(id="F-F-007", measure="orchestrator-api contract", component="orchestrator-api versioning", view="observed",
+ claim="Commit f5c15f9f88 (2026-09-28, #3080) removed the `merge-mission` verb and added `consolidate-mission`; CONTRACT_VERSION was 1.6.0 before and after that commit, its message declares 'BREAKING CHANGE', and the version-history ledger in envelope.py at head (31 minor entries, 1.1.0-1.31.0) has no entry for the removal. At head `orchestrator-api merge-mission` returns USAGE_ERROR (exit 2) with no alias.",
+ evidence=[ev("history-derived","evidence/F/oa-rename-history.txt","git show f5c15f9f88^:...envelope.py | grep CONTRACT_VERSION; git show f5c15f9f88:...; git show <rev>:commands.py | grep merge-mission"),
+           ev("executed","evidence/F/oa-merge-mission-unknown.txt","spec-kitty orchestrator-api merge-mission --help",2)],
+ scope=dict(covered="envelope.py ledger at head, the rename commit and its parent", not_covered="Other verb removals before 1.6.0"),
+ disc_search="grep -n -i 'merge-mission|renamed' in envelope.py and docs/api/orchestrator-api.md at head; looked for a compatibility alias in commands.py",
+ disc_result="Only 'no field is removed or renamed' boilerplate; no alias; docs/changelog CHANGELOG diff in the rename commit (8 lines) not inspected for API wording beyond the commit message",
+ qa=["evolvability","interoperability"], inv=["A verb removal from orchestrator-api increments the contract version and appears in the ledger"]))
+
+F.append(dict(id="F-F-008", measure="orchestrator-api contract", component="orchestrator-api consumers", repository="spec-kitty/spec-kitty-orchestrator", revision="8be32b14d15a48bb035a436cf13d49c8fa231c2f", revision_kind="head",
+ claim="Two of the three consumers read still name the removed verb: spec-kitty-orchestrator host/client.py:399 defines merge_mission calling `merge-mission` (no call site in loop.py; its minimum contract is 1.3.0) and spec-kitty-mcp src/tools.zig:739 maps its spec_kitty_merge_mission tool to `merge-mission` (its README targets contract 1.3.0). Core's own docs/architecture/multi-agent-orchestration.md:95 lists `merge-mission` in the host API boundary at head. Both consumers gate on a minimum version, which a removal without a version bump does not trip.",
+ evidence=[ev("static-derived","evidence/F/oa-rename-history.txt","git -C <repo> show <rev>:<path> | grep -n merge-mission"),
+           ev("static-derived","evidence/F/external-loci-survey.txt","grep in spec-kitty-orchestrator host/client.py and spec-kitty-mcp README")],
+ scope=dict(covered="spec-kitty-orchestrator 8be32b1, spec-kitty-mcp a6bdf6b, core docs", not_covered="Consumers outside the attached repositories (for example Kitty Desktop named in host-boundary-rules.md)", population="3 consumer codebases read"),
+ disc_search="grep for consolidate-mission in both consumers", disc_result="0 matches in either consumer",
+ relations=[{"type":"refines","target":"F-F-007"}], qa=["interoperability"]))
+
+F.append(dict(id="F-F-009", measure="orchestrator-api contract", component="orchestrator-api vs host CLI",
+ claim="orchestrator-api consolidate-mission takes 5 options (mission, target, strategy, push, origin-check) against 33 distinct options on `spec-kitty consolidate`; the API has no resume, abort, dry-run, attestation (--attest-*), --dependency-ref, retention (--keep-*/--delete-branch), --release-branch or --retarget. The API states this itself: consolidation.py:580 and :635 append 'attestation is done with `spec-kitty consolidate` (CLI only)'. Its stale-lane failure text (1.31.0) prints a re-review route made of host CLI commands (`spec-kitty agent action implement ... --incorporate`, `move-task`, `spec-kitty consolidate`; lanes/stale_check.py:273-294), which host-boundary-rules.md Anti-pattern 2 tells external systems not to call. The API also has no verb for Op/dispatch, implement --recover, doctor or review-feedback capture.",
+ evidence=[ev("executed","evidence/F/oa-verb-options.txt","spec-kitty orchestrator-api <verb> --help (4 verbs)",0),
+           ev("executed","evidence/F/cli-consolidate-options.txt","spec-kitty consolidate --help | grep -oE '--[a-z-]+' | sort -u",0),
+           ev("static-derived",SA,SA_M),
+           ev("document-claim","src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md:87-98 at 5c4fc5a","sed -n 87,98p")],
+ scope=dict(covered="consolidate, accept, transition, start-implementation verbs; 27-verb list", not_covered="Design-phase verbs compared with their CLI counterparts"),
+ disc_search="Looked for API flags or verbs carrying attestation, resume, abort or incorporate",
+ disc_result="None; consolidation.py imports the CLI module specify_cli.cli.commands.consolidate (line 286) and reuses it",
+ qa=["interoperability","operability"]))
+
+F.append(dict(id="F-F-010", measure="M07a", component="permissions and authority limits (orchestrator policy metadata)",
+ claim="orchestrator-api requires a self-declared --policy (7 fields incl. approval_mode, sandbox_mode, network_mode, dangerous_flags) on run-affecting transitions, validates shape, rejects secret-like values and 4 banned flags (--full-auto, --yolo, --dangerously-bypass-approvals-and-sandbox, --dangerously-skip-permissions) when they are declared, and records the policy on the status event. No code outside envelope.py reads sandbox_mode, network_mode or approval_mode (the one other match is an unrelated Codex profile renderer). spec-kitty-orchestrator's default policy declares dangerous_flags [] and network_mode none, while 7 of its 11 invokers pass a banned or equivalent flag to the agent CLI (claude --dangerously-skip-permissions; codex --full-auto; copilot, gemini, kilocode, qwen, letta --yolo). The host cannot observe the actual invocation.",
+ evidence=[ev("static-derived",SA,SA_M),
+           ev("static-derived","evidence/F/external-loci-survey.txt","grep -n flags in spec-kitty-orchestrator agents/*.py; sed -n 37,46p cli/main.py")],
+ scope=dict(covered="core src grep for the three policy field names; orchestrator 8be32b1 invokers", not_covered="Whether any deployment overrides the provider default policy", population="11 invokers"),
+ disc_search="grep -rn 'sandbox_mode|network_mode|approval_mode|tool_restrictions' src/ excluding envelope.py",
+ disc_result="1 match, src/specify_cli/tool_surface/profiles/codex_renderer.py (renders a Codex profile; not an enforcement point)",
+ counterevidence=["host-boundary-rules.md:197-199 says the host can enforce safety invariants or refuse transitions; this is a document claim about capability, not an implemented check"],
+ qa=["security","auditability"], inv=["Declared policy matches the flags the provider passes to the executor"]))
+
+F.append(dict(id="F-F-011", measure="M07a", component="lifecycle supervision",
+ claim="Core's supervision is detection only: stale_detection.py uses the claiming shell PID (with a PID-reuse baseline) and lane commit timestamps as a heartbeat, surfaced by `agent tasks status`; status doctor flags WPs in claimed >7 days or in_progress >14 days; doctor ops closes Ops older than 24 h when asked. None of these stops, times out or reassigns a unit. Timeout enforcement exists in spec-kitty-orchestrator (executor.py:265-295: terminate, 5 s grace, kill); a workstream probe confirmed a `sleep 30` child was terminated after 1 s (returncode -15, reported exit 124). No orchestrator project test exercises the timeout path (its only execute_with_timeout test uses the non-expiring path).",
+ evidence=[ev("static-derived",SA,SA_M),
+           ev("executed","evidence/F/timeout-probe.txt","<orch clone>/.venv/bin/python -I timeout_probe.py",0,env="spec-kitty-orchestrator 8be32b1; uv venv; Python 3.11"),
+           ev("static-derived","evidence/F/external-loci-survey.txt","grep executor.py")],
+ scope=dict(covered="core stale detection, status doctor, doctor ops; orchestrator executor", not_covered="Fleet-kitty heartbeats (separate system; issue-level)"),
+ disc_search="grep -rli heartbeat|liveness|stall|timeout across core src and orchestrator tests",
+ disc_result="Core hits are detection/advisory; orchestrator tests reference execute_with_timeout only with a 15 s non-expiring call (tests/test_stdin_delivery.py:42)",
+ qa=["reliability","operability"]))
+
+F.append(dict(id="F-F-012", measure="M07a", component="cancellation",
+ claim="No repository read provides on-demand cancellation of a running unit of agent work. Core records cancellation only (WP lanes canceled/blocked; Op outcome 'abandoned', executed in a disposable clone). spec-kitty-orchestrator `abort` prints 'Abort recorded' or deletes its state file (cli/main.py:280-297) and signals no process; its only stop is the timeout kill. orchestrator-api's delivery profile lists no cancel verb.",
+ evidence=[ev("executed","evidence/F/dispatch-op-lifecycle.json","profile-invocation complete --outcome abandoned",0),
+           ev("static-derived","evidence/F/external-loci-survey.txt","grep abort in cli/main.py"),
+           ev("executed","evidence/F/oa-contract-version.json","spec-kitty orchestrator-api contract-version",0)],
+ scope=dict(covered="core, spec-kitty-orchestrator, spec-kitty-mcp README tool list, orchestrator-api verbs", not_covered="Fleet-kitty worker stop paths"),
+ disc_search="grep -n signal|SIGINT|KeyboardInterrupt|cancel in orchestrator loop.py and executor.py; core grep for os.kill/killpg",
+ disc_result="Orchestrator: none beyond timeout; core: killpg only in review/pre_review_gate.py for its own test subprocess",
+ relations=[{"type":"refines","target":"F-F-011"}]))
+
+F.append(dict(id="F-F-013", measure="unit-of-execution identifiers", component="identifiers across ecosystem",
+ claim="Of 14 unit identifiers mapped, 8 are minted in core (mission_id ULID, wp_id, lane_id, status event_id, Op invocation_id ULID, next run_id uuid4, orchestrator-api correlation_id, claim shell_pid); 3 exist only as spec-kitty-events contracts with no producer in core (SessionIdentity.session_id, FactoryAttemptRef.attempt_id, OpsInvocation (invocation_id, attempt)); 2 are provider-local in spec-kitty-orchestrator (retry counters, run-state file). The only cross-join between an Op and work-package state is one-way: a claim given --invocation-id checks the Op's mission_id/wp_id/action and records the resolved profile, but the status event stores no invocation_id. correlation_id is returned per call and not persisted in status events.",
+ evidence=[ev("static-derived","evidence/F/unit-identifiers.csv","manual table from code reads; anchors per row"),
+           ev("static-derived",SA,SA_M)],
+ scope=dict(covered="core, spec-kitty-events 646e330, spec-kitty-orchestrator 8be32b1", not_covered="Fleet-kitty attempt ids; hosted code in event-router", population="14 identifiers"),
+ disc_search="grep invocation_id in status/ (emit, transition_pipeline, models); grep core src for WorkObservation|FactoryAttemptRef|SessionIdentity|attempt_id",
+ disc_result="No invocation_id field in status models; one attempt_id in retrospective/schema.py unrelated to execution attempts",
+ qa=["traceability"]))
+
+F.append(dict(id="F-F-014", measure="M07a", component="model and profile selection",
+ claim="Profile selection is operative in core (router/registry pick a profile; dispatch --dry-run picked researcher-robbie for 3 of 4 purposive structural-analysis requests and planner-priti for 1). Model selection is not: dispatch returns a model recommendation with override_mode 'advisory', the Op record deliberately omits any model id (#7013), the claim path refuses --model, and the resolved-binding model slot records the sentinel '__resolved_model_absent__'. The model that actually ran a work package is recorded nowhere in core.",
+ evidence=[ev("executed","evidence/F/dispatch-dryrun-routing.json","dispatch --dry-run --json x4 in a disposable clone",0),
+           ev("static-derived",SA,SA_M)],
+ scope=dict(covered="router, executor, workflow claim binding", not_covered="Model choice inside agent CLIs", sample="purposive, 4 requests"),
+ disc_search="Looked for any write of a non-sentinel model value in status events or Op records",
+ disc_result="workflow.py _resolve_dispatch_binding refuses a supplied --model since #7013; no other writer found"))
+
+F.append(dict(id="F-F-015", measure="M07a", component="spec-kitty-events execution vocabularies", repository="spec-kitty/spec-kitty-events", revision="646e330b896b96d7a11f53b34aa3d0c0baa69a05",
+ claim="spec-kitty-events at head defines execution-observation vocabularies that core does not produce: WorkObservation (25 kinds in 6 families incl. session.started, session.delegation_started, narrative.handoff_performed) with SessionIdentity, FactoryAttemptRef and ProducerIdentity; OpsInvocationStarted/Completed with an (invocation_id, attempt) key whose module states no CLI emitter ships; ProfileInvocationStarted 3.1.0 with Completed and Failed reserved. Core imports spec_kitty_events from 11 module paths and none of work_observation, harness_observation, ops_invocation or profile_invocation; core's own Op events (invocation/record.py) have no attempt field.",
+ evidence=[ev("static-derived","evidence/F/events-vocabulary-check.txt","grep in spec-kitty-events src and core src")],
+ scope=dict(covered="events src modules named; core src imports", not_covered="Hosted consumers in event-router (no code)"),
+ disc_search="grep -rn 'work_observation|WorkObservation|FactoryAttemptRef|harness_observation|ops_invocation|profile_invocation' core src/",
+ disc_result="0 matches",
+ qa=["interoperability"]))
+
+F.append(dict(id="F-F-016", measure="M07a", component="event publication",
+ claim="Core writes execution-related events only to local append logs (status.events.jsonl, kitty-ops). Its outbound seams have no production registrant: status/adapters.py register_status/lifecycle/resolved_binding_fanout_handler and invocation/adapters.py register_saas_client_factory are referenced in src only by their definitions and package re-exports (0 call sites), and adapters.py says 'Nothing registers a factory today'. event-router, named as the subscriber side, reports 'Status: bootstrap' with no code.",
+ evidence=[ev("static-derived",SA,SA_M), ev("static-derived","evidence/F/external-loci-survey.txt","grep event-router README")],
+ scope=dict(covered="core src grep for registrations", not_covered="Third-party registrants at runtime"),
+ disc_search="grep -rn 'register_*_fanout_handler(|register_saas_client_factory(' src/ excluding definitions",
+ disc_result="Only __init__ re-exports and docstrings; tests register handlers (8 test files)"))
+
+F.append(dict(id="F-F-019", measure="external loci", component="external execution loci", repository="spec-kitty/fleet-kitty", revision="e3b39b8078700410681a3e5fc733a4d0c792eccb",
+ claim="Five external loci were read. spec-kitty-orchestrator (8be32b1, last commit 2026-10-23) took on dispatch, timeout supervision, retries/fallback agents and resume adoption, using only orchestrator-api (8 verbs; minimum contract 1.3.0). spec-kitty-mcp (a6bdf6b, 2026-08-22) adapts 10 orchestrator-api verbs to MCP tools and runs no agents. spec-kitty-container (1ff99fe, 2026-11-02) packages the CLI (default ARG 3.2.2) as an environment for a human-run session and still documents removed `sync status`/`auth status` commands. fleet-kitty (e3b39b8, last commit 2026-10-14; 12 commits since 2026-10-01) is an issue-driven factory with its own dispatch, heartbeats, retries, docker and ssh workers; its interface to core is 3 distinct `spec-kitty` command strings and 0 orchestrator-api references; its README calls it active. event-router is 'bootstrap' with no code. Core's docs say the SkyKitty fleet is switched off (agent-fleet.md, 2026-10-19) but no core document names fleet-kitty.",
+ evidence=[ev("static-derived","evidence/F/external-loci-survey.txt","see file headers"), ev("history-derived","evidence/F/external-loci-survey.txt","git log -1 / rev-list --count per clone"),
+           ev("document-claim","docs/development/agent-fleet.md:20-25 at 5c4fc5a","git show 5c4fc5a:docs/development/agent-fleet.md | sed -n 18,26p")],
+ scope=dict(covered="READMEs, interface greps, git activity", not_covered="Runtime behaviour of fleet-kitty and container; private deployments", population="5 external repositories"),
+ disc_search="grep core docs for fleet-kitty; grep fleet-kitty for SkyKitty and orchestrator-api",
+ disc_result="No core mention of fleet-kitty; 'SkyKitty' appears in 4 fleet-kitty files (routes/models/inference docs); 0 orchestrator-api references in fleet-kitty",
+ confidence="medium", oq=["Is fleet-kitty the runtime of the switched-off SkyKitty fleet? No record links them."]))
+
+F.append(dict(id="F-F-020", measure="exploratory", component="execution documentation drift",
+ claim="Four statements in core's execution documents at head disagree with code at head: multi-agent-orchestration.md:34 'One worktree per WP' (code allocates one worktree per lane), :95 lists `merge-mission` (removed 2026-09-28), :118 'API in_progress maps to internal doing' (status code treats doing as an input alias of in_progress); host-boundary-rules.md:109-110 says the orchestrator creates the worktree after start-implementation (the API allocates the lane worktree since contract 1.1.0).",
+ evidence=[ev("static-derived",SA,SA_M), ev("executed","evidence/F/oa-merge-mission-unknown.txt","spec-kitty orchestrator-api merge-mission --help",2)],
+ scope=dict(covered="2 documents", not_covered="docs/api/orchestrator-api.md body beyond its version list"),
+ disc_search="Checked envelope.py 1.1.0 entry and status/transitions.py resolve_lane_alias",
+ disc_result="Both confirm the code side", confidence="high"))
+
+F.append(dict(id="F-F-021", measure="prospective operations", component="submit/inspect/attach/cancel/collect matrix", view="observed",
+ claim="Desk classification (with executed support where named) of 25 cells (5 operations x 5 targets): verified 9, present but unverified (incl. record-only) 2, specified only 1, missing 13, out of scope by recorded intent 0. Attach is missing for all 5 targets; every remote-worker cell is missing in core (the orchestrator-api delivery profile lists remote_serving, watch and leases as unavailable). All verified submit/cancel cells sit in spec-kitty-orchestrator (local process); core's verified cells are inspect/collect/record-only cancel.",
+ evidence=[ev("static-derived","evidence/F/prospective-operations-matrix.csv","desk classification; see per-cell basis")],
+ scope=dict(covered="core, orchestrator, mcp, container, fleet-kitty (README level)", not_covered="Fleet-kitty cells were not executed", population="25 cells"),
+ disc_search="For each missing cell, grepped core, orchestrator and mcp for a verb or command covering it",
+ disc_result="None found", confidence="medium"))
+
+F.append(dict(id="F-F-022", measure="supplementary single case", component="operations log corroboration", repository="spec-kitty/spec-kitty", revision="4388800275 (working tree)", revision_kind="head",
+ claim="Single case, not generalisable. Of 15 operations-log items (14 entries plus the routing remark in entry 5), 9 were corroborated (3, 4, 5 [root checkout only], 6, 7 [filesystem layer], 8 [by absence in core], 9, 13, 14), 4 partially (2, 5b, 10, 12) and 2 stay uncorroborated notes (1, 11). Corroborated core facts: the Mission was created natively (research, single_branch explicit, wp_count 0) and never advanced with next; 0 Ops in the root checkout were opened after the Mission's creation; restricted report files are world-readable to every executor.",
+ evidence=[ev("static-derived","evidence/F/ops-log-corroboration.csv","per-entry checks"), ev("executed","evidence/F/ops-log-checks.txt","commands listed in file",0)],
+ scope=dict(covered="Repository-checkable parts of each entry", not_covered="Session-environment behaviour, chat approvals", population="15 items"),
+ disc_search="For each entry looked for a native surface that would contradict it (Ops, runs, worktrees, research artefacts)",
+ disc_result="Entry 10 partly contradicted: the research Mission type defines native evidence artefacts (evidence-log.csv, source-register.csv, findings.md) that were not used; entry 5b: implementer profiles only as alternatives in 1 of 4 purposive requests",
+ confidence="medium"))
+
+F.append(dict(id="F-F-023", measure="supplementary single case", component="this investigation as a unit of execution", revision="4388800275 (working tree)",
+ claim="Single case, not generalisable. Running this investigation's 6+ parallel executors used none of core's execution-unit identities: the research Mission holds 0 work packages and no lanes.json, 0 Ops were opened for workstreams, and executor start, model choice, liveness, cancellation and result collection were held by the external agent tool. Core's surfaces were used for governance context (profile show, charter context) and Mission scaffold creation only.",
+ evidence=[ev("executed","evidence/F/ops-log-checks.txt","commands listed",0), ev("static-derived","evidence/F/ops-log-corroboration.csv","entries 4,5,8,9")],
+ scope=dict(covered="Root checkout state on 2026-11-28", not_covered="Other workstreams' practice beyond what the log states"),
+ disc_search="Looked for Op records, WP files, lanes.json or run index entries for the Mission", disc_result="None",
+ relations=[{"type":"supports","target":"F-F-003"}], confidence="medium"))
+
+F.append(dict(id="F-F-024", measure="M07a", component="human attachment",
+ claim="No surface in core, spec-kitty-orchestrator, spec-kitty-mcp, spec-kitty-container or the orchestrator-api delivery profile (watch unavailable) lets a person observe or take over a running unit of agent work. Core's human touchpoints are step-boundary inputs (decision moments answered via `next --answer` or answer-decision), status reads, and forced transitions recorded as further implementers (review_roles.py:264). Classified missing; no record places it anywhere.",
+ evidence=[ev("static-derived",SA,SA_M), ev("executed","evidence/F/oa-contract-version.json","contract-version",0)],
+ scope=dict(covered="Repositories read", not_covered="Agent tools' own UIs"),
+ disc_search="grep -rni 'attach|takeover|take over|watch' in core src, orchestrator src, mcp README",
+ disc_result="Only the review_roles docstring mention of a takeover as a forced claim; no attach surface"))
+
+F.append(dict(id="F-F-025", measure="M07a", component="handover between executors",
+ claim="Handover is state-level only. Core records a claim by another identity (forced or takeover) as a further implementer beside the implementer of record (status/review_roles.py:253-276) and orchestrator-api resolve-workspace (1.2.0) lets another orchestrator resume a for_review WP without allocating; spec-kitty-orchestrator keeps fallback_agents_tried and passes review feedback to re-implementation. No repository transfers an in-flight executor's context or session.",
+ evidence=[ev("static-derived",SA,SA_M), ev("static-derived","evidence/F/unit-identifiers.csv","rows Retry/attempt (provider)")],
+ scope=dict(covered="status/review_roles.py, orchestrator state.py", not_covered="Agent tool session export"),
+ disc_search="grep handoff|handover|reassign in status and agent commands", disc_result="Only lane-transition 'review handoff' (in_progress->for_review) and reassignment slots"))
+
+FINDINGS_STATIC = F

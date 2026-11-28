@@ -1,0 +1,46 @@
+finding_id: F-F-021
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "prospective operations"
+  deviation: null
+subject:
+  component: "submit/inspect/attach/cancel/collect matrix"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Desk classification (with executed support where named) of 25 cells (5 operations x 5 targets): verified 9, present but unverified (incl. record-only) 2, specified only 1, missing 13, out of scope by recorded intent 0. Attach is missing for all 5 targets; every remote-worker cell is missing in core (the orchestrator-api delivery profile lists remote_serving, watch and leases as unavailable). All verified submit/cancel cells sit in spec-kitty-orchestrator (local process); core's verified cells are inspect/collect/record-only cancel."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/prospective-operations-matrix.csv"
+    method: "desk classification; see per-cell basis"
+    sha256: "f16f908bee1390cd5fc6f8af96e17afba09c57ef458ba27d41f50bc2aeb96246"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "core, orchestrator, mcp, container, fleet-kitty (README level)"
+  not_covered: "Fleet-kitty cells were not executed"
+  population: "25 cells"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "For each missing cell, grepped core, orchestrator and mcp for a verb or command covering it"
+  result: "None found"
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

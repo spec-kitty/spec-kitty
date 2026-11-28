@@ -1,0 +1,54 @@
+finding_id: F-F-014
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "model and profile selection"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Profile selection is operative in core (router/registry pick a profile; dispatch --dry-run picked researcher-robbie for 3 of 4 purposive structural-analysis requests and planner-priti for 1). Model selection is not: dispatch returns a model recommendation with override_mode 'advisory', the Op record deliberately omits any model id (#7013), the claim path refuses --model, and the resolved-binding model slot records the sentinel '__resolved_model_absent__'. The model that actually ran a work package is recorded nowhere in core."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/F/dispatch-dryrun-routing.json"
+    method: "dispatch --dry-run --json x4 in a disposable clone"
+    sha256: "e3dd724bb879075ec7ef3724a21c3b39111ef35de1a9ec094c3cc47f2865c76e"
+    exit_code: 0
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/F/static-anchors-core.txt"
+    method: "git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)"
+    sha256: "0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "router, executor, workflow claim binding"
+  not_covered: "Model choice inside agent CLIs"
+  population: null
+  sample: "purposive, 4 requests"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for any write of a non-sentinel model value in status events or Op records"
+  result: "workflow.py _resolve_dispatch_binding refuses a supplied --model since #7013; no other writer found"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

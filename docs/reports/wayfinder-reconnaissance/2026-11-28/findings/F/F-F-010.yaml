@@ -1,0 +1,58 @@
+finding_id: F-F-010
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "permissions and authority limits (orchestrator policy metadata)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "orchestrator-api requires a self-declared --policy (7 fields incl. approval_mode, sandbox_mode, network_mode, dangerous_flags) on run-affecting transitions, validates shape, rejects secret-like values and 4 banned flags (--full-auto, --yolo, --dangerously-bypass-approvals-and-sandbox, --dangerously-skip-permissions) when they are declared, and records the policy on the status event. No code outside envelope.py reads sandbox_mode, network_mode or approval_mode (the one other match is an unrelated Codex profile renderer). spec-kitty-orchestrator's default policy declares dangerous_flags [] and network_mode none, while 7 of its 11 invokers pass a banned or equivalent flag to the agent CLI (claude --dangerously-skip-permissions; codex --full-auto; copilot, gemini, kilocode, qwen, letta --yolo). The host cannot observe the actual invocation."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/static-anchors-core.txt"
+    method: "git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)"
+    sha256: "0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/F/external-loci-survey.txt"
+    method: "grep -n flags in spec-kitty-orchestrator agents/*.py; sed -n 37,46p cli/main.py"
+    sha256: "9638416451d6da4d2848159c6882af594382a97f76526e469a9a9f89ab044fea"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "core src grep for the three policy field names; orchestrator 8be32b1 invokers"
+  not_covered: "Whether any deployment overrides the provider default policy"
+  population: "11 invokers"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence:
+  - "host-boundary-rules.md:197-199 says the host can enforce safety invariants or refuse transitions; this is a document claim about capability, not an implemented check"
+disconfirmation:
+  search: "grep -rn 'sandbox_mode|network_mode|approval_mode|tool_restrictions' src/ excluding envelope.py"
+  result: "1 match, src/specify_cli/tool_surface/profiles/codex_renderer.py (renders a Codex profile; not an enforcement point)"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+  - "security"
+  - "auditability"
+candidate_invariants:
+  - "Declared policy matches the flags the provider passes to the executor"
+open_questions: []

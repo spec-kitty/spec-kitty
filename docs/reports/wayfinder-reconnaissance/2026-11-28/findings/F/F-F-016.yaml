@@ -1,0 +1,54 @@
+finding_id: F-F-016
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "event publication"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Core writes execution-related events only to local append logs (status.events.jsonl, kitty-ops). Its outbound seams have no production registrant: status/adapters.py register_status/lifecycle/resolved_binding_fanout_handler and invocation/adapters.py register_saas_client_factory are referenced in src only by their definitions and package re-exports (0 call sites), and adapters.py says 'Nothing registers a factory today'. event-router, named as the subscriber side, reports 'Status: bootstrap' with no code."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/static-anchors-core.txt"
+    method: "git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)"
+    sha256: "0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/F/external-loci-survey.txt"
+    method: "grep event-router README"
+    sha256: "9638416451d6da4d2848159c6882af594382a97f76526e469a9a9f89ab044fea"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "core src grep for registrations"
+  not_covered: "Third-party registrants at runtime"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn 'register_*_fanout_handler(|register_saas_client_factory(' src/ excluding definitions"
+  result: "Only __init__ re-exports and docstrings; tests register handlers (8 test files)"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

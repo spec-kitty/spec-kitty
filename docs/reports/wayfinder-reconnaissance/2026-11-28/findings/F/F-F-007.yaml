@@ -1,0 +1,57 @@
+finding_id: F-F-007
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "orchestrator-api contract"
+  deviation: null
+subject:
+  component: "orchestrator-api versioning"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Commit f5c15f9f88 (2026-09-28, #3080) removed the `merge-mission` verb and added `consolidate-mission`; CONTRACT_VERSION was 1.6.0 before and after that commit, its message declares 'BREAKING CHANGE', and the version-history ledger in envelope.py at head (31 minor entries, 1.1.0-1.31.0) has no entry for the removal. At head `orchestrator-api merge-mission` returns USAGE_ERROR (exit 2) with no alias."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/F/oa-rename-history.txt"
+    method: "git show f5c15f9f88^:...envelope.py | grep CONTRACT_VERSION; git show f5c15f9f88:...; git show <rev>:commands.py | grep merge-mission"
+    sha256: "8a85e96c5530afb8ed536ef392fdcdf4698c7b7a39f33924a6ab05004afd301f"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/F/oa-merge-mission-unknown.txt"
+    method: "spec-kitty orchestrator-api merge-mission --help"
+    sha256: "c5cbd22b50d4c55eb785ad2cf028a350375d766e3ad3aa94fb51aa9301e1b00b"
+    exit_code: 2
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "envelope.py ledger at head, the rename commit and its parent"
+  not_covered: "Other verb removals before 1.6.0"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -n -i 'merge-mission|renamed' in envelope.py and docs/api/orchestrator-api.md at head; looked for a compatibility alias in commands.py"
+  result: "Only 'no field is removed or renamed' boilerplate; no alias; docs/changelog CHANGELOG diff in the rename commit (8 lines) not inspected for API wording beyond the commit message"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+  - "evolvability"
+  - "interoperability"
+candidate_invariants:
+  - "A verb removal from orchestrator-api increments the contract version and appears in the ledger"
+open_questions: []

@@ -1,0 +1,46 @@
+finding_id: F-F-026
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "coverage limit: core test execution"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Coverage limit, not an architectural observation: the first 4 attempts to run named core test files were OOM-killed in the shared memory cgroup (dmesg 'Memory cgroup out of memory' for python at about 2.0 GB anon-rss) during conftest's first-run wall-clock-assertion scan, which parses every test file. Seeding the content-addressed scan cache from the main checkout let all 14 batches complete (1182 passed, 0 failed)."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/F/core-tests-summary.txt"
+    method: "see header"
+    sha256: "a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c"
+    exit_code: 0
+    environment: "core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src"
+    observed_at: "2026-11-28T10:04:56Z"
+scope:
+  covered: "This workstream's runs"
+  not_covered: "Other workstreams' memory use"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the kills were caused by the tests themselves (faulthandler dump at 25 s)"
+  result: "Stack was in tests/_support/wall_clock_assertions.py scanning sources; with the cache present a 23-test file ran in 51 s"
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

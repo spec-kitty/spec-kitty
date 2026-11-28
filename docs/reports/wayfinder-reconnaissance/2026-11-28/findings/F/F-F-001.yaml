@@ -1,0 +1,73 @@
+finding_id: F-F-001
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "execution responsibilities (15)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Of 15 execution responsibilities: locus core runtime 11 (resource identity, context preparation, workspace provisioning, profile selection, handover record, evidence collection, local event writing, reconciliation, repository authority limits, dependency eligibility, unit acceptance), external coordination system 2 (dispatch, lifecycle supervision; spec-kitty-orchestrator), none 2 (cancellation, human attachment). State: verified by execution 12, delegated by recorded intent 1 (dispatch), missing 2 (on-demand cancellation, human attachment). Share verified among responsibilities not delegated or out of scope by recorded intent: 12/14 = 85.7% (excluded: X04 dispatch, delegated by multi-agent-orchestration.md:18-21 and ADR 2026-06-02-1/2). Restricted to responsibilities whose locus is core runtime: 11/11. The core-held verified responsibilities record, prepare or gate; supervision and starting are held outside core and stopping is held nowhere."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/m07a-execution-responsibilities.csv"
+    method: "classification table; evidence per row"
+    sha256: "7e4ed5ee53cbb28cd8d77ed1bd0be956bd60bcb0f6db5df800c7a51b3cf0e265"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/F/core-tests-summary.txt"
+    method: "14 batches of named core test files; 1182 passed, 0 failed"
+    sha256: "a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c"
+    exit_code: 0
+    environment: "core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src"
+    observed_at: "2026-11-28T10:04:56Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/F/timeout-probe.txt"
+    method: "orchestrator timeout probe"
+    sha256: "56ec6cc0ab0a66cd978b61f3cede936c9e1ce7c86a4687833940ab049ef614af"
+    exit_code: 0
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E4
+    kind: executed
+    reference: "evidence/F/dispatch-op-lifecycle.json"
+    method: "dispatch/doctor ops/complete in a disposable clone"
+    sha256: "99b8e1d7871de43f24bc8fb1ada8ce155963d539e846e1c44213d44359360a03"
+    exit_code: 0
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "core 5c4fc5a, spec-kitty-orchestrator 8be32b1, spec-kitty-events 646e330, mcp/container/fleet-kitty READMEs"
+  not_covered: "Agent CLIs' internals; fleet-kitty runtime"
+  population: "15 responsibilities (fixed by the brief)"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "For each 'missing' item searched all read repositories for a verb, command or code path; for each 'verified' item checked the named test exercises the code path rather than a stub"
+  result: "No surface found for on-demand cancellation or attachment; the verified tests call the named modules directly (e.g. test_stale_detection_snapshot_liveness exercises live-PID suppression)"
+relations:
+  - type: "supports"
+    target: "F-F-005"
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+  - "Verified by execution means named tests pass at head; it does not establish that a test covers every path of the responsibility."

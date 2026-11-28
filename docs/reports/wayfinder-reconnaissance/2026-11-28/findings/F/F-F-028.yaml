@@ -1,0 +1,41 @@
+finding_id: F-F-028
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "orchestrator-api contract"
+  deviation: null
+subject:
+  component: "contract versioning as a compatibility signal"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "The orchestrator-api version number does not by itself signal verb removal to consumers: a removal shipped inside 1.6.0, and both read consumers gate on a minimum version that the removal leaves satisfied."
+evidence: []
+scope:
+  covered: "Derived"
+  not_covered: "Consumers outside attached repositories"
+  population: null
+  sample: null
+  seed: null
+interpretation: "A consumer that passes the version gate can still call a verb that no longer exists; in the two consumers read, the affected path is either uncalled (orchestrator) or exposed as a tool (mcp)."
+derived_from:
+  - "F-F-007"
+  - "F-F-008"
+  - "F-F-018"
+counterevidence: []
+disconfirmation:
+  search: "Checked whether any consumer checks the verb list (delivery_profile.supported) instead of the version"
+  result: "Neither consumer reads delivery_profile"
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

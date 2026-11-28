@@ -1,0 +1,67 @@
+# Workstream F: generate finding YAML records from a data table.
+# Usage: python3 gen_findings.py <evidence_dir> <findings_dir> <data_module.py>
+import hashlib, json, os, sys, importlib.util
+
+ev_dir, out_dir, data_path = sys.argv[1], sys.argv[2], sys.argv[3]
+spec = importlib.util.spec_from_file_location("data", data_path)
+data = importlib.util.module_from_spec(spec); spec.loader.exec_module(data)
+
+def sha(ref):
+    if ref.startswith("evidence/F/"):
+        p = os.path.join(ev_dir, ref[len("evidence/F/"):])
+        if os.path.exists(p):
+            return hashlib.sha256(open(p, "rb").read()).hexdigest()
+        raise SystemExit(f"missing evidence file {p}")
+    return None
+
+def q(s):
+    return json.dumps(s, ensure_ascii=False)
+
+def emit_list(lines, key, items, indent=0):
+    pad = " " * indent
+    if not items:
+        lines.append(f"{pad}{key}: []"); return
+    lines.append(f"{pad}{key}:")
+    for it in items:
+        if isinstance(it, dict):
+            first = True
+            for k, v in it.items():
+                pre = f"{pad}  - " if first else f"{pad}    "
+                lines.append(f"{pre}{k}: {q(v) if not isinstance(v,(int,float)) or isinstance(v,bool) else v}")
+                first = False
+        else:
+            lines.append(f"{pad}  - {q(it)}")
+
+for f in data.FINDINGS:
+    fid = f["id"]
+    L = [f"finding_id: {fid}", "workstream: F - allocation of execution responsibilities", "hypotheses: []",
+         f"classification: {f.get('classification','observation')}", f"view: {f.get('view','observed')}",
+         "prereg:", f"  measure: {q(f['measure'])}", f"  deviation: {q(f['deviation']) if f.get('deviation') else 'null'}",
+         "subject:", f"  component: {q(f['component'])}", f"  repository: {f.get('repository','spec-kitty/spec-kitty')}",
+         f"  revision: {q(f.get('revision','5c4fc5a79de1c1c299ab221ca26e5555c68ef533'))}", f"  revision_kind: {f.get('revision_kind','head')}",
+         f"claim: {q(f['claim'])}", "evidence:"]
+    if not f["evidence"]:
+        L[-1] = "evidence: []"
+    for i, e in enumerate(f["evidence"], 1):
+        kind = e["kind"]; ref = e["ref"]
+        h = sha(ref)
+        L += [f"  - id: E{i}", f"    kind: {kind}", f"    reference: {q(ref)}", f"    method: {q(e['method'])}",
+              f"    sha256: {q(h) if h else 'null'}", f"    exit_code: {e.get('exit', 'null') if kind=='executed' else 'null'}",
+              f"    environment: {q(e.get('env', data.ENV))}", f"    observed_at: {q(e.get('at', data.AT))}"]
+    sc = f.get("scope", {})
+    L += ["scope:", f"  covered: {q(sc.get('covered',''))}", f"  not_covered: {q(sc.get('not_covered',''))}",
+          f"  population: {q(sc['population']) if sc.get('population') else 'null'}",
+          f"  sample: {q(sc['sample']) if sc.get('sample') else 'null'}",
+          f"  seed: {q(sc['seed']) if sc.get('seed') else 'null'}",
+          f"interpretation: {q(f['interpretation']) if f.get('interpretation') else 'null'}"]
+    emit_list(L, "derived_from", f.get("derived_from", []))
+    emit_list(L, "counterevidence", f.get("counterevidence", []))
+    L += ["disconfirmation:", f"  search: {q(f['disc_search'])}", f"  result: {q(f['disc_result'])}"]
+    emit_list(L, "relations", f.get("relations", []))
+    L += [f"confidence: {f.get('confidence','high')}", "analyst:", "  profile: analyst-annie", "  model: opus",
+          "verification:", "  status: unverified", "  by: null"]
+    emit_list(L, "quality_attributes", f.get("qa", []))
+    emit_list(L, "candidate_invariants", f.get("inv", []))
+    emit_list(L, "open_questions", f.get("oq", []))
+    open(os.path.join(out_dir, f"{fid}.yaml"), "w").write("\n".join(L) + "\n")
+print(len(data.FINDINGS), "findings written")

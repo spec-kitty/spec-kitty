@@ -1,0 +1,63 @@
+finding_id: F-F-019
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "external loci"
+  deviation: null
+subject:
+  component: "external execution loci"
+  repository: spec-kitty/fleet-kitty
+  revision: "e3b39b8078700410681a3e5fc733a4d0c792eccb"
+  revision_kind: head
+claim: "Five external loci were read. spec-kitty-orchestrator (8be32b1, last commit 2026-10-23) took on dispatch, timeout supervision, retries/fallback agents and resume adoption, using only orchestrator-api (8 verbs; minimum contract 1.3.0). spec-kitty-mcp (a6bdf6b, 2026-08-22) adapts 10 orchestrator-api verbs to MCP tools and runs no agents. spec-kitty-container (1ff99fe, 2026-11-02) packages the CLI (default ARG 3.2.2) as an environment for a human-run session and still documents removed `sync status`/`auth status` commands. fleet-kitty (e3b39b8, last commit 2026-10-14; 12 commits since 2026-10-01) is an issue-driven factory with its own dispatch, heartbeats, retries, docker and ssh workers; its interface to core is 3 distinct `spec-kitty` command strings and 0 orchestrator-api references; its README calls it active. event-router is 'bootstrap' with no code. Core's docs say the SkyKitty fleet is switched off (agent-fleet.md, 2026-10-19) but no core document names fleet-kitty."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/F/external-loci-survey.txt"
+    method: "see file headers"
+    sha256: "9638416451d6da4d2848159c6882af594382a97f76526e469a9a9f89ab044fea"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: history-derived
+    reference: "evidence/F/external-loci-survey.txt"
+    method: "git log -1 / rev-list --count per clone"
+    sha256: "9638416451d6da4d2848159c6882af594382a97f76526e469a9a9f89ab044fea"
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E3
+    kind: document-claim
+    reference: "docs/development/agent-fleet.md:20-25 at 5c4fc5a"
+    method: "git show 5c4fc5a:docs/development/agent-fleet.md | sed -n 18,26p"
+    sha256: null
+    exit_code: null
+    environment: "spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "READMEs, interface greps, git activity"
+  not_covered: "Runtime behaviour of fleet-kitty and container; private deployments"
+  population: "5 external repositories"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep core docs for fleet-kitty; grep fleet-kitty for SkyKitty and orchestrator-api"
+  result: "No core mention of fleet-kitty; 'SkyKitty' appears in 4 fleet-kitty files (routes/models/inference docs); 0 orchestrator-api references in fleet-kitty"
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+  - "Is fleet-kitty the runtime of the switched-off SkyKitty fleet? No record links them."

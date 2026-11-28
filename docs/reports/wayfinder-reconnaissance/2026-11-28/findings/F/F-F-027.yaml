@@ -1,0 +1,44 @@
+finding_id: F-F-027
+workstream: F - allocation of execution responsibilities
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "M07a"
+  deviation: null
+subject:
+  component: "allocation pattern"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Allocation splits along a record/act line: core holds the responsibilities that record, prepare and gate a unit of agent work, while starting, supervising and stopping an executor are held by an external provider or by no one."
+evidence: []
+scope:
+  covered: "Derived from the cited observations"
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "Across the two sets, 25 of 25 responsibilities whose locus is core runtime are verified (11 in M07a, 14 in M07b), and every responsibility that requires acting on a running process (dispatch, timeout, cancel, attach) is outside core; two of those four have no holder in any repository read."
+derived_from:
+  - "F-F-001"
+  - "F-F-002"
+  - "F-F-003"
+  - "F-F-011"
+  - "F-F-012"
+  - "F-F-024"
+counterevidence: []
+disconfirmation:
+  search: "Looked for any core responsibility that acts on a running executor process"
+  result: "None; the only process signals in core target its own test subprocess and the services launcher"
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []
