@@ -171,7 +171,7 @@ def _patches(
 
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         if "merge-base" in cmd:
-            return (0, "abc123\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         # Modern mission (post-083 ULID identity): the baseline-capture phase
         # reads ``git rev-parse <target>`` to anchor ``baseline_merge_commit``,
         # and the claim resolves lane tips the same way. A made-up SHA would

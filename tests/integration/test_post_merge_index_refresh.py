@@ -100,7 +100,7 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         call_log.append(tuple(cmd))
         if "merge-base" in cmd:
-            return (0, "abc123\n", "")
+            return real_git_command(cmd, kwargs.get("cwd") or tmp_path)
         # #5668: the approval-bound claim resolves its base ref through the git probe
         # ({ref}^{{commit}}); an empty answer reads as "does not resolve" and refuses the claim,
         # and a made-up SHA reaches the real ``git rev-list --merges`` probe (#7886) and fails
