@@ -1,0 +1,139 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :contracts:check :client-java:check :deployable:bootJar :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :contracts:processResources NO-SOURCE
+> Task :contracts:checkCheckstyleRegister
+
+> Task :kernel:compileJava
+
+> Task :contracts:installOasdiff
+
+> Task :contracts:compileJava
+
+> Task :contracts:verifyOasdiff
+> Task :contracts:processTestResources
+> Task :kernel:processResources
+> Task :contracts:installVacuum
+> Task :contracts:spotlessJava
+> Task :contracts:spotlessJavaCheck
+> Task :contracts:spotlessCheck
+> Task :client-java:checkCheckstyleRegister
+> Task :client-java:processGeneratedResources NO-SOURCE
+> Task :client-java:processResources NO-SOURCE
+> Task :client-java:processTestResources NO-SOURCE
+> Task :client-java:spotlessJava
+> Task :client-java:spotlessJavaCheck
+> Task :client-java:spotlessCheck
+
+> Task :charter-api:validateContract
+Validating spec <scratch>/clones/charter/contracts/charter/openapi.yaml
+
+> Task :contracts:verifyVacuum
+
+> Task :contracts:compatibilityFixtures
+The compatibility check fails each of 6 breaking cases and passes each of 2 compatible cases.
+
+> Task :activations:processResources NO-SOURCE
+> Task :artifacts-edge:processResources NO-SOURCE
+> Task :charter-api:processResources NO-SOURCE
+> Task :missions:processResources NO-SOURCE
+> Task :missions-edge:processResources NO-SOURCE
+> Task :packs:contractVersionResource
+> Task :packs:serviceVersionResource
+> Task :packs:processResources
+> Task :profiles:processResources NO-SOURCE
+> Task :profiles-edge:processResources NO-SOURCE
+> Task :routing:processResources NO-SOURCE
+> Task :routing-edge:processResources NO-SOURCE
+> Task :web-transport:processResources NO-SOURCE
+> Task :deployable:processTestResources
+> Task :pack-doctor:packDoctorVersion
+> Task :pack-doctor:processResources
+> Task :pack-validation:processResources NO-SOURCE
+> Task :packs:processTestFixturesResources
+> Task :packs:processTestResources
+> Task :contracts:classes
+
+> Task :contracts:checkContractChangelogFragments
+37 changelog fragments are well formed.
+
+> Task :contracts:checkPacksChangelog
+PACKS contracts/packs/CHANGELOG.md passes the heading, order and Breaking rules.
+
+> Task :contracts:bundleContract
+Bundled contracts/charter/openapi.yaml into charter-openapi.yaml (sha256 4fa4c7d07596bce93cf97994ace2f923b7b21652b2011cb1374b4e013e70a982)
+
+> Task :contracts:checkstyleMain
+> Task :contracts:compileTestJava
+> Task :contracts:checkClosedResponseObjects
+All 2213 response schemas are closed.
+
+> Task :contracts:checkContractCompatibility
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+
+> Task :contracts:checkRefusalExamples
+All 617 refusal examples and 659 response descriptions name raised refusal codes only.
+
+> Task :kernel:classes
+> Task :kernel:jar
+
+> Task :contracts:javadoc
+
+> Task :contracts:lintContract
+> Task :contracts:lintFixtures
+> Task :contracts:lintContract FAILED
+
+> Task :client-java:generateClient
+Cleaned up output directory <scratch>/clones/charter/client-java/build/generated/client before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+
+> Task :contracts:testClasses
+> Task :contracts:checkstyleTest
+
+> Task :contracts:test
+
+> Task :client-java:generateClient
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+
+The message received from the daemon indicates that the daemon has disappeared.
+Build request sent: Build{id=093aaa3a-ed19-4d7b-be09-b7271600dab1, currentDir=<scratch>/clones/charter}
+Attempting to read last messages from the daemon log...
+Daemon pid: 19066
+  log file: <scratch>/gh/charter/daemon/9.8.1/daemon-19066.out.log
+----- Last 20 lines from daemon log file - daemon-19066.out.log -----
+37 changelog fragments are well formed.
+PACKS contracts/packs/CHANGELOG.md passes the heading, order and Breaking rules.
+Bundled contracts/charter/openapi.yaml into charter-openapi.yaml (sha256 4fa4c7d07596bce93cf97994ace2f923b7b21652b2011cb1374b4e013e70a982)
+All 2213 response schemas are closed.
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+All 617 refusal examples and 659 response descriptions name raised refusal codes only.
+Cleaned up output directory <scratch>/clones/charter/client-java/build/generated/client before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.----- End of the daemon log -----
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+exit=1

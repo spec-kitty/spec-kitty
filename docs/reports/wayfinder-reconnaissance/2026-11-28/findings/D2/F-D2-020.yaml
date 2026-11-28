@@ -1,0 +1,77 @@
+finding_id: F-D2-020
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: recorded intent for service launch and pins
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Recorded intent, for comparison with F-D2-017: core''s pins/README.md states that the read service is ''pinned
+  for CI conformance only: the CLI never launches it'' and that ''the write service and the charter service are
+  not pinned yet: each waits for a release that carries it''; the launch policy module states ''Only the write service
+  is launchable today. The charter service is recorded for shape only''; the write-service protocol module states
+  ''There is no transport here'' and that the client binds at a later cut-over. The events read-service README states
+  ''It is a detached service: no spec-kitty command starts it''.'
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a7:pins/README.md:26-33
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a7:src/specify_cli/services/policies.py:9-11
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a7:src/specify_cli/status/write_service_protocol.py:10-13
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-events@2f5e0394:service/README.md:3
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: Four statements at the named revisions.
+  not_covered: ADRs were not surveyed in this workstream.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared each statement with the executed observations.
+  result: 'The statements agree with what was observed at head. One difference from the pins README: a spec-kitty-events
+    release that carries the write service exists (service-v0.1.0-rc.2, 2026-11-01) and core''s tool can pin it
+    (F-D2-012).'
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

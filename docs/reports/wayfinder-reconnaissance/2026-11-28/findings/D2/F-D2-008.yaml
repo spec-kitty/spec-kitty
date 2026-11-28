@@ -1,0 +1,84 @@
+finding_id: F-D2-008
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: events read service and write service inputs
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'The Java services read core''s project files directly: 10 input items were counted (9 for the events services,
+  1 for the charter service). The read service''s own allowlist names .kittify/config.yaml, .kittify/metadata.yaml,
+  kitty-specs/<dir>/meta.json, lanes.json, status.events.jsonl, .git/HEAD or the .git pointer file, and the .worktrees/<slug>-<mid8>-coord
+  naming; its artifact routes read the files of a Mission directory; the write service reads meta.json and the tasks/
+  directory. No machine-readable schema for these inputs was found under contracts/; they are described in prose
+  and exercised by fixtures. By execution: a status log written by core''s Python at head (2 events) in a disposable
+  project was read by the released rc.1 binary, which answered GET /api/v1/missions with eventCount 2 and the Work
+  Package in lane ''claimed''.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/m04c-contract-bypass-inventory.csv
+  method: rows B01-B10; grep and file reads at the named revisions
+  sha256: 61a4d0536d26d0174442d19ee87eddf54fd5790b511787ba830acb7a59a9f0b7
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: static-derived
+  reference: evidence/D2/m04c-events-java-core-layout-literals.txt
+  method: grep -rnoE of core layout path literals in service/**/src/main and java/src/main; count per file and literal
+  sha256: d29d09b92acb57a75f8f3201174dc2cb14e6c19ed10a8660b247d6072473ea83
+  exit_code: 0
+  environment: grep; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04c-java-read-of-python-written-log.txt
+  method: mission-status-api rc.1 native --mission-status.project-root=<disposable project written by core Python>;
+    curl /api/v1/project, /missions
+  sha256: 0ad92175a4b92c30d7033f204e30374064128f045c74f76c963a533057afbbb4
+  exit_code: 0
+  environment: native binary; curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04f-core-status-write-without-service.txt
+  method: python status_write_without_service.py (emit_status_transition x2, materialize, ServiceLauncher.ensure
+    for 3 services)
+  sha256: 1465c1259d7f108f92eb9e71ebc2d84835d6d39b5f74fe3a273b381753e896e7
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Main source sets of the three events service modules and the charter deployable at head; one executed
+    read.
+  not_covered: Test sources; whether each read is tolerant of layout change was not tested by mutation.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked in spec-kitty-events contracts/ and docs/ for a schema or versioned contract of the on-disk layout.
+  result: 'Found prose (the service README read allowlist, docs/architecture/services/event-ledger-writers-and-readers.md)
+    and one citation path to .kittify/config.yaml in the bundle, but no schema file. The charter service''s packs
+    input is different: it is governed by the released packs contract and is not counted as a bypass.'
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- interoperability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,14 @@
+# mission-status-api rc.1 native over <scratch>/run/proj (one Mission 01J0D2PR0BE000000000000001): which contract operations of bundle rc.1 does the released service answer
+GET /api/v1/project -> 200
+GET /api/v1/missions -> 200
+GET /api/v1/missions/01J0D2PR0BE000000000000001 -> 404
+GET /api/v1/missions/01J0D2PR0BE000000000000001/work-packages/WP01 -> 404
+GET /api/v1/missions/01J0D2PR0BE000000000000001/work-packages/WP01/detail -> 404
+GET /api/v1/missions/01J0D2PR0BE000000000000001/artifacts -> 200
+GET /api/v1/missions/01J0D2PR0BE000000000000001/artifacts/content?path=meta.json -> 200
+GET /api/v1/drift -> 404
+GET /api/v1/missions/01J0D2PR0BE000000000000001/drift -> 404
+GET /api/v1/ops/invocations -> 404
+GET /api/v1/ops -> 404
+GET /api/v1/openapi.yaml -> 200
+GET /api/v1/events (2 s) -> 200 text/event-stream;charset=UTF-8

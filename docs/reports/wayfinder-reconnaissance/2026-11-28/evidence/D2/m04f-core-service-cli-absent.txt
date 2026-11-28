@@ -1,0 +1,30 @@
+$ spec-kitty --version
+spec-kitty-cli version 4.0.0rc9
+exit=0
+$ spec-kitty service status
+No service is pinned in this spec-kitty version yet.
+exit=0
+$ spec-kitty service status --service read-service
+read-service: service-v0.1.0-rc.1 (2f5e03948b52)
+  jvm: missing (mission-status-api-0.1.0-rc.1.jar)
+  linux-arm64: missing (mission-status-api-0.1.0-rc.1-linux-arm64)
+  linux-x64: verified (mission-status-api-0.1.0-rc.1-linux-x64)
+  macos-arm64: missing (mission-status-api-0.1.0-rc.1-macos-arm64)
+  windows-x64: missing (mission-status-api-0.1.0-rc.1-windows-x64.exe)
+  contract_tools: verified (contract-tools-0.1.0-rc.1.tar.gz)
+  contracts: verified (contract-bundles-0.1.0-rc.1.tar.gz)
+  fixtures: verified (conformance-fixtures-0.1.0-rc.1.tar.gz)
+  instance: absent
+exit=0
+$ spec-kitty service status --service charter-service
+No service is pinned in this spec-kitty version yet.
+exit=0
+$ spec-kitty service fetch --all
+No service is pinned in this spec-kitty version yet.
+exit=0
+$ spec-kitty service fetch --service write-service
+No service is pinned in this spec-kitty version yet.
+exit=0
+$ spec-kitty service stop
+not running
+exit=0

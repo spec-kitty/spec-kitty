@@ -1,0 +1,15 @@
+# spec-kitty-charter-service 0.1.0-rc.3 native, config root = copy of 19 open-packs pack dirs; activation operations probe
+ready: offering 200
+POST /activations {} -> 422
+{"title":"Activation invalid","status":422,"code":"activation_invalid","detail":"The activation request body breaks its schema in 1 place(s).","violations":[{"pointer":"/schemaVersion","code":"invalid_value","detail":"The value at '/schemaVersion' must not be null."}]}
+POST /activations {"schemaVersion":2} -> 201
+{"activationId":"01M8GZXP4R3KFSM5C0P1YSXXK4","revision":"sha256:bafebd36189ad3688b7b3915ea55d461e0bfcfbdde11e54b0a123999fb6be50f","config":{"schemaVersion":2},"_links":{"self":{"href":"/api/v1/activations/01M8GZXP4R3KFSM5C0P1YSXXK4"},"artifacts":{"href":"/api/v1/activations/01M8GZXP4R3KFSM5C0P1YSXXK4/artifacts{?kind,state}","templated":true},"offering":{"href":"/api/v1/offering"},"edit":{"href":"/api/v1/activations/01M8GZXP4R3KFSM5C0P1YSXXK4","method":"PUT"},"delete":{"href":"/api/v1/activations
+Location header: present
+Charter-Contract-Version: 0.2.0-SNAPSHOT
+GET /activations/{id} -> 200 2153B
+{"activationId":"01M8GZXP4R3KFSM5C0P1YSXXK4","revision":"sha256:bafebd36189ad3688b7b3915ea55d461e0bfcfbdde11e54b0a123999fb6be50f","config":{"schemaVersion":2},"_links":{"self":{"href":"/api/v1/activations/01M8GZXP4R3KFSM5C0P1YSXXK4"},"artifacts":{"href":"/api/
+GET /activations/{id}/packs -> 200 7532B
+{"packs":[{"packId":"foundation","descriptorPackId":"01M75HSYR9S9KPA372PHGT0EX3","level":"built-in","name":"foundation","version":"3.7.0","dependsOn":[],"_links":{"artifacts":{"href":"/api/v1/packs/foundation/artifacts"}}},{"packId":"testing","descriptorPackId
+GET /activations/{id}/artifacts -> 200 16987B
+{"activationId":"01M8GZXP4R3KFSM5C0P1YSXXK4","revision":"sha256:bafebd36189ad3688b7b3915ea55d461e0bfcfbdde11e54b0a123999fb6be50f","governanceFingerprint":"sha256:313d25d570272d207e607d808d13bdb8a0683d2de001641b77b6f0e229ba703e","summary":{"active":19,"inactive
+files under <config root>/activations after the POST: 1

@@ -1,0 +1,132 @@
+### 2026-11-28T11:28:32Z ./gradlew --no-daemon --max-workers=2 :deployable:bootJar :pack-doctor:packDoctorJar
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as configuration cache cannot be reused because Gradle property 'kotlin.compiler.execution.strategy' has changed.
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :kernel:compileJava UP-TO-DATE
+> Task :missions:compileJava UP-TO-DATE
+> Task :profiles:compileJava UP-TO-DATE
+> Task :routing:compileJava UP-TO-DATE
+> Task :activations:processResources NO-SOURCE
+> Task :artifacts-edge:processResources NO-SOURCE
+> Task :charter-api:processResources NO-SOURCE
+> Task :contracts:compileJava UP-TO-DATE
+> Task :contracts:processResources NO-SOURCE
+> Task :contracts:classes UP-TO-DATE
+> Task :contracts:installOasdiff UP-TO-DATE
+> Task :contracts:installVacuum UP-TO-DATE
+
+> Task :charter-api:validateContract
+Validating spec <scratch>/clones/charter/contracts/charter/openapi.yaml
+
+> Task :contracts:verifyOasdiff
+> Task :contracts:verifyVacuum
+> Task :contracts:bundleContract UP-TO-DATE
+> Task :deployable:processResources UP-TO-DATE
+> Task :kernel:processResources UP-TO-DATE
+> Task :kernel:classes UP-TO-DATE
+> Task :kernel:jar UP-TO-DATE
+> Task :missions:processResources NO-SOURCE
+> Task :missions:classes UP-TO-DATE
+> Task :missions:jar UP-TO-DATE
+> Task :missions-edge:processResources NO-SOURCE
+> Task :packs:contractVersionResource UP-TO-DATE
+> Task :packs:serviceVersionResource UP-TO-DATE
+> Task :packs:processResources UP-TO-DATE
+> Task :profiles:processResources NO-SOURCE
+> Task :profiles:classes UP-TO-DATE
+> Task :profiles:jar UP-TO-DATE
+> Task :profiles-edge:processResources NO-SOURCE
+> Task :routing:processResources NO-SOURCE
+> Task :routing:classes UP-TO-DATE
+> Task :routing:jar UP-TO-DATE
+> Task :routing-edge:processResources NO-SOURCE
+> Task :web-transport:processResources NO-SOURCE
+> Task :pack-doctor:packDoctorVersion UP-TO-DATE
+> Task :pack-doctor:processResources UP-TO-DATE
+> Task :pack-validation:processResources NO-SOURCE
+> Task :pack-doctor:packDoctorSlf4jProvider UP-TO-DATE
+
+> Task :charter-api:validateContract
+Spec is valid.
+
+> Task :charter-api:generateContract
+Cleaned up output directory <scratch>/clones/charter/service/charter-api/build/generated/openapi before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+Failed to get the schema name: null
+Ignoring complex example on request body
+############################################################################################
+# Thanks for using OpenAPI Generator.                                                      #
+# We appreciate your support! Please consider donating to help us maintain this project.   #
+# https://opencollective.com/openapi_generator/donate                                      #
+############################################################################################
+Successfully generated code to <scratch>/clones/charter/service/charter-api/build/generated/openapi
+
+> Task :charter-api:compileJava
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :charter-api:classes
+> Task :charter-api:jar
+
+> Task :web-transport:compileJava
+
+> Task :web-transport:classes
+> Task :web-transport:jar
+> Task :packs:compileJava
+> Task :packs:classes
+> Task :packs:jar
+
+> Task :pack-validation:compileJava
+
+> Task :activations:compileJava
+> Task :activations:classes
+> Task :activations:jar
+> Task :pack-doctor:compileJava
+> Task :missions-edge:compileJava
+> Task :artifacts-edge:compileJava
+> Task :artifacts-edge:classes
+> Task :artifacts-edge:jar
+> Task :routing-edge:compileJava
+> Task :missions-edge:classes
+> Task :missions-edge:jar
+> Task :routing-edge:classes
+> Task :routing-edge:jar
+> Task :pack-doctor:classes
+> Task :pack-validation:classes
+> Task :pack-validation:jar
+> Task :pack-doctor:packDoctorLicences
+> Task :profiles-edge:compileJava
+> Task :pack-doctor:packDoctorJar
+> Task :profiles-edge:classes
+> Task :profiles-edge:jar
+> Task :deployable:compileJava
+> Task :deployable:classes
+> Task :deployable:resolveMainClassName
+> Task :deployable:bootJar
+
+[Incubating] Problems report is available at: file://<scratch>/clones/charter/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 13m 30s
+57 actionable tasks: 28 executed, 29 up-to-date
+Configuration cache entry stored.
+exit=0
+### end 2026-11-28T11:42:03Z

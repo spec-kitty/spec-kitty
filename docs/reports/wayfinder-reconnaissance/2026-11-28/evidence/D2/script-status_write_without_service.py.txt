@@ -1,0 +1,41 @@
+"""D2 M04f: write and read a status transition with core at head in a disposable git project, with no Java service
+installed, pinned or running. Records the child processes spawned and whether the write-service endpoint dir appears."""
+import json, os, subprocess, sys, psutil
+from pathlib import Path
+root = Path.cwd()
+fd = root / "kitty-specs" / "d2-probe-01J0D2PR"
+(fd / "tasks").mkdir(parents=True, exist_ok=True)
+(fd / "meta.json").write_text(json.dumps({"mission_id": "01J0D2PR0BE000000000000001", "mission_slug": "d2-probe-01J0D2PR", "friendly_name": "D2 probe", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-11-28T00:00:00+00:00", "topology": "single_branch"}))
+spawned = []
+orig = subprocess.Popen.__init__
+def spy(self, args, *a, **k):
+    spawned.append(args if isinstance(args, str) else " ".join(map(str, args))[:160]); return orig(self, args, *a, **k)
+subprocess.Popen.__init__ = spy
+out = {}
+try:
+    from specify_cli.status.emit import emit_status_transition
+    ev = emit_status_transition(mission_dir=fd, mission_slug="d2-probe-01J0D2PR", wp_id="WP01", to_lane="planned", actor="d2-probe"); ev = emit_status_transition(mission_dir=fd, mission_slug="d2-probe-01J0D2PR", wp_id="WP01", to_lane="claimed", actor="d2-probe")
+    out["emit"] = "ok"; out["event_id_len"] = len(str(getattr(ev, "event_id", "")))
+except Exception as e:
+    out["emit"] = f"{type(e).__name__}: {str(e)[:300]}"
+try:
+    from specify_cli.status.reducer import materialize
+    snap = materialize(fd)
+    out["materialize"] = "ok"; out["wp_lane"] = str(getattr(snap, "work_packages", {}).get("WP01", {}))[:200]
+except Exception as e:
+    out["materialize"] = f"{type(e).__name__}: {str(e)[:300]}"
+out["events_file_lines"] = sum(1 for _ in open(fd / "status.events.jsonl")) if (fd / "status.events.jsonl").exists() else 0
+out["spawned_commands"] = spawned
+out["spawned_non_git"] = [c for c in spawned if not c.startswith("git")]
+out["java_or_service_children_now"] = [p.name() for p in psutil.Process().children(recursive=True) if "java" in p.name() or "command-cli" in p.name() or "mission-status" in p.name()]
+out["write_service_endpoint_dir_exists"] = (root / ".git" / "spec-kitty-write-service").exists()
+from specify_cli.services.launcher import ServiceLauncher
+from specify_cli.services.errors import ServiceRefusal
+for svc in ("write-service", "read-service", "charter-service"):
+    try:
+        ServiceLauncher().ensure(svc, root); out[f"ensure_{svc}"] = "started"
+    except ServiceRefusal as r:
+        out[f"ensure_{svc}"] = {"refusal": r.to_dict()}
+    except Exception as e:
+        out[f"ensure_{svc}"] = f"{type(e).__name__}: {str(e)[:200]}"
+print(json.dumps(out, indent=1))

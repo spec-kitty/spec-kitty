@@ -1,0 +1,95 @@
+### 2026-11-28T09:54:28Z ./gradlew --no-daemon --max-workers=2 :client-java:check
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :client-java:check
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :client-java:checkCheckstyleRegister
+> Task :contracts:processResources NO-SOURCE
+> Task :contracts:installOasdiff UP-TO-DATE
+> Task :contracts:installVacuum UP-TO-DATE
+> Task :contracts:compileJava UP-TO-DATE
+> Task :contracts:classes UP-TO-DATE
+> Task :contracts:verifyOasdiff
+> Task :client-java:processGeneratedResources NO-SOURCE
+> Task :client-java:processResources NO-SOURCE
+> Task :client-java:processTestResources NO-SOURCE
+> Task :client-java:spotlessJava UP-TO-DATE
+> Task :client-java:spotlessJavaCheck UP-TO-DATE
+> Task :client-java:spotlessCheck UP-TO-DATE
+> Task :contracts:verifyVacuum
+> Task :contracts:bundleContract UP-TO-DATE
+
+> Task :client-java:generateClient
+Cleaned up output directory <scratch>/clones/charter/client-java/build/generated/client before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+Ignoring complex example on request body
+
+> Task :client-java:generateClientAgain
+Cleaned up output directory <scratch>/clones/charter/client-java/build/generated/client-again before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+OpenAPI 3.1 support is still in beta. To report an issue related to 3.1 spec, please kindly open an issue in the Github repo: https://github.com/openAPITools/openapi-generator.
+Ignoring complex example on request body
+############################################################################################
+# Thanks for using OpenAPI Generator.                                                      #
+# We appreciate your support! Please consider donating to help us maintain this project.   #
+# https://opencollective.com/openapi_generator/donate                                      #
+############################################################################################
+Successfully generated code to <scratch>/clones/charter/client-java/build/generated/client-again
+
+> Task :client-java:generateClient
+############################################################################################
+# Thanks for using OpenAPI Generator.                                                      #
+# We appreciate your support! Please consider donating to help us maintain this project.   #
+# https://opencollective.com/openapi_generator/donate                                      #
+############################################################################################
+Successfully generated code to <scratch>/clones/charter/client-java/build/generated/client
+
+> Task :client-java:checkClientReproducible
+> Task :client-java:compileGeneratedJava
+Note: <scratch>/clones/charter/client-java/build/generated/client/src/main/java/ai/speckitty/charter/client/JSON.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :client-java:generatedClasses
+> Task :client-java:checkstyleGenerated SKIPPED
+
+> Task :client-java:compileJava
+
+> Task :client-java:classes
+> Task :client-java:compileTestJava
+> Task :client-java:testClasses
+> Task :client-java:checkstyleMain
+
+> Task :client-java:test
+
+> Task :client-java:checkstyleTest
+
+> Task :client-java:javadoc
+
+> Task :client-java:jacocoTestReport
+> Task :client-java:check
+
+[Incubating] Problems report is available at: file://<scratch>/clones/charter/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 3m 38s
+29 actionable tasks: 14 executed, 15 up-to-date
+Configuration cache entry stored.
+exit=0
+### end 2026-11-28T09:58:07Z

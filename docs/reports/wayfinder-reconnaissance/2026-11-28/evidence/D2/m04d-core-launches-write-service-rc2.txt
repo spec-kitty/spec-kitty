@@ -1,0 +1,64 @@
+{
+ "ensure": "ready",
+ "ensure_seconds": 1.67,
+ "endpoint_fields": [
+  "host",
+  "instance_id",
+  "pid",
+  "port",
+  "protocol_versions",
+  "started_at"
+ ],
+ "host": "127.0.0.1",
+ "port_is_int": true,
+ "handshake": {
+  "protocol_versions": [
+   1
+  ],
+  "service_version": "0.1.0-rc.2",
+  "instance_id": "01M8GQW7RZ8P1K1FKT2CBHGV52",
+  "repository_id": "96de0fbfd838640b567d4f7862b8215a297e28ce4bc2def301caa0fc4418713e"
+ },
+ "health": {
+  "status": "ready",
+  "instance_id": "01M8GQW7RZ8P1K1FKT2CBHGV52"
+ },
+ "pid_alive": true,
+ "process_name": "command-cli-0.1.0-rc.2-linux-x64",
+ "process_cmdline_shape": [
+  "command-cli-0.1.0-rc.2-linux-x64",
+  "serve",
+  "--git-common-dir",
+  "<path>"
+ ],
+ "process_ppid_is_this_python": true,
+ "rss_mb": 99,
+ "endpoint_dir_files": [
+  "endpoint.json",
+  "service.lock",
+  "service.log"
+ ],
+ "second_ensure_reused_same_pid": true,
+ "second_ensure_seconds": 0.0
+}
+exit=0
+$ spec-kitty service status
+write-service: service-v0.1.0-rc.2 (14682f94bc2a)
+  jvm: missing (command-cli-0.1.0-rc.2.jar)
+  linux-arm64: missing (command-cli-0.1.0-rc.2-linux-arm64)
+  linux-x64: verified (command-cli-0.1.0-rc.2-linux-x64)
+  macos-arm64: missing (command-cli-0.1.0-rc.2-macos-arm64)
+  windows-x64: missing (command-cli-0.1.0-rc.2-windows-x64.exe)
+  contract_tools: missing (contract-tools-0.1.0-rc.2.tar.gz)
+  contracts: missing (contract-bundles-0.1.0-rc.2.tar.gz)
+  fixtures: missing (conformance-fixtures-0.1.0-rc.2.tar.gz)
+  instance: healthy (instance 01M8GQW7RZ8P1K1FKT2CBHGV52, port 42033)
+exit=0
+$ spec-kitty service stop
+stopped
+exit=0
+$ spec-kitty service status (after stop)
+  fixtures: missing (conformance-fixtures-0.1.0-rc.2.tar.gz)
+  instance: absent
+service.lock
+service.log

@@ -1,0 +1,4 @@
+pack-check-0.1.0-rc.3.jar: OK
+spec-kitty-charter-service-0.1.0-rc.3-linux-x64: OK
+spec-kitty-charter-service-0.1.0-rc.3.jar: OK
+exit=0

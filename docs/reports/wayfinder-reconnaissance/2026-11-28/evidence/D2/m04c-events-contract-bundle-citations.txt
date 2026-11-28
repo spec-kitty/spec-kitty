@@ -1,0 +1,51 @@
+# release asset contract-bundles-0.1.0-rc.1.tar.gz (sha256 fbfa6f97...), spec-kitty-events service-v0.1.0-rc.1
+mission-status: info.version=1.0.0-SNAPSHOT operationIds=10 x-source=243 lines_citing_core_src=317 distinct_core_files=38
+   getDriftReport    streamEvents    listMissions    getMission    listArtifacts    getArtifactContent    getWorkPackage    getWorkPackageDetail    listOpsInvocations    getProject 
+mission-write: info.version=1.0.0-SNAPSHOT operationIds=6 x-source=113 lines_citing_core_src=182 distinct_core_files=5
+   handshake    getHealth    recordInnerStateAnnotation    recordWorkPackageTransition    recordWorkPackageTransitionBatch    shutdown 
+# citation paths in mission-status, by frequency
+     87 path: src/specify_cli/status/models.py
+     35 path: src/specify_cli/status/wp_view.py
+     32 path: src/specify_cli/status/wp_metadata.py
+     24 path: src/specify_cli/mission_metadata.py
+     21 path: src/specify_cli/status/tail_reader.py
+     18 path: src/specify_cli/status/lifecycle_events.py
+     18 path: src/specify_cli/invocation/record.py
+     18 path: contracts/tools/leak_scan.py
+     12 path: src/specify_cli/status/progress.py
+     11 path: src/specify_cli/status/reducer.py
+     10 path: spec.md
+      8 path: src/specify_cli/core/dependency_graph.py
+      6 path: contracts/tools/leak_patterns.py
+      5 path: src/specify_cli/migration/schema_version.py
+      4 path: src/specify_cli/invocation/writer.py
+      4 path: src/specify_cli/core/stale_detection.py
+      4 path: src/specify_cli/consolidation/baseline.py
+      4 path: src/specify_cli/cli/commands/invocations_cmd.py
+      3 path: src/specify_cli/review/artifacts.py
+      3 path: src/specify_cli/audit/models.py
+      2 path: tasks/WP03-example.md
+      2 path: src/specify_cli/workspace/context.py
+      2 path: src/specify_cli/status/doctor.py
+      2 path: src/specify_cli/status/aggregate.py
+      2 path: src/specify_cli/review/cycle.py
+      2 path: src/specify_cli/ownership/validation.py
+      2 path: src/specify_cli/lanes/persistence.py
+      2 path: src/specify_cli/lanes/models.py
+      2 path: src/mission_runtime/identity.py
+      2 path: src/mission_runtime/context.py
+      1 path: tasks/WP06-research.md
+      1 path: tasks/WP05-example.md
+      1 path: tasks/WP04-example.md
+      1 path: tasks/WP04-contract-slice-b.md
+      1 path: tasks/WP02-example.md
+      1 path: tasks/WP01-example/review-cycle-1.md
+      1 path: tasks/WP01-example.md
+      1 path: tasks.md
+      1 path: src/specify_cli/upgrade/metadata.py
+      1 path: src/specify_cli/status/wp_review.py
+      1 path: src/specify_cli/status/validate.py
+      1 path: src/specify_cli/status/lifecycle.py
+      1 path: src/specify_cli/lanes/branch_naming.py
+      1 path: src/specify_cli/lanes/_git.py
+      1 path: src/specify_cli/core/vcs/git.py

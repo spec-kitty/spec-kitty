@@ -1,0 +1,77 @@
+finding_id: F-D2-010
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: shared formats and reverse pins
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+claim: 'Counted 10 formats or rule sets that have a definition on each side of a service boundary, 1 document kept
+  in two repositories, and 3 references from a repository to another repository''s source tree or internals. Formats:
+  the status event row, the reducer ordering, the lane vocabulary and transition rules, meta.json and topology classification,
+  the stream cursor, the ledger lock protocol, the write-service launch contract and endpoint file, the artifact
+  name rule and redaction patterns, the pack file kinds and schemas (four readers: charter Java, an open-packs Python
+  mirror, a doc-kitty TypeScript reader, core Python), and the activation document. The document event-ledger-writers-and-readers.md
+  exists in core and in spec-kitty-events and differs in 97 of 295 lines. Reverse pins: spec-kitty-events pins core
+  commit 512567ee (4369 commits behind core head) for CI oracles; spec-kitty-charter pins an open-packs commit (1692a3b1);
+  open-packs pins the charter service release (rc.3); open-packs CI reads contracts/packs from the charter repository
+  source tree at that commit.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/m04c-contract-bypass-inventory.csv
+  method: rows C01-C03, D01-D11
+  sha256: 61a4d0536d26d0174442d19ee87eddf54fd5790b511787ba830acb7a59a9f0b7
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-events@646e330b:service/core-pin.json
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-charter@06cdfbe9:gradle.properties (openPacksRef)
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: A purposive enumeration from the read allowlist, the contract modules and the pins; each definition site
+    was checked to exist at head.
+  not_covered: Not a complete census of duplicated definitions; field-level agreement between the definitions was
+    not compared except where a shared corpus was run (F-D2-014).
+  population: purposive enumeration
+  sample: purposive
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: For each format, looked for a single generated source (one definition from which the other is generated).
+  result: None found for the 10 formats; agreement is held by shared corpora and CI comparisons (conformance fixtures,
+    parity corpus, lock interop, classifier cases). The launch contract in spec-kitty-events states that it records
+    the text accepted in core.
+relations: []
+confidence: medium
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- evolvability
+candidate_invariants: []
+open_questions: []

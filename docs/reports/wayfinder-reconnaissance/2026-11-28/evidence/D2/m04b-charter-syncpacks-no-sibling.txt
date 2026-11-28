@@ -1,0 +1,6 @@
+### charter 06cdfbe9 clean clone, no ../spec-kitty-open-packs sibling: python3 scripts/packs/sync_packs.py
+sync_packs: no spec-kitty-open-packs checkout: <scratch>/clones/spec-kitty-open-packs does not exist. Clone it beside this repository (git clone https://github.com/spec-kitty/spec-kitty-open-packs.git <scratch>/clones/spec-kitty-open-packs) or pass -PopenPacksDir=<checkout> (--open-packs-dir <checkout>): an absolute path, or one relative to the repository root.
+exit=1
+### python3 scripts/packs/sync_packs.py --open-packs-dir /home/user/spec-kitty-open-packs (read at the pin, into the disposable clone)
+synced and verified packs/internal, packs/qa at 1692a3b1dde022c871f09dab34637d2f9d6723f3 from /home/user/spec-kitty-open-packs
+exit=0

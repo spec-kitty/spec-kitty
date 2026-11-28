@@ -1,0 +1,18 @@
+pin tag service-v0.1.0-rc.1 commit 2f5e03948b5262185d15e45019fe14fbc473b9b5
+assets jvm mission-status-api-0.1.0-rc.1.jar pinned ee4d2505c6f3059b14cedd5d541a63a0be67b15e632666a833c193af4e60f1ae downloaded ee4d2505c6f3059b14cedd5d541a63a0be67b15e632666a833c193af4e60f1ae MATCH
+assets linux-arm64 mission-status-api-0.1.0-rc.1-linux-arm64 pinned de2fa6b49c32972ebe0c17ce53e480b27aac41119e22625a1d85460c4bf51060 downloaded de2fa6b49c32972ebe0c17ce53e480b27aac41119e22625a1d85460c4bf51060 MATCH
+assets linux-x64 mission-status-api-0.1.0-rc.1-linux-x64 pinned e78c83111803c5ae43baf310d695a8e2a6fba3e79913ea282c10cd2781bbb112 downloaded e78c83111803c5ae43baf310d695a8e2a6fba3e79913ea282c10cd2781bbb112 MATCH
+assets macos-arm64 mission-status-api-0.1.0-rc.1-macos-arm64 pinned 964e6890daf29968b208555f518f49c906d228d98035f675f7f4c5b47a854597 downloaded 964e6890daf29968b208555f518f49c906d228d98035f675f7f4c5b47a854597 MATCH
+assets windows-x64 mission-status-api-0.1.0-rc.1-windows-x64.exe pinned ba8cc5e0da3a61e644788bf07d2f726447777d6eceb0851c40075eb967a10c96 downloaded ba8cc5e0da3a61e644788bf07d2f726447777d6eceb0851c40075eb967a10c96 MATCH
+extras contract_tools contract-tools-0.1.0-rc.1.tar.gz pinned 8ac707a2b30abfbc40005a755f70d68ab17df62381c73f0e964289018d56c934 downloaded 8ac707a2b30abfbc40005a755f70d68ab17df62381c73f0e964289018d56c934 MATCH
+extras contracts contract-bundles-0.1.0-rc.1.tar.gz pinned fbfa6f97dea2acd39858598f17756f225870f65cfdbda6493eecca62fe66b275 downloaded fbfa6f97dea2acd39858598f17756f225870f65cfdbda6493eecca62fe66b275 MATCH
+extras fixtures conformance-fixtures-0.1.0-rc.1.tar.gz pinned 30b1a462b64b28fa608ec4af0ab0924ee0e71c98e79d959ab5d7426f34d84563 downloaded 30b1a462b64b28fa608ec4af0ab0924ee0e71c98e79d959ab5d7426f34d84563 MATCH
+8/8 pinned digests match downloaded release assets
+SHA256SUMS conformance-fixtures-0.1.0-rc.1.tar.gz MATCH
+SHA256SUMS contract-bundles-0.1.0-rc.1.tar.gz MATCH
+SHA256SUMS contract-tools-0.1.0-rc.1.tar.gz MATCH
+SHA256SUMS mission-status-api-0.1.0-rc.1-linux-arm64 MATCH
+SHA256SUMS mission-status-api-0.1.0-rc.1-linux-x64 MATCH
+SHA256SUMS mission-status-api-0.1.0-rc.1-macos-arm64 MATCH
+SHA256SUMS mission-status-api-0.1.0-rc.1-windows-x64.exe MATCH
+SHA256SUMS mission-status-api-0.1.0-rc.1.jar MATCH

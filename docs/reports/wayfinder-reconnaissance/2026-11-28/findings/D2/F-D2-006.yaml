@@ -1,0 +1,89 @@
+finding_id: F-D2-006
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: contract-surface
+  deviation: null
+subject:
+  component: charter contract and packs contract
+  repository: spec-kitty/spec-kitty-charter
+  revision: contract-charter-v0.2.0-rc.3 and contract-packs-v0.1.0-rc.2 (commit 33f3ad46e9e33e895d4cd3a077d928d91b4f025f);
+    head 06cdfbe948
+  revision_kind: released
+claim: 'The charter service contract is an OpenAPI 3.1 document (79 operations over 71 paths: 38 under /activations,
+  35 under /packs, 2 under /offering; 0 declare a 501 response) with 74 scenario entries, released as contract-charter-v*
+  (charter-openapi.yaml, ActivationConfig.schema.json, charter-scenarios.tar.gz). A separate packs contract (file-kinds.yaml,
+  27 JSON Schemas in the rc.2 asset, classifier conformance cases) is released as contract-packs-v*. Service, charter
+  contract and packs contract have three separate version lines. Consumers found: spec-kitty-open-packs pins the
+  service by tag, commit and two jar digests (service-v0.1.0-rc.3); doc-kitty vendors 7 of the 32 members of contract-packs-v0.1.0-rc.2
+  and 7 of 7 vendored files equal the released members and the lock digests; core pins neither contract nor service.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/charter-released-contract-operations.txt
+  method: 'python3 yaml: list operations of the released charter-openapi.yaml'
+  sha256: 30e18f8eaea01bc50f4d027c436cfd82dd1409ccdb1405a32c2a0f2ad89a0ec9
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: static-derived
+  reference: evidence/D2/m04e-charter-contract-surface-and-divergences.txt
+  method: python3 census of contracts/, planted/core-verdicts.json, scripts/packs/core_verdicts.py REGISTER_IDS,
+    docs/conformance/divergences.yaml
+  sha256: 1e7ab69322359304a8b46136dd6bab57acdb83822ab903042f4777c334e5b9ff
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/contract-dockitty-packs-contract-lock-verify.txt
+  method: 'python3: doc-kitty contract.lock.json digests vs released packs-contract.tar.gz members vs vendored copies'
+  sha256: 27fcbf46ce8d8b96b80950f9aa135560c060011ab070caf4f1a5b5fff535680a
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: static-derived
+  reference: evidence/D2/contract-consumer-reference-census.csv
+  method: git grep -lE <pattern> HEAD -- . :!kitty-specs :!docs :!*.md :!kitty-ops | wc -l, per repository
+  sha256: ad085d6552274877ed0459f2760b6fe48a01ebf274c4ae9fb030b02f7229507b
+  exit_code: 0
+  environment: git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E5
+  kind: document-claim
+  reference: spec-kitty-open-packs@f9a55751:charter.lock.yaml
+  method: git show; commit cb9b1542, release_tag service-v0.1.0-rc.3, jar_sha256 763536af..., pack_check_sha256
+    adde1dff...
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: Released contract assets and the heads of the five primary repositories.
+  not_covered: The generated Java client (client-java) was built (F-D2-001) but no consumer of it was found or run.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched core at head for any reference to the charter contract, its scenarios or a charter-service pin.
+  result: Only documents and one test docstring mention them; pins/ has no charter-service file and src/ has no
+    HTTP client for it (F-D2-017).
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- interoperability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,151 @@
+### 2026-11-28T09:19:24Z ./gradlew --no-daemon --max-workers=2 :contracts:check
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :contracts:check
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :contracts:processResources NO-SOURCE
+> Task :contracts:installOasdiff UP-TO-DATE
+> Task :contracts:installVacuum UP-TO-DATE
+> Task :contracts:compileJava UP-TO-DATE
+> Task :contracts:classes UP-TO-DATE
+> Task :contracts:verifyOasdiff
+> Task :contracts:checkCheckstyleRegister
+
+> Task :contracts:checkContractChangelogFragments
+37 changelog fragments are well formed.
+
+> Task :contracts:checkPacksChangelog
+PACKS contracts/packs/CHANGELOG.md passes the heading, order and Breaking rules.
+
+> Task :contracts:checkstyleMain UP-TO-DATE
+> Task :kernel:compileJava UP-TO-DATE
+> Task :contracts:compileTestJava UP-TO-DATE
+> Task :contracts:processTestResources UP-TO-DATE
+> Task :contracts:testClasses UP-TO-DATE
+> Task :contracts:checkstyleTest UP-TO-DATE
+> Task :kernel:processResources UP-TO-DATE
+> Task :kernel:classes UP-TO-DATE
+> Task :kernel:jar UP-TO-DATE
+> Task :contracts:verifyVacuum
+> Task :contracts:bundleContract UP-TO-DATE
+> Task :contracts:checkClosedResponseObjects UP-TO-DATE
+
+> Task :contracts:test
+
+> Task :contracts:checkContractCompatibility
+No released baseline: contracts/charter/CHANGELOG.md records no final release before this one.
+
+> Task :contracts:checkRefusalExamples UP-TO-DATE
+> Task :contracts:compatibilityFixtures UP-TO-DATE
+> Task :contracts:javadoc UP-TO-DATE
+> Task :contracts:lintContract
+> Task :contracts:lintContract FAILED
+
+[Incubating] Problems report is available at: file://<scratch>/clones/charter/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':contracts:lintContract' (registered in build file 'contracts/build.gradle.kts').
+> The charter contract breaks its lint rules:
+   using ruleset '<scratch>/clones/charter/contracts/lint/ruleset.yaml' (containing 23 rules)
+   vacuuming file '<scratch>/clones/charter/build/contracts/contract/charter-openapi.yaml' against 23 rules: https://quobix.com/vacuum/rulesets/no-rules
+  
+  ERR Rule timed out, skipping
+    ├──  rule: charter-headers-on-every-response
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: x-reserved-shape
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: built-operation-declares-no-501
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: reserved-operation-declares-501
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: link-relations-are-known
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: success-responses-have-link-examples
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: success-schemas-carry-links
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: x-derived-shape
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: x-source-shape
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: pack-level-token-spelling
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: operation-tagged
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: error-responses-are-problems
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  rule: fingerprint-on-verified-reads
+    └──  timeout: 1m0s
+  
+  ERR Rule timed out, skipping
+    ├──  timeout: 1m0s
+    └──  rule: property-described
+  
+  ERR Rule timed out, skipping
+    ├──  rule: resource-property-cited
+    └──  timeout: 1m0s
+  
+   --> use the <dashboard> command to be able to navigate results interactively <--
+  
+   | Quality Score: 100/100 [A+]
+  
+   | ✓ A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!
+  
+   use --debug if you want to enable developer logging
+  
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 3m 58s
+32 actionable tasks: 8 executed, 24 up-to-date
+Configuration cache entry stored.
+exit=1
+### end 2026-11-28T09:23:24Z

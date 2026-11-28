@@ -1,0 +1,13 @@
+$ spec-kitty service vendor --service read-service --check
+pins/read-service.source.yaml is sound.
+exit=0
+$ spec-kitty service vendor --service write-service --tag service-v0.1.0-rc.2
+`gh attestation verify` refused command-cli-0.1.0-rc.2-linux-arm64 from service-v0.1.0-rc.2: Error: failed to fetch bundle with URL: failed to fetch bundle with URL: request to fetch bundle from URL failed: Get "https://tmaproduction.blob.core.windows.net/attestations/1143299105/2026/11/01...
+Error code: SERVICE_ATTESTATION_FAILED.
+exit=1
+$ spec-kitty service vendor --service write-service --tag service-v0.1.0-rc.2 --no-attestation
+Provenance not verified: build attestation skipped (--no-attestation); only the SHA256SUMS digest was checked.
+Pinned pins/write-service.source.yaml to service-v0.1.0-rc.2 (14682f94bc2a), 5 build(s), 3 extra(s).
+Ignored release files that are not pin assets: mission-status-api-0.1.0-rc.2-linux-arm64, mission-status-api-0.1.0-rc.2-linux-x64, mission-status-api-0.1.0-rc.2-macos-arm64, mission-status-api-0.1.0-rc.2-windows-x64.exe, mission-status-api-0.1.0-rc.2.jar
+exit=0
+?? pins/write-service.source.yaml

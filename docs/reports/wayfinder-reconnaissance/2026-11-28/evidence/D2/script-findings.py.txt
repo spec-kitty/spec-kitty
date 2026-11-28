@@ -1,0 +1,226 @@
+import os,hashlib,yaml,json
+R='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28'; E=R+'/evidence/D2'; F=R+'/findings/D2'
+rows={r[0]:r for r in json.load(open('/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-D2/manifest-rows.json'))}
+CORE='5c4fc5a79de1c1c299ab221ca26e5555c68ef533'; CH='06cdfbe94856e8d24eca350c63d2a7b47bb9f13a'; EV='646e330b896b96d7a11f53b34aa3d0c0baa69a05'; OP='f9a557510dc7ff04597a0b8aba87f736e25f785e'
+def sha(f): return hashlib.sha256(open(E+'/'+f,'rb').read()).hexdigest()
+KIND={'static':'static-derived','exec':'executed','hist':'history-derived','doc':'document-claim'}
+def ev(i,f,kind='exec',method=None,exitc=None):
+    r=rows.get(f)
+    return {'id':f'E{i}','kind':KIND[kind],'reference':f'evidence/D2/{f}','method':method or (r[1] if r else 'see MANIFEST.csv'),'sha256':sha(f),'exit_code':(exitc if exitc is not None else (r[4] if r else 0)),'environment':(r[3] if r else 'python3 3.13; grep; git')+'; Linux x86_64, 4 cores, 16 GiB shared host','observed_at':'2026-11-28T09:00Z-12:15Z'}
+def doc(i,ref,method): return {'id':f'E{i}','kind':'document-claim','reference':ref,'method':method,'sha256':'n/a (repository text at the named revision)','exit_code':0,'environment':'git show','observed_at':'2026-11-28'}
+N=[0]
+def fnd(measure,comp,repo,rev,kind,claim,evid,covered,notcov,dsearch,dresult,conf='high',cls='observation',view='observed',dev=None,pop=None,sample=None,interp=None,derived=None,counter=None,rel=None,qa=None,oq=None):
+    N[0]+=1; fid=f'F-D2-{N[0]:03d}'
+    d={'finding_id':fid,'workstream':'D2 - Independence of the Java services','hypotheses':[],'classification':cls,'view':view,
+       'prereg':{'measure':measure,'deviation':dev},
+       'subject':{'component':comp,'repository':'spec-kitty/'+repo,'revision':rev,'revision_kind':kind},
+       'claim':claim,'evidence':evid,
+       'scope':{'covered':covered,'not_covered':notcov,'population':pop,'sample':sample,'seed':None},
+       'interpretation':interp,'derived_from':derived or [],'counterevidence':counter or [],
+       'disconfirmation':{'search':dsearch,'result':dresult},'relations':rel or [],'confidence':conf,
+       'analyst':{'profile':'java-jenny','model':'fable'},'verification':{'status':'unverified','by':None},
+       'quality_attributes':qa or [],'candidate_invariants':[],'open_questions':oq or []}
+    yaml.safe_dump(d,open(f'{F}/{fid}.yaml','w'),sort_keys=False,width=110,allow_unicode=True)
+    return fid
+LOAD='The first attempts ran while the shared host had a load average above 20 and its kernel killed Gradle daemons for lack of memory; they were repeated once the host was quiet, with --max-workers=2 and a user-home gradle.properties (evidence/D2/gradle-user-home-override.properties.txt). The repositories were not edited.'
+
+fnd('M04b','charter service build','spec-kitty-charter',CH,'head',
+ "From a clean clone of spec-kitty-charter with no sibling checkout, 4 of 4 named Gradle invocations ended BUILD SUCCESSFUL: ':contracts:check' (lint, planted fixtures, closed-response check on 2213 schemas, refusal examples, compatibility fixtures), ':client-java:check', ':deployable:bootJar :pack-doctor:packDoctorJar', and the architecture test selection (HexagonalArchitectureTest 99 tests, ReservedRefusalCodesTest 14, GeneratedConstraintTypesTest 2, three *BoundaryTest classes 11; 0 failures; 1683 tests in 207 result files ran in total because the filter did not exclude the Cucumber scenarios). The pack sync step CI runs before verifyAll ('syncPacks') exits 1 without an open-packs checkout and exits 0 when given one.",
+ [ev(1,'m04b-charter-contracts-check.txt'),ev(2,'m04b-charter-bootjar.txt'),ev(3,'m04b-charter-arch-tests.txt'),ev(4,'m04b-charter-arch-test-results.txt'),ev(5,'m04b-charter-client-java-check.txt'),ev(6,'m04b-charter-syncpacks-no-sibling.txt'),ev(7,'m04b-charter-contracts-check-attempt1-lint-timeouts.txt'),ev(8,'m04b-charter-bootjar-attempt1-daemon-killed.txt')],
+ 'Named tasks only, in a --shared clone at head with its own GRADLE_USER_HOME; the clone directory had no ../spec-kitty-open-packs.',
+ "'verifyAll' as a whole (the complete suite) was not run by rule; native image compilation, mutation testing, the git-host tests and the whole-pack round trip were not run. Whether verifyAll passes without synced packs was not measured.",
+ "Looked for a failure caused by a missing sibling: read every failed attempt's log.",
+ "Three earlier attempts failed. Two were Gradle daemons killed by the host for lack of memory; one was ':contracts:lintContract' reporting 15 of 23 lint rules 'timed out' after 1 minute under host load. Each passed when repeated on a quiet host. No failure named a missing sibling file.",
+ dev=LOAD+" The --tests filter selected the named JUnit classes but the Cucumber-engine scenarios of ':deployable:test' ran as well; this exceeded 'named files only' unintentionally.",
+ qa=['buildability','modularity'])
+
+fnd('M04b','events services build','spec-kitty-events',EV,'head',
+ "The Gradle build of spec-kitty-events could not be configured in this environment: 2 of 2 attempts of './gradlew tasks --all' in a clean clone failed during plugin resolution (first: HTTP 429 'Too Many Requests' from repo.maven.apache.org for kotlin-gradle-plugin-api 2.4.10; retry: plugin org.graalvm.buildtools.native 1.1.8 'not found' in the Gradle plugin portal and Maven Central, while a direct request to the portal URL for that file answered 429). No events Java task ran. Its settings.gradle.kts lists gradlePluginPortal() and mavenCentral() only; the charter build, which lists a Google-hosted mirror of Central first, resolved its dependencies on the same host.",
+ [ev(1,'m04b-events-tasks-attempt1-http429.txt'),ev(2,'m04b-events-tasks-retry-plugin-unresolved.txt'),ev(3,'m04b-events-plugin-url-probe.txt')],
+ 'Two configuration attempts as the brief allows (one retry).',
+ 'Every M04b cell for the events read service, write service and contracts is not assessable by execution: build from clean clone, ArchUnit rules (ArchitectureRulesTest, WriteOwnershipRulesTest and others exist in the tree), contract validation tasks, and the Java side of the parity corpora.',
+ 'Checked whether the failure was caused by the repository rather than by retrieval: probed the same artefact URL on three hosts.',
+ 'The artefact exists (HTTP 200 on Maven Central directly and on the mirror); the portal route answered 429. This is a coverage limit of this environment, not evidence about the repository.',
+ conf='high',dev='Measure stopped for the events repository after the one permitted retry; the affected matrix cells are marked not assessable.',qa=['buildability'])
+
+fnd('M04a','events read service (released artefact)','spec-kitty-events','service-v0.1.0-rc.1 (commit 2f5e03948b5262185d15e45019fe14fbc473b9b5)','released',
+ "8 of 8 assets pinned in core's pins/read-service.source.yaml (5 builds, 3 extras) have the pinned SHA-256 when downloaded from the service-v0.1.0-rc.1 release, and 8 of 8 match the release's SHA256SUMS; core's own 'sync_services.py --check' reports all 4 host-relevant assets ok. The linux-x64 native binary started from the release asset and answered the release's own published request set: 53 of 53 requests met every check (status, content type, Problem code), and 33 of 33 response bodies that have a golden were byte-equal to it. The contract document it serves is byte-equal to the pinned bundle (sha256 6deab078...).",
+ [ev(1,'m04a-read-service-pin-verify.txt'),ev(2,'m04a-core-sync-services-check.txt'),ev(3,'m04a-replay-rc1-native.json'),ev(4,'script-replay_smoke.py.txt','static'),ev(5,'release-assets-events.json'),ev(6,'download-log.txt')],
+ 'All 8 pinned assets; the linux-x64 native binary; the 53 requests of nativesmoke/requests.json over 14 fixture trees, replayed by a client written for this workstream that follows the rules of the repository replay test.',
+ 'The jar, and the arm64, macOS and Windows binaries, were verified by digest only and not started. Build attestation could not be verified (the attestation store host was unreachable from here). The remaining 28 fixture trees were not replayed against the binary.',
+ 'Looked for any request whose status, content type, Problem code or body differed, and for any digest mismatch.',
+ 'None found. Five golden files the published request set names (smoke: prefix) are not in the released fixtures archive; they were taken from the repository at the tagged commit (see F-D2-019).',
+ qa=['interoperability','verifiability'])
+
+fnd('M04a','charter service (released artefact)','spec-kitty-charter','service-v0.1.0-rc.3 (commit cb9b15426d17c402b06204185a17ebfbc65f22ff)','released',
+ "Core pins no charter service artefact (pins/ holds only read-service.source.yaml), so there is no core digest to verify. The released rc.3 artefacts match their SHA256SUMS (3 of 3 downloaded) and match the digests spec-kitty-open-packs pins in charter.lock.yaml. The linux-x64 native binary started from the release asset over the 19 pack directories of open-packs head and answered through its contract: GET /api/v1/offering 200 (19 packs: 7 built-in level, 12 org level), 401 without the bearer token, POST /api/v1/activations 201, then GET of the activation, its packs and its effective artifacts 200; the created activation was stored as 1 file under the service's own configuration root. open-packs' own check script, run unchanged against the pinned rc.3 jar, printed 46 'ok' lines and exited 0 (composition, registration of every pack through PUT, and 10 expected refusals of 5 invalid fixtures).",
+ [ev(1,'m04a-charter-rc3-sha256sums-check.txt'),ev(2,'m04a-charter-rc3-native-run.txt'),ev(3,'m04a-charter-rc3-activation-probe.txt'),ev(4,'m04a-openpacks-charter-service-check-rc3.txt'),ev(5,'release-assets-charter.json')],
+ 'The linux-x64 native binary and the jar of rc.3; open-packs head as the consumer.',
+ 'Other platforms; the container profile; the pack-check jar was verified by digest only. Attestation not verified. The packs contract was read from the charter repository at the pinned commit through CHARTER_CONTRACT_DIR instead of over the network.',
+ 'Looked for an operation that fails or needs a second component to run.',
+ 'None among those tried. The contract document the rc.3 service serves differs from the released contract-charter-v0.2.0-rc.3 asset in exactly one line: info.version reads 0.2.0-SNAPSHOT in the service and 0.2.0-rc.3 in the asset; the response header Charter-Contract-Version also reads 0.2.0-SNAPSHOT.',
+ qa=['interoperability','deployability'])
+
+fnd('contract-surface','events contracts (mission-status, mission-write)','spec-kitty-events','service-v0.1.0-rc.1 release asset contract-bundles-0.1.0-rc.1.tar.gz; head '+EV[:10],'released',
+ "The events service contracts are two OpenAPI modules under contracts/ (mission-status: 10 operations; mission-write: 6 operations, plus a prose launch contract LAUNCHER.md), bundled and released as contract-bundles-<ver>.tar.gz on the service-v* line together with contract tools and a conformance-fixtures archive (349 files in rc.1: 42 fixture trees with Python-generated goldens, a 53-request replay set, artifact cases, torn-tail cases, leak patterns). Both bundles in the rc.1 release carry info.version 1.0.0-SNAPSHOT. The rc.1 read service answers 5 of the 10 mission-status operations with 200 and the other 5 (getMission, getWorkPackage, getWorkPackageDetail, getDriftReport, listOpsInvocations) with 404.",
+ [ev(1,'m04c-events-contract-bundle-citations.txt'),ev(2,'m04a-read-service-contract-coverage.txt'),doc(3,'spec-kitty-events@646e330b:contracts/mission-status/CHANGELOG.md:6-13','git show; the changelog states the version is unreleased and that the breaking-change check has no baseline'),doc(4,'spec-kitty-events@2f5e0394:service/README.md:3','git show; states that every other path of the contract answers 404 by design')],
+ 'The released rc.1 bundles and fixtures, and one probe per operation path against the rc.1 binary over a one-Mission project.',
+ 'The Java binding of the CloudEvents contract (java/) and the Python package contract were not inventoried here.',
+ 'Checked whether the 404 answers are a fault of my fixture: probed with an existing Mission id and compared with the service README.',
+ 'The README states the 404s are by design for this release (document-claim). Counter to a reading of "contract not versioned": a changelog and a release carrier exist; the version string itself is a SNAPSHOT in both released bundles.',
+ qa=['interoperability','evolvability'])
+
+fnd('contract-surface','charter contract and packs contract','spec-kitty-charter','contract-charter-v0.2.0-rc.3 and contract-packs-v0.1.0-rc.2 (commit 33f3ad46e9e33e895d4cd3a077d928d91b4f025f); head '+CH[:10],'released',
+ "The charter service contract is an OpenAPI 3.1 document (79 operations over 71 paths: 38 under /activations, 35 under /packs, 2 under /offering; 0 declare a 501 response) with 74 scenario entries, released as contract-charter-v* (charter-openapi.yaml, ActivationConfig.schema.json, charter-scenarios.tar.gz). A separate packs contract (file-kinds.yaml, 27 JSON Schemas in the rc.2 asset, classifier conformance cases) is released as contract-packs-v*. Service, charter contract and packs contract have three separate version lines. Consumers found: spec-kitty-open-packs pins the service by tag, commit and two jar digests (service-v0.1.0-rc.3); doc-kitty vendors 7 of the 32 members of contract-packs-v0.1.0-rc.2 and 7 of 7 vendored files equal the released members and the lock digests; core pins neither contract nor service.",
+ [ev(1,'charter-released-contract-operations.txt'),ev(2,'m04e-charter-contract-surface-and-divergences.txt','static'),ev(3,'contract-dockitty-packs-contract-lock-verify.txt'),ev(4,'contract-consumer-reference-census.csv','static'),doc(5,'spec-kitty-open-packs@f9a55751:charter.lock.yaml','git show; commit cb9b1542, release_tag service-v0.1.0-rc.3, jar_sha256 763536af..., pack_check_sha256 adde1dff...')],
+ 'Released contract assets and the heads of the five primary repositories.',
+ 'The generated Java client (client-java) was built (F-D2-001) but no consumer of it was found or run.',
+ 'Searched core at head for any reference to the charter contract, its scenarios or a charter-service pin.',
+ 'Only documents and one test docstring mention them; pins/ has no charter-service file and src/ has no HTTP client for it (F-D2-017).',
+ qa=['interoperability'])
+
+fnd('contract-surface','consumers of the Java service contracts','spec-kitty-planning','heads of 11 repositories as listed in the evidence file','head',
+ "Outside the two service repositories and core, 2 of 11 inspected repositories reference a Java service contract in non-document files: spec-kitty-open-packs (22 files for the charter service or packs contract) and doc-kitty (10 files, all for the packs contract). In the other 9 (spec-kitty-orchestrator, spec-kitty-pack-composer, spec-kitty-mcp, fleet-kitty, spec-kitty-container, spec-kitty-tracker, the end-to-end testing repository, event-router, spec-kitty-planning) 0 files match the mission-status, mission-write or charter service patterns; 6 of those 9 reference the spec_kitty_events Python package. No file in open-packs or doc-kitty calls an /activations operation.",
+ [ev(1,'contract-consumer-reference-census.csv','static')],
+ 'git grep at each head, excluding docs/, kitty-specs/, kitty-ops/ and Markdown.',
+ 'Four of the supplementary clones hold one commit each; their history was not searched. Pattern matching can miss a consumer that reaches a service through a generated client under another name.',
+ 'Widened the search in doc-kitty and open-packs to the literal paths /activations and /api/v1/offering.',
+ 'No additional consumer found; the 2 doc-kitty hits for the events patterns are operation logs and a changelog fixture, not code.',
+ conf='medium',pop='11 repositories',sample='all 11')
+
+fnd('M04c','events read service and write service inputs','spec-kitty-events',EV,'head',
+ "The Java services read core's project files directly: 10 input items were counted (9 for the events services, 1 for the charter service). The read service's own allowlist names .kittify/config.yaml, .kittify/metadata.yaml, kitty-specs/<dir>/meta.json, lanes.json, status.events.jsonl, .git/HEAD or the .git pointer file, and the .worktrees/<slug>-<mid8>-coord naming; its artifact routes read the files of a Mission directory; the write service reads meta.json and the tasks/ directory. No machine-readable schema for these inputs was found under contracts/; they are described in prose and exercised by fixtures. By execution: a status log written by core's Python at head (2 events) in a disposable project was read by the released rc.1 binary, which answered GET /api/v1/missions with eventCount 2 and the Work Package in lane 'claimed'.",
+ [ev(1,'m04c-contract-bypass-inventory.csv','static','rows B01-B10; grep and file reads at the named revisions'),ev(2,'m04c-events-java-core-layout-literals.txt','static'),ev(3,'m04c-java-read-of-python-written-log.txt'),ev(4,'m04f-core-status-write-without-service.txt')],
+ 'Main source sets of the three events service modules and the charter deployable at head; one executed read.',
+ 'Test sources; whether each read is tolerant of layout change was not tested by mutation.',
+ 'Looked in spec-kitty-events contracts/ and docs/ for a schema or versioned contract of the on-disk layout.',
+ "Found prose (the service README read allowlist, docs/architecture/services/event-ledger-writers-and-readers.md) and one citation path to .kittify/config.yaml in the bundle, but no schema file. The charter service's packs input is different: it is governed by the released packs contract and is not counted as a bypass.",
+ qa=['modularity','interoperability'])
+
+fnd('M04c','events contracts provenance citations','spec-kitty-events','service-v0.1.0-rc.1 release asset contract-bundles-0.1.0-rc.1.tar.gz','released',
+ "The released events contract bundles name core source files as the origin of their properties: the mission-status bundle has 317 lines of the form 'path: src/specify_cli/...' over 38 distinct core files (87 of them src/specify_cli/status/models.py), and the mission-write bundle has 182 such lines over 5 distinct core files. At head, 94 of 268 YAML files under contracts/ contain a specify_cli path.",
+ [ev(1,'m04c-events-contract-bundle-citations.txt'),ev(2,'m04c-contract-bypass-inventory.csv','static','row C04')],
+ 'Both bundles of the rc.1 release, and a file count at events head.',
+ 'Whether each cited symbol still exists in core at head was not checked.',
+ 'Checked whether the citations are stripped from the released bundle.',
+ 'They are present in the released bundle.',
+ qa=['modularity'])
+
+fnd('M04c','shared formats and reverse pins','spec-kitty-events',EV,'head',
+ "Counted 10 formats or rule sets that have a definition on each side of a service boundary, 1 document kept in two repositories, and 3 references from a repository to another repository's source tree or internals. Formats: the status event row, the reducer ordering, the lane vocabulary and transition rules, meta.json and topology classification, the stream cursor, the ledger lock protocol, the write-service launch contract and endpoint file, the artifact name rule and redaction patterns, the pack file kinds and schemas (four readers: charter Java, an open-packs Python mirror, a doc-kitty TypeScript reader, core Python), and the activation document. The document event-ledger-writers-and-readers.md exists in core and in spec-kitty-events and differs in 97 of 295 lines. Reverse pins: spec-kitty-events pins core commit 512567ee (4369 commits behind core head) for CI oracles; spec-kitty-charter pins an open-packs commit (1692a3b1); open-packs pins the charter service release (rc.3); open-packs CI reads contracts/packs from the charter repository source tree at that commit.",
+ [ev(1,'m04c-contract-bypass-inventory.csv','static','rows C01-C03, D01-D11'),doc(2,'spec-kitty-events@646e330b:service/core-pin.json','git show'),doc(3,'spec-kitty-charter@06cdfbe9:gradle.properties (openPacksRef)','git show')],
+ 'A purposive enumeration from the read allowlist, the contract modules and the pins; each definition site was checked to exist at head.',
+ 'Not a complete census of duplicated definitions; field-level agreement between the definitions was not compared except where a shared corpus was run (F-D2-014).',
+ 'For each format, looked for a single generated source (one definition from which the other is generated).',
+ 'None found for the 10 formats; agreement is held by shared corpora and CI comparisons (conformance fixtures, parity corpus, lock interop, classifier cases). The launch contract in spec-kitty-events states that it records the text accepted in core.',
+ conf='medium',pop='purposive enumeration',sample='purposive',qa=['modularity','evolvability'])
+
+fnd('M04d','events read service version compatibility','spec-kitty-events','service-v0.1.0-rc.2 (commit 14682f94bc2ade4e5d3a6a3b285161150f7f4014)','released',
+ "Core's read-service pin admits exactly one build per target: it records a tag, a commit and a SHA-256 per asset, plus protocol_versions [1] and requires_core '>=4.0.0rc8,<5'. The next released read-service binary (rc.2, a different file from rc.1) met the fixtures and goldens core pins from rc.1: 53 of 53 requests passed and 33 of 33 compared bodies were byte-equal. Between rc.1 and rc.2 the mission-status bundle, the contract tools and the conformance fixture trees are identical in content, the mission-write bundle differs, and the jar asset has the same SHA-256 in both releases (ee4d2505...).",
+ [ev(1,'m04d-replay-rc2-native-vs-rc1-fixtures.json'),ev(2,'m04d-events-rc2-sha256sums-check.txt'),ev(3,'release-assets-events.json'),doc(4,'spec-kitty@5c4fc5a7:pins/read-service.source.yaml','git show')],
+ 'linux-x64 native binary of rc.2 against the rc.1 fixtures.',
+ "Core's own nightly comparison job was not run with rc.2. No rc.3 exists for the events services.",
+ 'Looked for any request that rc.2 answers differently from the rc.1 goldens.',
+ 'None found.',
+ qa=['evolvability','interoperability'])
+
+fnd('M04d','events write service version compatibility','spec-kitty-events','service-v0.1.0-rc.2 (commit 14682f94bc2ade4e5d3a6a3b285161150f7f4014)','released',
+ "Core at head holds no write-service pin. In a disposable clone, core's own 'spec-kitty service vendor --service write-service --tag service-v0.1.0-rc.2 --no-attestation' wrote a pin with 5 builds and 3 extras (default requires_core '>=4.0.0rc9,<5'), and core's ServiceLauncher then started the released command-cli rc.2 binary: ready in 1.67 s, handshake protocol_versions [1] and service_version 0.1.0-rc.2, health 'ready', loopback host, endpoint.json, service.lock and service.log in <git common dir>/spec-kitty-write-service/, a second ensure reused the same process, and 'spec-kitty service stop' reported 'stopped'. Without --no-attestation the vendor command exited 1 with SERVICE_ATTESTATION_FAILED because the attestation bundle host could not be reached from here.",
+ [ev(1,'m04d-core-vendor-check-and-bump.txt'),ev(2,'m04d-core-launches-write-service-rc2.txt'),ev(3,'script-launch_write_service.py.txt','static'),ev(4,'m04d-events-rc2-sha256sums-check.txt')],
+ 'Start, ready check, reuse and stop of the linux-x64 binary through core code at head.',
+ 'No status write was sent through the service: core has no transport for it (F-D2-017). The jar fallback was not started.',
+ 'Looked for a protocol or launch-contract mismatch between core head and the rc.2 binary.',
+ 'None in handshake, health or shutdown. The attestation failure is an environment limit, not evidence about the release.',
+ dev='The pin was created in a disposable clone as a rehearsal; core at head has none.',qa=['interoperability','deployability'])
+
+fnd('M04d','charter service version compatibility','spec-kitty-open-packs',OP,'head',
+ "open-packs pins one charter service build exactly (commit, release tag, two jar digests). Its own check script at head, run unchanged, passed against the pinned rc.3 jar (46 'ok' lines, exit 0) and failed against the earlier rc.1 jar (9 'ok' lines, exit 1): the rc.1 service refused the pack content with pack_unreadable, first naming an undeclared key 'activated_routing_catalogs' in the built-in preset.",
+ [ev(1,'m04a-openpacks-charter-service-check-rc3.txt'),ev(2,'m04d-openpacks-charter-service-check-rc1.txt'),ev(3,'m04a-charter-rc1-sha256sums-check.txt')],
+ 'open-packs head against the two released service jars that exist (rc.1, rc.3).',
+ 'No release newer than the pinned one exists, so forward compatibility could not be tried. A service-v0.1.0-rc.2 tag exists without release assets.',
+ 'Looked for whether the rc.1 failure was caused by my environment: compared the two runs made with identical inputs.',
+ 'Same inputs and same script; only the jar differs.',
+ qa=['evolvability'])
+
+fnd('M04e','mission-status projection: two implementations','spec-kitty',CORE,'head',
+ "Two implementations of the mission-status projection exist and both met the same corpus here. Core's test tree holds a Python reference ('oracle', tests/contract/_mission_status_*.py, importing specify_cli.status.reducer and tail_reader); its conformance test regenerated the goldens of the pinned fixtures and passed 53 of 53 tests, including the byte-for-byte comparison of every generated file. The released Java binary answered the same goldens byte for byte for the 33 bodies replayed (F-D2-003). The fixture manifest labels the goldens 'python-golden' and lists the constructs where Python and Java regular expressions differ.",
+ [ev(1,'m04e-core-oracle-conformance.txt'),ev(2,'m04a-replay-rc1-native.json'),doc(3,'spec-kitty@5c4fc5a7:.github/workflows/ci-nightly.yml:2434-2444','git show; a nightly job compares the pinned binary with the Python oracle over the repository corpus')],
+ 'The Python side over all pinned fixture trees; the Java side over the 14 trees of the published replay set.',
+ 'The artifact-conformance cases and 28 fixture trees were not replayed against the Java binary; the nightly whole-corpus comparison was not run.',
+ 'Looked for a golden on which the two sides disagree.',
+ 'None in what was run. The Python reference is test code and is not shipped as a service; core reads status in-process through its own modules.',
+ qa=['verifiability'])
+
+fnd('M04e','status write rules: two implementations','spec-kitty-events',EV,'head',
+ "The status write rules exist twice. Core's Python writer is the implementation that runs at core head (F-D2-017). The Java write service (command-cli) re-implements them and is checked against a corpus of 266 cases in spec-kitty-events, of which 201 are marked 'oracle: core' (generated by running core at commit 512567ee) and 65 'oracle: protocol'; 250 cases are at the domain layer, 15 at the service layer, 1 at the edge. The corpus is not in the spec-kitty-events 11.3.0 package that core installs.",
+ [ev(1,'m04e-events-transition-parity-corpus-census.txt','static'),doc(2,'spec-kitty-events@646e330b:src/spec_kitty_events/conformance/status_transition_parity/README.md:3-7','git show')],
+ 'Census of the corpus at events head.',
+ 'Neither side was run against the corpus: the Java tests need the Gradle build (F-D2-002), and the corpus is generated from core rather than run by core. Agreement was therefore not measured.',
+ 'Looked for the corpus in the installed events package and for a core test that runs it.',
+ 'Neither found.',
+ conf='medium',dev='Agreement on the shared corpus could not be recorded because the events build was blocked.',qa=['verifiability'])
+
+fnd('M04e','charter offering and pack validation: two or more implementations','spec-kitty-charter',CH,'head',
+ "Pack reading and validation exist in four places (the Java charter service, core's Python offering, an open-packs Python schema mirror, a doc-kitty TypeScript reader). The charter repository records a comparison of the first two: 55 planted packs, 51 of them with core's recorded CLI verdict at core commit 9554e7b2, of which 24 are mapped to a divergence entry; its divergence register holds 118 entries (111 open, 4 retired, 3 withdrawn). Core holds a separate activation corpus (tests/charter/conformance/activation_ledger_cases.yaml) whose header says it is for the charter repository to port; no file in spec-kitty-charter or spec-kitty-events references it.",
+ [ev(1,'m04e-charter-contract-surface-and-divergences.txt','static'),ev(2,'m04c-contract-bypass-inventory.csv','static','rows D09, D10, C03')],
+ 'Counts from files at charter head and one reference search.',
+ "The comparison was not re-run: the recorded core verdicts are at core 9554e7b2 (version 4.0.0rc8), not core head; the Java side's planted-file test was not run.",
+ 'Searched spec-kitty-charter for the core activation corpus by file name and schema id.',
+ 'No reference found.',
+ conf='medium',qa=['verifiability','modularity'])
+
+fnd('M04f','deployment and absence behaviour in core','spec-kitty',CORE,'head',
+ "At core head no Java service is started by any command path. Tracked pins: 1 (read-service). 'spec-kitty service status' and 'service fetch --all' print 'No service is pinned in this spec-kitty version yet' (exit 0). ServiceLauncher.ensure refuses all three services: write-service with SERVICE_PIN_INVALID ('no pin lockfile'), read-service and charter-service with 'the CLI does not launch'. Outside the services package the launcher is referenced only by the 'service' command (status, stop). A status transition written and read through core's Python in a disposable project succeeded with no service present; the 3 child processes spawned were git, and no endpoint directory appeared. The read service runs when a user or CI starts it (one project root, loopback, read-only); the charter service runs when started with a configuration root and a token (loopback by default; a container profile binds all interfaces on port 8080); the write service, when launched, is one process per git common dir with a lock file and an idle timeout.",
+ [ev(1,'m04f-core-service-cli-absent.txt'),ev(2,'m04f-core-status-write-without-service.txt'),ev(3,'m04f-core-service-callers-grep.txt','static'),ev(4,'m04d-core-launches-write-service-rc2.txt'),ev(5,'m04a-charter-rc3-native-run.txt'),doc(6,'spec-kitty-charter@06cdfbe9:service/deployable/src/main/resources/application-container.yaml','git show; container profile bind address and port')],
+ 'Core CLI and launcher at head in a disposable project; the three released binaries as started in this workstream.',
+ 'Windows and macOS; the container deployment; the first-use download path for users.',
+ "Searched core src/ for any HTTP client aimed at a service and for callers of the launcher's ensure().",
+ 'No caller of ensure() outside the launcher itself; the only HTTP clients in src/ outside services/ are for package indexes, upgrade probes and pack sources.',
+ qa=['deployability','operability'])
+
+fnd('process-requirement','consumers and process form','spec-kitty',CORE,'head',
+ "Which consumer needs which process form, as observed: open-packs' check requires the charter service as a separate process reached over HTTP (it starts a jar and calls /api/v1). Core at head requires charter reads and status writes in-process: it has no client for either service, and the charter-service launch policy is disabled. Core's launcher treats the write service as a separate process only. doc-kitty consumes the packs contract as files and runs no service. No consumer was found that requires a Java service in-process.",
+ [ev(1,'m04a-openpacks-charter-service-check-rc3.txt'),ev(2,'m04f-core-service-callers-grep.txt','static'),ev(3,'m04f-core-status-write-without-service.txt'),ev(4,'contract-dockitty-packs-contract-lock-verify.txt')],
+ 'The consumers found in F-D2-007 and core.',
+ 'Consumers outside the cloned repositories.',
+ 'Looked for a JVM embedding or a library dependency on a service jar in any consumer.',
+ 'None found; the generated Java client in the charter repository is an HTTP client.',
+ conf='medium')
+
+fnd('exploratory','release artefact details','spec-kitty-events','service-v0.1.0-rc.1 and service-v0.1.0-rc.2','released',
+ "Exploratory observations on the released artefacts. (a) The published replay set names 5 golden files with a 'smoke:' prefix (used by 13 of its 53 requests) that are not in the released conformance-fixtures archive; they exist in the repository test resources at the tagged commit. (b) The conformance-fixtures and contract-tools archives of rc.1 and rc.2 have different SHA-256 values but identical extracted content. (c) The mission-status-api jar has the same SHA-256 in rc.1 and rc.2. (d) The charter repository has a tag service-v0.1.0-rc.2 with no release among the 8 releases listed. (e) The rc.3 charter service reports contract version 0.2.0-SNAPSHOT while the contract released from the same date is 0.2.0-rc.3.",
+ [ev(1,'m04a-replay-rc1-native.json'),ev(2,'release-assets-events.json'),ev(3,'release-assets-charter.json'),ev(4,'m04a-charter-rc3-native-run.txt')],
+ 'Assets downloaded for this workstream.',
+ 'Why each is so was not investigated.',
+ 'For (a), searched the extracted archive for the five file names.',
+ 'Not present in the archive.',
+ conf='medium')
+
+fnd('exploratory','recorded intent for service launch and pins','spec-kitty',CORE,'head',
+ "Recorded intent, for comparison with F-D2-017: core's pins/README.md states that the read service is 'pinned for CI conformance only: the CLI never launches it' and that 'the write service and the charter service are not pinned yet: each waits for a release that carries it'; the launch policy module states 'Only the write service is launchable today. The charter service is recorded for shape only'; the write-service protocol module states 'There is no transport here' and that the client binds at a later cut-over. The events read-service README states 'It is a detached service: no spec-kitty command starts it'.",
+ [doc(1,'spec-kitty@5c4fc5a7:pins/README.md:26-33','git show'),doc(2,'spec-kitty@5c4fc5a7:src/specify_cli/services/policies.py:9-11','git show'),doc(3,'spec-kitty@5c4fc5a7:src/specify_cli/status/write_service_protocol.py:10-13','git show'),doc(4,'spec-kitty-events@2f5e0394:service/README.md:3','git show')],
+ 'Four statements at the named revisions.',
+ 'ADRs were not surveyed in this workstream.',
+ 'Compared each statement with the executed observations.',
+ "The statements agree with what was observed at head. One difference from the pins README: a spec-kitty-events release that carries the write service exists (service-v0.1.0-rc.2, 2026-11-01) and core's tool can pin it (F-D2-012).",
+ view='recorded-intent',conf='high')
+
+a=fnd('independence-matrix','five capabilities on five dimensions','spec-kitty',CORE,'head',
+ 'Of the 25 cells of evidence/D2/independence-matrix.csv: 7 established, 12 partly, 3 not established, 3 not assessable. Distribution is established in 4 of 5 rows and partly in 1; logical independence is established in 0 of 5 rows (3 not established, 2 partly); the contract dimension is partly in 5 of 5 rows.',
+ [ev(1,'independence-matrix.csv','static','cells derived from the cited findings')],
+ 'The five rows the brief names.','Cells marked not assessable (events build blocked; no consumer of the write or activation operations).',
+ 'For each "established" cell, looked for an observation against it; for each "not established" cell, looked for one in favour.',
+ 'Counter-observations are carried in the cell text (for example the read service has a served contract and byte-level goldens although its logical cell is partly).',
+ cls='interpretation',interp='The services are separately built, released and run, while the responsibility each one names is, at core head, still carried out by Python in core. Separate repository and process were observed together with shared formats and a second implementation in every row.',
+ derived=[f'F-D2-{i:03d}' for i in (1,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17)],conf='medium')
+
+fnd('independence-matrix','unsupported by design or defect','spec-kitty',CORE,'head',
+ "Classification of the gaps observed. Unsupported by design, on the basis of a recorded statement in the repository that says so: the CLI not launching the read service; no charter-service or write-service pin in core and no write transport; 5 of 10 mission-status operations answering 404; open-packs working only with its pinned charter build. Not classifiable from recorded intent found in this workstream: the released contract version strings reading SNAPSHOT; the fixtures archive lacking 5 goldens its request set names; the activation corpus in core not being referenced by the charter repository. Environment limits, not properties of the repositories: the events build, the attestation check and the first charter build attempts. No observation in this workstream was classified as a defect.",
+ [ev(1,'independence-matrix.csv','static','classification derived from the cited findings')],
+ 'The gaps listed in the cited findings.','Intent recorded only in ADRs or issues that this workstream did not read.',
+ 'For each item called by design, looked for the statement; for each unclassified item, looked for a statement in the changelog or README of the owning repository.',
+ 'Statements found for the first group (F-D2-005, F-D2-020 evidence). For the SNAPSHOT version the mission-write changelog says the snapshot "is treated like a release candidate" by an operator ruling, which is a partial statement of intent.',
+ cls='interpretation',interp='Most gaps are staged work that the repositories describe as not yet cut over; three items have no recorded statement either way and are open questions rather than defects.',
+ derived=[f'F-D2-{i:03d}' for i in (2,5,12,13,16,17,19,20)],conf='medium',
+ oq=['Is the SNAPSHOT version string in released contract bundles and in the rc.3 charter service intended?','Is the core activation corpus meant to be run by the charter repository before the activation cut-over?'])
+print(N[0])

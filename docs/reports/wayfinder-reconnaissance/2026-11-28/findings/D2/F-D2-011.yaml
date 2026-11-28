@@ -1,0 +1,77 @@
+finding_id: F-D2-011
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04d
+  deviation: null
+subject:
+  component: events read service version compatibility
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.2 (commit 14682f94bc2ade4e5d3a6a3b285161150f7f4014)
+  revision_kind: released
+claim: 'Core''s read-service pin admits exactly one build per target: it records a tag, a commit and a SHA-256 per
+  asset, plus protocol_versions [1] and requires_core ''>=4.0.0rc8,<5''. The next released read-service binary (rc.2,
+  a different file from rc.1) met the fixtures and goldens core pins from rc.1: 53 of 53 requests passed and 33
+  of 33 compared bodies were byte-equal. Between rc.1 and rc.2 the mission-status bundle, the contract tools and
+  the conformance fixture trees are identical in content, the mission-write bundle differs, and the jar asset has
+  the same SHA-256 in both releases (ee4d2505...).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04d-replay-rc2-native-vs-rc1-fixtures.json
+  method: python3 replay_smoke.py <fixtures rc.1> ... -- mission-status-api-0.1.0-rc.2-linux-x64
+  sha256: 69e6e8282fd61215be01dbf7f00421e29193b0c8c29ac5a690fa7d79e7a09518
+  exit_code: 0
+  environment: python3 3.13; native binary sha256 2c2a5d83...; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04d-events-rc2-sha256sums-check.txt
+  method: sha256sum -c SHA256SUMS --ignore-missing
+  sha256: def6ac1bd358fdb51b8d1f0b0406e177560d55018f4ed69ca80f798ba97b2c6a
+  exit_code: 0
+  environment: sha256sum; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/release-assets-events.json
+  method: gh api "repos/spec-kitty/spec-kitty-events/releases?per_page=50" --jq (tag, prerelease, assets name/size/digest)
+  sha256: 6fe2d69f37f71d9f2ff492190d8088135f0b9d73c8b4d726e588582d6adcf90e
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a7:pins/read-service.source.yaml
+  method: git show
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: linux-x64 native binary of rc.2 against the rc.1 fixtures.
+  not_covered: Core's own nightly comparison job was not run with rc.2. No rc.3 exists for the events services.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for any request that rc.2 answers differently from the rc.1 goldens.
+  result: None found.
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+- interoperability
+candidate_invariants: []
+open_questions: []

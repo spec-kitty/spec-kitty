@@ -1,0 +1,69 @@
+import os,re,sys,json,hashlib
+S='/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-D2'; E='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/D2'
+CAP=450_000
+# (dest, source, command, revision, tools, exit)
+J='Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper)'; P='Python 3.11 (core .venv), python3 3.13'; G='gh CLI REST (gh api)'
+M=[
+('release-assets-events.json','art/spec-kitty-events.releases.json','gh api "repos/spec-kitty/spec-kitty-events/releases?per_page=50" --jq (tag, prerelease, assets name/size/digest)','released: service-v0.1.0-rc.1, rc.2',G,0),
+('release-assets-charter.json','art/spec-kitty-charter.releases.json','gh api "repos/spec-kitty/spec-kitty-charter/releases?per_page=50" --jq (same)','released: service-v0.1.0-rc.1, rc.3; contract tags',G,0),
+('download-log.txt','logs/download.txt','python3 dl.py <repo> <tag> <pattern> (gh api releases/assets/{id}, Accept: application/octet-stream), compares size and API digest','released',G,0),
+('m04a-read-service-pin-verify.txt','logs/pin-verify.txt','python3: sha256 of each downloaded service-v0.1.0-rc.1 asset vs core pins/read-service.source.yaml and vs SHA256SUMS','core 5c4fc5a7 pin; events service-v0.1.0-rc.1 (2f5e0394)',P,0),
+('m04a-core-sync-services-check.txt','logs/core-sync-services-check.txt','PYTHONPATH=src python scripts/sync_services.py --service all --check (cache filled with --offline from the downloaded assets)','core 5c4fc5a7',P,0),
+('m04a-replay-rc1-native.json','logs/replay-rc1-native.json','python3 replay_smoke.py <fixtures rc.1> <smoke goldens at 2f5e0394> <bundle mission-status/openapi.yaml> out -- mission-status-api-0.1.0-rc.1-linux-x64','events service-v0.1.0-rc.1 (2f5e0394)','python3 3.13; native binary sha256 e78c8311...',0),
+('m04d-replay-rc2-native-vs-rc1-fixtures.json','logs/replay-rc2-native-vs-rc1-fixtures.json','python3 replay_smoke.py <fixtures rc.1> ... -- mission-status-api-0.1.0-rc.2-linux-x64','events service-v0.1.0-rc.2 (14682f94) against rc.1 fixtures','python3 3.13; native binary sha256 2c2a5d83...',0),
+('script-replay_smoke.py.txt','scripts/replay_smoke.py','(script written by D2)','n/a','python3 3.13',0),
+('m04a-read-service-contract-coverage.txt','logs/read-service-contract-coverage.txt','curl each operation path of the rc.1 mission-status bundle against the rc.1 native binary','events service-v0.1.0-rc.1','curl; native binary',0),
+('m04e-core-oracle-conformance.txt','logs/core-oracle-conformance.txt','PYTHONPATH=src:. python -m pytest tests/contract/test_mission_status_conformance.py -q -n0 -p no:cacheprovider','core 5c4fc5a7; pinned fixtures rc.1',P+'; pytest',0),
+('m04f-core-service-cli-absent.txt','logs/core-service-cli-absent.txt','python -m specify_cli {--version, service status [--service X], service fetch, service stop} in a disposable git project','core 5c4fc5a7',P,0),
+('m04f-core-status-write-without-service.txt','logs/core-status-write-without-service.txt','python status_write_without_service.py (emit_status_transition x2, materialize, ServiceLauncher.ensure for 3 services)','core 5c4fc5a7',P,0),
+('script-status_write_without_service.py.txt','scripts/status_write_without_service.py','(script written by D2)','n/a',P,0),
+('m04c-java-read-of-python-written-log.txt','logs/java-read-of-python-written-log.txt','mission-status-api rc.1 native --mission-status.project-root=<disposable project written by core Python>; curl /api/v1/project, /missions','core 5c4fc5a7 writer; events service-v0.1.0-rc.1 reader','native binary; curl',0),
+('m04d-core-vendor-check-and-bump.txt','logs/core-vendor-check-and-bump.txt','spec-kitty service vendor --service read-service --check; service vendor --service write-service --tag service-v0.1.0-rc.2 [--no-attestation] (in the disposable core clone)','core 5c4fc5a7; events service-v0.1.0-rc.2',P+'; gh attestation',0),
+('m04d-core-launches-write-service-rc2.txt','logs/core-launches-write-service-rc2.txt','python launch_write_service.py; spec-kitty service status; spec-kitty service stop','core 5c4fc5a7 launcher; events command-cli 0.1.0-rc.2 linux-x64',P+'; native binary sha256 257f1bce...',0),
+('script-launch_write_service.py.txt','scripts/launch_write_service.py','(script written by D2)','n/a',P,0),
+('m04b-charter-tasks.txt','logs/charter-tasks.txt','./gradlew --no-daemon tasks --all (clean shared clone, own GRADLE_USER_HOME)','charter 06cdfbe9',J,0),
+('m04b-charter-build-attempt1-daemon-killed.txt','logs/charter-build-1.txt','./gradlew --no-daemon :contracts:check :client-java:check :deployable:bootJar :deployable:test --tests ... :packs:test --tests *BoundaryTest --continue','charter 06cdfbe9',J,1),
+('m04b-charter-contracts-check-attempt1-lint-timeouts.txt','logs/charter-contracts-check.txt','./gradlew --no-daemon --max-workers=2 :contracts:check (host load average > 20)','charter 06cdfbe9',J,1),
+('m04b-charter-contracts-check.txt','logs/charter-contracts-check-2.txt','./gradlew --no-daemon --max-workers=2 :contracts:check','charter 06cdfbe9',J,0),
+('m04b-charter-bootjar-attempt1-daemon-killed.txt','logs/charter-bootjar.txt','./gradlew --no-daemon --max-workers=2 :deployable:bootJar :pack-doctor:packDoctorJar','charter 06cdfbe9',J,1),
+('m04b-charter-bootjar.txt','logs/charter-bootjar-2.txt','./gradlew --no-daemon --max-workers=2 :deployable:bootJar :pack-doctor:packDoctorJar','charter 06cdfbe9',J,0),
+('m04b-charter-arch-tests-attempt1-daemon-killed.txt','logs/charter-arch-tests.txt','./gradlew ... :deployable:test --tests ... :packs:test --tests *BoundaryTest','charter 06cdfbe9',J,1),
+('m04b-charter-arch-tests.txt','logs/charter-arch-tests-2.txt','./gradlew --no-daemon --max-workers=2 :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest','charter 06cdfbe9',J,0),
+('m04b-charter-arch-test-results.txt','logs/charter-arch-test-results.txt','python3 summary of build/test-results/**/*.xml after the run above','charter 06cdfbe9','python3 3.13',0),
+('m04b-charter-client-java-check.txt','logs/charter-client-java.txt','./gradlew --no-daemon --max-workers=2 :client-java:check','charter 06cdfbe9',J,0),
+('m04b-charter-syncpacks-no-sibling.txt','logs/charter-syncpacks-no-sibling.txt','python3 scripts/packs/sync_packs.py [--open-packs-dir /home/user/spec-kitty-open-packs]','charter 06cdfbe9','python3 3.13; git',0),
+('m04b-events-tasks-attempt1-http429.txt','logs/events-tasks.txt','./gradlew --no-daemon tasks --all (clean shared clone, own GRADLE_USER_HOME)','events 646e330b',J,1),
+('m04b-events-tasks-retry-plugin-unresolved.txt','logs/events-tasks-retry.txt','./gradlew --no-daemon --max-workers=2 tasks --all (the one retry)','events 646e330b',J,1),
+('m04b-events-plugin-url-probe.txt','logs/events-plugin-url-probe.txt','curl -s -o /dev/null -L -w "%{http_code} %{url_effective}" <plugin marker pom on portal, Central, Google mirror>','n/a','curl',0),
+('m04a-charter-rc3-sha256sums-check.txt','logs/charter-rc3-sha256sums-check.txt','sha256sum -c SHA256SUMS --ignore-missing','charter service-v0.1.0-rc.3 (cb9b1542)','sha256sum',0),
+('m04a-charter-rc1-sha256sums-check.txt','logs/charter-rc1-sha256sums-check.txt','sha256sum -c SHA256SUMS --ignore-missing','charter service-v0.1.0-rc.1 (ebce9083)','sha256sum',0),
+('m04d-events-rc2-sha256sums-check.txt','logs/events-rc2-sha256sums-check.txt','sha256sum -c SHA256SUMS --ignore-missing','events service-v0.1.0-rc.2 (14682f94)','sha256sum',0),
+('m04a-charter-rc3-native-run.txt','logs/charter-rc3-native-run.txt','CHARTER_WORKTREE_TOKEN=<random> spec-kitty-charter-service-0.1.0-rc.3-linux-x64 --server.port=N --configRootLocation <root>; curl with bearer token; diff served contract vs released contract asset','charter service-v0.1.0-rc.3; contract-charter-v0.2.0-rc.3; open-packs f9a55751 packs','native binary sha256 8f45a298...; curl',0),
+('m04a-charter-rc3-activation-probe.txt','logs/charter-rc3-activation-probe.txt','same binary; POST /api/v1/activations then GET the activation, its packs and artifacts','charter service-v0.1.0-rc.3','native binary; curl',0),
+('charter-released-contract-operations.txt','logs/charter-contract-operations.txt','python3 yaml: list operations of the released charter-openapi.yaml','contract-charter-v0.2.0-rc.3','python3 3.13',0),
+('m04a-openpacks-charter-service-check-rc3.txt','logs/openpacks-charter-service-check-rc3.txt','CHARTER_CONTRACT_DIR=<charter contracts/packs at cb9b1542> python scripts/ci/charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.3.jar','open-packs f9a55751; charter service-v0.1.0-rc.3',P+'; '+J.split(';')[0],0),
+('m04d-openpacks-charter-service-check-rc1.txt','logs/openpacks-charter-service-check-rc1.txt','same script, --jar spec-kitty-charter-service-0.1.0-rc.1.jar','open-packs f9a55751; charter service-v0.1.0-rc.1',P+'; '+J.split(';')[0],1),
+('contract-dockitty-packs-contract-lock-verify.txt','logs/dockitty-packs-contract-lock-verify.txt','python3: doc-kitty contract.lock.json digests vs released packs-contract.tar.gz members vs vendored copies','doc-kitty 1acc49fb; contract-packs-v0.1.0-rc.2 (33f3ad46)','python3 3.13',0),
+('m04c-events-java-core-layout-literals.txt','logs/events-java-core-layout-literals.txt','grep -rnoE of core layout path literals in service/**/src/main and java/src/main; count per file and literal','events 646e330b','grep',0),
+('m04c-events-contract-bundle-citations.txt','logs/events-contract-bundle-citations.txt','grep -c on the released bundles: x-source, path: src/specify_cli, operationId','events service-v0.1.0-rc.1 release asset','grep',0),
+('m04e-events-transition-parity-corpus-census.txt','logs/events-transition-parity-corpus-census.txt','python3 json census of src/spec_kitty_events/conformance/status_transition_parity/cases/*.json','events 646e330b','python3 3.13',0),
+('m04e-charter-contract-surface-and-divergences.txt','logs/charter-contract-surface-and-divergences.txt','python3 census of contracts/, planted/core-verdicts.json, scripts/packs/core_verdicts.py REGISTER_IDS, docs/conformance/divergences.yaml','charter 06cdfbe9','python3 3.13',0),
+('contract-consumer-reference-census.csv','logs/consumer-reference-census.csv','git grep -lE <pattern> HEAD -- . :!kitty-specs :!docs :!*.md :!kitty-ops | wc -l, per repository','heads of 11 repositories (in file)','git',0),
+('m04f-core-service-callers-grep.txt','logs/core-service-callers-grep.txt','grep -rnE "ServiceLauncher|services.launcher|ServiceClient|..." --include=*.py src (outside services/)','core 5c4fc5a7','grep',0),
+]
+rows=[]
+for dest,src,cmd,rev,tools,exitc in M:
+    p=os.path.join(S,src)
+    raw=open(p,'rb').read(); full=hashlib.sha256(raw).hexdigest()
+    t=raw.decode('utf-8','replace')
+    t='\n'.join(l for l in t.split('\n') if not l.startswith('Picked up ') and 'DefaultFileLockManager' not in l)
+    t=t.replace(S,'<scratch>').replace('/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23','<session-tmp>')
+    t=re.sub(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}','<address>',t)
+    note=''
+    if len(t.encode())>CAP:
+        head=t[:CAP//2]; tail=t[-CAP//2:]
+        t=head+f'\n\n[... D2: truncated; full raw file sha256 {full}, regenerate with: {cmd} ...]\n\n'+tail; note=f' (truncated; full sha256 {full})'
+    open(os.path.join(E,dest),'w').write(t)
+    rows.append((dest,cmd+note,rev,tools,exitc))
+json.dump(rows,open(os.path.join(S,'manifest-rows.json'),'w'))
+print(len(rows))

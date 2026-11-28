@@ -1,0 +1,14 @@
+# spec-kitty-charter 06cdfbe9 contract surface (static)
+contracts/charter/openapi.yaml: openapi 3.1.0 info.version 0.2.0-SNAPSHOT
+path files: 71 schema files: 191 operationIds: 79
+contracts/charter/scenarios entries: 74
+contracts/packs/schemas: 28 ; file-kinds.yaml; conformance: ['classifier-cases.yaml']
+contracts/packs/CHANGELOG top heading: ## 0.1.0-SNAPSHOT
+contracts/offering: ['corpus', 'schemas']
+tags: ['contract-charter-v0.2.0-rc.1', 'contract-charter-v0.2.0-rc.2', 'contract-charter-v0.2.0-rc.3', 'contract-packs-v0.1.0-rc.1', 'contract-packs-v0.1.0-rc.2', 'service-v0.1.0-rc.1', 'service-v0.1.0-rc.2', 'service-v0.1.0-rc.3']
+gradle.properties version: ['version=0.1.0-SNAPSHOT'] openPacksRef: ['openPacksRef=1692a3b1dde022c871f09dab34637d2f9d6723f3']
+
+# recorded cross-implementation comparison (core Python vs Java service)
+planted/core-verdicts.json records: 55 ; with a core CLI run: 51 ; core commit: Counter({'9554e7b26afe7a61519f7744d0147346ab36f197': 51})
+plants mapped to a divergence id in REGISTER_IDS: 24 of 55
+docs/conformance/divergences.yaml entries: 118 status: {'withdrawn': 3, 'open': 111, 'retired': 4}

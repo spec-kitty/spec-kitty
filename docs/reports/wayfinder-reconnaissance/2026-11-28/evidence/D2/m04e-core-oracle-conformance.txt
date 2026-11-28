@@ -1,0 +1,11 @@
+### 2026-11-28T11:25:47Z core 5c4fc5a7: pytest tests/contract/test_mission_status_conformance.py -q -n0 (pinned fixtures service-v0.1.0-rc.1)
+.....................................................                    [100%]
+============================== slowest durations ===============================
+44.48s setup    tests/contract/test_mission_status_conformance.py::test_the_comparison_ignore_list_is_empty
+8.01s call     tests/contract/test_mission_status_conformance.py::test_the_resolver_cases_yield_their_expected_class_and_the_executed_ids_equal_the_file_and_the_manifest
+3.75s call     tests/contract/test_mission_status_conformance.py::test_provisioning_is_deterministic_across_temp_roots_and_git_dates
+2.45s setup    tests/contract/test_mission_status_conformance.py::test_every_generated_file_equals_the_committed_file_byte_for_byte
+
+(155 durations < 1s hidden.)
+53 passed in 261.88s (0:04:21)
+exit=0

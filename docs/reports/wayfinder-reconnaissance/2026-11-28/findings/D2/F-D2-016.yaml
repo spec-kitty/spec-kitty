@@ -1,0 +1,63 @@
+finding_id: F-D2-016
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04e
+  deviation: null
+subject:
+  component: 'charter offering and pack validation: two or more implementations'
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'Pack reading and validation exist in four places (the Java charter service, core''s Python offering, an
+  open-packs Python schema mirror, a doc-kitty TypeScript reader). The charter repository records a comparison of
+  the first two: 55 planted packs, 51 of them with core''s recorded CLI verdict at core commit 9554e7b2, of which
+  24 are mapped to a divergence entry; its divergence register holds 118 entries (111 open, 4 retired, 3 withdrawn).
+  Core holds a separate activation corpus (tests/charter/conformance/activation_ledger_cases.yaml) whose header
+  says it is for the charter repository to port; no file in spec-kitty-charter or spec-kitty-events references it.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/m04e-charter-contract-surface-and-divergences.txt
+  method: python3 census of contracts/, planted/core-verdicts.json, scripts/packs/core_verdicts.py REGISTER_IDS,
+    docs/conformance/divergences.yaml
+  sha256: 1e7ab69322359304a8b46136dd6bab57acdb83822ab903042f4777c334e5b9ff
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: static-derived
+  reference: evidence/D2/m04c-contract-bypass-inventory.csv
+  method: rows D09, D10, C03
+  sha256: 61a4d0536d26d0174442d19ee87eddf54fd5790b511787ba830acb7a59a9f0b7
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Counts from files at charter head and one reference search.
+  not_covered: 'The comparison was not re-run: the recorded core verdicts are at core 9554e7b2 (version 4.0.0rc8),
+    not core head; the Java side''s planted-file test was not run.'
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched spec-kitty-charter for the core activation corpus by file name and schema id.
+  result: No reference found.
+relations: []
+confidence: medium
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- verifiability
+- modularity
+candidate_invariants: []
+open_questions: []

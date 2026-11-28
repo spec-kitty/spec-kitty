@@ -1,0 +1,46 @@
+Fetching distribution.
+Downloading https://services.gradle.org/distributions/gradle-9.8.1-bin.zip
+..............10%..............20%...............30%..............40%...............50%..............60%...............70%..............80%...............90%..............100%
+
+Welcome to Gradle 9.8.1!
+
+Here are the highlights of this release:
+ - Java 27 support
+ - Maven mirror settings reuse
+ - Linked problem locations in build output
+
+For more details see https://docs.gradle.org/9.8.1/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: tasks --all
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '<scratch>/clones/events/build.gradle.kts' line: 3
+
+* What went wrong:
+Error resolving plugin [id: 'org.springframework.boot', version: '4.1.1', apply: false]
+> A problem occurred configuring project ':build-logic'.
+   > Could not resolve all artifacts for configuration 'classpath'.
+      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:2.4.10.
+        Required by:
+            buildscript of project ':build-logic'
+            buildscript of project ':build-logic' > org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:6.7.6 > org.gradle.kotlin:gradle-kotlin-dsl-plugins:6.7.6
+         > Repository Gradle Central Plugin Repository is disabled due to earlier error below:
+            > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.4.10.
+               > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.4.10/kotlin-gradle-plugin-api-2.4.10.pom'.
+                  > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.4.10/kotlin-gradle-plugin-api-2.4.10.pom'.
+                     > Received status code 429 from server: Too Many Requests
+> There are 8 more failures with identical causes.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 46s
+Configuration cache entry stored.
+exit=1

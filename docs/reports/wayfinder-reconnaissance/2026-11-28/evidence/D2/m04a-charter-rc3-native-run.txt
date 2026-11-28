@@ -1,0 +1,26 @@
+# spec-kitty-charter-service 0.1.0-rc.3 linux-x64 native (sha256 8f45a298...), config root = the 19 pack directories of open-packs f9a55751
+ready after ~2s, first status 200
+GET /api/v1/offering -> 200 application/json 7538B
+{"packs":[{"packId":"foundation","descriptorPackId":"01M75HSYR9S9KPA372PHGT0EX3","level":"built-in","name":"foundation","version":"3.7.0","dependsOn":[],"_links":{"artifacts":{"href":"/api/v1/packs/foundation/artifacts"}}},{"packId":"testing","descriptorPackId":"01M75PCTC6HS38NX8HJGT26VTP","level":"
+GET /api/v1/service -> 404 application/problem+json 34B
+{"title":"Not Found","status":404}
+GET /api/v1/packs -> 405 application/problem+json 43B
+{"title":"Method Not Allowed","status":405}
+GET /api/v1/openapi.yaml -> 200 application/yaml 1165323B
+openapi: 3.1.0
+info:
+  title: Charter API
+  version: 0.2.0-SNAPSHOT
+  summary: The charter of one project, its offering and its packs' artifacts.
+  description: The contract of the charter service. This file holds the document header and the map from each path to the file that defines it; every defi
+GET /actuator/health -> 200 application/vnd.spring-boot.actuator.v3+json 15B
+{"status":"UP"}
+GET /api/v1/offering without token -> 401
+{"title":"Unauthorized","status":401}
+140476 charter-rc3
+served /api/v1/openapi.yaml sha256 c396f4a88f2cc5b19338ff784d3f638ede5119f3a95326efe0c4b1dd88afe8c4  -
+released contract-charter-v0.2.0-rc.3 charter-openapi.yaml sha256 e54fb5017f0bd13a8a21f148313ad426d3324615e830f508117e792cfd725092  -
+4c4
+<   version: 0.2.0-SNAPSHOT
+---
+>   version: 0.2.0-rc.3

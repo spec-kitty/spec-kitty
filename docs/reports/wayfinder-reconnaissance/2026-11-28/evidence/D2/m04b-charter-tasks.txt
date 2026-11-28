@@ -1,0 +1,899 @@
+Fetching distribution (retrying 3 times, with an initial back off of 2000 ms).
+Downloading https://services.gradle.org/distributions/gradle-9.8.1-bin.zip
+..............10%..............20%...............30%..............40%...............50%..............60%...............70%..............80%...............90%..............100%
+
+Welcome to Gradle 9.8.1!
+
+Here are the highlights of this release:
+ - Java 27 support
+ - Maven mirror settings reuse
+ - Linked problem locations in build output
+
+For more details see https://docs.gradle.org/9.8.1/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: tasks --all
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders
+> Task :build-logic:extractPrecompiledScriptPluginPlugins
+> Task :build-logic:generateScriptPluginAdapters
+> Task :build-logic:pluginDescriptors
+> Task :build-logic:processResources
+> Task :build-logic:compilePluginsBlocks
+> Task :build-logic:generatePrecompiledScriptPluginAccessors
+> Task :build-logic:compileKotlin
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:classes
+> Task :build-logic:jar
+
+> Task :tasks
+
+------------------------------------------------------------
+Tasks runnable from root project 'spec-kitty-charter'
+------------------------------------------------------------
+
+Application tasks
+-----------------
+deployable:bootRun - Runs this project as a Spring Boot application.
+deployable:bootTestRun - Runs this project as a Spring Boot application using the test runtime classpath.
+
+Build tasks
+-----------
+activations:assemble - Assembles the outputs of this project.
+artifacts-edge:assemble - Assembles the outputs of this project.
+charter-api:assemble - Assembles the outputs of this project.
+charter-reports:assemble - Assembles the outputs of this project.
+client-java:assemble - Assembles the outputs of this project.
+contracts:assemble - Assembles the outputs of this project.
+deployable:assemble - Assembles the outputs of this project.
+kernel:assemble - Assembles the outputs of this project.
+missions:assemble - Assembles the outputs of this project.
+missions-edge:assemble - Assembles the outputs of this project.
+pack-doctor:assemble - Assembles the outputs of this project.
+pack-validation:assemble - Assembles the outputs of this project.
+packs:assemble - Assembles the outputs of this project.
+profiles:assemble - Assembles the outputs of this project.
+profiles-edge:assemble - Assembles the outputs of this project.
+routing:assemble - Assembles the outputs of this project.
+routing-edge:assemble - Assembles the outputs of this project.
+web-transport:assemble - Assembles the outputs of this project.
+deployable:bootBuildImage - Builds an OCI image of the application using the output of the bootJar task
+deployable:bootJar - Assembles an executable jar archive containing the main classes and their dependencies.
+activations:build - Assembles and tests this project.
+artifacts-edge:build - Assembles and tests this project.
+charter-api:build - Assembles and tests this project.
+charter-reports:build - Assembles and tests this project.
+client-java:build - Assembles and tests this project.
+contracts:build - Assembles and tests this project.
+deployable:build - Assembles and tests this project.
+kernel:build - Assembles and tests this project.
+missions:build - Assembles and tests this project.
+missions-edge:build - Assembles and tests this project.
+pack-doctor:build - Assembles and tests this project.
+pack-validation:build - Assembles and tests this project.
+packs:build - Assembles and tests this project.
+profiles:build - Assembles and tests this project.
+profiles-edge:build - Assembles and tests this project.
+routing:build - Assembles and tests this project.
+routing-edge:build - Assembles and tests this project.
+web-transport:build - Assembles and tests this project.
+activations:buildDependents - Assembles and tests this project and all projects that depend on it.
+artifacts-edge:buildDependents - Assembles and tests this project and all projects that depend on it.
+charter-api:buildDependents - Assembles and tests this project and all projects that depend on it.
+charter-reports:buildDependents - Assembles and tests this project and all projects that depend on it.
+client-java:buildDependents - Assembles and tests this project and all projects that depend on it.
+contracts:buildDependents - Assembles and tests this project and all projects that depend on it.
+deployable:buildDependents - Assembles and tests this project and all projects that depend on it.
+kernel:buildDependents - Assembles and tests this project and all projects that depend on it.
+missions:buildDependents - Assembles and tests this project and all projects that depend on it.
+missions-edge:buildDependents - Assembles and tests this project and all projects that depend on it.
+pack-doctor:buildDependents - Assembles and tests this project and all projects that depend on it.
+pack-validation:buildDependents - Assembles and tests this project and all projects that depend on it.
+packs:buildDependents - Assembles and tests this project and all projects that depend on it.
+profiles:buildDependents - Assembles and tests this project and all projects that depend on it.
+profiles-edge:buildDependents - Assembles and tests this project and all projects that depend on it.
+routing:buildDependents - Assembles and tests this project and all projects that depend on it.
+routing-edge:buildDependents - Assembles and tests this project and all projects that depend on it.
+web-transport:buildDependents - Assembles and tests this project and all projects that depend on it.
+activations:buildNeeded - Assembles and tests this project and all projects it depends on.
+artifacts-edge:buildNeeded - Assembles and tests this project and all projects it depends on.
+charter-api:buildNeeded - Assembles and tests this project and all projects it depends on.
+charter-reports:buildNeeded - Assembles and tests this project and all projects it depends on.
+client-java:buildNeeded - Assembles and tests this project and all projects it depends on.
+contracts:buildNeeded - Assembles and tests this project and all projects it depends on.
+deployable:buildNeeded - Assembles and tests this project and all projects it depends on.
+kernel:buildNeeded - Assembles and tests this project and all projects it depends on.
+missions:buildNeeded - Assembles and tests this project and all projects it depends on.
+missions-edge:buildNeeded - Assembles and tests this project and all projects it depends on.
+pack-doctor:buildNeeded - Assembles and tests this project and all projects it depends on.
+pack-validation:buildNeeded - Assembles and tests this project and all projects it depends on.
+packs:buildNeeded - Assembles and tests this project and all projects it depends on.
+profiles:buildNeeded - Assembles and tests this project and all projects it depends on.
+profiles-edge:buildNeeded - Assembles and tests this project and all projects it depends on.
+routing:buildNeeded - Assembles and tests this project and all projects it depends on.
+routing-edge:buildNeeded - Assembles and tests this project and all projects it depends on.
+web-transport:buildNeeded - Assembles and tests this project and all projects it depends on.
+activations:classes - Assembles main classes.
+artifacts-edge:classes - Assembles main classes.
+charter-api:classes - Assembles main classes.
+charter-reports:classes - Assembles main classes.
+client-java:classes - Assembles main classes.
+contracts:classes - Assembles main classes.
+deployable:classes - Assembles main classes.
+kernel:classes - Assembles main classes.
+missions:classes - Assembles main classes.
+missions-edge:classes - Assembles main classes.
+pack-doctor:classes - Assembles main classes.
+pack-validation:classes - Assembles main classes.
+packs:classes - Assembles main classes.
+profiles:classes - Assembles main classes.
+profiles-edge:classes - Assembles main classes.
+routing:classes - Assembles main classes.
+routing-edge:classes - Assembles main classes.
+web-transport:classes - Assembles main classes.
+activations:clean - Deletes the build directory.
+artifacts-edge:clean - Deletes the build directory.
+charter-api:clean - Deletes the build directory.
+charter-reports:clean - Deletes the build directory.
+client-java:clean - Deletes the build directory.
+contracts:clean - Deletes the build directory.
+deployable:clean - Deletes the build directory.
+kernel:clean - Deletes the build directory.
+missions:clean - Deletes the build directory.
+missions-edge:clean - Deletes the build directory.
+pack-doctor:clean - Deletes the build directory.
+pack-validation:clean - Deletes the build directory.
+packs:clean - Deletes the build directory.
+profiles:clean - Deletes the build directory.
+profiles-edge:clean - Deletes the build directory.
+routing:clean - Deletes the build directory.
+routing-edge:clean - Deletes the build directory.
+web-transport:clean - Deletes the build directory.
+pack-validation:driftTestClasses - Assembles drift test classes.
+client-java:generateClient - Generates the Java client (okhttp-gson) from the bundled charter contract.
+client-java:generateClientAgain - Generates the client a second time, for checkClientReproducible.
+charter-api:generateContract - Generates the Spring server interfaces and DTOs of the charter contract.
+client-java:generatedClasses - Assembles generated classes.
+activations:jar - Assembles a jar archive containing the classes of the 'main' feature.
+artifacts-edge:jar - Assembles a jar archive containing the classes of the 'main' feature.
+charter-api:jar - Assembles a jar archive containing the classes of the 'main' feature.
+charter-reports:jar - Assembles a jar archive containing the classes of the 'main' feature.
+client-java:jar - Assembles a jar archive containing the classes of the 'main' feature.
+contracts:jar - Assembles a jar archive containing the classes of the 'main' feature.
+deployable:jar - Assembles a jar archive containing the classes of the 'main' feature.
+kernel:jar - Assembles a jar archive containing the classes of the 'main' feature.
+missions:jar - Assembles a jar archive containing the classes of the 'main' feature.
+missions-edge:jar - Assembles a jar archive containing the classes of the 'main' feature.
+pack-doctor:jar - Assembles a jar archive containing the classes of the 'main' feature.
+pack-validation:jar - Assembles a jar archive containing the classes of the 'main' feature.
+packs:jar - Assembles a jar archive containing the classes of the 'main' feature.
+profiles:jar - Assembles a jar archive containing the classes of the 'main' feature.
+profiles-edge:jar - Assembles a jar archive containing the classes of the 'main' feature.
+routing:jar - Assembles a jar archive containing the classes of the 'main' feature.
+routing-edge:jar - Assembles a jar archive containing the classes of the 'main' feature.
+web-transport:jar - Assembles a jar archive containing the classes of the 'main' feature.
+pack-doctor:packDoctorJar - Builds build/pack-doctor/pack-doctor-<version>.jar, the runnable Spring-free pack-doctor (#478).
+deployable:resolveMainClassName - Resolves the name of the application's main class.
+deployable:resolveTestMainClassName - Resolves the name of the application's test main class.
+activations:sourcesJar - Assembles a jar archive containing the main sources.
+artifacts-edge:sourcesJar - Assembles a jar archive containing the main sources.
+client-java:sourcesJar - Assembles a jar archive containing the main sources.
+contracts:sourcesJar - Assembles a jar archive containing the main sources.
+deployable:sourcesJar - Assembles a jar archive containing the main sources.
+kernel:sourcesJar - Assembles a jar archive containing the main sources.
+missions:sourcesJar - Assembles a jar archive containing the main sources.
+missions-edge:sourcesJar - Assembles a jar archive containing the main sources.
+pack-doctor:sourcesJar - Assembles a jar archive containing the main sources.
+pack-validation:sourcesJar - Assembles a jar archive containing the main sources.
+packs:sourcesJar - Assembles a jar archive containing the main sources.
+profiles:sourcesJar - Assembles a jar archive containing the main sources.
+profiles-edge:sourcesJar - Assembles a jar archive containing the main sources.
+routing:sourcesJar - Assembles a jar archive containing the main sources.
+routing-edge:sourcesJar - Assembles a jar archive containing the main sources.
+web-transport:sourcesJar - Assembles a jar archive containing the main sources.
+activations:testClasses - Assembles test classes.
+artifacts-edge:testClasses - Assembles test classes.
+charter-api:testClasses - Assembles test classes.
+charter-reports:testClasses - Assembles test classes.
+client-java:testClasses - Assembles test classes.
+contracts:testClasses - Assembles test classes.
+deployable:testClasses - Assembles test classes.
+kernel:testClasses - Assembles test classes.
+missions:testClasses - Assembles test classes.
+missions-edge:testClasses - Assembles test classes.
+pack-doctor:testClasses - Assembles test classes.
+pack-validation:testClasses - Assembles test classes.
+packs:testClasses - Assembles test classes.
+profiles:testClasses - Assembles test classes.
+profiles-edge:testClasses - Assembles test classes.
+routing:testClasses - Assembles test classes.
+routing-edge:testClasses - Assembles test classes.
+web-transport:testClasses - Assembles test classes.
+packs:testFixturesClasses - Assembles test fixtures classes.
+packs:testFixturesJar - Assembles a jar archive containing the classes of the 'testFixtures' feature.
+
+Build Setup tasks
+-----------------
+init - Initializes a new Gradle build.
+activations:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+artifacts-edge:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+client-java:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+contracts:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+deployable:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+kernel:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+missions:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+missions-edge:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+pack-doctor:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+pack-validation:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+packs:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+profiles:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+profiles-edge:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+routing:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+routing-edge:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+web-transport:spotlessInstallGitPrePushHook - Installs Spotless Git pre-push hook.
+updateDaemonJvm - Generates or updates the Gradle Daemon JVM criteria.
+wrapper - Generates Gradle wrapper files.
+
+Contract tasks
+--------------
+contracts:assembleContractChangelog - Assembles the changelog fragments in contracts/charter/changes/ into contracts/charter/CHANGELOG.md.
+contracts:bundleContract - Bundles contracts/charter/openapi.yaml into build/contracts/contract/charter-openapi.yaml and validates it.
+contracts:checkContractChangelogFragments - Checks the changelog fragments in contracts/charter/changes/: one dated ### block each.
+contracts:checkPacksChangelog - Checks contracts/packs/CHANGELOG.md: its headings, their order, the Breaking subsection, and that HEAD under a released and tagged heading holds its release's packs contract files.
+contracts:checkPacksReleaseTag - Checks that -PreleaseTag and the top heading of contracts/packs/CHANGELOG.md name one release or release candidate.
+contracts:checkReleaseTag - Checks that -PreleaseTag, info.version and the top CHANGELOG heading name one release or release candidate.
+contracts:installOasdiff - Downloads the pinned oasdiff release for this platform and verifies its SHA-256.
+contracts:installVacuum - Downloads the pinned vacuum release for this platform and verifies its SHA-256.
+contracts:verifyOasdiff - Re-verifies the installed oasdiff against the pinned SHA-256, also after a build cache restore.
+contracts:verifyVacuum - Re-verifies the installed vacuum against the pinned SHA-256, also after a build cache restore.
+
+Documentation tasks
+-------------------
+charter-reports:aggregateJavadoc - Builds one Javadoc site over the hand-written service modules, grouped per module, doclint as errors.
+activations:javadoc - Generates Javadoc API documentation for the 'main' feature.
+artifacts-edge:javadoc - Generates Javadoc API documentation for the 'main' feature.
+charter-api:javadoc - Generates Javadoc API documentation for the 'main' feature.
+charter-reports:javadoc - Generates Javadoc API documentation for the 'main' feature.
+client-java:javadoc - Generates Javadoc API documentation for the 'main' feature.
+contracts:javadoc - Generates Javadoc API documentation for the 'main' feature.
+deployable:javadoc - Generates Javadoc API documentation for the 'main' feature.
+kernel:javadoc - Generates Javadoc API documentation for the 'main' feature.
+missions:javadoc - Generates Javadoc API documentation for the 'main' feature.
+missions-edge:javadoc - Generates Javadoc API documentation for the 'main' feature.
+pack-doctor:javadoc - Generates Javadoc API documentation for the 'main' feature.
+pack-validation:javadoc - Generates Javadoc API documentation for the 'main' feature.
+packs:javadoc - Generates Javadoc API documentation for the 'main' feature.
+profiles:javadoc - Generates Javadoc API documentation for the 'main' feature.
+profiles-edge:javadoc - Generates Javadoc API documentation for the 'main' feature.
+routing:javadoc - Generates Javadoc API documentation for the 'main' feature.
+routing-edge:javadoc - Generates Javadoc API documentation for the 'main' feature.
+web-transport:javadoc - Generates Javadoc API documentation for the 'main' feature.
+charter-reports:stageJavadocForSite - Copies the aggregated Javadoc into site/public/javadoc for the docsite build.
+packs:testFixturesJavadoc - Generates Javadoc API documentation for the 'testFixtures' feature.
+
+Help tasks
+----------
+artifactTransforms - Displays the Artifact Transforms that can be executed in root project 'spec-kitty-charter'.
+activations:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':activations'.
+artifacts-edge:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':artifacts-edge'.
+charter-api:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':charter-api'.
+charter-reports:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':charter-reports'.
+client-java:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':client-java'.
+contracts:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':contracts'.
+deployable:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':deployable'.
+kernel:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':kernel'.
+missions:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':missions'.
+missions-edge:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':missions-edge'.
+pack-doctor:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':pack-doctor'.
+pack-validation:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':pack-validation'.
+packs:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':packs'.
+profiles:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':profiles'.
+profiles-edge:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':profiles-edge'.
+routing:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':routing'.
+routing-edge:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':routing-edge'.
+web-transport:artifactTransforms - Displays the Artifact Transforms that can be executed in project ':web-transport'.
+buildEnvironment - Displays all buildscript dependencies declared in root project 'spec-kitty-charter'.
+activations:buildEnvironment - Displays all buildscript dependencies declared in project ':activations'.
+artifacts-edge:buildEnvironment - Displays all buildscript dependencies declared in project ':artifacts-edge'.
+charter-api:buildEnvironment - Displays all buildscript dependencies declared in project ':charter-api'.
+charter-reports:buildEnvironment - Displays all buildscript dependencies declared in project ':charter-reports'.
+client-java:buildEnvironment - Displays all buildscript dependencies declared in project ':client-java'.
+contracts:buildEnvironment - Displays all buildscript dependencies declared in project ':contracts'.
+deployable:buildEnvironment - Displays all buildscript dependencies declared in project ':deployable'.
+kernel:buildEnvironment - Displays all buildscript dependencies declared in project ':kernel'.
+missions:buildEnvironment - Displays all buildscript dependencies declared in project ':missions'.
+missions-edge:buildEnvironment - Displays all buildscript dependencies declared in project ':missions-edge'.
+pack-doctor:buildEnvironment - Displays all buildscript dependencies declared in project ':pack-doctor'.
+pack-validation:buildEnvironment - Displays all buildscript dependencies declared in project ':pack-validation'.
+packs:buildEnvironment - Displays all buildscript dependencies declared in project ':packs'.
+profiles:buildEnvironment - Displays all buildscript dependencies declared in project ':profiles'.
+profiles-edge:buildEnvironment - Displays all buildscript dependencies declared in project ':profiles-edge'.
+routing:buildEnvironment - Displays all buildscript dependencies declared in project ':routing'.
+routing-edge:buildEnvironment - Displays all buildscript dependencies declared in project ':routing-edge'.
+web-transport:buildEnvironment - Displays all buildscript dependencies declared in project ':web-transport'.
+dependencies - Displays all dependencies declared in root project 'spec-kitty-charter'.
+activations:dependencies - Displays all dependencies declared in project ':activations'.
+artifacts-edge:dependencies - Displays all dependencies declared in project ':artifacts-edge'.
+charter-api:dependencies - Displays all dependencies declared in project ':charter-api'.
+charter-reports:dependencies - Displays all dependencies declared in project ':charter-reports'.
+client-java:dependencies - Displays all dependencies declared in project ':client-java'.
+contracts:dependencies - Displays all dependencies declared in project ':contracts'.
+deployable:dependencies - Displays all dependencies declared in project ':deployable'.
+kernel:dependencies - Displays all dependencies declared in project ':kernel'.
+missions:dependencies - Displays all dependencies declared in project ':missions'.
+missions-edge:dependencies - Displays all dependencies declared in project ':missions-edge'.
+pack-doctor:dependencies - Displays all dependencies declared in project ':pack-doctor'.
+pack-validation:dependencies - Displays all dependencies declared in project ':pack-validation'.
+packs:dependencies - Displays all dependencies declared in project ':packs'.
+profiles:dependencies - Displays all dependencies declared in project ':profiles'.
+profiles-edge:dependencies - Displays all dependencies declared in project ':profiles-edge'.
+routing:dependencies - Displays all dependencies declared in project ':routing'.
+routing-edge:dependencies - Displays all dependencies declared in project ':routing-edge'.
+web-transport:dependencies - Displays all dependencies declared in project ':web-transport'.
+dependencyInsight - Displays the insight into a specific dependency in root project 'spec-kitty-charter'.
+activations:dependencyInsight - Displays the insight into a specific dependency in project ':activations'.
+artifacts-edge:dependencyInsight - Displays the insight into a specific dependency in project ':artifacts-edge'.
+charter-api:dependencyInsight - Displays the insight into a specific dependency in project ':charter-api'.
+charter-reports:dependencyInsight - Displays the insight into a specific dependency in project ':charter-reports'.
+client-java:dependencyInsight - Displays the insight into a specific dependency in project ':client-java'.
+contracts:dependencyInsight - Displays the insight into a specific dependency in project ':contracts'.
+deployable:dependencyInsight - Displays the insight into a specific dependency in project ':deployable'.
+kernel:dependencyInsight - Displays the insight into a specific dependency in project ':kernel'.
+missions:dependencyInsight - Displays the insight into a specific dependency in project ':missions'.
+missions-edge:dependencyInsight - Displays the insight into a specific dependency in project ':missions-edge'.
+pack-doctor:dependencyInsight - Displays the insight into a specific dependency in project ':pack-doctor'.
+pack-validation:dependencyInsight - Displays the insight into a specific dependency in project ':pack-validation'.
+packs:dependencyInsight - Displays the insight into a specific dependency in project ':packs'.
+profiles:dependencyInsight - Displays the insight into a specific dependency in project ':profiles'.
+profiles-edge:dependencyInsight - Displays the insight into a specific dependency in project ':profiles-edge'.
+routing:dependencyInsight - Displays the insight into a specific dependency in project ':routing'.
+routing-edge:dependencyInsight - Displays the insight into a specific dependency in project ':routing-edge'.
+web-transport:dependencyInsight - Displays the insight into a specific dependency in project ':web-transport'.
+help - Displays a help message.
+activations:help - Displays a help message.
+artifacts-edge:help - Displays a help message.
+charter-api:help - Displays a help message.
+charter-reports:help - Displays a help message.
+client-java:help - Displays a help message.
+contracts:help - Displays a help message.
+deployable:help - Displays a help message.
+kernel:help - Displays a help message.
+missions:help - Displays a help message.
+missions-edge:help - Displays a help message.
+pack-doctor:help - Displays a help message.
+pack-validation:help - Displays a help message.
+packs:help - Displays a help message.
+profiles:help - Displays a help message.
+profiles-edge:help - Displays a help message.
+routing:help - Displays a help message.
+routing-edge:help - Displays a help message.
+web-transport:help - Displays a help message.
+javaToolchains - Displays the detected java toolchains.
+activations:javaToolchains - Displays the detected java toolchains.
+artifacts-edge:javaToolchains - Displays the detected java toolchains.
+charter-api:javaToolchains - Displays the detected java toolchains.
+charter-reports:javaToolchains - Displays the detected java toolchains.
+client-java:javaToolchains - Displays the detected java toolchains.
+contracts:javaToolchains - Displays the detected java toolchains.
+deployable:javaToolchains - Displays the detected java toolchains.
+kernel:javaToolchains - Displays the detected java toolchains.
+missions:javaToolchains - Displays the detected java toolchains.
+missions-edge:javaToolchains - Displays the detected java toolchains.
+pack-doctor:javaToolchains - Displays the detected java toolchains.
+pack-validation:javaToolchains - Displays the detected java toolchains.
+packs:javaToolchains - Displays the detected java toolchains.
+profiles:javaToolchains - Displays the detected java toolchains.
+profiles-edge:javaToolchains - Displays the detected java toolchains.
+routing:javaToolchains - Displays the detected java toolchains.
+routing-edge:javaToolchains - Displays the detected java toolchains.
+web-transport:javaToolchains - Displays the detected java toolchains.
+kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+activations:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+artifacts-edge:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+charter-api:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+charter-reports:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+client-java:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+contracts:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+deployable:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+kernel:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+missions:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+missions-edge:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+pack-doctor:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+pack-validation:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+packs:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+profiles:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+profiles-edge:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+routing:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+routing-edge:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+web-transport:kotlinDslAccessorsReport - Prints the Kotlin code for accessing the currently available project extensions.
+outgoingVariants - Displays the outgoing variants of root project 'spec-kitty-charter'.
+activations:outgoingVariants - Displays the outgoing variants of project ':activations'.
+artifacts-edge:outgoingVariants - Displays the outgoing variants of project ':artifacts-edge'.
+charter-api:outgoingVariants - Displays the outgoing variants of project ':charter-api'.
+charter-reports:outgoingVariants - Displays the outgoing variants of project ':charter-reports'.
+client-java:outgoingVariants - Displays the outgoing variants of project ':client-java'.
+contracts:outgoingVariants - Displays the outgoing variants of project ':contracts'.
+deployable:outgoingVariants - Displays the outgoing variants of project ':deployable'.
+kernel:outgoingVariants - Displays the outgoing variants of project ':kernel'.
+missions:outgoingVariants - Displays the outgoing variants of project ':missions'.
+missions-edge:outgoingVariants - Displays the outgoing variants of project ':missions-edge'.
+pack-doctor:outgoingVariants - Displays the outgoing variants of project ':pack-doctor'.
+pack-validation:outgoingVariants - Displays the outgoing variants of project ':pack-validation'.
+packs:outgoingVariants - Displays the outgoing variants of project ':packs'.
+profiles:outgoingVariants - Displays the outgoing variants of project ':profiles'.
+profiles-edge:outgoingVariants - Displays the outgoing variants of project ':profiles-edge'.
+routing:outgoingVariants - Displays the outgoing variants of project ':routing'.
+routing-edge:outgoingVariants - Displays the outgoing variants of project ':routing-edge'.
+web-transport:outgoingVariants - Displays the outgoing variants of project ':web-transport'.
+projects - Displays the sub-projects of root project 'spec-kitty-charter'.
+activations:projects - Displays the sub-projects of project ':activations'.
+artifacts-edge:projects - Displays the sub-projects of project ':artifacts-edge'.
+charter-api:projects - Displays the sub-projects of project ':charter-api'.
+charter-reports:projects - Displays the sub-projects of project ':charter-reports'.
+client-java:projects - Displays the sub-projects of project ':client-java'.
+contracts:projects - Displays the sub-projects of project ':contracts'.
+deployable:projects - Displays the sub-projects of project ':deployable'.
+kernel:projects - Displays the sub-projects of project ':kernel'.
+missions:projects - Displays the sub-projects of project ':missions'.
+missions-edge:projects - Displays the sub-projects of project ':missions-edge'.
+pack-doctor:projects - Displays the sub-projects of project ':pack-doctor'.
+pack-validation:projects - Displays the sub-projects of project ':pack-validation'.
+packs:projects - Displays the sub-projects of project ':packs'.
+profiles:projects - Displays the sub-projects of project ':profiles'.
+profiles-edge:projects - Displays the sub-projects of project ':profiles-edge'.
+routing:projects - Displays the sub-projects of project ':routing'.
+routing-edge:projects - Displays the sub-projects of project ':routing-edge'.
+web-transport:projects - Displays the sub-projects of project ':web-transport'.
+properties - Displays the properties of root project 'spec-kitty-charter'.
+activations:properties - Displays the properties of project ':activations'.
+artifacts-edge:properties - Displays the properties of project ':artifacts-edge'.
+charter-api:properties - Displays the properties of project ':charter-api'.
+charter-reports:properties - Displays the properties of project ':charter-reports'.
+client-java:properties - Displays the properties of project ':client-java'.
+contracts:properties - Displays the properties of project ':contracts'.
+deployable:properties - Displays the properties of project ':deployable'.
+kernel:properties - Displays the properties of project ':kernel'.
+missions:properties - Displays the properties of project ':missions'.
+missions-edge:properties - Displays the properties of project ':missions-edge'.
+pack-doctor:properties - Displays the properties of project ':pack-doctor'.
+pack-validation:properties - Displays the properties of project ':pack-validation'.
+packs:properties - Displays the properties of project ':packs'.
+profiles:properties - Displays the properties of project ':profiles'.
+profiles-edge:properties - Displays the properties of project ':profiles-edge'.
+routing:properties - Displays the properties of project ':routing'.
+routing-edge:properties - Displays the properties of project ':routing-edge'.
+web-transport:properties - Displays the properties of project ':web-transport'.
+resolvableConfigurations - Displays the configurations that can be resolved in root project 'spec-kitty-charter'.
+activations:resolvableConfigurations - Displays the configurations that can be resolved in project ':activations'.
+artifacts-edge:resolvableConfigurations - Displays the configurations that can be resolved in project ':artifacts-edge'.
+charter-api:resolvableConfigurations - Displays the configurations that can be resolved in project ':charter-api'.
+charter-reports:resolvableConfigurations - Displays the configurations that can be resolved in project ':charter-reports'.
+client-java:resolvableConfigurations - Displays the configurations that can be resolved in project ':client-java'.
+contracts:resolvableConfigurations - Displays the configurations that can be resolved in project ':contracts'.
+deployable:resolvableConfigurations - Displays the configurations that can be resolved in project ':deployable'.
+kernel:resolvableConfigurations - Displays the configurations that can be resolved in project ':kernel'.
+missions:resolvableConfigurations - Displays the configurations that can be resolved in project ':missions'.
+missions-edge:resolvableConfigurations - Displays the configurations that can be resolved in project ':missions-edge'.
+pack-doctor:resolvableConfigurations - Displays the configurations that can be resolved in project ':pack-doctor'.
+pack-validation:resolvableConfigurations - Displays the configurations that can be resolved in project ':pack-validation'.
+packs:resolvableConfigurations - Displays the configurations that can be resolved in project ':packs'.
+profiles:resolvableConfigurations - Displays the configurations that can be resolved in project ':profiles'.
+profiles-edge:resolvableConfigurations - Displays the configurations that can be resolved in project ':profiles-edge'.
+routing:resolvableConfigurations - Displays the configurations that can be resolved in project ':routing'.
+routing-edge:resolvableConfigurations - Displays the configurations that can be resolved in project ':routing-edge'.
+web-transport:resolvableConfigurations - Displays the configurations that can be resolved in project ':web-transport'.
+tasks - Displays the tasks runnable from root project 'spec-kitty-charter' (some of the displayed tasks may belong to subprojects).
+activations:tasks - Displays the tasks runnable from project ':activations'.
+artifacts-edge:tasks - Displays the tasks runnable from project ':artifacts-edge'.
+charter-api:tasks - Displays the tasks runnable from project ':charter-api'.
+charter-reports:tasks - Displays the tasks runnable from project ':charter-reports'.
+client-java:tasks - Displays the tasks runnable from project ':client-java'.
+contracts:tasks - Displays the tasks runnable from project ':contracts'.
+deployable:tasks - Displays the tasks runnable from project ':deployable'.
+kernel:tasks - Displays the tasks runnable from project ':kernel'.
+missions:tasks - Displays the tasks runnable from project ':missions'.
+missions-edge:tasks - Displays the tasks runnable from project ':missions-edge'.
+pack-doctor:tasks - Displays the tasks runnable from project ':pack-doctor'.
+pack-validation:tasks - Displays the tasks runnable from project ':pack-validation'.
+packs:tasks - Displays the tasks runnable from project ':packs'.
+profiles:tasks - Displays the tasks runnable from project ':profiles'.
+profiles-edge:tasks - Displays the tasks runnable from project ':profiles-edge'.
+routing:tasks - Displays the tasks runnable from project ':routing'.
+routing-edge:tasks - Displays the tasks runnable from project ':routing-edge'.
+web-transport:tasks - Displays the tasks runnable from project ':web-transport'.
+
+OpenAPI Tools tasks
+-------------------
+charter-api:openApiGenerate - Generate code via Open API Tools Generator for Open API 2.0 or 3.x specification documents.
+client-java:openApiGenerate - Generate code via Open API Tools Generator for Open API 2.0 or 3.x specification documents.
+charter-api:openApiGenerators - Lists generators available via Open API Generators.
+client-java:openApiGenerators - Lists generators available via Open API Generators.
+charter-api:openApiMeta - Generates a new generator to be consumed via Open API Generator.
+client-java:openApiMeta - Generates a new generator to be consumed via Open API Generator.
+charter-api:openApiValidate - Validates an Open API 2.0 or 3.x specification document.
+client-java:openApiValidate - Validates an Open API 2.0 or 3.x specification document.
+
+Verification tasks
+------------------
+activations:check - Runs all checks.
+artifacts-edge:check - Runs all checks.
+charter-api:check - Runs all checks.
+charter-reports:check - Runs all checks.
+client-java:check - Runs all checks.
+contracts:check - Runs all checks.
+deployable:check - Runs all checks.
+kernel:check - Runs all checks.
+missions:check - Runs all checks.
+missions-edge:check - Runs all checks.
+pack-doctor:check - Runs all checks.
+pack-validation:check - Runs all checks.
+packs:check - Runs all checks.
+profiles:check - Runs all checks.
+profiles-edge:check - Runs all checks.
+routing:check - Runs all checks.
+routing-edge:check - Runs all checks.
+web-transport:check - Runs all checks.
+activations:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+artifacts-edge:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+client-java:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+contracts:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+deployable:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+kernel:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+missions:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+missions-edge:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+pack-doctor:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+pack-validation:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+packs:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+profiles:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+profiles-edge:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+routing:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+routing-edge:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+web-transport:checkCheckstyleRegister - Fails on an entry lacking a field, past its sunset, or a wrong Size in config/checkstyle/suppressions.xml.
+client-java:checkClientReproducible - Fails unless two generations of the client from the same bundle are byte-identical.
+contracts:checkClosedResponseObjects - Checks that every response schema of the bundle is closed (the Java checker in src/main/java).
+contracts:checkContractCompatibility - Checks the bundle for breaking changes against the last released contract (see contracts/lint/README.md).
+activations:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+artifacts-edge:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+kernel:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+missions:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+missions-edge:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+pack-doctor:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+pack-validation:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+packs:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+profiles:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+profiles-edge:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+routing:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+routing-edge:checkMutationFloors - Fails when a mutationFloors group's PIT mutation score is below its floor (#239).
+contracts:checkRefusalExamples - Checks that every refusal example and response description of the bundle names raised codes only (#176).
+checkServiceReleaseTag - Judges -PreleaseTag=service-v<version> against this commit and writes build/service-release/gate.properties.
+contracts:compatibilityFixtures - Checks that the breaking-change comparison fails each planted breaking pair and passes each compatible one.
+pack-validation:driftTest - Round-trips every pack of a spec-kitty-open-packs checkout by meaning (open-packs CI); not run by check.
+packs:gitHostTest - The real-git tests of the git source (tag git-host); need git 2.50.1 or later; not part of check (WP18).
+activations:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+artifacts-edge:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+charter-reports:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+client-java:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+contracts:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+deployable:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+kernel:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+missions:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+missions-edge:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+pack-doctor:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+pack-validation:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+packs:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+profiles:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+profiles-edge:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+routing:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+routing-edge:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+web-transport:jacocoTestCoverageVerification - Verifies code coverage metrics based on specified rules for the test task.
+activations:jacocoTestReport - Generates code coverage report for the test task.
+artifacts-edge:jacocoTestReport - Generates code coverage report for the test task.
+charter-reports:jacocoTestReport - Generates code coverage report for the test task.
+client-java:jacocoTestReport - Generates code coverage report for the test task.
+contracts:jacocoTestReport - Generates code coverage report for the test task.
+deployable:jacocoTestReport - Generates code coverage report for the test task.
+kernel:jacocoTestReport - Generates code coverage report for the test task.
+missions:jacocoTestReport - Generates code coverage report for the test task.
+missions-edge:jacocoTestReport - Generates code coverage report for the test task.
+pack-doctor:jacocoTestReport - Generates code coverage report for the test task.
+pack-validation:jacocoTestReport - Generates code coverage report for the test task.
+packs:jacocoTestReport - Generates code coverage report for the test task.
+profiles:jacocoTestReport - Generates code coverage report for the test task.
+profiles-edge:jacocoTestReport - Generates code coverage report for the test task.
+routing:jacocoTestReport - Generates code coverage report for the test task.
+routing-edge:jacocoTestReport - Generates code coverage report for the test task.
+web-transport:jacocoTestReport - Generates code coverage report for the test task.
+pack-doctor:jarTest - Runs the pack-doctor jar in a child JVM over every path, and checks its entries (#478).
+contracts:lintContract - Lints the bundled charter contract with the charter's ruleset (contracts/lint/ruleset.yaml).
+contracts:lintFixtures - Checks that every lint rule fails its planted fixtures, and only it, and that the clean fixture passes.
+mutationModules - Lists the modules under the mutation floor, for mutation-testing.yml's summary (#388).
+activations:pitest - Run PIT analysis for java classes
+artifacts-edge:pitest - Run PIT analysis for java classes
+kernel:pitest - Run PIT analysis for java classes
+missions:pitest - Run PIT analysis for java classes
+missions-edge:pitest - Run PIT analysis for java classes
+pack-doctor:pitest - Run PIT analysis for java classes
+pack-validation:pitest - Run PIT analysis for java classes
+packs:pitest - Run PIT analysis for java classes
+profiles:pitest - Run PIT analysis for java classes
+profiles-edge:pitest - Run PIT analysis for java classes
+routing:pitest - Run PIT analysis for java classes
+routing-edge:pitest - Run PIT analysis for java classes
+activations:spotlessApply - Applies code formatting steps to sourcecode in-place.
+artifacts-edge:spotlessApply - Applies code formatting steps to sourcecode in-place.
+client-java:spotlessApply - Applies code formatting steps to sourcecode in-place.
+contracts:spotlessApply - Applies code formatting steps to sourcecode in-place.
+deployable:spotlessApply - Applies code formatting steps to sourcecode in-place.
+kernel:spotlessApply - Applies code formatting steps to sourcecode in-place.
+missions:spotlessApply - Applies code formatting steps to sourcecode in-place.
+missions-edge:spotlessApply - Applies code formatting steps to sourcecode in-place.
+pack-doctor:spotlessApply - Applies code formatting steps to sourcecode in-place.
+pack-validation:spotlessApply - Applies code formatting steps to sourcecode in-place.
+packs:spotlessApply - Applies code formatting steps to sourcecode in-place.
+profiles:spotlessApply - Applies code formatting steps to sourcecode in-place.
+profiles-edge:spotlessApply - Applies code formatting steps to sourcecode in-place.
+routing:spotlessApply - Applies code formatting steps to sourcecode in-place.
+routing-edge:spotlessApply - Applies code formatting steps to sourcecode in-place.
+web-transport:spotlessApply - Applies code formatting steps to sourcecode in-place.
+activations:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+artifacts-edge:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+client-java:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+contracts:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+deployable:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+kernel:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+missions:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+missions-edge:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+pack-doctor:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+pack-validation:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+packs:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+profiles:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+profiles-edge:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+routing:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+routing-edge:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+web-transport:spotlessCheck - Checks that sourcecode satisfies formatting steps.
+activations:spotlessDiagnose
+artifacts-edge:spotlessDiagnose
+client-java:spotlessDiagnose
+contracts:spotlessDiagnose
+deployable:spotlessDiagnose
+kernel:spotlessDiagnose
+missions:spotlessDiagnose
+missions-edge:spotlessDiagnose
+pack-doctor:spotlessDiagnose
+pack-validation:spotlessDiagnose
+packs:spotlessDiagnose
+profiles:spotlessDiagnose
+profiles-edge:spotlessDiagnose
+routing:spotlessDiagnose
+routing-edge:spotlessDiagnose
+web-transport:spotlessDiagnose
+activations:spotlessJava
+artifacts-edge:spotlessJava
+client-java:spotlessJava
+contracts:spotlessJava
+deployable:spotlessJava
+kernel:spotlessJava
+missions:spotlessJava
+missions-edge:spotlessJava
+pack-doctor:spotlessJava
+pack-validation:spotlessJava
+packs:spotlessJava
+profiles:spotlessJava
+profiles-edge:spotlessJava
+routing:spotlessJava
+routing-edge:spotlessJava
+web-transport:spotlessJava
+activations:spotlessJavaApply
+artifacts-edge:spotlessJavaApply
+client-java:spotlessJavaApply
+contracts:spotlessJavaApply
+deployable:spotlessJavaApply
+kernel:spotlessJavaApply
+missions:spotlessJavaApply
+missions-edge:spotlessJavaApply
+pack-doctor:spotlessJavaApply
+pack-validation:spotlessJavaApply
+packs:spotlessJavaApply
+profiles:spotlessJavaApply
+profiles-edge:spotlessJavaApply
+routing:spotlessJavaApply
+routing-edge:spotlessJavaApply
+web-transport:spotlessJavaApply
+activations:spotlessJavaCheck
+artifacts-edge:spotlessJavaCheck
+client-java:spotlessJavaCheck
+contracts:spotlessJavaCheck
+deployable:spotlessJavaCheck
+kernel:spotlessJavaCheck
+missions:spotlessJavaCheck
+missions-edge:spotlessJavaCheck
+pack-doctor:spotlessJavaCheck
+pack-validation:spotlessJavaCheck
+packs:spotlessJavaCheck
+profiles:spotlessJavaCheck
+profiles-edge:spotlessJavaCheck
+routing:spotlessJavaCheck
+routing-edge:spotlessJavaCheck
+web-transport:spotlessJavaCheck
+activations:spotlessJavaDiagnose
+artifacts-edge:spotlessJavaDiagnose
+client-java:spotlessJavaDiagnose
+contracts:spotlessJavaDiagnose
+deployable:spotlessJavaDiagnose
+kernel:spotlessJavaDiagnose
+missions:spotlessJavaDiagnose
+missions-edge:spotlessJavaDiagnose
+pack-doctor:spotlessJavaDiagnose
+pack-validation:spotlessJavaDiagnose
+packs:spotlessJavaDiagnose
+profiles:spotlessJavaDiagnose
+profiles-edge:spotlessJavaDiagnose
+routing:spotlessJavaDiagnose
+routing-edge:spotlessJavaDiagnose
+web-transport:spotlessJavaDiagnose
+pack-doctor:surfaceTest - Scans the tracked files for the checker's old name (tag surface; FR-007).
+syncPacks - Syncs packs/internal and packs/qa from the pinned open-packs commit and verifies their digests.
+activations:test - Runs the test suite.
+artifacts-edge:test - Runs the test suite.
+charter-api:test - Runs the test suite.
+charter-reports:test - Runs the test suite.
+client-java:test - Runs the test suite.
+contracts:test - Runs the test suite.
+deployable:test - Runs the test suite.
+kernel:test - Runs the test suite.
+missions:test - Runs the test suite.
+missions-edge:test - Runs the test suite.
+pack-doctor:test - Runs the test suite.
+pack-validation:test - Runs the test suite.
+packs:test - Runs the test suite.
+profiles:test - Runs the test suite.
+profiles-edge:test - Runs the test suite.
+routing:test - Runs the test suite.
+routing-edge:test - Runs the test suite.
+web-transport:test - Runs the test suite.
+charter-reports:testCodeCoverageReport - Generates aggregated code coverage report.
+activations:timingBudgets - The CPU-time budgets (tests tagged timing), run alone and report-only; not part of check (#316).
+packs:timingBudgets - The CPU-time budgets (tests tagged timing), run alone; not part of check (#316).
+charter-api:validateContract - Validates the split charter contract with the generator's OpenAPI parser.
+verifyAll - Runs every module's check, including the contract validation and the example-pack round-trip.
+activations:verifyTimingBudgetsRan - Fails when a timing budget class left no result from timingBudgets; run after it, not part of check.
+packs:verifyTimingBudgetsRan - Fails when a timing budget class left no result from timingBudgets; run after it, not part of check.
+pack-validation:wholePackRoundTrip - The whole-pack round-trip gate over every charter example pack (#187, #547); not part of check.
+
+Other tasks
+-----------
+pack-validation:checkstyleDriftTest - Run Checkstyle analysis for driftTest classes
+client-java:checkstyleGenerated - Run Checkstyle analysis for generated classes
+activations:checkstyleMain - Run Checkstyle analysis for main classes
+artifacts-edge:checkstyleMain - Run Checkstyle analysis for main classes
+client-java:checkstyleMain - Run Checkstyle analysis for main classes
+contracts:checkstyleMain - Run Checkstyle analysis for main classes
+deployable:checkstyleMain - Run Checkstyle analysis for main classes
+kernel:checkstyleMain - Run Checkstyle analysis for main classes
+missions:checkstyleMain - Run Checkstyle analysis for main classes
+missions-edge:checkstyleMain - Run Checkstyle analysis for main classes
+pack-doctor:checkstyleMain - Run Checkstyle analysis for main classes
+pack-validation:checkstyleMain - Run Checkstyle analysis for main classes
+packs:checkstyleMain - Run Checkstyle analysis for main classes
+profiles:checkstyleMain - Run Checkstyle analysis for main classes
+profiles-edge:checkstyleMain - Run Checkstyle analysis for main classes
+routing:checkstyleMain - Run Checkstyle analysis for main classes
+routing-edge:checkstyleMain - Run Checkstyle analysis for main classes
+web-transport:checkstyleMain - Run Checkstyle analysis for main classes
+activations:checkstyleTest - Run Checkstyle analysis for test classes
+artifacts-edge:checkstyleTest - Run Checkstyle analysis for test classes
+client-java:checkstyleTest - Run Checkstyle analysis for test classes
+contracts:checkstyleTest - Run Checkstyle analysis for test classes
+deployable:checkstyleTest - Run Checkstyle analysis for test classes
+kernel:checkstyleTest - Run Checkstyle analysis for test classes
+missions:checkstyleTest - Run Checkstyle analysis for test classes
+missions-edge:checkstyleTest - Run Checkstyle analysis for test classes
+pack-doctor:checkstyleTest - Run Checkstyle analysis for test classes
+pack-validation:checkstyleTest - Run Checkstyle analysis for test classes
+packs:checkstyleTest - Run Checkstyle analysis for test classes
+profiles:checkstyleTest - Run Checkstyle analysis for test classes
+profiles-edge:checkstyleTest - Run Checkstyle analysis for test classes
+routing:checkstyleTest - Run Checkstyle analysis for test classes
+routing-edge:checkstyleTest - Run Checkstyle analysis for test classes
+web-transport:checkstyleTest - Run Checkstyle analysis for test classes
+packs:checkstyleTestFixtures - Run Checkstyle analysis for testFixtures classes
+pack-validation:compileDriftTestJava - Compiles drift test Java source.
+client-java:compileGeneratedJava - Compiles generated Java source.
+activations:compileJava - Compiles main Java source.
+artifacts-edge:compileJava - Compiles main Java source.
+charter-api:compileJava - Compiles main Java source.
+charter-reports:compileJava - Compiles main Java source.
+client-java:compileJava - Compiles main Java source.
+contracts:compileJava - Compiles main Java source.
+deployable:compileJava - Compiles main Java source.
+kernel:compileJava - Compiles main Java source.
+missions:compileJava - Compiles main Java source.
+missions-edge:compileJava - Compiles main Java source.
+pack-doctor:compileJava - Compiles main Java source.
+pack-validation:compileJava - Compiles main Java source.
+packs:compileJava - Compiles main Java source.
+profiles:compileJava - Compiles main Java source.
+profiles-edge:compileJava - Compiles main Java source.
+routing:compileJava - Compiles main Java source.
+routing-edge:compileJava - Compiles main Java source.
+web-transport:compileJava - Compiles main Java source.
+packs:compileTestFixturesJava - Compiles test fixtures Java source.
+activations:compileTestJava - Compiles test Java source.
+artifacts-edge:compileTestJava - Compiles test Java source.
+charter-api:compileTestJava - Compiles test Java source.
+charter-reports:compileTestJava - Compiles test Java source.
+client-java:compileTestJava - Compiles test Java source.
+contracts:compileTestJava - Compiles test Java source.
+deployable:compileTestJava - Compiles test Java source.
+kernel:compileTestJava - Compiles test Java source.
+missions:compileTestJava - Compiles test Java source.
+missions-edge:compileTestJava - Compiles test Java source.
+pack-doctor:compileTestJava - Compiles test Java source.
+pack-validation:compileTestJava - Compiles test Java source.
+packs:compileTestJava - Compiles test Java source.
+profiles:compileTestJava - Compiles test Java source.
+profiles-edge:compileTestJava - Compiles test Java source.
+routing:compileTestJava - Compiles test Java source.
+routing-edge:compileTestJava - Compiles test Java source.
+web-transport:compileTestJava - Compiles test Java source.
+packs:contractVersionResource - Writes the contract's info.version into contract-version.properties.
+pack-doctor:packDoctorJarAgain - Builds the pack-doctor jar a second time, which jarTest compares with packDoctorJar byte for byte (#478).
+pack-doctor:packDoctorLicences - Moves each library's licence files under META-INF/licenses/<group>-<module>/ for the pack-doctor jar (#478).
+pack-doctor:packDoctorRuntimeVersions - Lists runtimeClasspath's libraries and versions, which jarTest compares with the jar's (#478, J5).
+pack-doctor:packDoctorSlf4jProvider - Writes the SLF4J service file that names the NOP provider, for the pack-doctor jar alone (#478).
+pack-doctor:packDoctorVersion - Writes the version pack-doctor's report names as its tool.version (FR-008).
+prepareKotlinBuildScriptModel
+pack-validation:processDriftTestResources - Processes drift test resources.
+client-java:processGeneratedResources - Processes generated resources.
+activations:processResources - Processes main resources.
+artifacts-edge:processResources - Processes main resources.
+charter-api:processResources - Processes main resources.
+charter-reports:processResources - Processes main resources.
+client-java:processResources - Processes main resources.
+contracts:processResources - Processes main resources.
+deployable:processResources - Processes main resources.
+kernel:processResources - Processes main resources.
+missions:processResources - Processes main resources.
+missions-edge:processResources - Processes main resources.
+pack-doctor:processResources - Processes main resources.
+pack-validation:processResources - Processes main resources.
+packs:processResources - Processes main resources.
+profiles:processResources - Processes main resources.
+profiles-edge:processResources - Processes main resources.
+routing:processResources - Processes main resources.
+routing-edge:processResources - Processes main resources.
+web-transport:processResources - Processes main resources.
+packs:processTestFixturesResources - Processes test fixtures resources.
+activations:processTestResources - Processes test resources.
+artifacts-edge:processTestResources - Processes test resources.
+charter-api:processTestResources - Processes test resources.
+charter-reports:processTestResources - Processes test resources.
+client-java:processTestResources - Processes test resources.
+contracts:processTestResources - Processes test resources.
+deployable:processTestResources - Processes test resources.
+kernel:processTestResources - Processes test resources.
+missions:processTestResources - Processes test resources.
+missions-edge:processTestResources - Processes test resources.
+pack-doctor:processTestResources - Processes test resources.
+pack-validation:processTestResources - Processes test resources.
+packs:processTestResources - Processes test resources.
+profiles:processTestResources - Processes test resources.
+profiles-edge:processTestResources - Processes test resources.
+routing:processTestResources - Processes test resources.
+routing-edge:processTestResources - Processes test resources.
+web-transport:processTestResources - Processes test resources.
+packs:serviceVersionResource - Writes the root project's version into service-version.properties.
+
+[Incubating] Problems report is available at: file://<scratch>/clones/charter/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 4m 59s
+10 actionable tasks: 10 executed
+Configuration cache entry stored.
+exit=0

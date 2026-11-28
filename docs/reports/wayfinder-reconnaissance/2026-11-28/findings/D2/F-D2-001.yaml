@@ -1,0 +1,120 @@
+finding_id: F-D2-001
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04b
+  deviation: The first attempts ran while the shared host had a load average above 20 and its kernel killed Gradle
+    daemons for lack of memory; they were repeated once the host was quiet, with --max-workers=2 and a user-home
+    gradle.properties (evidence/D2/gradle-user-home-override.properties.txt). The repositories were not edited.
+    The --tests filter selected the named JUnit classes but the Cucumber-engine scenarios of ':deployable:test'
+    ran as well; this exceeded 'named files only' unintentionally.
+subject:
+  component: charter service build
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+claim: 'From a clean clone of spec-kitty-charter with no sibling checkout, 4 of 4 named Gradle invocations ended
+  BUILD SUCCESSFUL: '':contracts:check'' (lint, planted fixtures, closed-response check on 2213 schemas, refusal
+  examples, compatibility fixtures), '':client-java:check'', '':deployable:bootJar :pack-doctor:packDoctorJar'',
+  and the architecture test selection (HexagonalArchitectureTest 99 tests, ReservedRefusalCodesTest 14, GeneratedConstraintTypesTest
+  2, three *BoundaryTest classes 11; 0 failures; 1683 tests in 207 result files ran in total because the filter
+  did not exclude the Cucumber scenarios). The pack sync step CI runs before verifyAll (''syncPacks'') exits 1 without
+  an open-packs checkout and exits 0 when given one.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04b-charter-contracts-check.txt
+  method: ./gradlew --no-daemon --max-workers=2 :contracts:check
+  sha256: 56fe3ed27a8c898c8bb973a8dc623b3feba761de75b89f71c74b6b0cc4ad9d17
+  exit_code: 0
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04b-charter-bootjar.txt
+  method: ./gradlew --no-daemon --max-workers=2 :deployable:bootJar :pack-doctor:packDoctorJar
+  sha256: bff9a97d7b1cec081e1a9317a83da40d2dc1565ab10022b28f556ea521757957
+  exit_code: 0
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04b-charter-arch-tests.txt
+  method: ./gradlew --no-daemon --max-workers=2 :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest
+    --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest
+  sha256: b6c1d625bb643e889502b82bb7f15e048c014d83bbf8c599d2ac2c2173fe705e
+  exit_code: 0
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04b-charter-arch-test-results.txt
+  method: python3 summary of build/test-results/**/*.xml after the run above
+  sha256: 4d1e1909b34909d219b7b77250bd070b268500d08edaa5c7b93b9d1ff246e972
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E5
+  kind: executed
+  reference: evidence/D2/m04b-charter-client-java-check.txt
+  method: ./gradlew --no-daemon --max-workers=2 :client-java:check
+  sha256: 4e9ebccbfa37fd6b6c6915ec4bd84820fc3180979a3eaa4d0e8d5ccfa23704b6
+  exit_code: 0
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E6
+  kind: executed
+  reference: evidence/D2/m04b-charter-syncpacks-no-sibling.txt
+  method: python3 scripts/packs/sync_packs.py [--open-packs-dir /home/user/spec-kitty-open-packs]
+  sha256: e1fdd97462776573818a4653bbb62331c3992ec39cd52c064f315ae05d5e92e2
+  exit_code: 0
+  environment: python3 3.13; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E7
+  kind: executed
+  reference: evidence/D2/m04b-charter-contracts-check-attempt1-lint-timeouts.txt
+  method: ./gradlew --no-daemon --max-workers=2 :contracts:check (host load average > 20)
+  sha256: f6897e2cd29cf3813898c38e3424b61a41e23a1545ad8028f3b43291d211da02
+  exit_code: 1
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E8
+  kind: executed
+  reference: evidence/D2/m04b-charter-bootjar-attempt1-daemon-killed.txt
+  method: ./gradlew --no-daemon --max-workers=2 :deployable:bootJar :pack-doctor:packDoctorJar
+  sha256: 27d7406156719323a85c6a848fe7634a03997644389516d7f14d8636607940eb
+  exit_code: 1
+  environment: Temurin JDK 25.0.5; Gradle 9.8.1 (wrapper); Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Named tasks only, in a --shared clone at head with its own GRADLE_USER_HOME; the clone directory had
+    no ../spec-kitty-open-packs.
+  not_covered: '''verifyAll'' as a whole (the complete suite) was not run by rule; native image compilation, mutation
+    testing, the git-host tests and the whole-pack round trip were not run. Whether verifyAll passes without synced
+    packs was not measured.'
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Looked for a failure caused by a missing sibling: read every failed attempt''s log.'
+  result: Three earlier attempts failed. Two were Gradle daemons killed by the host for lack of memory; one was
+    ':contracts:lintContract' reporting 15 of 23 lint rules 'timed out' after 1 minute under host load. Each passed
+    when repeated on a quiet host. No failure named a missing sibling file.
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- buildability
+- modularity
+candidate_invariants: []
+open_questions: []

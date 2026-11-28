@@ -1,0 +1,9 @@
+# charter 06cdfbe9 test result XML summary after: ./gradlew --no-daemon --max-workers=2 :deployable:test --tests '*HexagonalArchitectureTest' --tests '*ReservedRefusalCodesTest' --tests '*GeneratedConstraintTypesTest' :packs:test --tests '*BoundaryTest'
+suites 207 tests 1683 failures+errors 0
+GeneratedConstraintTypesTest tests 2 failures+errors 0 skipped 0
+HexagonalArchitectureTest tests 99 failures+errors 0 skipped 0
+NetworkCodeBoundaryTest tests 6 failures+errors 0 skipped 0
+OwnerOnlyBoundaryTest tests 2 failures+errors 0 skipped 0
+PackGraphWalkBoundaryTest tests 3 failures+errors 0 skipped 0
+ReservedRefusalCodesTest tests 14 failures+errors 0 skipped 0
+note: the --tests filter did not exclude the Cucumber-engine scenarios of :deployable:test; they ran too and are in the totals

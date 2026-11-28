@@ -1,0 +1,8 @@
+command-cli-0.1.0-rc.2-linux-x64: OK
+command-cli-0.1.0-rc.2.jar: OK
+conformance-fixtures-0.1.0-rc.2.tar.gz: OK
+contract-bundles-0.1.0-rc.2.tar.gz: OK
+contract-tools-0.1.0-rc.2.tar.gz: OK
+mission-status-api-0.1.0-rc.2-linux-x64: OK
+mission-status-api-0.1.0-rc.2.jar: OK
+exit=0

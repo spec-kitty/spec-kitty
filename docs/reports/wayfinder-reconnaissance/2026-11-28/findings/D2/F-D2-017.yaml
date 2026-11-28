@@ -1,0 +1,103 @@
+finding_id: F-D2-017
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04f
+  deviation: null
+subject:
+  component: deployment and absence behaviour in core
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'At core head no Java service is started by any command path. Tracked pins: 1 (read-service). ''spec-kitty
+  service status'' and ''service fetch --all'' print ''No service is pinned in this spec-kitty version yet'' (exit
+  0). ServiceLauncher.ensure refuses all three services: write-service with SERVICE_PIN_INVALID (''no pin lockfile''),
+  read-service and charter-service with ''the CLI does not launch''. Outside the services package the launcher is
+  referenced only by the ''service'' command (status, stop). A status transition written and read through core''s
+  Python in a disposable project succeeded with no service present; the 3 child processes spawned were git, and
+  no endpoint directory appeared. The read service runs when a user or CI starts it (one project root, loopback,
+  read-only); the charter service runs when started with a configuration root and a token (loopback by default;
+  a container profile binds all interfaces on port 8080); the write service, when launched, is one process per git
+  common dir with a lock file and an idle timeout.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04f-core-service-cli-absent.txt
+  method: python -m specify_cli {--version, service status [--service X], service fetch, service stop} in a disposable
+    git project
+  sha256: ea6349156ccf94099034a83fe9ff09b0c6e90db36b53f6437e616e1905813a84
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04f-core-status-write-without-service.txt
+  method: python status_write_without_service.py (emit_status_transition x2, materialize, ServiceLauncher.ensure
+    for 3 services)
+  sha256: 1465c1259d7f108f92eb9e71ebc2d84835d6d39b5f74fe3a273b381753e896e7
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: static-derived
+  reference: evidence/D2/m04f-core-service-callers-grep.txt
+  method: grep -rnE "ServiceLauncher|services.launcher|ServiceClient|..." --include=*.py src (outside services/)
+  sha256: 5cfb930ea0479b3c23cec2b3e7debc52fafc9d571c11c22ff2a6cece85cee4ee
+  exit_code: 0
+  environment: grep; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04d-core-launches-write-service-rc2.txt
+  method: python launch_write_service.py; spec-kitty service status; spec-kitty service stop
+  sha256: 3ecc12c71c34ebbe3a46b1586e5d6ea7b7a90fe8c7dc0514d6d3c367c35c0f17
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; native binary sha256 257f1bce...; Linux x86_64, 4 cores,
+    16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E5
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc3-native-run.txt
+  method: CHARTER_WORKTREE_TOKEN=<random> spec-kitty-charter-service-0.1.0-rc.3-linux-x64 --server.port=N --configRootLocation
+    <root>; curl with bearer token; diff served contract vs released contract asset
+  sha256: 338ece9dfb97bcd82fcdd34b3d4a38ca52515bb0057dafcafdfce4f5cd0d6d6e
+  exit_code: 0
+  environment: native binary sha256 8f45a298...; curl; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E6
+  kind: document-claim
+  reference: spec-kitty-charter@06cdfbe9:service/deployable/src/main/resources/application-container.yaml
+  method: git show; container profile bind address and port
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: Core CLI and launcher at head in a disposable project; the three released binaries as started in this
+    workstream.
+  not_covered: Windows and macOS; the container deployment; the first-use download path for users.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Searched core src/ for any HTTP client aimed at a service and for callers of the launcher's ensure().
+  result: No caller of ensure() outside the launcher itself; the only HTTP clients in src/ outside services/ are
+    for package indexes, upgrade probes and pack sources.
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- deployability
+- operability
+candidate_invariants: []
+open_questions: []

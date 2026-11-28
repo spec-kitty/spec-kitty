@@ -1,0 +1,5 @@
+# D2 reconnaissance, environment-only override (shared 16 GiB host, concurrent workstreams): smaller footprint.
+org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+org.gradle.parallel=false
+org.gradle.workers.max=2
+kotlin.compiler.execution.strategy=in-process

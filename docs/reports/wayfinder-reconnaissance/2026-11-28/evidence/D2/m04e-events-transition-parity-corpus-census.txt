@@ -1,0 +1,5 @@
+revision spec-kitty-events 646e330b; cases 266
+oracle {'core': 201, 'protocol': 65}
+layer {'domain': 250, 'edge': 1, 'service': 15}
+area {'alias': 3, 'annotation': 4, 'fold': 10, 'batch': 9, 'location': 3, 'claim': 16, 'review_claim': 3, 'start_rejected': 7, 'stale': 3, 'dependency': 40, 'done_evidence': 11, 'guard': 54, 'lane_machine': 82, 'force': 10, 'force_note': 2, 'unknown_lane': 1, 'replay': 8}
+unreachable.json entries {'urn:spec-kitty:write-refusal:workspace_context_required': 338}

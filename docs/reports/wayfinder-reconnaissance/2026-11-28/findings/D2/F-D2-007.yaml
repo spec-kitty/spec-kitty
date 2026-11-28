@@ -1,0 +1,53 @@
+finding_id: F-D2-007
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: contract-surface
+  deviation: null
+subject:
+  component: consumers of the Java service contracts
+  repository: spec-kitty/spec-kitty-planning
+  revision: heads of 11 repositories as listed in the evidence file
+  revision_kind: head
+claim: 'Outside the two service repositories and core, 2 of 11 inspected repositories reference a Java service contract
+  in non-document files: spec-kitty-open-packs (22 files for the charter service or packs contract) and doc-kitty
+  (10 files, all for the packs contract). In the other 9 (spec-kitty-orchestrator, spec-kitty-pack-composer, spec-kitty-mcp,
+  fleet-kitty, spec-kitty-container, spec-kitty-tracker, the end-to-end testing repository, event-router, spec-kitty-planning)
+  0 files match the mission-status, mission-write or charter service patterns; 6 of those 9 reference the spec_kitty_events
+  Python package. No file in open-packs or doc-kitty calls an /activations operation.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/contract-consumer-reference-census.csv
+  method: git grep -lE <pattern> HEAD -- . :!kitty-specs :!docs :!*.md :!kitty-ops | wc -l, per repository
+  sha256: ad085d6552274877ed0459f2760b6fe48a01ebf274c4ae9fb030b02f7229507b
+  exit_code: 0
+  environment: git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: git grep at each head, excluding docs/, kitty-specs/, kitty-ops/ and Markdown.
+  not_covered: Four of the supplementary clones hold one commit each; their history was not searched. Pattern matching
+    can miss a consumer that reaches a service through a generated client under another name.
+  population: 11 repositories
+  sample: all 11
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Widened the search in doc-kitty and open-packs to the literal paths /activations and /api/v1/offering.
+  result: No additional consumer found; the 2 doc-kitty hits for the events patterns are operation logs and a changelog
+    fixture, not code.
+relations: []
+confidence: medium
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

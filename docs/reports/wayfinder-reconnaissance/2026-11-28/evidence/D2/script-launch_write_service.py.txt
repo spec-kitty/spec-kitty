@@ -1,0 +1,26 @@
+"""D2 M04d/M04f: core 5c4fc5a7's own ServiceLauncher starts the released write service (command-cli, events service-v0.1.0-rc.2,
+pinned in the disposable clone by `spec-kitty service vendor --no-attestation`), runs the ready check, and reports. Token never printed."""
+import json, os, time, psutil
+from pathlib import Path
+from specify_cli.services.launcher import ServiceLauncher
+from specify_cli.services.client import ServiceClient
+from specify_cli.services.errors import ServiceRefusal
+root = Path.cwd(); out = {}
+t0 = time.time()
+try:
+    ep = ServiceLauncher(warn=lambda m: out.setdefault("warnings", []).append(m[:200])).ensure("write-service", root)
+    out["ensure"] = "ready"; out["ensure_seconds"] = round(time.time() - t0, 2)
+    out["endpoint_fields"] = sorted(k for k in vars(ep).keys() if "token" not in k.lower()) if hasattr(ep, "__dict__") else str(type(ep))
+    out["host"] = getattr(ep, "host", None); out["port_is_int"] = isinstance(getattr(ep, "port", None), int)
+    c = ServiceClient(ep); hs = c.handshake(); h = c.health()
+    out["handshake"] = {k: (v if "token" not in k.lower() else "<redacted>") for k, v in (vars(hs).items() if hasattr(hs, "__dict__") else {})}
+    out["health"] = {k: v for k, v in (vars(h).items() if hasattr(h, "__dict__") else {})}
+    pid = getattr(ep, "pid", None); out["pid_alive"] = bool(pid and psutil.pid_exists(pid))
+    if pid: p = psutil.Process(pid); out["process_name"] = p.name(); out["process_cmdline_shape"] = [os.path.basename(a) if i == 0 else (a if not a.startswith("/") else "<path>") for i, a in enumerate(p.cmdline())]; out["process_ppid_is_this_python"] = p.ppid() == os.getpid(); out["rss_mb"] = round(p.memory_info().rss / 1e6)
+    d = root / ".git" / "spec-kitty-write-service"; out["endpoint_dir_files"] = sorted(x.name for x in d.iterdir())
+    t1 = time.time(); ep2 = ServiceLauncher().ensure("write-service", root); out["second_ensure_reused_same_pid"] = getattr(ep2, "pid", None) == pid; out["second_ensure_seconds"] = round(time.time() - t1, 2)
+except ServiceRefusal as r:
+    out["ensure"] = {"refusal": r.to_dict()}
+except Exception as e:
+    out["ensure"] = f"{type(e).__name__}: {str(e)[:400]}"
+print(json.dumps(out, indent=1, default=str))

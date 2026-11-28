@@ -1,0 +1,10 @@
+doc-kitty head 1acc49fb lock: tag contract-packs-v0.1.0-rc.2 commit 33f3ad46e9e33e895d4cd3a077d928d91b4f025f
+conformance/classifier-cases.yaml lock a9a2404ca4016224 released-asset a9a2404ca4016224 vendored-copy a9a2404ca4016224 ALL-EQUAL
+file-kinds.yaml lock 1fb9480f95669a21 released-asset 1fb9480f95669a21 vendored-copy 1fb9480f95669a21 ALL-EQUAL
+schemas/pack-descriptor.schema.json lock 15e5260de3ab8202 released-asset 15e5260de3ab8202 vendored-copy 15e5260de3ab8202 ALL-EQUAL
+schemas/pack-document.schema.json lock 41331d15e99f7b7d released-asset 41331d15e99f7b7d vendored-copy 41331d15e99f7b7d ALL-EQUAL
+schemas/pack-manifest.schema.json lock 2dd287b8f59e2f50 released-asset 2dd287b8f59e2f50 vendored-copy 2dd287b8f59e2f50 ALL-EQUAL
+schemas/policy.schema.json lock 276d2f0873902202 released-asset 276d2f0873902202 vendored-copy 276d2f0873902202 ALL-EQUAL
+schemas/preset.schema.json lock 34842e591b9b9c44 released-asset 34842e591b9b9c44 vendored-copy 34842e591b9b9c44 ALL-EQUAL
+7/7 files: lock digest == released packs-contract.tar.gz member == vendored copy in doc-kitty
+released asset members: 32 ; schemas: 27 ; doc-kitty vendors 7

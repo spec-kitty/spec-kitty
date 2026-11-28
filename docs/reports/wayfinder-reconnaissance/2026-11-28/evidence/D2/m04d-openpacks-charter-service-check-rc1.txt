@@ -1,0 +1,125 @@
+### 2026-11-28T11:31:30Z open-packs f9a55751: charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.1.jar (NOT the pinned release; pin is rc.3)
+::error::composition: GET /offering answered 500
+{
+  "code": "pack_unreadable",
+  "detail": "the file presets/default.yaml of built-in cannot be read: additionalProperties violated at the document: undeclared key 'activated_routing_catalogs'",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: cave-kitty was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: drupal was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: event-driven was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: go was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: internal was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: java was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: javascript was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: pack-authoring was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: python was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: qa was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: rust was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+::error::registration: spdd was refused
+{
+  "code": "pack_unreadable",
+  "detail": "a graph document of foundation cannot be read",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+ok: registration: example-pack registered (created) and read back
+::error::registration: GET /offering over the registered packs answered 500
+{
+  "code": "pack_unreadable",
+  "detail": "the file presets/default.yaml of built-in cannot be read: additionalProperties violated at the document: undeclared key 'activated_routing_catalogs'",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+ok: non-vacuity: case-variant-readme refused at composition with pack_unreadable
+ok: non-vacuity: case-variant-readme refused at registration with validation_failed
+ok: non-vacuity: legacy-shapes refused at composition with pack_unreadable
+ok: non-vacuity: legacy-shapes refused at registration with validation_failed
+ok: non-vacuity: malformed-pack-version refused at composition with pack_unreadable
+::error::non-vacuity: malformed-pack-version registration refused 'pack_unreadable', expected 'validation_failed'
+{
+  "code": "pack_unreadable",
+  "detail": "In the closure rooted at malformed-pack-version: pack.yaml of malformed-pack-version: pack_version 'not-a-version' is not a PEP 440 version",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+ok: non-vacuity: retired-pack-document refused at composition with pack_unreadable
+ok: non-vacuity: retired-pack-document refused at registration with validation_failed
+::error::non-vacuity: unknown-dependency composition refused 'pack_unreadable', expected 'pack_dependency_unknown'
+{
+  "code": "pack_unreadable",
+  "detail": "the file presets/default.yaml of built-in cannot be read: additionalProperties violated at the document: undeclared key 'activated_routing_catalogs'",
+  "status": 500,
+  "title": "Pack unreadable"
+}
+ok: non-vacuity: unknown-dependency refused at registration with pack_dependency_unknown
+FAIL: 16 charter service check(s) failed
+exit=1
+### end 2026-11-28T11:37:40Z

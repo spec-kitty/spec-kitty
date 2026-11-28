@@ -1,0 +1,83 @@
+finding_id: F-D2-005
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: contract-surface
+  deviation: null
+subject:
+  component: events contracts (mission-status, mission-write)
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.1 release asset contract-bundles-0.1.0-rc.1.tar.gz; head 646e330b89
+  revision_kind: released
+claim: 'The events service contracts are two OpenAPI modules under contracts/ (mission-status: 10 operations; mission-write:
+  6 operations, plus a prose launch contract LAUNCHER.md), bundled and released as contract-bundles-<ver>.tar.gz
+  on the service-v* line together with contract tools and a conformance-fixtures archive (349 files in rc.1: 42
+  fixture trees with Python-generated goldens, a 53-request replay set, artifact cases, torn-tail cases, leak patterns).
+  Both bundles in the rc.1 release carry info.version 1.0.0-SNAPSHOT. The rc.1 read service answers 5 of the 10
+  mission-status operations with 200 and the other 5 (getMission, getWorkPackage, getWorkPackageDetail, getDriftReport,
+  listOpsInvocations) with 404.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04c-events-contract-bundle-citations.txt
+  method: 'grep -c on the released bundles: x-source, path: src/specify_cli, operationId'
+  sha256: 3d66f84011e2e511b959a33679f7db7425935f384881c3b1684c1394991b3f67
+  exit_code: 0
+  environment: grep; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04a-read-service-contract-coverage.txt
+  method: curl each operation path of the rc.1 mission-status bundle against the rc.1 native binary
+  sha256: 5b1eeefaca0267f21c4442be5bf2a8db86996ebf69772f1e4cbf92c52e20265d
+  exit_code: 0
+  environment: curl; native binary; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-events@646e330b:contracts/mission-status/CHANGELOG.md:6-13
+  method: git show; the changelog states the version is unreleased and that the breaking-change check has no baseline
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+- id: E4
+  kind: document-claim
+  reference: spec-kitty-events@2f5e0394:service/README.md:3
+  method: git show; states that every other path of the contract answers 404 by design
+  sha256: n/a (repository text at the named revision)
+  exit_code: 0
+  environment: git show
+  observed_at: '2026-11-28'
+scope:
+  covered: The released rc.1 bundles and fixtures, and one probe per operation path against the rc.1 binary over
+    a one-Mission project.
+  not_covered: The Java binding of the CloudEvents contract (java/) and the Python package contract were not inventoried
+    here.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'Checked whether the 404 answers are a fault of my fixture: probed with an existing Mission id and compared
+    with the service README.'
+  result: 'The README states the 404s are by design for this release (document-claim). Counter to a reading of "contract
+    not versioned": a changelog and a release carrier exist; the version string itself is a SNAPSHOT in both released
+    bundles.'
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- interoperability
+- evolvability
+candidate_invariants: []
+open_questions: []

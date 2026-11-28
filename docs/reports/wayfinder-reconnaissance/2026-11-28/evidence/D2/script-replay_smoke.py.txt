@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Replay the published nativesmoke/requests.json of a spec-kitty-events service release against a
+released Mission Status API artefact (native binary or jar). Read-only client; mirrors the rules of
+service/src/test/java/.../nativesmoke/Replay.java and testsupport/ProjectHeaderMaterialisation.java.
+usage: replay_smoke.py <fixtures dir> <smoke-golden dir or -> <contract yaml> <out.json> -- <launch cmd...>
+The launch command gets --mission-status.project-root=<root> --mission-status.port=<port> appended."""
+import json, os, shutil, socket, subprocess, sys, tempfile, time, hashlib
+fx, smoke_dir, contract, out = sys.argv[1:5]
+launch = sys.argv[6:]
+NOT_COPIED = {"golden","HEAD","GITDIR_POINTER","gitdir-target","coord-worktree","husk-worktree","SYMLINK_PLAN","outside"}
+def materialise(src, root):
+    for e in sorted(os.listdir(src)):
+        if e in NOT_COPIED: continue
+        s=os.path.join(src,e); d=os.path.join(root,e)
+        shutil.copytree(s,d,symlinks=True) if os.path.isdir(s) else shutil.copy2(s,d)
+    needs_git = os.path.isdir(os.path.join(src,"coord-worktree")) or os.path.isdir(os.path.join(src,"husk-worktree"))
+    if os.path.isfile(os.path.join(src,"GITDIR_POINTER")):
+        shutil.copy(os.path.join(src,"GITDIR_POINTER"), os.path.join(root,".git"))
+        shutil.copytree(os.path.join(src,"gitdir-target"), os.path.join(root,"gitdir-target"))
+    elif os.path.isfile(os.path.join(src,"HEAD")):
+        os.makedirs(os.path.join(root,".git")); shutil.copy(os.path.join(src,"HEAD"), os.path.join(root,".git","HEAD"))
+    elif needs_git:
+        os.makedirs(os.path.join(root,".git")); open(os.path.join(root,".git","HEAD"),"w").write("ref: refs/heads/main\n")
+    for kind in ("coord-worktree","husk-worktree"):
+        cs=os.path.join(src,kind)
+        if not os.path.isdir(cs): continue
+        for m in sorted(os.listdir(cs)):
+            meta=json.load(open(os.path.join(root,"kitty-specs",m,"meta.json")))
+            slug=meta.get("mission_slug") or m; mid8=meta["mission_id"][:8]
+            md = slug if slug.endswith("-"+mid8) else slug+"-"+mid8
+            dst=os.path.join(root,".worktrees",md+"-coord")
+            if not os.path.exists(dst): shutil.copytree(os.path.join(cs,m), dst)
+    if os.path.isfile(os.path.join(src,"SYMLINK_PLAN")): raise SystemExit("SYMLINK_PLAN not supported by this runner")
+def free_port():
+    s=socket.socket(); s.bind(("127.0.0.1",0)); p=s.getsockname()[1]; s.close(); return p
+def raw(port, method, path, headers, stream=False, timeout=10):
+    s=socket.create_connection(("127.0.0.1",port),timeout=timeout)
+    h={"Host":f"127.0.0.1:{port}"}; h.update(headers)
+    if not stream: h.setdefault("Connection","close")
+    req=f"{method} {path} HTTP/1.1\r\n"+"".join(f"{k}: {v}\r\n" for k,v in h.items())+"\r\n"
+    s.sendall(req.encode())
+    if stream: return s
+    data=b""
+    while True:
+        try: c=s.recv(65536)
+        except socket.timeout: break
+        if not c: break
+        data+=c
+    s.close(); return parse(data)
+def parse(data):
+    head,_,body=data.partition(b"\r\n\r\n")
+    lines=head.decode("latin1").split("\r\n"); status=int(lines[0].split()[1])
+    hd={l.split(":",1)[0].lower():l.split(":",1)[1].strip() for l in lines[1:] if ":" in l}
+    if hd.get("transfer-encoding","").lower()=="chunked":
+        out=b""; rest=body
+        while rest:
+            ln,_,rest=rest.partition(b"\r\n")
+            n=int(ln.split(b";")[0] or b"0",16)
+            if n==0: break
+            out+=rest[:n]; rest=rest[n+2:]
+        body=out
+    return status,hd,body
+def golden(spec, tree):
+    if spec=="contract": return open(contract,"rb").read(),"published-bundle"
+    if spec.startswith("tree:"): return open(os.path.join(fx,"conformance",tree,"golden",spec[5:]),"rb").read(),"published-fixtures"
+    if spec.startswith("smoke:"):
+        p=os.path.join(smoke_dir,spec[6:])
+        return (open(p,"rb").read(),"repo-at-tag") if smoke_dir!="-" and os.path.isfile(p) else (None,"not-in-published-fixtures")
+def cmp(body,g):
+    if body==g: return "bytes-equal"
+    if body.strip()==g.strip(): return "equal-modulo-outer-whitespace"
+    try:
+        if json.loads(body)==json.loads(g): return "json-equal-not-bytes"
+    except Exception: pass
+    return "DIFFERENT"
+reqs=json.load(open(os.path.join(fx,"nativesmoke","requests.json")))
+results=[]
+for g in reqs["groups"]:
+    scratch=tempfile.mkdtemp(prefix="d2-smoke-"); root=os.path.join(scratch,"project"); os.mkdir(root)
+    materialise(os.path.join(fx,"conformance",g["tree"]),root)
+    port=free_port(); log=open(os.path.join(scratch,"svc.log"),"wb")
+    env=dict(os.environ)
+    p=subprocess.Popen(launch+[f"--mission-status.project-root={root}",f"--mission-status.port={port}"],stdout=log,stderr=subprocess.STDOUT,env=env)
+    t0=time.time(); ready=False
+    while time.time()-t0<60:
+        if p.poll() is not None: break
+        try:
+            st,_,_=raw(port,"GET","/api/v1/project",{},timeout=2)
+            if st not in (0,403): ready=True; break
+        except Exception: pass
+        time.sleep(0.1)
+    startup=round(time.time()-t0,2)
+    for r in g["requests"]:
+        rec={"stage":g["stage"],"tree":g["tree"],"id":r["id"],"expectedStatus":r["expectedStatus"],"startup_s":startup}
+        if not ready: rec["outcome"]="SERVICE_NOT_READY"; results.append(rec); continue
+        path=r["path"].replace("<port>",str(port)); hdr={k:v.replace("<port>",str(port)) for k,v in r.get("headers",{}).items()}
+        try:
+            if "stream" in r:
+                s=raw(port,"GET",path,hdr,stream=True); s.settimeout(3); buf=b""
+                while b"\r\n\r\n" not in buf: buf+=s.recv(4096)
+                head,_,rest=buf.partition(b"\r\n\r\n"); st=int(head.split()[1])
+                ct=[l.split(b":",1)[1].strip().decode() for l in head.split(b"\r\n") if l.lower().startswith(b"content-type")][0]
+                open(os.path.join(root,r["stream"]["file"]),"a",encoding="utf-8").write(r["stream"]["append"])
+                t=time.time()
+                try:
+                    while time.time()-t<3 and r["stream"]["expectedEventId"].encode() not in rest: rest+=s.recv(4096)
+                except socket.timeout: pass
+                s.close(); body=rest; rec["stream_event_id_seen"]=r["stream"]["expectedEventId"].encode() in rest
+            else:
+                st,hd,body=raw(port,r["method"],path,hdr); ct=hd.get("content-type","")
+            rec["status"]=st; rec["status_ok"]=st==r["expectedStatus"]
+            if "expectedContentType" in r: rec["content_type_ok"]=ct.split(";")[0].strip()==r["expectedContentType"]
+            if "expectedProblemCode" in r:
+                try: rec["problem_code_ok"]=json.loads(body).get("code")==r["expectedProblemCode"]
+                except Exception: rec["problem_code_ok"]=False
+            if "expectedGolden" in r and "stream" not in r:
+                gb,src=golden(r["expectedGolden"],g["tree"]); rec["golden_source"]=src
+                rec["golden"]= cmp(body,gb) if gb is not None else "GOLDEN_UNAVAILABLE"
+            if r.get("mustNotContain"): rec["must_not_contain_ok"]=not any(x.encode() in body for x in r["mustNotContain"])
+            rec["body_sha256"]=hashlib.sha256(body).hexdigest()
+        except Exception as e:
+            rec["outcome"]="CLIENT_ERROR "+type(e).__name__+": "+str(e)[:120]
+        results.append(rec)
+    p.terminate()
+    try: p.wait(10)
+    except Exception: p.kill()
+    shutil.rmtree(scratch,ignore_errors=True)
+def ok(r):
+    return "outcome" not in r and r.get("status_ok") and r.get("content_type_ok",True) and r.get("problem_code_ok",True) and r.get("must_not_contain_ok",True) and r.get("golden","bytes-equal") in ("bytes-equal","GOLDEN_UNAVAILABLE") and r.get("stream_event_id_seen",True)
+summary={"requests":len(results),"all_checks_ok":sum(1 for r in results if ok(r)),
+ "status_ok":sum(1 for r in results if r.get("status_ok")),
+ "golden_compared":sum(1 for r in results if r.get("golden") not in (None,"GOLDEN_UNAVAILABLE")),
+ "golden_bytes_equal":sum(1 for r in results if r.get("golden")=="bytes-equal"),
+ "golden_unavailable":sum(1 for r in results if r.get("golden")=="GOLDEN_UNAVAILABLE"),
+ "failed_ids":[r["id"] for r in results if not ok(r)], "launch":[os.path.basename(x) for x in launch]}
+json.dump({"summary":summary,"results":results},open(out,"w"),indent=1)
+print(json.dumps(summary))

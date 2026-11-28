@@ -1,0 +1,107 @@
+### 2026-11-28T09:33:14Z ./gradlew --no-daemon --max-workers=2 :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :kernel:compileJava UP-TO-DATE
+> Task :missions:compileJava UP-TO-DATE
+> Task :profiles:compileJava UP-TO-DATE
+> Task :routing:compileJava UP-TO-DATE
+> Task :activations:processResources NO-SOURCE
+> Task :artifacts-edge:processResources NO-SOURCE
+> Task :charter-api:processResources NO-SOURCE
+> Task :contracts:compileJava UP-TO-DATE
+> Task :contracts:processResources NO-SOURCE
+> Task :contracts:classes UP-TO-DATE
+> Task :contracts:installOasdiff UP-TO-DATE
+> Task :contracts:installVacuum UP-TO-DATE
+> Task :contracts:verifyOasdiff
+
+> Task :charter-api:validateContract
+Validating spec <scratch>/clones/charter/contracts/charter/openapi.yaml
+
+> Task :contracts:verifyVacuum
+> Task :contracts:bundleContract UP-TO-DATE
+> Task :deployable:processResources UP-TO-DATE
+> Task :deployable:processTestResources UP-TO-DATE
+> Task :kernel:processResources UP-TO-DATE
+> Task :kernel:classes UP-TO-DATE
+> Task :kernel:jar UP-TO-DATE
+> Task :missions:processResources NO-SOURCE
+> Task :missions:classes UP-TO-DATE
+> Task :missions:jar UP-TO-DATE
+> Task :missions-edge:processResources NO-SOURCE
+> Task :pack-doctor:packDoctorVersion UP-TO-DATE
+> Task :pack-doctor:processResources UP-TO-DATE
+> Task :pack-validation:processResources NO-SOURCE
+> Task :packs:contractVersionResource UP-TO-DATE
+> Task :packs:serviceVersionResource UP-TO-DATE
+> Task :packs:processResources UP-TO-DATE
+> Task :packs:processTestFixturesResources UP-TO-DATE
+> Task :profiles:processResources NO-SOURCE
+> Task :profiles:classes UP-TO-DATE
+> Task :profiles:jar UP-TO-DATE
+> Task :profiles-edge:processResources NO-SOURCE
+> Task :routing:processResources NO-SOURCE
+> Task :routing:classes UP-TO-DATE
+> Task :routing:jar UP-TO-DATE
+> Task :routing-edge:processResources NO-SOURCE
+> Task :web-transport:processResources NO-SOURCE
+> Task :packs:processTestResources UP-TO-DATE
+
+> Task :charter-api:validateContract
+Spec is valid.
+
+> Task :charter-api:generateContract
+Cleaned up output directory <scratch>/clones/charter/service/charter-api/build/generated/openapi before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)
+
+The message received from the daemon indicates that the daemon has disappeared.
+Build request sent: Build{id=097a29a3-49ab-4591-97c8-4f36fbcf0573, currentDir=<scratch>/clones/charter}
+Attempting to read last messages from the daemon log...
+Daemon pid: 21133
+  log file: <scratch>/gh/charter/daemon/9.8.1/daemon-21133.out.log
+----- Last 20 lines from daemon log file - daemon-21133.out.log -----
+2026-11-28T09:33:20.846+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] resetting idle timer
+2026-11-28T09:33:20.848+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon is running. Sleeping until state changes.
+2026-11-28T09:33:20.852+0000 [INFO] [org.gradle.launcher.daemon.server.exec.StartBuildOrRespondWithBusy] Daemon is about to start building Build{id=097a29a3-49ab-4591-97c8-4f36fbcf0573, currentDir=<scratch>/clones/charter}. Dispatching build started information...
+2026-11-28T09:33:20.852+0000 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 35: dispatching org.gradle.launcher.daemon.protocol.BuildStarted@21ee15df
+2026-11-28T09:33:20.854+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.LogToClient] About to start relaying all logs to the client via the connection.
+2026-11-28T09:33:20.854+0000 [INFO] [org.gradle.launcher.daemon.server.exec.LogToClient] The client will now receive all logging from the daemon (pid: 21133). The daemon log file: <scratch>/gh/charter/daemon/9.8.1/daemon-21133.out.log
+2026-11-28T09:33:20.858+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ApplyClientEnvironmentVariables] Configuring env variables: [PATH, UV_NATIVE_TLS, NO_PROXY, CCR_UPSTREAM_PROXY_ENABLED, ELECTRON_GET_USE_PROXY, CLOUDSDK_PROXY_PORT, NIX_PROFILES, GLOBAL_AGENT_NO_PROXY, GCM_INTERACTIVE, CLAUDE_CODE_WORKER_EPOCH, PIP_CERT, COREPACK_ENABLE_AUTO_PIN, CLAUDE_CODE_GZIP_REQUEST_BODIES, HTTPLIB2_CA_CERTS, CCR_AGENT_PROXY_CA_WATCH_ENABLED, PWD, CLAUDE_CODE_VERSION, CLAUDE_CODE_CHROME_SIDE_PANEL, MAX_THINKING_TOKENS, CLAUDE_CODE_SYNC_SKILLS, MCP_TOOL_TIMEOUT, CCR_OTLP_METRICS_INTERVAL_S, TRACEPARENT, CLAUDE_CODE_INCLUDE_PARTIAL_MESSAGES, CLAUDE_EFFORT, NoDefaultCurrentDirectoryInExePath, GIT_SSL_CAINFO, GRPC_DEFAULT_SSL_ROOTS_FILE_PATH, CLAUDE_CODE_REMOTE_SEND_KEEPALIVES, CLAUDE_CODE_ARTIFACT_MULTI_FILE, ANTHROPIC_BASE_URL, NIX_SSL_CERT_FILE, SHLVL, IS_SANDBOX, RUST_BACKTRACE, CCR_ASYNC_REGISTER_WORKER, CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_ENABLE_STREAM_WATCHDOG, USE_SHTTP_MCP, JAVA_HOME, GIT_EDITOR, TERM, CCR_SPAWN_TIMESTAMP_MS, CLOUDSDK_PROXY_TYPE, CLAUDE_CODE_MESSAGING_TOKEN, CCR_SETUP_SCRIPT_FAILURE_CONTINUES, BUN_FEATURE_FLAG_DISABLE_STANDALONE_MADVISE, GRADLE_USER_HOME, AWS_ACCESS_KEY_ID, CLAUDE_CODE_TEE_SDK_STDOUT, CLAUDE_CODE_SESSION_ID, JAVA_TOOL_OPTIONS, HTTPS_PROXY, PIP_CONFIG_FILE, NODE_EXTRA_CA_CERTS, DENO_TLS_CA_STORE, CCR_ENABLE_TRACING, CLAUDE_CODE_ARTIFACT_TYPE_CLOUD_CREATE, CLAUDE_CODE_SESSION_ATTENDED, MATPLOTLIBRC, CLAUDE_CODE_ACCOUNT_UUID, ENVRUNNER_SKIP_ACK, _, CLAUDE_CODE_DISABLE_BUILTIN_ANTMCP, CLAUDE_CODE_EXECPATH, GH_NO_UPDATE_NOTIFIER, GIT_CONFIG_KEY_1, no_proxy, GIT_CONFIG_KEY_0, SSL_CERT_FILE, CCR_PRELOAD_CLAUDE, CLAUDE_PID, GIT_CONFIG_KEY_2, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD, RBENV_ROOT, CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST, MCP_CONNECTION_NONBLOCKING, DENO_CERT, USE_BUILTIN_RIPGREP, CLAUDE_ADDITIONAL_DIRECTORIES, CLAUDE_CODE_ELEGANT_MEADOW, CLAUDE_CODE_REMOTE_SESSION_ID, PYTHONUNBUFFERED, CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD, CLOUDSDK_PROXY_ADDRESS, CLAUDE_CODE_DEBUG, CLAUDE_CODE_ENVIRONMENT_RUNNER_VERSION, CCR_SESSION_PROFILE, CCR_AUTO_MODE_USER_ENV_KEYS_FACT, CHROME_PATH, YARN_HTTPS_PROXY, https_proxy, XDG_DATA_DIRS, CLAUDE_CODE_POST_FOR_SESSION_INGRESS_V2, CLAUDE_CODE_CONFIG_WATCH_EVENTS, AWS_SECRET_ACCESS_KEY, CLAUDE_CODE_HOSTED_DESKTOP, CLAUDE_CODE_ARTIFACT_TYPE_CATALOG, CLAUDE_CODE_ORGANIZATION_UUID, GIT_CONFIG_COUNT, SKIP_PLUGIN_MARKETPLACE, BUN_OPTIONS, CLOUDSDK_AUTH_ACCESS_TOKEN, FSSPEC_GCS, GLOBAL_AGENT_HTTPS_PROXY, CLAUDE_CODE_ENTRYPOINT, CLAUDECODE, RUSTUP_HOME, CLAUDE_CODE_SYNC_SESSION_REFS, npm_config_https_proxy, GIT_CONFIG_VALUE_0, PUPPETEER_EXECUTABLE_PATH, GIT_CONFIG_VALUE_1, GIT_CONFIG_VALUE_2, GIT_ASKPASS, ENV_MANAGER_ENABLE_DIAG_LOGS, CHROME_BIN, CURL_CA_BUNDLE, CCR_AGENT_PROXY_ENABLED, ANGLE_FEATURE_OVERRIDES_ENABLED, AWS_CA_BUNDLE, SHELL, __ETC_PROFILE_NIX_SOURCED, BUN_TLS_EXTRA_DISTRUSTED_KEYS, npm_config_noproxy, CLAUDE_CODE_CHILD_NOTES_DIR, REQUESTS_CA_BUNDLE, GITHUB_TOKEN, GIT_TERMINAL_PROMPT, AI_AGENT, NPM_CONFIG_USERCONFIG, OLDPWD, BUN_INSTALL, CLAUDE_CODE_MCP_NO_REDIAL_AFTER_POLICY_REFUSAL, TMPDIR, CLAUDE_CODE_CONTAINER_ID, ORT_DISABLE_TELEMETRY, CLAUDE_CODE_ARTIFACT_ASSETS, DEBIAN_FRONTEND, SESSION_INGRESS_URL, CLAUDE_CODE_MCP_ALWAYS_LOAD_JOIN_BEFORE_INPUT, _JAVA_OPTIONS, HEX_CACERTS_PATH, CLAUDE_CODE_JIT_POLICY_AFTER_STARTUP, CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE, CLAUDE_CODE_REMOTE_HERMETIC_MODE, SBX_TELEMETRY_SOCKET, NODE_OPTIONS, YARN_NETWORK_CONCURRENCY, CCR_DIAG_FLUSH_INTERVAL_S, CLAUDE_CODE_USER_EMAIL, CLAUDE_CODE_USE_CCR_V2, CLAUDE_CODE_CCR_EVENT_FLUSH_POLICY, CLAUDE_CODE_ARTIFACT_DB, CODEGRAPH_TELEMETRY, CARGO_HTTP_CAINFO, NODE_PATH, CLAUDE_CODE_CHILD_SESSION, PLAYWRIGHT_BROWSERS_PATH, SPEC_KITTY_NO_UPGRADE_CHECK, CLAUDE_CODE_REMOTE, CLAUDE_CODE_DIAGNOSTICS_FILE, SPEC_KITTY_NO_NAG, DOCKER_HTTPS_PROXY, PWHEADLESS, CLAUDE_SESSION_INGRESS_TOKEN_FILE, CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, CLAUDE_CODE_ARTIFACT_TYPES, CLAUDE_CODE_BG_TASKS_REPORT_RUNNING, DOCUMENTS_MCP_SCRATCH_ROOT, CLAUDE_CODE_MESSAGING_SOCKET, CCR_EGRESS_GATEWAY_ENABLED, CLAUDE_CODE_REMOTE_SDK_URL, GH_TOKEN, CLAUDE_AFTER_LAST_COMPACT, CLAUDE_CODE_HOLD_UNANSWERED_PARKED_PERMISSION, CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE, TEMP, CLAUDE_CODE_SYNC_PLUGINS, TMP, DISABLE_AUTOUPDATER, CLAUDE_CODE_PROXY_RESOLVES_HOSTS, CLAUDE_AUTO_BACKGROUND_TASKS, HOME]
+2026-11-28T09:33:20.877+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.RequestStopIfSingleUsedDaemon] Requesting daemon stop after processing Build{id=097a29a3-49ab-4591-97c8-4f36fbcf0573, currentDir=<scratch>/clones/charter}
+2026-11-28T09:33:20.877+0000 [LIFECYCLE] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Daemon will be stopped at the end of the build 
+2026-11-28T09:33:20.878+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Stop as soon as idle requested. The daemon is busy
+2026-11-28T09:33:20.878+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon stop has been requested. Sleeping until state changes.
+2026-11-28T09:33:20.888+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] The daemon has started executing the build.
+2026-11-28T09:33:20.890+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] Executing build with daemon context: DefaultDaemonContext[uid=d4ad939b-5611-4022-b79a-a9710f5b2674,javaHome=/usr/lib/jvm/temurin-25,javaVersion=25,javaVendor=Eclipse Adoptium,daemonRegistryDir=<scratch>/gh/charter/daemon,pid=21133,idleTimeout=120000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-XX:MaxMetaspaceSize=768m,-XX:+HeapDumpOnOutOfMemoryError,-Xmx2g,-Dfile.encoding=UTF-8,-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts,-Djavax.net.ssl.trustStoreType=JKS,-Duser.country=US,-Duser.language=en,-Duser.variant]
+Calculating task graph as no cached configuration is available for tasks: :deployable:test --tests *HexagonalArchitectureTest --tests *ReservedRefusalCodesTest --tests *GeneratedConstraintTypesTest :packs:test --tests *BoundaryTest
+Validating spec <scratch>/clones/charter/contracts/charter/openapi.yaml
+Spec is valid.
+Cleaned up output directory <scratch>/clones/charter/service/charter-api/build/generated/openapi before code generation.
+[openApiGenerate] Worker isolation: classloader (fast startup, but generator classes accumulate in Gradle daemon Metaspace - consider workerIsolation = "process" if you hit metaspace pressure)----- End of the daemon log -----
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+exit=1
+### end 2026-11-28T09:54:28Z

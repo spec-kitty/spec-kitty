@@ -1,0 +1,25 @@
+{
+ "emit": "ok",
+ "event_id_len": 26,
+ "materialize": "ok",
+ "wp_lane": "{'lane': 'claimed', 'actor': 'd2-probe', 'last_transition_at': '2026-11-28T09:28:48.894725+00:00', 'last_event_id': '01M8GQRQZYC8Q6JV2P014GDR6E', 'force_count': 0}",
+ "events_file_lines": 2,
+ "spawned_commands": [
+  "git rev-parse --git-common-dir",
+  "git rev-parse --verify --quiet refs/heads/main",
+  "git rev-parse --verify --quiet refs/heads/main"
+ ],
+ "spawned_non_git": [],
+ "java_or_service_children_now": [],
+ "write_service_endpoint_dir_exists": false,
+ "ensure_write-service": {
+  "refusal": {
+   "error_code": "SERVICE_PIN_INVALID",
+   "message": "no pin lockfile for write-service was found",
+   "remedy": "this spec-kitty version has no pin for write-service yet"
+  }
+ },
+ "ensure_read-service": "ValueError: the CLI does not launch read-service (ADR 2026-10-29-1 D-6)",
+ "ensure_charter-service": "ValueError: the CLI does not launch charter-service (ADR 2026-10-29-1 D-6)"
+}
+exit=0

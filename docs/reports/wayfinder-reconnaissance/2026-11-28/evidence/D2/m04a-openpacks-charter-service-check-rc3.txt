@@ -1,0 +1,51 @@
+### 2026-11-28T09:48:44Z open-packs f9a55751: python3 scripts/ci/charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.3.jar (pinned by charter.lock.yaml, sha256 763536af...)
+ok: composition: GET /offering composes 20 packs
+ok: composition: architecture at level built-in, 3 dependencies resolved
+ok: composition: built-in at level built-in, 6 dependencies resolved
+ok: composition: cave-kitty at level org, 1 dependencies resolved
+ok: composition: drupal at level org, 2 dependencies resolved
+ok: composition: event-driven at level org, 1 dependencies resolved
+ok: composition: foundation at level built-in, 0 dependencies resolved
+ok: composition: go at level org, 2 dependencies resolved
+ok: composition: internal at level org, 5 dependencies resolved
+ok: composition: java at level org, 2 dependencies resolved
+ok: composition: javascript at level org, 2 dependencies resolved
+ok: composition: pack-authoring at level org, 2 dependencies resolved
+ok: composition: planning-analysis at level built-in, 2 dependencies resolved
+ok: composition: python at level org, 2 dependencies resolved
+ok: composition: qa at level org, 3 dependencies resolved
+ok: composition: refactoring at level built-in, 2 dependencies resolved
+ok: composition: rust at level org, 2 dependencies resolved
+ok: composition: spdd at level org, 2 dependencies resolved
+ok: composition: testing at level built-in, 1 dependencies resolved
+ok: composition: writing at level built-in, 1 dependencies resolved
+ok: composition: example-pack at level org, 0 dependencies resolved
+ok: registration: cave-kitty registered (created) and read back
+ok: registration: drupal registered (created) and read back
+ok: registration: event-driven registered (created) and read back
+ok: registration: go registered (created) and read back
+ok: registration: internal registered (created) and read back
+ok: registration: java registered (created) and read back
+ok: registration: javascript registered (created) and read back
+ok: registration: pack-authoring registered (created) and read back
+ok: registration: python registered (created) and read back
+::notice::registration: qa: missions/qa/templates/README.md: not held (Orientation notes beside the mission templates they describe. Not pack content and not templates.)
+::notice::registration: qa: missions/qa/templates/plan-field-declaration.yaml: not held (A mission template's plan-field declaration. No model in core at 9554e7b2.)
+ok: registration: qa registered (created) and read back
+ok: registration: rust registered (created) and read back
+ok: registration: spdd registered (created) and read back
+ok: registration: example-pack registered (created) and read back
+ok: registration: the registered packs compose (20 in the offering)
+ok: non-vacuity: case-variant-readme refused at composition with pack_unreadable
+ok: non-vacuity: case-variant-readme refused at registration with validation_failed
+ok: non-vacuity: legacy-shapes refused at composition with pack_unreadable
+ok: non-vacuity: legacy-shapes refused at registration with validation_failed
+ok: non-vacuity: malformed-pack-version refused at composition with pack_unreadable
+ok: non-vacuity: malformed-pack-version refused at registration with validation_failed
+ok: non-vacuity: retired-pack-document refused at composition with pack_unreadable
+ok: non-vacuity: retired-pack-document refused at registration with validation_failed
+ok: non-vacuity: unknown-dependency refused at composition with pack_dependency_unknown
+ok: non-vacuity: unknown-dependency refused at registration with pack_dependency_unknown
+ok: the charter service accepts every pack and refuses every invalid fixture
+exit=0
+### end 2026-11-28T09:58:24Z

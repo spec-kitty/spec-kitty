@@ -1,0 +1,5 @@
+read-service service-v0.1.0-rc.1 linux-x64: ok <scratch>/xdg-cache/spec-kitty/services/read-service/service-v0.1.0-rc.1/mission-status-api-0.1.0-rc.1-linux-x64
+read-service service-v0.1.0-rc.1 contract_tools: ok <scratch>/xdg-cache/spec-kitty/services/read-service/service-v0.1.0-rc.1/contract-tools-0.1.0-rc.1.tar.gz
+read-service service-v0.1.0-rc.1 contracts: ok <scratch>/xdg-cache/spec-kitty/services/read-service/service-v0.1.0-rc.1/contract-bundles-0.1.0-rc.1.tar.gz
+read-service service-v0.1.0-rc.1 fixtures: ok <scratch>/xdg-cache/spec-kitty/services/read-service/service-v0.1.0-rc.1/conformance-fixtures-0.1.0-rc.1.tar.gz
+exit=0

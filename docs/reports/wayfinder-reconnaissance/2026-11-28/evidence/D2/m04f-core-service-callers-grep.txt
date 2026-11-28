@@ -1,0 +1,17 @@
+# core 5c4fc5a7: callers of the service launcher outside src/specify_cli/services/
+src/specify_cli/cli/commands/service.py:18:* ``stop`` -- stop this clone's instance (FR-009) through :class:`ServiceLauncher`. Exit 0 when
+src/specify_cli/cli/commands/service.py:43:from specify_cli.services.client import ServiceClient, ServiceUnreachable
+src/specify_cli/cli/commands/service.py:44:from specify_cli.services.launcher import ServiceLauncher, StopOutcome
+src/specify_cli/cli/commands/service.py:228:        handshake = ServiceClient(endpoint).handshake()
+src/specify_cli/cli/commands/service.py:294:        outcome = ServiceLauncher(warn=warnings.append).stop(service, _repo_root())
+# core 5c4fc5a7: importers of status.write_service_protocol names outside status/ and services/
+src/runtime/next/_internal_runtime/events.py:66:    "bind_event_bridge",
+src/runtime/next/_internal_runtime/events.py:304:def bind_event_bridge(*, emitter_factory: RuntimeEmitterFactory, transition_port: WorkPackageTransitionPort) -> None:
+src/specify_cli/status/__init__.py:494:from .write_service_protocol import (
+# pins present
+README.md
+read-service.source.yaml
+write-service.source.yaml
+# NOTE: write-service.source.yaml above was created by this workstream's vendor rehearsal in the disposable clone. Tracked at 5c4fc5a7:
+pins/README.md
+pins/read-service.source.yaml

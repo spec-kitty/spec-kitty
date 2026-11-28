@@ -1,0 +1,68 @@
+finding_id: F-D2-021
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: independence-matrix
+  deviation: null
+subject:
+  component: five capabilities on five dimensions
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of the 25 cells of evidence/D2/independence-matrix.csv: 7 established, 12 partly, 3 not established, 3 not
+  assessable. Distribution is established in 4 of 5 rows and partly in 1; logical independence is established in
+  0 of 5 rows (3 not established, 2 partly); the contract dimension is partly in 5 of 5 rows.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/independence-matrix.csv
+  method: cells derived from the cited findings
+  sha256: dbb0af2d4b9dc6294e206a630cb0b0ba7925b635d67cda1a20517d37c0ce781e
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: The five rows the brief names.
+  not_covered: Cells marked not assessable (events build blocked; no consumer of the write or activation operations).
+  population: null
+  sample: null
+  seed: null
+interpretation: The services are separately built, released and run, while the responsibility each one names is,
+  at core head, still carried out by Python in core. Separate repository and process were observed together with
+  shared formats and a second implementation in every row.
+derived_from:
+- F-D2-001
+- F-D2-002
+- F-D2-003
+- F-D2-004
+- F-D2-005
+- F-D2-006
+- F-D2-008
+- F-D2-009
+- F-D2-010
+- F-D2-011
+- F-D2-012
+- F-D2-013
+- F-D2-014
+- F-D2-015
+- F-D2-016
+- F-D2-017
+counterevidence: []
+disconfirmation:
+  search: For each "established" cell, looked for an observation against it; for each "not established" cell, looked
+    for one in favour.
+  result: Counter-observations are carried in the cell text (for example the read service has a served contract
+    and byte-level goldens although its logical cell is partly).
+relations: []
+confidence: medium
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

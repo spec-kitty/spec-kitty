@@ -1,0 +1,67 @@
+finding_id: F-D2-022
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: independence-matrix
+  deviation: null
+subject:
+  component: unsupported by design or defect
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Classification of the gaps observed. Unsupported by design, on the basis of a recorded statement in the
+  repository that says so: the CLI not launching the read service; no charter-service or write-service pin in core
+  and no write transport; 5 of 10 mission-status operations answering 404; open-packs working only with its pinned
+  charter build. Not classifiable from recorded intent found in this workstream: the released contract version strings
+  reading SNAPSHOT; the fixtures archive lacking 5 goldens its request set names; the activation corpus in core
+  not being referenced by the charter repository. Environment limits, not properties of the repositories: the events
+  build, the attestation check and the first charter build attempts. No observation in this workstream was classified
+  as a defect.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D2/independence-matrix.csv
+  method: classification derived from the cited findings
+  sha256: dbb0af2d4b9dc6294e206a630cb0b0ba7925b635d67cda1a20517d37c0ce781e
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: The gaps listed in the cited findings.
+  not_covered: Intent recorded only in ADRs or issues that this workstream did not read.
+  population: null
+  sample: null
+  seed: null
+interpretation: Most gaps are staged work that the repositories describe as not yet cut over; three items have no
+  recorded statement either way and are open questions rather than defects.
+derived_from:
+- F-D2-002
+- F-D2-005
+- F-D2-012
+- F-D2-013
+- F-D2-016
+- F-D2-017
+- F-D2-019
+- F-D2-020
+counterevidence: []
+disconfirmation:
+  search: For each item called by design, looked for the statement; for each unclassified item, looked for a statement
+    in the changelog or README of the owning repository.
+  result: Statements found for the first group (F-D2-005, F-D2-020 evidence). For the SNAPSHOT version the mission-write
+    changelog says the snapshot "is treated like a release candidate" by an operator ruling, which is a partial
+    statement of intent.
+relations: []
+confidence: medium
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Is the SNAPSHOT version string in released contract bundles and in the rc.3 charter service intended?
+- Is the core activation corpus meant to be run by the charter repository before the activation cut-over?

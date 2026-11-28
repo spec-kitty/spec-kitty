@@ -1,0 +1,3 @@
+429 https://repo.maven.apache.org/maven2/org/graalvm/buildtools/native/org.graalvm.buildtools.native.gradle.plugin/1.1.8/org.graalvm.buildtools.native.gradle.plugin-1.1.8.pom
+200 https://repo.maven.apache.org/maven2/org/graalvm/buildtools/native/org.graalvm.buildtools.native.gradle.plugin/1.1.8/org.graalvm.buildtools.native.gradle.plugin-1.1.8.pom
+200 https://maven-central.storage-download.googleapis.com/maven2/org/graalvm/buildtools/native/org.graalvm.buildtools.native.gradle.plugin/1.1.8/org.graalvm.buildtools.native.gradle.plugin-1.1.8.pom

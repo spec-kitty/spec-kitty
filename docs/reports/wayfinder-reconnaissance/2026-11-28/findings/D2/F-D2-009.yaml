@@ -1,0 +1,58 @@
+finding_id: F-D2-009
+workstream: D2 - Independence of the Java services
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: events contracts provenance citations
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.1 release asset contract-bundles-0.1.0-rc.1.tar.gz
+  revision_kind: released
+claim: 'The released events contract bundles name core source files as the origin of their properties: the mission-status
+  bundle has 317 lines of the form ''path: src/specify_cli/...'' over 38 distinct core files (87 of them src/specify_cli/status/models.py),
+  and the mission-write bundle has 182 such lines over 5 distinct core files. At head, 94 of 268 YAML files under
+  contracts/ contain a specify_cli path.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04c-events-contract-bundle-citations.txt
+  method: 'grep -c on the released bundles: x-source, path: src/specify_cli, operationId'
+  sha256: 3d66f84011e2e511b959a33679f7db7425935f384881c3b1684c1394991b3f67
+  exit_code: 0
+  environment: grep; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+- id: E2
+  kind: static-derived
+  reference: evidence/D2/m04c-contract-bypass-inventory.csv
+  method: row C04
+  sha256: 61a4d0536d26d0174442d19ee87eddf54fd5790b511787ba830acb7a59a9f0b7
+  exit_code: 0
+  environment: python3 3.13; grep; git; Linux x86_64, 4 cores, 16 GiB shared host
+  observed_at: 2026-11-28T09:00Z-12:15Z
+scope:
+  covered: Both bundles of the rc.1 release, and a file count at events head.
+  not_covered: Whether each cited symbol still exists in core at head was not checked.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the citations are stripped from the released bundle.
+  result: They are present in the released bundle.
+relations: []
+confidence: high
+analyst:
+  profile: java-jenny
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []
