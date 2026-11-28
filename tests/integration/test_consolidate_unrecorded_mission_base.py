@@ -9,7 +9,7 @@ that reason and the remedy, and the remedy, run as printed, lands the Mission: r
 review 11: a recorded base off the target starts nothing either) as ``mission_base_sha`` and commit
 it on the Mission branch. No command records the base yet (#7892).
 
-Built on the shape-B fixture of ``test_7860_consolidate_planning_lane`` (the planning work package
+Built on the shape-B fixture of ``test_consolidate_planning_lane`` (the planning work package
 WP02 owns ``curation/apply_curation.py`` in ``lane-planning``), with ``mission_base_sha`` removed
 from meta.json before any work package is claimed, as a Mission created before #7560 has it.
 """
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration import test_7860_consolidate_planning_lane as shape
+from tests.integration import test_consolidate_planning_lane as shape
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(1500)]
 

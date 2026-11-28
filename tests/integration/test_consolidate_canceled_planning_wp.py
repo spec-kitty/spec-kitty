@@ -6,7 +6,7 @@ The refusal must say so (the planning lane, the work package and why), and the r
 must land the Mission: record the claim (``move-task --to claimed --force``), force the work
 package to approved, then ``consolidate --attest-no-implementation``.
 
-Built on the shape-B fixture of ``test_7860_consolidate_planning_lane`` (the planning work package
+Built on the shape-B fixture of ``test_consolidate_planning_lane`` (the planning work package
 WP02 owns ``curation/apply_curation.py`` in ``lane-planning``), with WP04 moved into
 ``lane-planning`` and canceled before anyone claimed it.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration import test_7860_consolidate_planning_lane as shape
+from tests.integration import test_consolidate_planning_lane as shape
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(1500)]
 

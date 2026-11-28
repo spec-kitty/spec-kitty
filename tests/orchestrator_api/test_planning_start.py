@@ -27,7 +27,7 @@ from specify_cli.orchestrator_api.commands import app
 from specify_cli.workspace.context import clear_workspace_resolution_caches
 from tests._support.git_cli import git_out
 from tests.status.conftest import seed_wp_to_planned
-from tests.lanes.test_planning_claim_base_7860 import (
+from tests.lanes.test_planning_claim_base import (
     CODE_WP,
     MISSION_BRANCH,
     PLANNING_WP,
