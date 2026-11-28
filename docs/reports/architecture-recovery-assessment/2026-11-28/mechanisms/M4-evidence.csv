@@ -1,0 +1,54 @@
+claim,reference,tag
+Core registers no handler on the status produce seam; registrants are tests and event-router/relocated only,"spec-kitty:src/specify_cli/status/adapters.py:150 (register_status_fanout_handler); grep -rln register_status_fanout_handler over src and sibling clones",executed
+The invocation SaaS-client slot has no registrant,spec-kitty:src/specify_cli/invocation/adapters.py:56,read
+Propagator still serves the empty SaaS slot (287 lines),spec-kitty:src/specify_cli/invocation/propagator.py:58,read
+mission-events.jsonl writer calls itself a Phase 1B provisional interface to be replaced in Phase 2,spec-kitty:src/specify_cli/mission_v1/events.py:1,read
+Write-service protocol module has no transport and its names are dead-symbol allowlist entries until the cut-over,spec-kitty:src/specify_cli/status/write_service_protocol.py:10,read
+Dead-symbol allowlist carries the write-service client category,spec-kitty:tests/architectural/dead_symbol_allowlist.yaml (category_c_write_service_client_6675; 7 matches),executed
+EventBridge local file adapter writes through the old store primitives; to be replaced by the write-service client,spec-kitty:src/specify_cli/events/event_bridge.py:1,read
+EventBridge port: open-core binds no adapter; the unit is the append only,spec-kitty:src/runtime/next/event_bridge.py:16,read
+Only production caller of ServiceLauncher is service stop,spec-kitty:src/specify_cli/cli/commands/service.py:294,executed
+Write service and charter service are not pinned; read service pinned for CI conformance only and never launched,spec-kitty:pins/README.md:28,read
+Read-service pin is service-v0.1.0-rc.1,spec-kitty:pins/read-service.source.yaml:5,read
+Core services package is 2096 lines in 9 files,spec-kitty:src/specify_cli/services/ (wc -l),executed
+Core status package is 53 files and 21397 lines,spec-kitty:src/specify_cli/status/ (wc -l),executed
+Interim event-log lock retires at the #6193 handover; 10 caller modules,spec-kitty:src/kernel/event_log_append.py:1,read
+Raw append allowlist for status.events.jsonl names nine modules,spec-kitty:src/specify_cli/status/_unsafe.py:75,read
+canonical-events.jsonl file name; no reader in src beyond a migration and the lock,"spec-kitty:src/specify_cli/status/lifecycle_events.py:123; grep canonical-events over src",executed
+Local lifecycle envelope marked canonical-producer-exempt; 14 markers in src,spec-kitty:src/specify_cli/status/lifecycle_events.py:316,executed
+Core reduce wraps the package fold reduce_parsed,spec-kitty:src/specify_cli/status/reducer.py:200,read
+materialize_snapshot reads the log twice and calls the package reduce,spec-kitty:src/specify_cli/status/reducer.py:397,read
+72 source files call reduce or materialize,"spec-kitty:src (grep -rlE '\breduce\(|materialize_snapshot\(|materialize\(')",executed
+Core defines its own Lane and StatusEvent models (1217 lines),spec-kitty:src/specify_cli/status/models.py:29,read
+Core transition matrix is a derived set,spec-kitty:src/specify_cli/status/transitions.py:53,read
+Core also calls the package validate_transition,spec-kitty:src/specify_cli/cli/commands/agent/tasks_transition_core.py:274,read
+Event-log git merge driver serialises with its own json.dumps,spec-kitty:src/specify_cli/status/event_log_merge.py:196,read
+Decision points go to status.events.jsonl,spec-kitty:src/specify_cli/decisions/emit.py:1,read
+Decision input events go to decisions.events.jsonl,spec-kitty:src/specify_cli/events/decision_log.py:1,read
+status.json is named in 94 source files,spec-kitty:src (grep -rln 'status\.json'),executed
+Core declares spec-kitty-events >=11.3.0 and <12; the package head is 11.5.0,"spec-kitty:pyproject.toml:80; spec-kitty-events:pyproject.toml:3",read
+Migration order has steps 0 to 5; step 4 moves status.events.jsonl and deletes the Python appenders,spec-kitty:docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md:193,read
+Stated reasons for a Java write service are alternate deployments and a possible later database or hosted store,spec-kitty:docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md:52,read
+Current-state map lists about fifteen append implementations and six row shapes,spec-kitty:docs/architecture/event-ledger-writers-and-readers.md:92,read
+diary reducer was moved verbatim from the CLI so the CLI and the Team Kitty dossier share one implementation,spec-kitty-events:src/spec_kitty_events/diary.py:10,read
+Package Lane enum (diary),spec-kitty-events:src/spec_kitty_events/diary.py:152,read
+Package Lane enum (status) and transition matrix,"spec-kitty-events:src/spec_kitty_events/status.py:236; :605",read
+Lamport reducer reduce_status_events exists and core does not call it,"spec-kitty-events:src/spec_kitty_events/status.py:843; grep in spec-kitty:src",executed
+Approved-departure lift and ordering in the package fold,spec-kitty-events:src/spec_kitty_events/diary.py:1884,read
+12 reducers in the package; core calls reduce_parsed/reduce and reduce_decision_point_events only,spec-kitty-events:src/spec_kitty_events (grep '^def reduce'),executed
+Core is the only non-test source importer among the clones and uses 75 of 456 exported names,AST scan of imports over spec-kitty/src and eight sibling clones (script in session),executed
+About 8.4k of 18.6k top-level module lines are in modules no consumer source imports,same scan plus wc -l,inferred
+132 files under schemas including sync_lane_v1 and sync_lane_v2,spec-kitty-events:src/spec_kitty_events/schemas/,executed
+Java lane machine is ported from core WPState.check_transition,spec-kitty-events:service/command-cli/src/main/java/org/speckitty/commandcli/domain/authority/LaneMachine.java:3,read
+Java write-side ordering re-implements the approved-departure lift,spec-kitty-events:service/command-cli/src/main/java/org/speckitty/commandcli/domain/authority/EventOrdering.java:1,read
+Java write-side fold ports core's rollback-aware fold,spec-kitty-events:service/command-cli/src/main/java/org/speckitty/commandcli/domain/authority/TransitionFold.java:1,read
+Java read reducer is a port of diary.reduce_parsed coupled by PORTED_EVENTS_VERSION 11.3.0,spec-kitty-events:service/event-log/src/main/java/org/speckitty/missionstatus/domain/readmodel/reducer/StatusReducer.java:70,read
+Write service states its lane authority is deliberately separate from the read StatusReducer; coordination_ref_commit refused until step 4,spec-kitty-events:service/command-cli/README.md:10,read
+Java parity oracles pin core commit 512567ee,spec-kitty-events:service/core-pin.json:1,read
+Read service is detached: no spec-kitty command starts it,spec-kitty-events:service/README.md:5,read
+Java sizes: 19473 main and 44020 test lines in 662 files,spec-kitty-events:service java contracts (find + wc -l excluding build),executed
+Events Python tests are 50567 lines in 363 files,spec-kitty-events:tests (wc -l),executed
+Write service commits coordination status by compare-and-swap on the ref with no coordination worktree (target),spec-kitty-events:docs/adr/0007-write-service-commits-coordination-status-by-ref.md:113,read
+No sibling clone references the read or write service routes in code (one research note in spec-kitty-container),grep 'api/v1/missions|mission-status-api|command-cli|api/v1/handshake' over eight clones,executed
+event-router holds relocated hosted code and declares itself bootstrap with no code of its own,event-router:README.md:17,read
+Ordering rules compensate for git-joined multi-location logs,derived from event_log_merge.py and diary.py:1943,inferred

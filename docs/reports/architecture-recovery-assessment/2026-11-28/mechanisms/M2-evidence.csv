@@ -1,0 +1,63 @@
+claim,reference,tag
+Four built-in mission types and their step lists are documented as workflow definitions,spec-kitty:packs/built-in/missions/README.md:9-14,read
+Reference page documents custom missions as a user capability,spec-kitty:docs/api/missions.md:224-232,read
+Reference page documents a second custom mission format (mission/steps) under the same filename,spec-kitty:docs/api/missions.md:310-330,read
+Reference page states built-in dispatch is hard-coded to the reserved keys,spec-kitty:docs/api/missions.md:395,read
+Reference page documents workflows selected by meta.json workflow_id,spec-kitty:docs/api/missions.md:410-470,read
+Runtime loop documents four advancing decision kinds,spec-kitty:docs/architecture/runtime-loop.md:137-215,read
+Nine definition file kinds per built-in mission type,spec-kitty:packs/built-in/missions/ (ls of mission_types; <type>/; mission-steps/; built_in_step_contracts/),executed
+Module sizes (runtime/next 35 files 17624 lines; _internal_runtime 4676; charter/offering/missions 3499; mission_loader 1399; mission_step_contracts 886),"spec-kitty:src (find -name '*.py' -not -path '*__pycache__*' | xargs cat | wc -l)",executed
+mission.yaml is byte-identical in src/specify_cli/missions/<type>/ and packs/built-in/missions/<type>/ for all four types,"spec-kitty: diff -q src/specify_cli/missions/$t/mission.yaml packs/built-in/missions/$t/mission.yaml",executed
+research mission.yaml phases are question/methodology/gather/analyze/synthesize/publish,spec-kitty:packs/built-in/missions/research/mission.yaml:7-20,read
+research runtime steps are scoping/methodology/gathering/synthesis/output/accept,spec-kitty:packs/built-in/missions/research/mission-runtime.yaml:20-59,read
+get_active_mission; get_workflow_phases; get_path_conventions have no caller outside mission.py,"spec-kitty:src/specify_cli/mission.py:404,420,428 (grep -rn over src)",executed
+MISSION_CHOICES lists only software-dev and research,spec-kitty:src/specify_cli/core/config.py:38-41,read
+Mission type constants list three types,spec-kitty:src/specify_cli/core/constants.py:62-64,read
+Mission DSL v1 state machine retired; only events.py survives,spec-kitty:src/specify_cli/mission_v1/__init__.py:13-20,read
+Research guard reader cites retired mission_v1/guards.py as its model,spec-kitty:src/runtime/next/runtime_bridge_composition.py:347-352,read
+Engine internalised from spec-kitty-runtime 0.4.3,spec-kitty:src/runtime/next/_internal_runtime/discovery.py:3-6,read
+Reserved built-in keys forbid overriding built-in types,spec-kitty:src/runtime/next/_internal_runtime/discovery.py:42-49,read
+Custom-mission contracts are synthesised in memory,spec-kitty:src/specify_cli/mission_loader/contract_synthesis.py:1-45,read
+Charter models record transient dual-home and S-B transition,spec-kitty:src/charter/offering/missions/models.py:38-43,read
+Fallback synthesises charter steps from mission-runtime.yaml,spec-kitty:src/charter/offering/missions/mission_step_repository.py:283-315,read
+Shipped workflow lives under src/charter/offering/workflows and ends in merge,spec-kitty:src/charter/offering/workflows/software-dev-default.workflow.yaml,read
+workflow_id is read from meta.json and written by no code,"spec-kitty:src/runtime/next/runtime_bridge_io.py:706; src/runtime/next/_internal_runtime/planner.py:201 (grep workflow_id over src)",executed
+No Mission folder in core carries workflow_id (0 of 859),"spec-kitty: grep -rln '""workflow_id""' kitty-specs/*/meta.json | wc -l",executed
+Legacy tasks sub-step ids normalised into the tasks action,spec-kitty:src/runtime/next/runtime_bridge_composition.py:101-116,read
+Step lists disagree across seven surfaces for software-dev,"spec-kitty:packs/built-in/missions/software-dev/{mission-runtime.yaml,expected-artifacts.yaml,mission.yaml}; mission-steps/software-dev/*/step.yaml (shell comparison)",executed
+Research accept step has no step.yaml and no contract,spec-kitty:packs/built-in/missions/mission-steps/research/ (ls); built_in_step_contracts/ (ls),executed
+Research guard chain fails closed on unknown action,spec-kitty:src/runtime/next/runtime_bridge_cores.py:590-605,read
+Research accept step reaches the fail-closed branch,spec-kitty:src/runtime/next/runtime_bridge_cores.py:605,inferred
+Guard table keyed on four literal mission type names,spec-kitty:src/runtime/next/runtime_bridge_cores.py:859-864,read
+Custom families are guarded by the expected-artifacts blocking set,spec-kitty:src/runtime/next/runtime_bridge_cores.py:867-905,read
+Built-in plan field declarations are a Python table keyed on type name,spec-kitty:src/specify_cli/missions/_substantive.py:543-575,read
+No plan-field-declaration.yaml ships in packs,"spec-kitty: find packs -name plan-field-declaration.yaml | wc -l = 0",executed
+Requirement grammar branches on mission_type == research,"spec-kitty:src/specify_cli/requirement_mapping/grammar.py:83,196,287,362,379",read
+load_requirement_kinds has no production caller,spec-kitty:src/charter/activation/manifest_loader.py:363 (grep over src and tests),executed
+Capability defaults are a Python table and also a descriptor field,spec-kitty:src/charter/offering/missions/capabilities.py:37-44; packs/built-in/missions/mission_types/research.yaml:4,read
+Profile defaults are a Python table for built-ins only,spec-kitty:src/specify_cli/mission_step_contracts/profile_defaults.py:23-48,read
+Template agent_profile is not consulted for built-in actions,spec-kitty:src/runtime/next/runtime_bridge_composition.py:283-298,read
+13 comparisons of a mission-type variable to a literal name in 7 files,"spec-kitty: grep -rnE '(mission(_type|_key|_name)?|mtype|key)\s*(==|!=|in|not in)\s*[\(\{\[]?[""''](software-dev|research|documentation|plan)[""'']' src --include=*.py",executed
+300 quoted built-in type names in 98 files,"spec-kitty: grep -rnE '[""''](software-dev|research|documentation)[""'']' src --include=*.py | wc -l",executed
+34 literal step-id comparisons outside migrations; 18 in runtime_bridge_cores.py,"spec-kitty: grep -rnE '(action|step_id|step|command)\s*(==|!=|in|not in)…' src --include=*.py",executed
+53 parameters default to software-dev,"spec-kitty: grep -rnE ':\s*str(\s*\|\s*None)?\s*=\s*""software-dev""' src --include=*.py | wc -l",executed
+WP iteration is implied by a step named implement,spec-kitty:src/kernel/mission_runtime_shape.py:57-59; src/runtime/next/runtime_bridge_composition.py:509,read
+Gathering guard needs 3 source_documented events; output guard needs a gate event,spec-kitty:src/runtime/next/runtime_bridge_cores.py:576-587,read
+Readers count lines in mission-events.jsonl,spec-kitty:src/runtime/next/runtime_bridge_composition.py:347-409,read
+emit_event has one production call site,"spec-kitty:src/runtime/next/next_invocation_lifecycle.py:474 (grep 'emit_event(' over src)",executed
+Step contract says the threshold is enforced by a mission.yaml event_count guard,spec-kitty:packs/built-in/missions/built_in_step_contracts/research-gathering.step-contract.yaml:22-25,read
+No event_count expression exists in the research pack YAML,"spec-kitty: grep -n event_count packs/built-in/missions/research/*.yaml (no output)",executed
+Guard expects source-register.csv at Mission root,spec-kitty:packs/built-in/missions/research/expected-artifacts.yaml:38-44,read
+Prompt and research command place it under research/,spec-kitty:packs/built-in/missions/mission-steps/research/gathering/prompt.md:28; src/specify_cli/cli/commands/research.py:36-41,read
+setup-plan applies a research-only substantiveness refusal,spec-kitty:src/specify_cli/cli/commands/agent/mission_setup_plan.py:429; src/specify_cli/missions/_substantive.py:954,read
+Documentation type has a hardcoded branch at Mission creation,spec-kitty:src/specify_cli/core/mission_creation_meta.py:262,read
+Installed prompt-backed commands are a fixed tuple of 12 matching software-dev step folders,spec-kitty:src/specify_cli/skills/command_installer.py:98-113,read
+Composition dispatch asks charter then the frozen runtime template,spec-kitty:src/runtime/next/runtime_bridge_composition.py:145-168,read
+Legacy Mission object consumers: worktree artefact list; acceptance; mission-type command,spec-kitty:src/specify_cli/core/worktree.py:59-66; src/specify_cli/acceptance/__init__.py:1621; src/specify_cli/cli/commands/mission_type.py:208,read
+No built-in runtime file uses requires_inputs; audit_steps or raci,"spec-kitty: grep -n 'requires_inputs\|audit_steps\|raci' packs/built-in/missions/*/mission-runtime.yaml (no field hits)",executed
+Layer rule makes runtime and charter each parse the other's files,spec-kitty:src/runtime/next/_internal_runtime/workflow_registry.py:14-18; src/charter/offering/missions/mission_step_repository.py:288-291,read
+Guard comments forbid weakening and record a reverted step-scoped design,spec-kitty:src/runtime/next/runtime_bridge_cores.py:591-593; src/runtime/next/runtime_bridge_io.py:1228-1235,read
+Cross-repository files mentioning step contracts: charter 56; pack-composer 29; doc-kitty 3,"grep -rIl 'step-contract\|step_contract' /home/user/<repo> (excluding .git; kitty-specs; .kittify; agent dirs)",executed
+30 step prompts totalling 5236 lines,"spec-kitty: grep -c '' packs/built-in/missions/mission-steps/*/*/prompt.md",executed
+Core and charter service differ on mission type as an artifact kind,W:synthesis/input/observations-index.csv F-A2-009,read
+Research Mission stalls at gathering in a reviewer-replayed run,W:evaluation/verdict-ledger.csv PX-01 (F-E1-028 to 030),read
