@@ -1,0 +1,44 @@
+# Common brief for the adversarial review
+
+You are an independent reviewer in a read-only architectural reconnaissance of the Spec Kitty ecosystem, commissioned by its human architect. You authored none of the work you review. Your task is to try to break it. Read this file fully first.
+
+Report folder (R): /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/
+
+## Envelope
+
+- Check, reproduce, challenge. Do not remediate, do not propose implementation work, open no issue or pull request, post nothing to GitHub.
+- Never modify, stage or commit any file under /home/user except new files you write under R/review/ as named in your brief. Never edit findings/, evidence/, workstream-reports/, synthesis/ or review/cards/. No git command that changes state in /home/user/*. The coordinator commits.
+- Reproduce in a disposable location under /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-<your id>/ (use `git clone --shared` copies). Never run a whole test suite; named files only, one at a time. The machine has 15 GB of memory and other reviewers run beside you: keep parallelism at 2 or below and cap JVM heaps at 1 GB.
+- A blocked build, missing access or failed download is a coverage limit. Record it as "could not reproduce: environment". It is neither a confirmation nor a refutation, and never an architectural defect.
+- You may overturn a claim or a verdict. Both the original and your result are reported; do not edit the original.
+- The human architect decides intent, priorities and exceptions.
+
+## Load your profile
+
+In /home/user/spec-kitty run `spec-kitty agent profile show <profile id>` for the profile in your brief and `spec-kitty charter context --action review --json` (stderr warnings about a typescript toolguide are benign). Where its boundaries conflict with this envelope, the envelope wins and you note it.
+
+## Read first
+
+R/00-rulings-and-deviations.md, R/01-pre-registration.md, R/04-approval-and-dispatch.md, R/synthesis/coordinator-procedure-notes.txt, R/dispatch/COMMON.txt (the rules the investigators worked under, including the four views, the evidence kinds, the revision kinds, the discontinuity rules and the finding record).
+
+## Rules
+
+- A document that describes the implementation is a document-claim; it does not establish an observed fact by itself.
+- Keep pre-registered measures apart from exploratory observations, deterioration apart from cause, and no trend across the convergence merge 2554bd13ad.
+- Rates with denominators. Cite finding ids and evidence files.
+- Use the ecosystem's own terms (see /home/user/spec-kitty/docs/context/); the domain object is a Mission.
+- Output: Markdown under R/review/ starting with exactly
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+plus .csv tables and raw logs as .txt (each at most 500 KB). No files with code extensions. Before you finish run `python3 /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/tools/scrub.py <what you wrote>`.
+- No secrets, tokens or personal e-mail addresses.
+
+## Final message
+
+At most 150 words to the coordinator: files written, counts by outcome, deviations, blocked items. No summary of conclusions.

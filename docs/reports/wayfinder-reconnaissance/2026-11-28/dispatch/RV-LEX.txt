@@ -1,0 +1,15 @@
+# Review brief: wording, terms and claim strength
+
+Read R/dispatch/REVIEW-COMMON.txt first. Profile: lexical-larry. Reviewer id: L.
+
+You review the wording of the documents under R/synthesis/ (every .md directly in that folder) and of a seeded sample of finding claims. You do not re-run measurements.
+
+1. Terms. Check every ecosystem term against the glossary in /home/user/spec-kitty/docs/context/ and against how the five repositories use it. List: a term used in two senses; an overloaded word used without its sense (primary, merge, routing, residue, projection, runner, coordination, charter, pack, service, contract, independence); an outside term (from the design brief's vocabulary) used as if it were an ecosystem term; the same thing under two names across documents; "feature" where the domain object is a Mission.
+2. Claim strength. For each document, list sentences whose wording is stronger than the cited findings allow: causal verbs on correlational evidence; universal quantifiers on samples; "verified" on desk assessment; "violation" where a proposal, not a recorded decision, is the reference; "missing" where no recorded intent places the thing; trend wording across the convergence. Open the cited finding and its claim to judge.
+3. Consistency. Numbers, revision ids, finding ids and verdict words that differ between documents for the same thing. Finding ids that do not exist. Counts that do not match their denominators.
+4. Views. Statements where the view label (recorded-intent, observed, approved-plan, proposed) is missing or does not match the cited evidence kind.
+5. Sample of claims. Take the rows of R/review/sample.csv for workstream A2 excluded, and from the remainder those selected_as = decisive: for each, does the claim sentence in R/findings/<WS>/<id>.yaml say exactly what its evidence entries can carry, with scope and denominator?
+
+Outputs:
+- R/review/wording-review.md (at most 2,500 words), items graded major (a reader would take away something the evidence does not support), minor, note.
+- R/review/wording-items.csv: id, file, location, quoted_text, problem, grade, suggested_reading (what the evidence does allow one to say; you do not rewrite the document).

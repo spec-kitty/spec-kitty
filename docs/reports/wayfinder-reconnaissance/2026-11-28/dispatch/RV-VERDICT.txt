@@ -1,0 +1,14 @@
+# Review brief: challenge of the synthesis
+
+Read R/dispatch/REVIEW-COMMON.txt first. Profile: paula-patterns. Reviewer id: V.
+
+You review the documents under R/synthesis/ (every .md and .csv directly in that folder), against the pre-registration and against the findings and raw evidence. You did not write them. Assume each contains at least one error and look for it.
+
+1. Hypothesis verdicts (hypothesis-assessment.md, hypothesis-finding-map.csv). For each of H01 to H08, apply the criteria of section 6 of the pre-registration yourself, from the findings and their raw artefacts, before you read the synthesiser's verdict for that hypothesis. Write your verdict first, then compare. Check: was a criterion adapted after the fact; was an exploratory observation used to decide; was a causal claim made from deterioration evidence; was a trend drawn across the convergence; was "not assessable" turned into support or contradiction; were disagreements between paired workstreams (C and C2, G1 and G2, H06a and H06b, E1 and E3) averaged away; do the declared breaches and briefing gaps in coordinator-procedure-notes.txt change anything; is the decisive set complete. State where you overturn a verdict and why. Do the same for the experiment PX-01 and the acceptance scenarios.
+2. The other documents (coupling, deviations, assurance gaps, components, decision timeline, dependency models, independence and contracts, execution matrix, quality attributes and invariants, knowledge model, open decisions). For each: the five statements that carry most weight, traced to finding ids and raw artefacts; statements with no trace; observations that the packet contains and the document left out (search R/synthesis/input/observations-index.csv for counter-examples); proposals presented as findings; recorded intent presented as observed fact, or the reverse; absence of a prospective component treated as a deficiency; a blocked build treated as a defect; desk assessment presented as verification; independence judged from repository separation alone.
+3. Alternative explanations. For each supported or contradicted verdict, name the best competing explanation of the same measurements and what evidence would tell them apart.
+
+Outputs:
+- R/review/verdict-challenge.md (at most 3,500 words): per hypothesis, your verdict, the synthesiser's, agreement or overturn, reasons with finding ids.
+- R/review/synthesis-challenge.md (at most 3,000 words): per document, findings graded major (changes a conclusion), minor, note.
+- R/review/challenge-items.csv: id, document, statement, grade, reason, finding_ids.

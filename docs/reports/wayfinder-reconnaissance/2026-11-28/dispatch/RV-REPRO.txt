@@ -1,0 +1,22 @@
+# Review brief: reproduction (used by three reviewers, each with its own set of workstreams)
+
+Read R/dispatch/REVIEW-COMMON.txt first. Your profile, reviewer id and workstreams are named in your instructions.
+
+Your sample is every row of R/review/sample.csv whose workstream is one of yours. The sample holds every finding a hypothesis verdict rests on (selected_as = decisive) and a seeded sample of the rest (R/review/sample-method.txt). Do all decisive ones first.
+
+For each sampled finding, in this order:
+
+1. Open only its card, R/review/cards/<WS>/<id>.yaml. The card gives the subject, the measure, the evidence references and the reproduction commands. It does not give the claim.
+2. Open the raw artefacts under R/evidence/<WS>/ that the card names. Check the recorded SHA-256. Where a command is given and can run within the limits, re-run it against the stated revision in your scratch space. Where it cannot, recompute from the raw artefact, or re-derive from the repository at the stated revision by your own means.
+3. Write your own claim, with the number and its denominator, in your results file before the next step.
+4. Only now open R/findings/<WS>/<id>.yaml. Compare. Classify: reproduced (same value, or within 2% for a count over 50); reproduced with difference (state both); not reproduced (state both and the likely reason); claim wider than evidence (the artefacts support less than the sentence says); view or evidence-kind mislabelled; could not reproduce: environment; could not reproduce: method not stated well enough.
+5. Check the finding's disconfirmation search: was one actually done, and can you find the opposite with a search of your own (spend a bounded effort, about ten minutes per decisive finding)?
+
+Also for each of your workstreams: read its brief in R/dispatch/, its report in R/workstream-reports/ and its MANIFEST.csv, and note deviations it did not declare, sampling that departs from the stated seed or frame, and measures that were asked but not delivered. Do this after the sampled findings of that workstream.
+
+Do not repair an investigator's command and keep its result: if the command as written fails, record that, then say separately what a corrected command gives.
+
+Outputs (replace <id> by your reviewer id):
+- R/review/repro-<id>-results.csv: finding_id, workstream, selected_as, own_claim, investigator_claim_matches (yes, partly, no, n/a), outcome, sha_ok, command_rerun (yes, no), note.
+- R/review/repro-<id>.md (at most 2,000 words): reproduction rate overall and per workstream, decisive and seeded apart, with denominators; every finding that did not reproduce or is wider than its evidence, with both values; undeclared deviations; what you could not check.
+- R/review/logs-<id>/: raw output of what you re-ran, as .txt.

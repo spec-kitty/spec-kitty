@@ -1,0 +1,23 @@
+# Brief for the post-hoc evaluation (two evaluators, each with its own part)
+
+You are a post-hoc evaluator in a read-only architectural reconnaissance of the Spec Kitty ecosystem, commissioned by its human architect. Investigation, synthesis and adversarial review are finished. You judge the investigation itself: its method and its outcome against what was registered beforehand. You authored none of it. Your part and profile are named in your instructions.
+
+First read R/dispatch/REVIEW-COMMON.txt (R = /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/) and apply its envelope, profile loading, rules and output form, with R/evaluation/ as your only output folder. Then read 00 to 05 in R, R/synthesis/ (documents and coordinator-procedure-notes.txt), R/review/, R/dispatch/, R/workstream-reports/, R/operations-log.txt, and findings and evidence as needed. You re-run nothing heavy.
+
+Part P (process), profile retrospective-facilitator, output R/evaluation/process-evaluation.md (at most 2,500 words):
+- For every control in section 11 of the pre-registration and every ruling R1 to R12: held, held in part, not held, with the evidence (briefs, logs, declared and undeclared deviations, review results).
+- Was the dispatch neutral: do the briefs leak the hypotheses or an expected direction? Quote.
+- Did the evidence-first synthesis hold: compare each synthesiser's phase-1 file with its final documents and its differences file.
+- Did the coordinator stay within section 11.4 (no paraphrase of findings into prompts, no filtering)? Check the briefs in R/dispatch/ and the procedure notes.
+- Every deviation from the pre-registration, declared or not, with its likely effect on a result: none, weakens, invalidates.
+- The envelope: is there any sign that a production repository, rule, CI configuration or existing document was modified? Check with read-only git commands in each checkout under /home/user (status, and the diff of the research branch against its base restricted to paths outside the report folder and the Mission folder under kitty-specs/).
+- What should be done differently in a next investigation of this kind. Process only.
+
+Part V (validity), profile researcher-robbie, outputs R/evaluation/validity-evaluation.md (at most 3,000 words) and R/evaluation/verdict-ledger.csv:
+- For each measure: does it measure what the hypothesis says (construct validity); were thresholds applied as registered; sampling frame, seed and size as registered; threats (selection, instrumentation, history, prior exposure listed in section 4 of the rulings file).
+- The reproduction rates from the review and what they mean for each verdict.
+- verdict-ledger.csv, one row per hypothesis, experiment and scenario: synthesis_verdict, review_verdict, your evaluation (stands, stands with reservations, does not stand, not assessable), the reservations, decisive finding ids, reproduction outcome of those ids. You do not replace the earlier verdicts; all three are kept.
+- Blind replication C against C2: what replicated, what did not, and whether non-replication comes from the definition, the tooling or the data.
+- Generalisation limits: which statements hold only for a revision, a period, a sample, or this environment; the single-case status of the operations log.
+- The outside observer's predictions: if R/predictions-outside-observer.md exists, compare prediction and outcome item by item; if it does not, say that the comparison is pending and what it will need.
+- What remains unknown after all stages, ranked by how much it matters for the architect's decisions.
