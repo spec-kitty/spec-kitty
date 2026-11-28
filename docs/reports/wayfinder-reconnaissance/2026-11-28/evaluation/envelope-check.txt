@@ -1,0 +1,50 @@
+Envelope check, post-hoc process evaluation, read-only git only, run 2026-11-28T14:45:57Z
+git git version 2.43.0
+
+## Checkouts under /home/user: branch, HEAD, porcelain status lines, stash entries, worktrees
+doc-kitty/ branch=claude/spec-kitty-arch-reconnaissance-fdeicj head=1acc49fbe209436d3c1666a86e8b3960ee19e5ac dirty=0 stash=0 worktrees=1
+event-router/ branch=main head=8f4bb647fcfe17a2581ab1c97c10326e9645bbd0 dirty=0 stash=0 worktrees=1
+experimental-spec-kitty-end-to-end-testing/ branch=main head=30181e955706e2edfef5c6a53871b82e026cc57e dirty=0 stash=0 worktrees=1
+experimental-spec-kitty-events/ branch=main head=4bb00f893d6babcb84ba9a0ee797ce64b3ff8b8f dirty=0 stash=0 worktrees=1
+experimental-spec-kitty-tracker/ branch=main head=0e67d6b20c0f292744e4e289289239cba9cd3a74 dirty=0 stash=0 worktrees=1
+experimental-spec-kitty/ branch=main head=29f302566ad4f4103b3829c454a99abce70d413a dirty=0 stash=0 worktrees=1
+fleet-kitty/ branch=main head=e3b39b8078700410681a3e5fc733a4d0c792eccb dirty=0 stash=0 worktrees=1
+spec-kitty-charter/ branch=claude/spec-kitty-arch-reconnaissance-fdeicj head=06cdfbe94856e8d24eca350c63d2a7b47bb9f13a dirty=0 stash=0 worktrees=1
+spec-kitty-container/ branch=main head=1ff99fea6f09986b7d934ebac7ba756578556168 dirty=0 stash=0 worktrees=1
+spec-kitty-events/ branch=claude/spec-kitty-arch-reconnaissance-fdeicj head=646e330b896b96d7a11f53b34aa3d0c0baa69a05 dirty=0 stash=0 worktrees=1
+spec-kitty-mcp/ branch=main head=a6bdf6bda88a45c58b0f74306a77ed38b51635e5 dirty=0 stash=0 worktrees=1
+spec-kitty-open-packs/ branch=claude/spec-kitty-arch-reconnaissance-fdeicj head=f9a557510dc7ff04597a0b8aba87f736e25f785e dirty=0 stash=0 worktrees=1
+spec-kitty-orchestrator/ branch=main head=8be32b14d15a48bb035a436cf13d49c8fa231c2f dirty=0 stash=0 worktrees=1
+spec-kitty-pack-composer/ branch=main head=d40a8bac24b24bac340d485760c896ebd8d7f253 dirty=0 stash=0 worktrees=1
+spec-kitty-planning-archive/ branch=main head=b1e5ad3f70fef1bf310f04c9b28953a8007fcd2c dirty=0 stash=0 worktrees=1
+spec-kitty-planning/ branch=main head=89f52a458082b87a5b9e2ca67537f843be53ebfe dirty=0 stash=0 worktrees=1
+spec-kitty-tracker/ branch=main head=658abee7b33ed2d14003c08fdbec4ffea2f45223 dirty=0 stash=0 worktrees=1
+spec-kitty/ branch=claude/spec-kitty-arch-reconnaissance-fdeicj head=529f1049d1a6246f6ece7469815347bcb09850c6 dirty=1 stash=0 worktrees=1
+
+## Research branch against base 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+base is ancestor: yes
+status letters over the whole diff:
+   1800 A
+paths outside docs/reports/wayfinder-reconnaissance and kitty-specs:
+0
+paths under kitty-specs:
+kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/meta.json
+kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/spec.md
+kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/status.events.jsonl
+kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/tasks/.gitkeep
+kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/tasks/README.md
+
+## origin branch equals local HEAD
+529f1049d1a6246f6ece7469815347bcb09850c6
+529f1049d1a6246f6ece7469815347bcb09850c6
+
+## Ignored state in core checkout with times (not tracked)
+2026-11-28 08:39:09.517309351 +0000 .pytest_cache
+2026-11-28 08:39:09.517309351 +0000 .pytest_cache/spec-kitty-test-venv.state.json
+2026-11-28 09:05:04.680712654 +0000 .kittify/charter/context-state.json
+2026-11-28 07:54:16.721576722 +0000 packs/built-in
+2026-11-28 07:54:18.933481816 +0000 packs/internal
+
+## Pre-registration SHA in finding records
+0
+## Finding records with empty disconfirmation search: 0 of 414 (yaml scan)
