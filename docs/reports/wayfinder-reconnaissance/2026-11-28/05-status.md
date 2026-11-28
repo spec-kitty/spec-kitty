@@ -23,14 +23,14 @@ updated: '2026-11-28'
 | H06a answers from documentation | complete | 21 |
 | H06b check of those answers | complete | 13 |
 | B2 Java services and doc-kitty structure | interrupted | partial evidence only |
-| CX comparison of C and C2 | interrupted at start | none |
+| CX comparison of C and C2 | interrupted | 13 findings written, no report, unverified |
 | D1 integration surface and independence, Python side | interrupted | partial evidence only |
 | D2 independence of the Java services | interrupted | partial evidence only |
 | E3 gate runner for the mutations | interrupted | partial evidence only |
 | F allocation of execution responsibilities | interrupted | partial evidence only |
-| G2 invariant checks with implementation knowledge | interrupted | partial evidence only |
+| G2 invariant checks with implementation knowledge | interrupted | 10 findings written, no report, unverified |
 
-Files under `evidence/` of an interrupted workstream are unfinished and unreviewed. They have no manifest check and carry no finding. They must not be cited until the workstream is resumed and completes.
+Files under `evidence/` and `findings/` of an interrupted workstream are unfinished and unreviewed, and their manifests are unchecked. They must not be cited until the workstream is resumed and completes.
 
 ## What is not yet measurable
 
