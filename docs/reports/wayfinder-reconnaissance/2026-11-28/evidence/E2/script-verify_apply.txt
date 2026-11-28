@@ -1,0 +1,15 @@
+#!/bin/bash
+# Fresh --shared clones at the head revisions; `git apply --check` + numstat for each patch. Nothing is applied.
+S=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E2
+E=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2
+V=$S/verify; rm -rf $V; mkdir -p $V
+declare -A HEAD=( [spec-kitty]=5c4fc5a79de1c1c299ab221ca26e5555c68ef533 [spec-kitty-charter]=06cdfbe94856e8d24eca350c63d2a7b47bb9f13a [spec-kitty-events]=646e330b896b96d7a11f53b34aa3d0c0baa69a05 [spec-kitty-open-packs]=f9a557510dc7ff04597a0b8aba87f736e25f785e )
+declare -A REPO=( [PI-1]=spec-kitty [PI-2]=spec-kitty [PI-3]=spec-kitty [PI-4]=spec-kitty-charter [PI-5]=spec-kitty [PI-6]=spec-kitty-charter [RD-1]=spec-kitty [RD-2]=spec-kitty [RD-3]=spec-kitty [RD-4]=spec-kitty-events [RD-5]=spec-kitty [RD-6]=spec-kitty-charter [OB-1]=spec-kitty [OB-2]=spec-kitty [OB-3]=spec-kitty [OB-4]=spec-kitty [OB-5]=spec-kitty-events [OB-6]=spec-kitty [IC-1]=spec-kitty-events [IC-2]=spec-kitty-charter [IC-3]=spec-kitty-events [IC-4]=spec-kitty [IC-5]=spec-kitty-open-packs [IC-6]=spec-kitty )
+echo "git $(git --version)"
+for r in "${!HEAD[@]}"; do git clone -q --shared --no-checkout /home/user/$r $V/$r && git -C $V/$r -c advice.detachedHead=false checkout -q ${HEAD[$r]}; echo "clone $r HEAD=$(git -C $V/$r rev-parse HEAD)"; done
+rc=0
+for c in PI RD OB IC; do for n in 1 2 3 4 5 6; do id=$c-$n; r=${REPO[$id]}; p=$E/M-$id.patch.txt
+  git -C $V/$r apply --check $p; x=$?; [ $x -ne 0 ] && rc=1
+  echo "M-$id repo=$r apply_check_exit=$x files=$(git -C $V/$r apply --numstat $p | wc -l) numstat=[$(git -C $V/$r apply --numstat $p | tr '\t' ' ' | tr '\n' ';')] clean_after=$([ -z "$(git -C $V/$r status --porcelain)" ] && echo yes || echo no)"
+done; done
+exit $rc

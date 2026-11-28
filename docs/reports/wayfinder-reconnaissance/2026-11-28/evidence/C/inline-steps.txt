@@ -1,0 +1,31 @@
+Workstream C - steps run inline (not kept as separate scripts). Repository /home/user/spec-kitty at origin/main
+5c4fc5a79de1c1c299ab221ca26e5555c68ef533 unless stated. git 2.43.0, Python 3.13.18, gh 2.89.0.
+
+1. Raw per-commit data (scratch raw_numstat.txt, sha256 below in MANIFEST as an unshipped file):
+   git log 5c4fc5a79de1 --no-merges -M --numstat --date=iso-strict --format='@@@%H|%P|%an|%aI|%cI|%s'
+2. Line membership: fork point = git merge-base 614c52cb38 f57b06dd87 = 38090b6493dd9fdf77826200348a82a22c5f61c4;
+   pub.txt = git rev-list 38090b6493..614c52cb38 ; exp.txt = git rev-list 38090b6493..f57b06dd87 ;
+   prefork.txt = git rev-list 38090b6493 ; cherry.txt = git log --no-merges --format=%H --grep='(cherry picked from commit' -F ;
+   merges.txt = git rev-list --merges --format='%H|%cI|%s'.
+3. script-build.txt writes commits.csv (one row per non-merge commit), lineage.json, components.csv, rename-map.csv.
+   script-analyze.txt writes the m01c/m01d, volume, co-change, component-touch, bulk and compact tables.
+4. Source lines: for each point, git grep -c '' <rev> -- 'src/*.py' summed per component (physical lines of .py files);
+   month-end revision = git rev-list -1 --first-parent --before=<first day of next month>T00:00:00Z <line tip>
+   (line tip = 614c52cb38 up to 2026-08 for pre-fork/public, f57b06dd87 for experimental, head for converged).
+5. Convergence merge effect: git diff --numstat --no-renames <a> <b> -- src/ for (merge^1,merge), (merge^2,merge),
+   (fork,merge^1), (fork,merge^2), summed per component; tree ids from git rev-parse <rev>^{tree}.
+6. Classification sample: random.Random(20261128).sample(sorted code non-bulk commits 2026-01..2026-11 by sha, 50);
+   each read from subject, body (first lines), --stat and the src/ diff (-U0); read class entered before the rule
+   class was revealed; cherry-pick trailers were below the body excerpt that was read.
+7. Events sibling series: the same git log command in /home/user/spec-kitty-events at 646e330b896b; component =
+   src/spec_kitty_events/<module or subpackage>, service/<module>, contracts/<module>, java/<dir>; a commit is
+   'imported' when its (author date, subject) equals a core commit's.
+8. M01g fallback: gh api "search/issues?q=<sha>+repo:<repo>+type:pr" for commits with no pull request from
+   gh api repos/spec-kitty/spec-kitty/commits/<sha>/pulls; reviews from gh api repos/<repo>/pulls/<n>/reviews;
+   comments from .../issues/<n>/comments and .../pulls/<n>/comments. Account names are replaced by ordinals.
+9. M02 traces: script-m02dossier.txt collects message, pull request, referenced issues and git blame -w of the
+   changed hunks at the parent; the judgement columns in m02-trace-sample.csv were entered by the analyst from
+   that dossier; Mission membership of an introducing pull request = kitty-specs/<slug>/ files in
+   gh api repos/spec-kitty/spec-kitty/pulls/<n>/files (first 300), acceptance = accepted_at in
+   git show 5c4fc5a79de1:kitty-specs/<slug>/meta.json. Two cases used git log -S'<symbol>' -- src/.
+10. M01f bootstrap: 2000 stratified resamples, random.Random(20261128), percentile interval.

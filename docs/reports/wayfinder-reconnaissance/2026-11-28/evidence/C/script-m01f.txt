@@ -1,0 +1,117 @@
+import ast,csv,collections,json,os,random,subprocess,sys,math
+S=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,S); import build
+REPO='/home/user/spec-kitty'
+final=json.load(open(S+'/lineage.json'))
+rows=[r for r in csv.DictReader(open(S+'/commits.csv')) if r['category']=='code' and r['bulk']=='0' and r['period']]
+KNOWN=set()
+for r in csv.DictReader(open(S+'/components.csv')):
+    if '/' in r['component']: KNOWN.add(tuple(r['component'].split('/',1)))
+HIST2={('specify_cli',x) for x in('glossary','next','merge','doctrine','doctrine_synthesizer','charter_lint','constitution','static')}|{('charter',x) for x in('synthesizer','context_renderers','corpus','evidence','neutrality','packs')}
+FIRST={'specify_cli','charter','doctrine','constitution','kernel','glossary','runtime','mission_runtime'}
+def modcomp(parts):
+    if not parts or parts[0] not in FIRST: return None
+    top=parts[0]
+    if top in('specify_cli','charter'):
+        if len(parts)==1: return top+'/(root)'
+        if len(parts)==2 and (top,parts[1]) not in KNOWN and (top,parts[1]) not in HIST2: p='src/'+top+'/'+parts[1]+'.py'
+        else: p='src/'+'/'.join(parts[:3] if len(parts)>=3 else parts)+'/__x__.py'
+        if len(parts)>=3: p='src/'+'/'.join(parts)+'.py'
+    else: p='src/'+'/'.join(parts)+'/__x__.py' if len(parts)==1 else 'src/'+'/'.join(parts)+'.py'
+    return build.component(p,final)
+def edges(path,src):
+    """returns set of dst components imported by this file (first-party), raises SyntaxError"""
+    tree=ast.parse(src)
+    pkg=path[len('src/'):].split('/')[:-1]  # package parts of the file
+    out=set()
+    for n in ast.walk(tree):
+        if isinstance(n,ast.Import):
+            for a in n.names:
+                c=modcomp(a.name.split('.'))
+                if c: out.add(c)
+        elif isinstance(n,ast.ImportFrom):
+            if n.level:
+                base=pkg[:len(pkg)-(n.level-1)] if n.level-1<=len(pkg) else []
+                parts=base+(n.module.split('.') if n.module else [])
+            else: parts=n.module.split('.') if n.module else []
+            if not parts or parts[0] not in FIRST: continue
+            if len(parts)==1 and parts[0] in('specify_cli','charter'):
+                for a in n.names:
+                    c=modcomp(parts+[a.name]);  out.add(c)
+            else:
+                c=modcomp(parts)
+                if c: out.add(c)
+    return out
+def show(rev,path):
+    r=subprocess.run(['git','-C',REPO,'show',f'{rev}:{path}'],capture_output=True)
+    return r.stdout.decode('utf-8','replace') if r.returncode==0 else None
+_tree_cache={}
+def tree_graph(rev):
+    if rev in _tree_cache: return _tree_cache[rev]
+    names=[l for l in subprocess.run(['git','-C',REPO,'ls-tree','-r','--name-only',rev,'--','src/'],capture_output=True,text=True).stdout.splitlines() if l.endswith('.py')]
+    p=subprocess.run(['git','-C',REPO,'cat-file','--batch'],input=''.join(f'{rev}:{n}\n' for n in names).encode(),capture_output=True).stdout
+    g=set();i=0
+    for n in names:
+        j=p.index(b'\n',i); hdr=p[i:j].split(); size=int(hdr[2]); body=p[j+1:j+1+size]; i=j+1+size+1
+        try: es=edges(n,body.decode('utf-8','replace'))
+        except SyntaxError: continue
+        sc=build.component(n,final)
+        for d in es:
+            if d!=sc: g.add((sc,d))
+    _tree_cache.clear(); _tree_cache[rev]=g
+    return g
+def analyse(sha):
+    out=subprocess.run(['git','-C',REPO,'diff-tree','-r','-M','--no-commit-id','--name-status',sha],capture_output=True,text=True).stdout
+    ns=subprocess.run(['git','-C',REPO,'diff-tree','-r','--no-renames','--no-commit-id','--numstat',sha,'--','src/'],capture_output=True,text=True).stdout
+    pylines=0
+    for l in ns.splitlines():
+        a,d,p=l.split('\t')
+        if p.endswith('.py') and a!='-': pylines+=int(a)+int(d)
+    before=set();after=set();fb=set();fa=set();errs=0;nfiles=0
+    for l in out.splitlines():
+        f=l.split('\t'); st=f[0][0]; old=f[1]; new=f[-1]
+        if not ((old.startswith('src/') and old.endswith('.py')) or (new.startswith('src/') and new.endswith('.py'))): continue
+        nfiles+=1
+        if st!='A' and old.startswith('src/') and old.endswith('.py'):
+            s=show(sha+'^',old)
+            if s is not None:
+                try:
+                    sc=build.component(old,final)
+                    for d in edges(old,s):
+                        if d!=sc: before.add((sc,d)); fb.add((old if st!='R' else new,sc,d))
+                except SyntaxError: errs+=1
+        if st!='D' and new.startswith('src/') and new.endswith('.py'):
+            s=show(sha,new)
+            if s is not None:
+                try:
+                    sc=build.component(new,final)
+                    for d in edges(new,s):
+                        if d!=sc: after.add((sc,d)); fa.add((new,sc,d))
+                except SyntaxError: errs+=1
+    added=after-before; removed=before-after
+    gnew=0
+    if added:
+        g=tree_graph(sha+'^')
+        gnew=len([e for e in added if e not in g])
+    return dict(py_files=nfiles,py_changed_lines=pylines,file_edges_added=len(fa-fb),file_edges_removed=len(fb-fa),comp_edges_added=len(added),comp_edges_removed=len(removed),comp_edges_new_in_repo=gnew,parse_errors=errs,added_pairs=';'.join(f'{a}>{b}' for a,b in sorted(added)))
+def main():
+    rng=random.Random(20261128); res=[]
+    CL=['capability-growth','corrective-maintenance','restructuring','compatibility-work','convergence-activity','other']
+    for per in('T1','T2','T3'):
+        frame=sorted([r for r in rows if r['period']==per],key=lambda r:r['sha'])
+        N=len(frame); alloc={}
+        for c in CL:
+            n=sum(1 for r in frame if r['cls']==c); alloc[c]=(n,150*n/N)
+        base={c:min(alloc[c][0],max(1 if alloc[c][0] else 0,math.floor(alloc[c][1]))) for c in CL}
+        rem=150-sum(base.values())
+        for c in sorted(CL,key=lambda c:-(alloc[c][1]-math.floor(alloc[c][1]))):
+            if rem<=0: break
+            if base[c]<alloc[c][0]: base[c]+=1; rem-=1
+        for c in CL:
+            st=[r for r in frame if r['cls']==c]
+            for r in rng.sample(st,base[c]):
+                a=analyse(r['sha']); a.update(sha=r['sha'],period=per,line=r['line'],cls=c,date=r['date'],stratum_size=len(st),stratum_sample=base[c],frame_size=N)
+                res.append(a); print(per,c,r['sha'][:10],a['py_changed_lines'],a['comp_edges_added'],a['comp_edges_new_in_repo'],flush=True)
+    keys=['sha','period','line','cls','date','frame_size','stratum_size','stratum_sample','py_files','py_changed_lines','file_edges_added','file_edges_removed','comp_edges_added','comp_edges_removed','comp_edges_new_in_repo','parse_errors','added_pairs']
+    with open(S+'/out/m01f-sample.csv','w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=keys); w.writeheader(); w.writerows(res)
+if __name__=='__main__': main()

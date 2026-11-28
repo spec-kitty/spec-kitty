@@ -1,0 +1,21 @@
+import subprocess,sys,collections,csv
+chain_pub=["5a66b2a20a","033571b933","25637803c1","515745f1fb","f8d0994183","48aea2bc97","40e5209a57","64966b837c","724edc4887","bb2020fea9","eff6353260","614c52cb38"]
+chain_exp=["38090b6493","ab2c3ea89e","f57b06dd87"]
+chain_m=["f57b06dd87","d4c5af7d8f","f4dc26694c","cc58393e0a","d58e78335b","78fc10e8cf","5c4fc5a79d"]
+# note: public chain before fork continues to fork point 38090b6493 for the experimental chain
+def comp(path):
+    p=path.split("/")[1:]  # drop src
+    if p[0] in("specify_cli","charter") and len(p)>2: return p[0]+"."+p[1]
+    if p[0].endswith(".py"): return p[0][:-3]
+    return p[0]
+rows=collections.Counter()
+for name,chain in(("public",chain_pub),("experimental",chain_exp),("merged",chain_m)):
+    for a,b in zip(chain,chain[1:]):
+        out=subprocess.run(["git","diff","-M50%","--name-status","--diff-filter=R",a,b,"--","src"],capture_output=True,text=True,cwd="/home/user/spec-kitty").stdout
+        for ln in out.splitlines():
+            st,old,new=ln.split("\t")
+            if not(old.endswith(".py") and new.endswith(".py")): continue
+            co,cn=comp(old),comp(new)
+            if co!=cn: rows[(name,a,b,co,cn)]+=1
+w=csv.writer(sys.stdout); w.writerow(["line","from_rev","to_rev","old_component","new_component","renamed_py_files"])
+for k,v in sorted(rows.items(),key=lambda kv:(kv[0][0],chain_pub.index(kv[0][1]) if kv[0][1] in chain_pub else 99,-kv[1])): w.writerow([*k,v])

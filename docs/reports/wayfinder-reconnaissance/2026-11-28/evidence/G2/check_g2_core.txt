@@ -1,0 +1,187 @@
+"""G2 checks I1-I4 for core Python (spec-kitty, src/ layout), over the import table from g2_pyimports.py.
+Usage: python3 -I g2_core.py <core_root> <imports_csv> <out_json>
+Inputs: imports CSV; tests/architectural/test_layer_rules.py (the two allowed-exception ledgers, parsed by AST, read-only);
+        tests/architectural/conftest.py landscape order (hard-coded below, verified by reading);
+        tests/architectural/charter_offering_public_surface.yaml (reached_classification, for I2 cross-reference).
+Runtime edges exclude `if TYPE_CHECKING:` imports unless stated.
+"""
+import ast, csv, json, re, sys, collections
+from pathlib import Path
+
+ROOT = Path(sys.argv[1]); rows = list(csv.DictReader(open(sys.argv[2]))); OUT = Path(sys.argv[3])
+L1 = ["kernel", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"]
+RANK = {"kernel": 0, "charter": 1, "glossary": 2, "runtime": 2, "mission_runtime": 2, "specify_cli": 3}  # conftest landscape
+res = {}
+def top(m): return m.split(".")[0]
+def is_fp(m): return top(m) in RANK
+rt = [r for r in rows if r["type_checking"] == "0"]
+
+def sccs(graph):
+    idx, low, st, on, out, c = {}, {}, [], set(), [], [0]
+    sys.setrecursionlimit(1000000)
+    def sc(v):
+        idx[v] = low[v] = c[0]; c[0] += 1; st.append(v); on.add(v)
+        for w in graph.get(v, ()):
+            if w not in idx: sc(w); low[v] = min(low[v], low[w])
+            elif w in on: low[v] = min(low[v], idx[w])
+        if low[v] == idx[v]:
+            comp = []
+            while True:
+                w = st.pop(); on.discard(w); comp.append(w)
+                if w == v: break
+            if len(comp) > 1: out.append(sorted(comp))
+    for v in list(graph):
+        if v not in idx: sc(v)
+    return out
+
+# ---- recorded baseline: ledgers in test_layer_rules.py ----
+tree = ast.parse((ROOT / "tests/architectural/test_layer_rules.py").read_text())
+ledgers = {}
+for node in tree.body:
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id in ("_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI", "_RUNTIME_ALLOWED_SPECIFY_CLI"):
+        ledgers[node.target.id] = sorted(ast.literal_eval(node.value.args[0]))
+ledger_for = {"mission_runtime": set(ledgers["_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI"]), "runtime": set(ledgers["_RUNTIME_ALLOWED_SPECIFY_CLI"])}
+
+# ---- I1: L1 cycles, every cycle-forming (upward) edge must be in a recorded ledger ----
+g1 = collections.defaultdict(set); g1_all = collections.defaultdict(set)
+for r in rt:
+    s, t = top(r["src_module"]), top(r["target_module"])
+    if is_fp(t) and s != t: g1[s].add(t)
+for r in rows:
+    s, t = top(r["src_module"]), top(r["target_module"])
+    if is_fp(t) and s != t: g1_all[s].add(t)
+upward = collections.defaultdict(list)
+for r in rt:
+    s, t = top(r["src_module"]), top(r["target_module"])
+    if is_fp(t) and s != t and RANK[t] >= RANK[s] and not (RANK[t] == RANK[s] == 2 and {s, t} <= {"runtime", "mission_runtime"} and s == "runtime"):
+        pass
+    if is_fp(t) and s != t and (RANK[t] > RANK[s] or (RANK[t] == RANK[s] and t in g1 and s in g1[t])):
+        sub = r["target_module"].split(".")[1] if "." in r["target_module"] else ""
+        upward[(s, t)].append((r["src_file"], int(r["lineno"]), r["target_module"], r["form"], r["lazy"], sub))
+i1_unbaselined = []
+for (s, t), sites in upward.items():
+    for site in sites:
+        if t == "specify_cli" and s in ledger_for and site[5] in ledger_for[s]:
+            continue
+        i1_unbaselined.append([s, t, *site])
+# L2 (second-level package) cycles: no recorded baseline exists
+def l2(m):
+    p = m.split("."); return ".".join(p[:2]) if len(p) > 1 else p[0] + ".<root>"
+g2 = collections.defaultdict(set)
+for r in rt:
+    t = r["target_module"]
+    if is_fp(t):
+        a, b = l2(r["src_module"]), l2(t)
+        if a != b: g2[a].add(b)
+l2_sccs = sccs(g2)
+res["I1"] = {
+    "landscape_rank": RANK, "ledgers": ledgers,
+    "L1_runtime_graph": {k: sorted(v) for k, v in sorted(g1.items())},
+    "L1_runtime_sccs": sccs(g1), "L1_sccs_incl_type_checking": sccs(g1_all),
+    "upward_or_same_rank_cycle_edges_by_pair": {f"{s}->{t}": len(v) for (s, t), v in sorted(upward.items())},
+    "upward_edges_not_covered_by_recorded_ledger": i1_unbaselined,
+    "L2_node_count": len({*g2, *[x for v in g2.values() for x in v]}),
+    "L2_scc_count": len(l2_sccs), "L2_scc_sizes": sorted((len(c) for c in l2_sccs), reverse=True), "L2_sccs": l2_sccs,
+}
+
+# ---- I3: lower layers / libraries do not depend on the core CLI layer (specify_cli) ----
+i3 = [r for r in rows if top(r["target_module"]) == "specify_cli" and top(r["src_module"]) != "specify_cli"]
+i3_sites = sorted({(r["src_file"], int(r["lineno"]), r["target_module"], r["type_checking"], r["lazy"], r["form"]) for r in i3})
+by_src = collections.Counter(top(s[0].replace("/", ".")) for s in i3_sites)
+i3_cli_pkg = [s for s in i3_sites if s[2] == "specify_cli.cli" or s[2].startswith("specify_cli.cli.")]
+i3_files = collections.Counter(top(s[0].replace('/', '.')) for s in {(x[0],) for x in i3_sites})
+res["I3"] = {"import_sites_into_specify_cli_from_lower_layers": len(i3_sites), "by_source_layer": dict(by_src),
+             "distinct_source_files_by_layer": dict(i3_files),
+             "distinct_specify_cli_subpackages": sorted({s[2].split(".")[1] if "." in s[2] else "<root>" for s in i3_sites}),
+             "into_specify_cli_cli_package": i3_cli_pkg, "sites": i3_sites,
+             "type_checking_only_sites": sum(1 for s in i3_sites if s[3] == "1")}
+
+# ---- I2: private cross-component access ----
+FACADES = {p.stem for p in (ROOT / "src/charter").glob("*.py") if p.stem != "__init__"}
+def charter_public(t):
+    p = t.split(".")
+    if p == ["charter"]: return True
+    if len(p) >= 2 and p[1] in FACADES: return True
+    if p[:3] in (["charter", "offering", "api"], ["charter", "activation", "api"]): return True
+    return False
+i2 = collections.defaultdict(list)
+for r in rt:
+    s, t = r["src_module"], r["target_module"]; st, tt = top(s), top(t)
+    site = (r["src_file"], int(r["lineno"]), t, r["imported_name"])
+    # surface 1: mission_runtime package root only (tests/architectural/test_mission_runtime_surface.py MR-2 rule)
+    if tt == "mission_runtime" and st != "mission_runtime" and t != "mission_runtime":
+        i2["mission_runtime_submodule_from_outside"].append(site)
+    # surface 2: specify_cli.status facade (test_status_module_boundary.py SR-2 rule, raw, no exemptions applied)
+    if t.startswith("specify_cli.status.") and not s.startswith("specify_cli.status"):
+        i2["specify_cli_status_submodule_from_outside"].append(site)
+    # surface 3: charter seam modules (charter root, charter.<facade>, charter.offering.api, charter.activation.api)
+    if tt == "charter" and st != "charter" and not charter_public(t):
+        i2["charter_non_seam_module_from_outside"].append(site)
+    # convention: underscore-private module or name across an L1 boundary or into an external contract package
+    nm = r["imported_name"] or ""
+    priv_mod = any(seg.startswith("_") and not seg.startswith("__") for seg in r["raw_target"].split("."))
+    priv_name = nm.startswith("_") and not nm.startswith("__")
+    if (priv_mod or priv_name):
+        if is_fp(t) and st != tt:
+            i2["underscore_private_across_L1"].append(site)
+        elif tt in ("spec_kitty_events", "spec_kitty_tracker"):
+            i2["underscore_private_into_external_contract_pkg"].append(site)
+    if tt in ("spec_kitty_events", "spec_kitty_tracker"):
+        i2["_external_contract_imports_total"].append(site)
+# charter reached-classification cross-reference
+reached = set(re.findall(r"^  - path: (\S+)", (ROOT / "tests/architectural/charter_offering_public_surface.yaml").read_text(), re.M))
+ch = i2["charter_non_seam_module_from_outside"]
+def norm(t):
+    # the census records the module path reached; compare by prefix
+    return any(t == p or t.startswith(p + ".") for p in reached)
+res["I2"] = {k: {"count": len(v), "distinct_files": len({x[0] for x in v}), "distinct_targets": len({x[2] for x in v}),
+                 "sites": v} for k, v in sorted(i2.items())}
+res["I2"]["charter_non_seam_module_from_outside"]["targets_in_public_surface_census_reached_classification"] = sorted({x[2] for x in ch if norm(x[2])})
+res["I2"]["charter_non_seam_module_from_outside"]["targets_not_in_census"] = sorted({x[2] for x in ch if not norm(x[2])})
+res["I2"]["charter_non_seam_module_from_outside"]["by_target_subpackage"] = collections.Counter(".".join(x[2].split(".")[:2]) for x in ch).most_common()
+res["I2"]["charter_non_seam_module_from_outside"]["by_source_layer"] = collections.Counter(x[0].split("/")[0] for x in ch).most_common()
+res["I2"]["charter_facades_counted_public"] = sorted(FACADES)
+for k in ("mission_runtime_submodule_from_outside", "underscore_private_into_external_contract_pkg"):
+    res["I2"].setdefault(k, {"count": 0, "distinct_files": 0, "distinct_targets": 0, "sites": []})
+# compare charter.activation reaches with the recorded shrink-only baseline (per (file, module) pair)
+base = set(re.findall(r"- file: (\S+)\n  module: (\S+)", (ROOT / "tests/architectural/charter_activation_boundary_baseline.yaml").read_text()))
+mine = {("src/" + x[0], x[2]) for x in ch if x[2].startswith("charter.activation")}
+# the baseline records the module named in the import statement; also accept a parent-module match (from pkg import submodule)
+def in_base(p):
+    f, m = p
+    return any(f == bf and (m == bm or m.startswith(bm + ".")) for bf, bm in base)
+res["I2"]["charter_activation_vs_recorded_baseline"] = {"baseline_pairs": len(base), "observed_pairs": len(mine),
+    "observed_not_in_baseline": sorted(p for p in mine if not in_base(p)),
+    "baseline_not_observed": sorted(b for b in base if not any(o[0] == b[0] and (o[1] == b[1] or o[1].startswith(b[1] + ".")) for o in mine))}
+
+# ---- I4: CLI concern in domain components ----
+ARG = {"argparse", "click", "typer"}; PRES = {"rich", "questionary", "prompt_toolkit", "tabulate"}
+def cli_layer(srcfile):
+    return srcfile.startswith("specify_cli/cli/") or srcfile in ("specify_cli/__init__.py", "specify_cli/__main__.py")
+i4 = collections.defaultdict(list)
+for r in rt:
+    f = r["src_file"]; t = r["target_module"]; tt = top(t); st = f.split("/")[0]
+    if cli_layer(f): continue
+    kind = "arg_handling_lib" if tt in ARG else "presentation_lib" if tt in PRES else "specify_cli.cli_import" if (t == "specify_cli.cli" or t.startswith("specify_cli.cli.")) else None
+    if not kind: continue
+    zone = st if st != "specify_cli" else "specify_cli(non-cli)"
+    i4[(zone, kind)].append((f, int(r["lineno"]), t))
+res["I4"] = {"by_zone_and_kind": {f"{z}|{k}": {"sites": len(v), "files": len({x[0] for x in v})} for (z, k), v in sorted(i4.items())},
+             "lower_layer_sites": [[z, k, *x] for (z, k), v in sorted(i4.items()) if z != "specify_cli(non-cli)" for x in v]}
+files_by_zone = collections.Counter()
+for f in {r["src_file"] for r in rows}:
+    z = f.split("/")[0]
+    if z == "specify_cli": z = "specify_cli/cli" if cli_layer(f) else "specify_cli(non-cli)"
+    files_by_zone[z] += 1
+res["I4"]["files_by_zone_denominator"] = dict(files_by_zone)
+res["I4"]["distinct_files_with_any_hit_by_zone"] = dict(collections.Counter(z for z, f in {(z, x[0]) for (z, k), v in i4.items() for x in v}))
+OUT.write_text(json.dumps(res, indent=1, default=list))
+for k in ("I1", "I2", "I3", "I4"):
+    print("==", k)
+print("L1 sccs", res["I1"]["L1_runtime_sccs"], "| incl TC", res["I1"]["L1_sccs_incl_type_checking"])
+print("upward pairs", res["I1"]["upward_or_same_rank_cycle_edges_by_pair"], "unbaselined", len(i1_unbaselined))
+print("L2", res["I1"]["L2_node_count"], res["I1"]["L2_scc_count"], res["I1"]["L2_scc_sizes"])
+print("I3", res["I3"]["import_sites_into_specify_cli_from_lower_layers"], res["I3"]["by_source_layer"], res["I3"]["distinct_source_files_by_layer"], "cli pkg", len(i3_cli_pkg), "tc", res["I3"]["type_checking_only_sites"])
+print("I2 act-vs-baseline", {k: (len(v) if isinstance(v, list) else v) for k, v in res["I2"]["charter_activation_vs_recorded_baseline"].items()})
+print("I2", {k: (v["count"] if isinstance(v, dict) and "count" in v else None) for k, v in res["I2"].items()})
+print("I4", res["I4"]["by_zone_and_kind"]); print(res["I4"]["files_by_zone_denominator"])

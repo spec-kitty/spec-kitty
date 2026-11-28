@@ -1,0 +1,64 @@
+finding_id: F-E2-004
+workstream: E2 mutation author
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: "ambiguous rule"
+  deviation: null
+subject:
+  component: "version rule of unreleased OpenAPI contracts"
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "Two of the three OpenAPI contracts mutated or considered carry an unreleased version: charter `0.2.0-SNAPSHOT` and mission-status `1.0.0-SNAPSHOT`. For both, the documents define a break by a changelog record or a release baseline, not by a version number in the file, so the brief's phrase 'without a version change' has no direct meaning for M-IC-2 and M-IC-3; the author used 'no changelog fragment and info.version untouched' instead."
+evidence:
+  - id: E1
+    kind: document-claim
+    reference: "spec-kitty-charter contracts/charter/CHANGELOG.md:3-17"
+    method: "read at 06cdfbe9"
+    sha256: null
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E2
+    kind: document-claim
+    reference: "spec-kitty-charter docs/adr/0022-contract-versions-start-at-0-x.md:3"
+    method: "read at 06cdfbe9"
+    sha256: null
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E3
+    kind: document-claim
+    reference: "spec-kitty-events contracts/mission-status/CHANGELOG.md:6-12 at 646e330b (no baseline exists; the breaking check reports NO_BASELINE_INITIAL_VERSION and no workflow runs it yet)"
+    method: "read at 646e330b"
+    sha256: null
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+scope:
+  covered: "the two changelogs, charter ADR-0022 and both openapi.yaml info.version lines"
+  not_covered: "the Mission Write contract (1.0.1-SNAPSHOT per events docs/architecture/services/overview.md); how release tooling compares versions; tests"
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked in both contract folders and the two ADR sets for a rule that an unreleased contract may not change incompatibly between releases."
+  result: "Charter: found the opposite for 0.x, breaks are allowed and listed per candidate. Events: found a statement that no baseline exists yet."
+relations:
+  - {type: refines, target: F-E2-001}
+confidence: medium
+analyst:
+  profile: debugger-debbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [compatibility]
+candidate_invariants: []
+open_questions:
+  - "For a SNAPSHOT contract, what is the unit a break is measured against: the last release candidate, the last tag, or nothing?"

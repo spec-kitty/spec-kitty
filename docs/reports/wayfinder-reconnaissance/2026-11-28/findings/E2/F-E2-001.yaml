@@ -1,0 +1,79 @@
+finding_id: F-E2-001
+workstream: E2 mutation author
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "mutation set (24 patches, 6 per class)"
+  deviation: "Blindness deviation: one `find` over the charter repository listed file NAMES under src/test (contents were not read); documents and production docstrings that the brief allows name gate test files and ArchUnit rule names; the session's injected project instructions also name gates. No test, architecture-test source, allowlist, ledger or CI workflow content was opened."
+subject:
+  component: "mutation set over core, charter, events and open-packs"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "24 of 24 patches pass `git apply --check` in fresh clones at the head revisions (exit 0 each). They split 6/6/6/6 over the classes PI, RD, OB and IC, 2 blatant, 2 moderate and 2 subtle in each class, and 15/4/4/1 over core, spec-kitty-charter, spec-kitty-events and spec-kitty-open-packs (doc-kitty: 0). 22 of 24 touch one file; M-IC-1 touches three. 15 of 15 core Python patches import cleanly when applied alone. Of the 4 Java patches, the one for events was checked with javac alone (project build blocked) and the 3 for charter likewise (its Gradle compile timed out); none of the 4 shows a syntax error. For 15 of 24 the author judged the intended model unambiguous, for 7 partly ambiguous and for 2 ambiguous (mutations.csv, last column)."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/E2/apply-check.txt"
+    method: "bash evidence/E2/script-verify_apply.txt"
+    sha256: "cd01e7c0a9dbdd933e7d6ea123df997be7f6d32a097c138a7d1e7ab087e13a04"
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/E2/syntax-import-check.txt"
+    method: "bash evidence/E2/script-import_check.txt"
+    sha256: "e3585e9ee88bfdbfb23221d851280ee3c0b527650c8267e2136788bd9e429822"
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E3
+    kind: static-derived
+    reference: "evidence/E2/mutations.csv"
+    method: "python3 evidence/E2/script-write_mutations_csv.txt evidence/E2/mutations.csv"
+    sha256: "d9f350d178e87766a96c511c08dff363f127f031618471f27a4e3bbf169ed68a"
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E4
+    kind: executed
+    reference: "evidence/E2/events-java-syntax-check.txt"
+    method: "javac -proc:none on the patched file in a scratch copy; counts error kinds"
+    sha256: "3350270276b101ab36a42132addfd39fecd0ddce1e1521c9a6278d2358476ade"
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+  - id: E5
+    kind: executed
+    reference: "evidence/E2/charter-java-check.txt"
+    method: "see the first line of the file"
+    sha256: "8cc9f8b45e12b0271ee47d9cee29e78e4e505cdaf79691f9166962bec663833f"
+    exit_code: 0
+    environment: "git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+    observed_at: "2026-11-28T09:24:47Z"
+scope:
+  covered: "Rules of the intended model exercised: the core layer chain (kernel, charter, runtime as importers; M-RD-1, 2, 3, 5); public-only use of spec-kitty-events (M-PI-1); the activation seam and the offering surface (M-PI-2, M-PI-5); the runtime engine's private names (M-PI-3); the charter service's onion and slice rules (M-PI-4, M-PI-6, M-RD-6); library-to-core direction (M-RD-4); writers of the status event log (M-OB-1, M-OB-6), the activation ledger (M-OB-2), the migration ledger (M-OB-3), a service pin (M-OB-4) and the read service's read-only guarantee (M-OB-5); six published shapes (events payload, charter OpenAPI, mission-status OpenAPI, orchestrator-api envelope, built-in pack descriptor, wp_window record)."
+  not_covered: "No mutation for: glossary or mission_runtime as the importing layer; charter.offering importing charter.activation; spec-kitty-tracker; pack content edited inside core's fetched tree (untracked there, so no patch against head can express it); the Mission Write contract; the charter context JSON (F-E2-007); doc-kitty; the Java binding of events. No gate was run, so nothing here says which mutations are detected. Patches were not tested in combination; M-PI-2 and M-OB-2 edit the same place of one file and do not apply together."
+  population: "the rules of the intended model as read from charter, ADRs and architecture documents of four repositories"
+  sample: "24 hand-written mutations (purposive, not random)"
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a patch that fails to apply, changes more than it states, or breaks import of its module: re-cloned all four repositories and re-ran apply --check and numstat; imported every touched core module with each patch applied alone."
+  result: "None found: 24 of 24 exit 0, numstat matches the catalogue, 15 of 15 imports succeed. Neither Java build produced a compile result (events: dependency verification failed; charter: timeout), so the 4 Java patches have a javac syntax check only and may still fail to compile."
+relations: []
+confidence: high
+analyst:
+  profile: debugger-debbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: [testability, modularity]
+candidate_invariants: []
+open_questions:
+  - "Which of the 24 are detected is for the workstream that runs the gates."

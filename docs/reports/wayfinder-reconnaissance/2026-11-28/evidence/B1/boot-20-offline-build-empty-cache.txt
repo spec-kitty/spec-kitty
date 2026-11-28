@@ -1,0 +1,42 @@
+$ SPEC_KITTY_PACK_OFFLINE=1 XDG_CACHE_HOME=<empty dir> uv sync --frozen --all-extras --offline --reinstall-package spec-kitty-cli   (packs/built-in absent, pack cache empty)
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+   Building spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone
+  × Failed to build `spec-kitty-cli @
+  │ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone`
+  ├─▶ The build backend returned an error
+  ╰─▶ Call to `hatchling.build.build_editable` failed (exit status: 1)
+
+      [stderr]
+      Traceback (most recent call last):
+        File "<string>", line 11, in <module>
+        File
+      "/root/.cache/uv/builds-v0/.tmpZwEKen/lib/python3.11/site-packages/hatchling/build.py",
+      line 83, in build_editable
+          return os.path.basename(next(builder.build(directory=wheel_directory,
+      versions=["editable"])))
+      
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File
+      "/root/.cache/uv/builds-v0/.tmpZwEKen/lib/python3.11/site-packages/hatchling/builders/plugin/interface.py",
+      line 149, in build
+          build_hook.initialize(version, build_data)
+        File
+      "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/hatch_build.py",
+      line 92, in initialize
+          ensure_built_in_tree(root)
+        File
+      "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/hatch_build.py",
+      line 82, in ensure_built_in_tree
+          cached = pack_fetch.fetch_to_cache(pin, offline=effective_offline)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File
+      "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/packs/pack_fetch.py",
+      line 184, in fetch_to_cache
+          raise PackSyncError(PACK_SYNC_UNAVAILABLE, f"offline and no valid
+      cache for {pin.commit}; {_REMEDY}")
+      charter.offering.packs.pack_fetch.PackSyncError: PACK_SYNC_UNAVAILABLE:
+      offline and no valid cache for a79c36318b7a506ca2ab26d74705c5e3e406004f;
+      run `make sync-packs` with network access
+
+
+hint: Build failures usually indicate a problem with the package or the build environmentexit_code=1

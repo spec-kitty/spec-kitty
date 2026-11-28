@@ -1,0 +1,15 @@
+from_layer,to_layer,module_edges_all,module_edges_load_time
+charter,kernel,124,122
+glossary,charter,3,1
+glossary,kernel,9,9
+mission_runtime,kernel,8,8
+mission_runtime,specify_cli,30,1
+runtime,charter,20,11
+runtime,kernel,26,25
+runtime,mission_runtime,13,11
+runtime,specify_cli,98,50
+specify_cli,charter,424,200
+specify_cli,glossary,15,9
+specify_cli,kernel,595,563
+specify_cli,mission_runtime,200,140
+specify_cli,runtime,40,23

@@ -1,0 +1,58 @@
+finding_id: F-C-024
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: recurrence
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: fix-of-fix chains
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Fix-subject code commits followed within 14 days by another fix-subject commit sharing at least one src/
+  file: T1 435 of 539 (80.7%), T2 pre-fork 242 of 345 (70.1%), T2 public 116 of 163 (71.2%), T2 experimental 345
+  of 429 (80.4%), T3 1,624 of 1,917 (84.7%). With the stricter test that the two commits share at least half of
+  their combined src/ files: 29.7%, 35.4%, 39.9%, 54.1%, 52.3%. Of fix commits whose subject ends in a pull request
+  number, those followed within 14 days by a fix that cites that number: 10 of 235 (4.3%), 8 of 59, 11 of 75, 15
+  of 74, 235 of 893 (26.3%).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/fix-of-fix-chains.csv
+  method: python3 script-recur.txt
+  sha256: 722e7dff0fe017c6638c367e1a2e18f8cf9df8dfbf25d6e397fe3b2d190133de
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Asked whether the shared-file test separates corrections of a fix from unrelated fixes to a busy file.
+  result: 'It does not: files such as agent/workflow.py receive fixes in every month, so the 80% figures are an
+    upper bound; the citation test is a lower bound and depends on citation habits that changed over time. Pairs
+    inside one pull request are included in all three tests.'
+relations: []
+confidence: low
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- reliability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,35 @@
+import csv,json,os,random,subprocess,sys,re
+S=os.path.dirname(os.path.abspath(__file__))
+rows=[r for r in csv.DictReader(open(S+'/commits.csv')) if r['category']=='code' and r['bulk']=='0' and r['period']]
+def api(path):
+    r=subprocess.run(['gh','api',path,'--paginate'],capture_output=True,text=True)
+    if r.returncode!=0: return None,(r.stderr.strip()[:200])
+    try: return json.loads(r.stdout),None
+    except Exception as e:
+        # paginate may concatenate arrays
+        try: return json.loads('['+r.stdout.replace('][',',').strip()[1:-1]+']'),None
+        except Exception: return None,'parse'
+AGENT_RE=re.compile(r'^(Co-Authored-By: (Claude|Codex|GPT|Gemini|Copilot|Cursor)|Agent:|Claude-Session:|🤖)',re.I|re.M)
+rng=random.Random(20261128); out=[]
+for per in('T1','T2','T3'):
+    frame=sorted([r for r in rows if r['period']==per],key=lambda r:r['sha'])
+    for r in rng.sample(frame,40):
+        sha=r['sha']; body=subprocess.run(['git','-C','/home/user/spec-kitty','log','-1','--format=%B',sha],capture_output=True,text=True).stdout
+        rec=dict(sha=sha,period=per,line=r['line'],date=r['date'],cls=r['cls'],frame_size=len(frame),commit_agent_trailer=int(bool(AGENT_RE.search(body))),
+                 pr_repo='',pr_number='',pr_author='',pr_author_type='',pr_merged_at='',n_prs=0,reviews_total=0,reviews_by_other='',reviews_by_other_human='',approved_by_other='',review_states='',assessable='',note='')
+        prs,err=api(f'repos/spec-kitty/spec-kitty/commits/{sha}/pulls')
+        if prs is None: rec['assessable']='not assessable'; rec['note']='commit->pulls lookup failed: '+str(err); out.append(rec); continue
+        rec['n_prs']=len(prs)
+        if not prs: rec['assessable']='assessed'; rec['note']='no associated pull request returned by the API'; rec['reviews_by_other']=0; rec['approved_by_other']=0; rec['reviews_by_other_human']=0; out.append(rec); print(per,sha[:10],'noPR',flush=True); continue
+        merged=[p for p in prs if p.get('merged_at')] or prs
+        p=sorted(merged,key=lambda p:p.get('merged_at') or '')[0]
+        repo=p['base']['repo']['full_name']; n=p['number']; author=p['user']['login']
+        rec.update(pr_repo=repo,pr_number=n,pr_author=author,pr_author_type=p['user']['type'],pr_merged_at=p.get('merged_at') or '')
+        revs,err=api(f'repos/{repo}/pulls/{n}/reviews')
+        if revs is None: rec['assessable']='not assessable'; rec['note']='reviews lookup failed: '+str(err); out.append(rec); continue
+        others=[v for v in revs if v.get('user') and v['user']['login']!=author]
+        rec.update(assessable='assessed',reviews_total=len(revs),reviews_by_other=len(others),reviews_by_other_human=len([v for v in others if v['user']['type']=='User']),approved_by_other=len([v for v in others if v['state']=='APPROVED']),
+                   review_states=';'.join(sorted({f"{v['user']['type']}:{v['state']}" for v in others})))
+        out.append(rec); print(per,sha[:10],repo,n,len(revs),len(others),flush=True)
+with open(S+'/out/m01g-review-sample.csv','w',newline='') as f:
+    w=csv.DictWriter(f,fieldnames=list(out[0].keys())); w.writeheader(); w.writerows(out)

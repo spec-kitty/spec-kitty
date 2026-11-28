@@ -1,0 +1,56 @@
+finding_id: F-C-032
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: interpretation
+  deviation: null
+subject:
+  component: comparability of periods
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: The difference in components per commit between T1 and the later periods cannot be separated, with these
+  data, from a change in how work is cut into commits.
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: Median changed lines per commit and the share of squash-style commits both differ by period, and
+  both correlate with components touched. A lower M01c or M01d in T3 is therefore a statement about commits as recorded,
+  not about the size of a unit of intent such as a Mission or a pull request.
+derived_from:
+- F-C-005
+- F-C-007
+- F-C-029
+counterevidence: []
+disconfirmation:
+  search: Looked for a comparison that holds commit granularity fixed.
+  result: Splitting by the pull-request-suffix proxy keeps the order of periods (F-C-029), which speaks against
+    granularity as the only source; the proxy is coarse.
+relations: []
+confidence: medium
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions:
+- Would the same measures per pull request or per Mission show the same order of periods?

@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""B1 extractor: one AST walker used for every revision.
+
+Usage: extract.py <extract_dir containing src/> <out.json>
+
+Emits modules (with line counts) and one import record per (statement, alias).
+No code from the analysed tree is imported or executed.
+
+Definitions
+-----------
+module         every *.py file under src/, excluding __pycache__ and test files
+               (a directory part named "tests"/"test", or a file conftest.py). A file named
+               test_*.py outside such a directory is kept: at head the only one,
+               specify_cli/review/test_timeout.py, is product code.
+               src/a/b/c.py -> a.b.c ; src/a/b/__init__.py -> a.b
+lines_physical number of newline-terminated physical lines (len(text.splitlines())).
+lines_code     physical lines that are not blank and whose first non-blank char is not '#'
+               (docstring lines count as code lines).
+import record  kind=import|from ; resolved to an internal module when the dotted target
+               (or target.name for `from target import name`) is a module in the tree.
+load_time      the import statement is NOT inside a function/lambda body and NOT inside the
+               body of an `if TYPE_CHECKING:` / `if typing.TYPE_CHECKING:` block. Class bodies,
+               module-level try/if/with are load time.
+dynamic        importlib.import_module("lit") / __import__("lit") / find_spec("lit") with a
+               string literal first argument; recorded separately (kind=dynamic), never part of
+               the import graph variants (i) or (ii).
+"""
+from __future__ import annotations
+
+import ast
+import json
+import sys
+from pathlib import Path
+
+DYN = {"import_module", "__import__", "find_spec"}
+
+
+def is_test_path(rel: Path) -> bool:
+    parts = rel.parts
+    if any(p in ("tests", "test") for p in parts[:-1]):
+        return True
+    return parts[-1] == "conftest.py"
+
+
+def modname(rel: Path) -> str:
+    parts = list(rel.with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def is_tc(test: ast.AST) -> bool:
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    if isinstance(test, ast.Attribute):
+        return test.attr == "TYPE_CHECKING"
+    return False
+
+
+class V(ast.NodeVisitor):
+    def __init__(self, mod: str, is_pkg: bool):
+        self.mod = mod
+        self.is_pkg = is_pkg
+        self.fn = 0
+        self.tc = 0
+        self.tr = 0
+        self.scope: list[str] = []
+        self.recs: list[dict] = []
+        self.all_decl: list[str] | None = None
+        self.all_dynamic = False
+
+    # scopes
+    def _fn(self, node):
+        self.fn += 1
+        self.scope.append(node.name if hasattr(node, "name") else "<lambda>")
+        self.generic_visit(node)
+        self.scope.pop()
+        self.fn -= 1
+
+    visit_FunctionDef = _fn
+    visit_AsyncFunctionDef = _fn
+    visit_Lambda = _fn
+
+    def visit_ClassDef(self, node):
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    def visit_If(self, node):
+        if is_tc(node.test):
+            self.tc += 1
+            for n in node.body:
+                self.visit(n)
+            self.tc -= 1
+            for n in node.orelse:
+                self.visit(n)
+        else:
+            self.generic_visit(node)
+
+    def visit_Try(self, node):
+        self.tr += 1
+        for n in node.body:
+            self.visit(n)
+        self.tr -= 1
+        for h in node.handlers:
+            self.visit(h)
+        for n in node.orelse + node.finalbody:
+            self.visit(n)
+
+    visit_TryStar = visit_Try
+
+    def _rec(self, node, kind, target, name, asname, level=0):
+        self.recs.append(
+            {
+                "src": self.mod,
+                "line": node.lineno,
+                "kind": kind,
+                "target": target,
+                "name": name,
+                "asname": asname,
+                "level": level,
+                "tc": self.tc > 0,
+                "fn": self.fn > 0,
+                "try": self.tr > 0,
+                "scope": ".".join(self.scope) or "<module>",
+            }
+        )
+
+    def visit_Import(self, node):
+        for a in node.names:
+            self._rec(node, "import", a.name, None, a.asname)
+
+    def visit_ImportFrom(self, node):
+        if node.level:
+            pkg = self.mod.split(".")
+            if not self.is_pkg:
+                pkg = pkg[:-1]
+            if node.level > 1:
+                pkg = pkg[: len(pkg) - (node.level - 1)]
+            base = ".".join(pkg + ([node.module] if node.module else []))
+        else:
+            base = node.module or ""
+        for a in node.names:
+            self._rec(node, "from", base, a.name, a.asname, node.level)
+
+    def visit_Call(self, node):
+        f = node.func
+        nm = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", None)
+        if nm in DYN and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+            self._rec(node, "dynamic", node.args[0].value, None, None)
+        self.generic_visit(node)
+
+    def visit_Assign(self, node):
+        if self.fn == 0 and not self.scope:
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == "__all__":
+                    self._all(node.value)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node):
+        if self.fn == 0 and not self.scope and isinstance(node.target, ast.Name) and node.target.id == "__all__" and node.value is not None:
+            self._all(node.value)
+        self.generic_visit(node)
+
+    def visit_AugAssign(self, node):
+        if self.fn == 0 and not self.scope and isinstance(node.target, ast.Name) and node.target.id == "__all__":
+            self._all(node.value, extend=True)
+        self.generic_visit(node)
+
+    def _all(self, value, extend=False):
+        names = []
+        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+            for e in value.elts:
+                if isinstance(e, ast.Constant) and isinstance(e.value, str):
+                    names.append(e.value)
+                else:
+                    self.all_dynamic = True
+        else:
+            self.all_dynamic = True
+        if extend and self.all_decl is not None:
+            self.all_decl.extend(names)
+        else:
+            self.all_decl = names
+
+
+def main(root: str, out: str) -> None:
+    src = Path(root) / "src"
+    modules: dict[str, dict] = {}
+    recs: list[dict] = []
+    skipped_tests = 0
+    parse_errors = []
+    for path in sorted(src.rglob("*.py")):
+        rel = path.relative_to(src)
+        if "__pycache__" in rel.parts:
+            continue
+        if is_test_path(rel):
+            skipped_tests += 1
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+        code = sum(1 for ln in lines if ln.strip() and not ln.lstrip().startswith("#"))
+        mod = modname(rel)
+        is_pkg = rel.name == "__init__.py"
+        importable = all(p.isidentifier() for p in rel.with_suffix("").parts)
+        entry = {
+            "path": str(rel),
+            "lines_physical": len(lines),
+            "lines_code": code,
+            "is_pkg": is_pkg,
+            "importable": importable,
+            "all": None,
+            "all_dynamic": False,
+        }
+        try:
+            tree = ast.parse(text)
+        except SyntaxError as exc:  # recorded, module kept with no imports
+            parse_errors.append({"path": str(rel), "error": str(exc)})
+            modules[mod] = entry
+            continue
+        v = V(mod, is_pkg)
+        v.visit(tree)
+        entry["all"] = v.all_decl
+        entry["all_dynamic"] = v.all_dynamic
+        # top-level defined names (for private/__all__ analysis)
+        defs = []
+        for n in tree.body:
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defs.append(n.name)
+        entry["exc_classes"] = [
+            {"name": n.name, "bases": [ast.unparse(b) for b in n.bases], "line": n.lineno}
+            for n in ast.walk(tree)
+            if isinstance(n, ast.ClassDef)
+        ]
+        modules[mod] = entry
+        recs.extend(v.recs)
+
+    tops = {m.split(".")[0] for m in modules}
+    names = set(modules)
+    for r in recs:
+        t = r["target"]
+        top = t.split(".")[0] if t else ""
+        r["internal"] = top in tops
+        res = None
+        if r["internal"]:
+            if r["kind"] == "from" and f"{t}.{r['name']}" in names:
+                res = f"{t}.{r['name']}"
+                r["name_is_module"] = True
+            else:
+                r["name_is_module"] = False
+                cand = t
+                while cand and cand not in names:
+                    cand = cand.rpartition(".")[0]
+                res = cand or None
+                r["exact"] = cand == t
+        r["resolved"] = res
+    json.dump(
+        {"modules": modules, "imports": recs, "skipped_test_files": skipped_tests, "parse_errors": parse_errors},
+        open(out, "w"),
+    )
+    print(root, "modules", len(modules), "import records", len(recs), "tests skipped", skipped_tests, "parse errors", len(parse_errors))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])

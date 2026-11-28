@@ -1,0 +1,55 @@
+finding_id: F-C-007
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01d
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: core components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Share of code commits touching two or more components: T1 54.2% (513 of 947), T2 pooled 37.4% (677 of 1,809;
+  pre-fork 39.8%, public 43.3%, experimental 32.3%), T3 34.3% (1,039 of 3,026). By class in T3: capability-growth
+  60.1%, compatibility-work 38.9%, convergence-activity 36.6%, restructuring 35.9%, corrective-maintenance 32.4%,
+  other 21.5%. In T1: 65.6%, 50.7%, (3 commits), 53.9%, 49.5%, 56.9%.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Recomputed with top-level packages as components.
+  result: 'Share touching two or more top-level packages: T1 24.9%, T2 pooled 12.9%, T3 11.5%; the direction is
+    the same as with 98 components.'
+relations: []
+confidence: high
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

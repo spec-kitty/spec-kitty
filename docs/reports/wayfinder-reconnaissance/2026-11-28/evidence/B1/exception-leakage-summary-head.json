@@ -1,0 +1,179 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "classes_total": 2561,
+ "exception_classes_defined": 542,
+ "named_except_or_raise_expressions": {
+  "raised": 4352,
+  "caught": 5710
+ },
+ "sites_resolved_to_internal_exception_class": 3770,
+ "sites_cross_component": 1651,
+ "share_cross_component": 0.4379,
+ "cross_component_caught": 1499,
+ "cross_component_raised": 152,
+ "exception_classes_used_across_a_component_boundary": 259,
+ "share_of_exception_classes": 0.4779,
+ "component_pairs": 231,
+ "top_defining_components": [
+  [
+   "kernel",
+   306
+  ],
+  [
+   "mission_runtime",
+   148
+  ],
+  [
+   "specify_cli.core",
+   140
+  ],
+  [
+   "specify_cli.status",
+   117
+  ],
+  [
+   "specify_cli.git",
+   102
+  ],
+  [
+   "charter.offering",
+   96
+  ],
+  [
+   "specify_cli.missions",
+   90
+  ],
+  [
+   "specify_cli.coordination",
+   90
+  ],
+  [
+   "charter.activation",
+   81
+  ],
+  [
+   "specify_cli.lanes",
+   76
+  ],
+  [
+   "specify_cli",
+   67
+  ],
+  [
+   "specify_cli.task_utils",
+   46
+  ],
+  [
+   "specify_cli.context",
+   39
+  ],
+  [
+   "specify_cli.decisions",
+   35
+  ],
+  [
+   "specify_cli.consolidation",
+   32
+  ]
+ ],
+ "cross_layer_sites": {
+  "charter defined, used in runtime (caught)": 8,
+  "charter defined, used in specify_cli (caught)": 146,
+  "charter defined, used in specify_cli (raised)": 5,
+  "glossary defined, used in specify_cli (caught)": 3,
+  "kernel defined, used in charter (caught)": 18,
+  "kernel defined, used in mission_runtime (caught)": 3,
+  "kernel defined, used in runtime (caught)": 2,
+  "kernel defined, used in specify_cli (caught)": 278,
+  "kernel defined, used in specify_cli (raised)": 5,
+  "mission_runtime defined, used in runtime (caught)": 8,
+  "mission_runtime defined, used in specify_cli (caught)": 74,
+  "mission_runtime defined, used in specify_cli (raised)": 66,
+  "runtime defined, used in specify_cli (caught)": 12,
+  "specify_cli defined, used in mission_runtime (caught)": 24,
+  "specify_cli defined, used in runtime (caught)": 36,
+  "specify_cli defined, used in runtime (raised)": 1
+ },
+ "top_classes": [
+  [
+   "kernel.git.runner.GitCommandError",
+   188
+  ],
+  [
+   "mission_runtime.resolution.ActionContextError",
+   140
+  ],
+  [
+   "specify_cli.core.paths.MissionMetaReadError",
+   78
+  ],
+  [
+   "specify_cli.missions._read_path_resolver.StatusReadPathNotFound",
+   54
+  ],
+  [
+   "specify_cli.task_utils.support.TaskCliError",
+   46
+  ],
+  [
+   "specify_cli.status.store.StoreError",
+   43
+  ],
+  [
+   "charter.activation.activation_ledger.ActiveCharterConfigError",
+   36
+  ],
+  [
+   "specify_cli.missions._read_path_resolver.MissionSelectorAmbiguous",
+   33
+  ],
+  [
+   "specify_cli.git.destructive_guard.DestructiveOpRefused",
+   31
+  ],
+  [
+   "specify_cli.gitignore_manager.GitignorePathError",
+   25
+  ],
+  [
+   "specify_cli.frontmatter.FrontmatterError",
+   24
+  ],
+  [
+   "specify_cli.lanes.persistence.CorruptLanesError",
+   24
+  ],
+  [
+   "specify_cli.consolidation.git_probes.GitProbeError",
+   24
+  ],
+  [
+   "specify_cli.core.agent_config.AgentConfigError",
+   23
+  ],
+  [
+   "kernel.git_topology.GitTopologyError",
+   22
+  ],
+  [
+   "specify_cli.status.locking.FeatureStatusLockTimeoutError",
+   21
+  ],
+  [
+   "specify_cli.coordination.status_service.StatusSurfaceRefUnreadable",
+   19
+  ],
+  [
+   "specify_cli.context.mission_resolver.MissionNotFoundError",
+   19
+  ],
+  [
+   "specify_cli.status.lane_reader.CanonicalStatusNotFoundError",
+   17
+  ],
+  [
+   "specify_cli.coordination.surface_resolver.WorktreeRegistryUnavailable",
+   17
+  ]
+ ]
+}

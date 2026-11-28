@@ -1,0 +1,103 @@
+import hashlib, json, sys, os
+R="/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28"
+E=R+"/evidence/E2"; F=R+"/findings/E2"; os.makedirs(F,exist_ok=True)
+NOW=sys.argv[1]
+def sha(f): return hashlib.sha256(open(E+"/"+f,"rb").read()).hexdigest()
+CHX=int(sys.argv[2])
+CORE=("spec-kitty/spec-kitty","5c4fc5a79de1c1c299ab221ca26e5555c68ef533")
+CH=("spec-kitty/spec-kitty-charter","06cdfbe94856e8d24eca350c63d2a7b47bb9f13a")
+EV=("spec-kitty/spec-kitty-events","646e330b896b96d7a11f53b34aa3d0c0baa69a05")
+ENV="git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux"
+def q(s): return json.dumps(s, ensure_ascii=False)
+def ev(i,kind,ref,method,file=None,exit_code=0):
+    return dict(id=i,kind=kind,reference=ref,method=method,sha256=(sha(file) if file else None),exit_code=exit_code,environment=ENV,observed_at=NOW)
+def emit(n,measure,deviation,component,repo,view,claim,evidence,covered,not_covered,population,sample,dis_search,dis_result,relations,confidence,qa,inv,oq,counter=()):
+    L=[]
+    a=L.append
+    a(f"finding_id: F-E2-{n:03d}"); a("workstream: E2 mutation author"); a("hypotheses: []"); a("classification: observation"); a(f"view: {view}")
+    a("prereg:"); a(f"  measure: {q(measure)}"); a(f"  deviation: {q(deviation) if deviation else 'null'}")
+    a("subject:"); a(f"  component: {q(component)}"); a(f"  repository: {repo[0]}"); a(f"  revision: {q(repo[1])}"); a("  revision_kind: head")
+    a(f"claim: {q(claim)}"); a("evidence:")
+    for e in evidence:
+        a(f"  - id: {e['id']}"); a(f"    kind: {e['kind']}"); a(f"    reference: {q(e['reference'])}"); a(f"    method: {q(e['method'])}")
+        a(f"    sha256: {q(e['sha256']) if e['sha256'] else 'null'}"); a(f"    exit_code: {e['exit_code']}"); a(f"    environment: {q(e['environment'])}"); a(f"    observed_at: {q(e['observed_at'])}")
+    a("scope:"); a(f"  covered: {q(covered)}"); a(f"  not_covered: {q(not_covered)}"); a(f"  population: {q(population) if population else 'null'}"); a(f"  sample: {q(sample) if sample else 'null'}"); a("  seed: null")
+    a("interpretation: null"); a("derived_from: []")
+    if counter:
+        a("counterevidence:"); [a(f"  - {q(c)}") for c in counter]
+    else: a("counterevidence: []")
+    a("disconfirmation:"); a(f"  search: {q(dis_search)}"); a(f"  result: {q(dis_result)}")
+    if relations:
+        a("relations:"); [a(f"  - {{type: {t}, target: {g}}}") for t,g in relations]
+    else: a("relations: []")
+    a(f"confidence: {confidence}"); a("analyst:"); a("  profile: debugger-debbie"); a("  model: fable")
+    a("verification:"); a("  status: unverified"); a("  by: null")
+    a("quality_attributes: [" + ", ".join(qa) + "]")
+    for name,items in (("candidate_invariants",inv),("open_questions",oq)):
+        if items:
+            a(name+":"); [a(f"  - {q(i)}") for i in items]
+        else: a(name+": []")
+    open(f"{F}/F-E2-{n:03d}.yaml","w").write("\n".join(L)+"\n")
+BLIND=("Blindness deviation: one `find` over the charter repository listed file NAMES under src/test (contents were not read); documents and production docstrings that the brief allows name gate test files and ArchUnit rule names; the session's injected project instructions also name gates. No test, architecture-test source, allowlist, ledger or CI workflow content was opened.")
+COUNTS="bash evidence/E2/script-ambiguity_counts.txt (run against a --shared clone of core at 5c4fc5a7)"
+emit(1,"mutation set (24 patches, 6 per class)",BLIND,"mutation set over core, charter, events and open-packs",CORE,"observed",
+ "24 of 24 patches pass `git apply --check` in fresh clones at the head revisions (exit 0 each). They split 6/6/6/6 over the classes PI, RD, OB and IC, 2 blatant, 2 moderate and 2 subtle in each class, and 15/4/4/1 over core, spec-kitty-charter, spec-kitty-events and spec-kitty-open-packs (doc-kitty: 0). 22 of 24 touch one file; M-IC-1 touches three. 15 of 15 core Python patches import cleanly when applied alone. Of the 4 Java patches, the one for events was checked with javac alone (project build blocked) and the 3 for charter likewise (its Gradle compile timed out); none of the 4 shows a syntax error. For 15 of 24 the author judged the intended model unambiguous, for 7 partly ambiguous and for 2 ambiguous (mutations.csv, last column).",
+ [ev("E1","executed","evidence/E2/apply-check.txt","bash evidence/E2/script-verify_apply.txt","apply-check.txt"),
+  ev("E2","executed","evidence/E2/syntax-import-check.txt","bash evidence/E2/script-import_check.txt","syntax-import-check.txt"),
+  ev("E3","static-derived","evidence/E2/mutations.csv","python3 evidence/E2/script-write_mutations_csv.txt evidence/E2/mutations.csv","mutations.csv"),
+  ev("E4","executed","evidence/E2/events-java-syntax-check.txt","javac -proc:none on the patched file in a scratch copy; counts error kinds","events-java-syntax-check.txt"),
+  ev("E5","executed","evidence/E2/charter-java-check.txt","see the first line of the file","charter-java-check.txt",CHX)],
+ "Rules of the intended model exercised: the core layer chain (kernel, charter, runtime as importers; M-RD-1, 2, 3, 5); public-only use of spec-kitty-events (M-PI-1); the activation seam and the offering surface (M-PI-2, M-PI-5); the runtime engine's private names (M-PI-3); the charter service's onion and slice rules (M-PI-4, M-PI-6, M-RD-6); library-to-core direction (M-RD-4); writers of the status event log (M-OB-1, M-OB-6), the activation ledger (M-OB-2), the migration ledger (M-OB-3), a service pin (M-OB-4) and the read service's read-only guarantee (M-OB-5); six published shapes (events payload, charter OpenAPI, mission-status OpenAPI, orchestrator-api envelope, built-in pack descriptor, wp_window record).",
+ "No mutation for: glossary or mission_runtime as the importing layer; charter.offering importing charter.activation; spec-kitty-tracker; pack content edited inside core's fetched tree (untracked there, so no patch against head can express it); the Mission Write contract; the charter context JSON (F-E2-007); doc-kitty; the Java binding of events. No gate was run, so nothing here says which mutations are detected. Patches were not tested in combination; M-PI-2 and M-OB-2 edit the same place of one file and do not apply together.",
+ "the rules of the intended model as read from charter, ADRs and architecture documents of four repositories", "24 hand-written mutations (purposive, not random)",
+ "Looked for a patch that fails to apply, changes more than it states, or breaks import of its module: re-cloned all four repositories and re-ran apply --check and numstat; imported every touched core module with each patch applied alone.",
+ "None found: 24 of 24 exit 0, numstat matches the catalogue, 15 of 15 imports succeed. Neither Java build produced a compile result (events: dependency verification failed; charter: timeout), so the 4 Java patches have a javac syntax check only and may still fail to compile.",
+ [], "high", ["testability","modularity"], [], ["Which of the 24 are detected is for the workstream that runs the gates."])
+emit(2,"ambiguous rule",None,"specify_cli use of runtime.next._internal_runtime",CORE,"observed",
+ "Production code under src/specify_cli imports the package runtime.next._internal_runtime in 11 import statements in 8 of 1119 Python files. All 11 import non-underscore names. M-PI-3 therefore violates only the underscore-name convention (it imports engine._read_snapshot), not a package boundary.",
+ [ev("E1","static-derived","evidence/E2/ambiguity-counts.txt",COUNTS,"ambiguity-counts.txt")],
+ "import statements under src/specify_cli at head","which names of the runtime package are meant to be public; tests",None,None,
+ "Searched the charter (Internal Runtime Boundary section), docs/adr and docs/architecture for a statement of the runtime's public surface or of a ban on importing _internal_runtime from specify_cli.",
+ "Found none. The charter section (.kittify/charter/charter.md:442-450) says the runtime is CLI-owned code and says nothing about a public surface.",
+ [("refines","F-E2-001")],"medium",["modularity"],[],["Recorded intent, cited as a document claim: .kittify/charter/charter.md:438-439 puts runtime below specify_cli in the chain. Is the package name `_internal_runtime` meant to bar specify_cli, or only external packages?"])
+emit(3,"ambiguous rule",None,"imports of specify_cli from the layers below it",CORE,"observed",
+ "Import statements of specify_cli at head: 0 in src/kernel (45 files), 0 in src/charter (252 files), 0 in src/glossary (22 files), 138 in 20 of 36 files of src/runtime and 90 in 7 of 16 files of src/mission_runtime. A reverse-dependency mutation is clean for kernel, charter and glossary and is not clean for runtime and mission_runtime, where M-RD-3 adds one edge to 138 existing ones.",
+ [ev("E1","static-derived","evidence/E2/ambiguity-counts.txt",COUNTS,"ambiguity-counts.txt")],
+ "import and from-import statements, at any indentation, under the five layer packages","dynamic imports; the content of any ledger of permitted edges (not read, by the brief's blindness rule)",None,None,
+ "Checked that the module M-RD-3 imports was not already imported under src/runtime: grep for text_sanitization under src/runtime.",
+ "No match, so the edge is new.",
+ [("refines","F-E2-001")],"high",["modularity"],[],["Recorded intent, cited as a document claim: .kittify/charter/charter.md:438-439 states the chain kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli as enforced. Which documents say that existing runtime and mission_runtime edges are tolerated, and on what terms a new one is refused?"])
+emit(4,"ambiguous rule",None,"version rule of unreleased OpenAPI contracts",CH,"recorded-intent",
+ "Two of the three OpenAPI contracts mutated or considered carry an unreleased version: charter `0.2.0-SNAPSHOT` and mission-status `1.0.0-SNAPSHOT`. For both, the documents define a break by a changelog record or a release baseline, not by a version number in the file, so the brief's phrase 'without a version change' has no direct meaning for M-IC-2 and M-IC-3; the author used 'no changelog fragment and info.version untouched' instead.",
+ [ev("E1","document-claim","spec-kitty-charter contracts/charter/CHANGELOG.md:3-17","read at 06cdfbe9"),
+  ev("E2","document-claim","spec-kitty-charter docs/adr/0022-contract-versions-start-at-0-x.md:3","read at 06cdfbe9"),
+  ev("E3","document-claim","spec-kitty-events contracts/mission-status/CHANGELOG.md:6-12 at 646e330b (no baseline exists; the breaking check reports NO_BASELINE_INITIAL_VERSION and no workflow runs it yet)","read at 646e330b")],
+ "the two changelogs, charter ADR-0022 and both openapi.yaml info.version lines","the Mission Write contract (1.0.1-SNAPSHOT per events docs/architecture/services/overview.md); how release tooling compares versions; tests",None,None,
+ "Looked in both contract folders and the two ADR sets for a rule that an unreleased contract may not change incompatibly between releases.",
+ "Charter: found the opposite for 0.x, breaks are allowed and listed per candidate. Events: found a statement that no baseline exists yet.",
+ [("refines","F-E2-001")],"medium",["compatibility"],[],["For a SNAPSHOT contract, what is the unit a break is measured against: the last release candidate, the last tag, or nothing?"])
+emit(5,"ambiguous rule",None,"writers of the Mission status event log",CORE,"observed",
+ "At head the low-level append primitive kernel.event_log_append.append_event_log_lines is in that module's __all__ and is imported by 9 production modules (7 in specify_cli, 1 in charter, 1 in runtime), and specify_cli/status/store.py defines 6 public module-level append_* functions. An ownership-bypass mutation on the status log is clean when it uses a raw file open (M-OB-1); M-OB-6 uses the public primitive and is a bypass only because of the file it targets.",
+ [ev("E1","static-derived","evidence/E2/ambiguity-counts.txt",COUNTS,"ambiguity-counts.txt")],
+ "production source under src/ at head","which of the 9 importers write a status log (none was seen to; not exhaustively traced); the Java write service; tests",None,None,
+ "Looked for one document that names a single sanctioned writer of status.events.jsonl at head.",
+ "Found three, each a document claim: docs/architecture/status-model.md:249 (the status-owned transition pipeline and its two shells), docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md:98-100 (the EventBridge; low-level append primitives become private to it) and docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md:98 (the Java write service). The charter (.kittify/charter/charter.md:419-421) records the binding of the EventBridge to the launcher as pending.",
+ [("refines","F-E2-001")],"medium",["modularity","reliability"],[],["Which of the three named writers is the rule a new status-log write is judged against today?"])
+emit(6,"ambiguous rule",None,"direction between the spec-kitty-events Python package and core",EV,"recorded-intent",
+ "The documents read state 'never depend on core' for the events services only (events ADR-0002, lines 98 and 137). For the Python package the direction is implied, not stated: the core charter calls it an external package dependency to be treated like a third-party library, and its pyproject declares 2 runtime dependencies, neither of them core. M-RD-4 violates the implied rule.",
+ [ev("E1","document-claim","spec-kitty-events docs/adr/0002-events-domain-owns-its-services.md:98 and :137","read at 646e330b"),
+  ev("E2","document-claim","spec-kitty .kittify/charter/charter.md:382","read at 5c4fc5a7"),
+  ev("E3","static-derived","spec-kitty-events pyproject.toml [project].dependencies at 646e330b: pydantic, python-ulid","sed -n '/^dependencies/,/^]/p' pyproject.toml")],
+ "events docs/adr, contracts/versioning-and-compatibility.md, COMPATIBILITY.md, pyproject.toml; core charter","events docs/guides and docs/context; spec-kitty-tracker; tests",None,None,
+ "grep -i for 'depend' with 'core' and for 'specify_cli' in events docs/adr, contracts/*.md and COMPATIBILITY.md.",
+ "Only the two services sentences matched as a rule; other matches were x-source pointers to core paths inside contract schemas.",
+ [("refines","F-E2-001")],"medium",["modularity"],[],["Is there a recorded rule that src/spec_kitty_events never imports specify_cli, or is it left to the dependency list?"])
+emit(7,"ambiguous rule",None,"charter context --json payload contract",CORE,"recorded-intent",
+ "The contract module of the `charter context --json` payload states that it is 'a TRACKING contract, not yet a frozen one', and its maintenance rule covers one thing: a change of the top-level key set requires a bump of CONTEXT_SCHEMA_VERSION (1.4.0 at head). It gives no rule for a change of a value's type or of a nested key. No mutation was written for this surface: 0 of 24.",
+ [ev("E1","document-claim","src/charter/activation/context_contract.py:14-32 at 5c4fc5a7 (module docstring)","read at 5c4fc5a7"),
+  ev("E2","static-derived","evidence/E2/ambiguity-counts.txt",COUNTS,"ambiguity-counts.txt")],
+ "the contract module's docstring and constant","docs/ pages on the context JSON beyond a grep; tests; the nested org_charter schema version",None,None,
+ "grep for context_schema_version under src/ and docs/adr/4.x for a rule on value types or nested keys.",
+ "Found the top-level-key rule only, and a statement that the freeze and the deprecation policy are deferred.",
+ [("refines","F-E2-001")],"medium",["compatibility"],[],["Would a type change of one top-level value, with the key set unchanged, count as a break of this contract?"])
+print("ok")

@@ -1,0 +1,64 @@
+finding_id: F-C-015
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: cross-component imports
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'By class in the M01f sample, edges new to the repository per 1,000 changed Python lines: T1 corrective-maintenance
+  2.64 (43 edges, 16,297 lines, 81 commits), compatibility-work 1.83, capability-growth 1.07, other 0.80, restructuring
+  0 (6 commits); T2 compatibility-work 2.92 (3 edges, 12 commits), capability-growth 0.43, corrective-maintenance
+  0.18, restructuring 0.17, convergence-activity 0; T3 compatibility-work 0.90 (2 edges, 15 commits), capability-growth
+  0.39 (2 edges, 11 commits), corrective-maintenance 0.19 (1 edge, 81 commits), restructuring 0 and convergence-activity
+  0.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01f-summary.csv
+  method: aggregation of m01f-sample.csv
+  sha256: 37cf5735e5e414759c127887bd2b3b4de0c5bc4bdb547f3156923d9dc43c1775
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/m01f-sample.csv
+  method: python3 script-m01f.txt
+  sha256: 541c93be3c605bb49222e5699e77a4a23b8c2db8aadd47deb419cf3d2f956161
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: 947 / 1,809 / 3,026 code commits
+  sample: 150 per period, proportional by class
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked stratum sizes behind each class rate.
+  result: Eleven of the seventeen class cells rest on fewer than 20 commits and several on one to three edges; class-level
+    rates are not stable enough to rank classes.
+relations: []
+confidence: low
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

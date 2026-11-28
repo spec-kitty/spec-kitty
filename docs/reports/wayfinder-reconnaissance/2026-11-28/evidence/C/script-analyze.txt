@@ -1,0 +1,77 @@
+import csv,collections,math,itertools,os,sys,statistics
+S=os.path.dirname(os.path.abspath(__file__)); O=S+'/out'
+rows=list(csv.DictReader(open(S+'/commits.csv')))
+for r in rows:
+    for k in('n_files','n_src_files','added','deleted','src_added','src_deleted','bulk','n_components','n_top','fix','cherry','pr_suffix'): r[k]=int(r[k])
+    r['comps']=[x for x in r['components'].split(';') if x]
+CL=['capability-growth','corrective-maintenance','restructuring','compatibility-work','convergence-activity','other']
+def p90(v):
+    v=sorted(v); return v[max(0,math.ceil(0.9*len(v))-1)] if v else ''
+def stats(v):
+    if not v: return dict(n=0,median='',p90='',mean='',share2='')
+    return dict(n=len(v),median=statistics.median(v),p90=p90(v),mean=round(sum(v)/len(v),3),share2=round(sum(1 for x in v if x>=2)/len(v),4))
+def seg(r):
+    if r['period']=='T2': return 'T2-'+r['line']
+    return r['period']
+groups=[]  # (name, predicate)
+months=sorted({r['month'] for r in rows if '2026-01'<=r['month']<='2026-11'})
+for m in months:
+    for ln in ('pre-fork','public','experimental','converged'):
+        if any(r['month']==m and r['line']==ln for r in rows): groups.append((f'month {m} {ln}',lambda r,m=m,ln=ln:r['month']==m and r['line']==ln))
+for name in ('T1','T2-pre-fork','T2-public','T2-experimental','T3'):
+    groups.append((name,lambda r,name=name:seg(r)==name))
+groups.append(('T2-pooled',lambda r:r['period']=='T2'))
+merges=[l.rstrip('\n').split('|',2) for l in open(S+'/merges.txt')]
+pub=set(open(S+'/pub.txt').read().split()); exp=set(open(S+'/exp.txt').read().split()); pre=set(open(S+'/prefork.txt').read().split())
+import datetime
+mrows=[]
+for sha,cd,s in merges:
+    d=datetime.datetime.fromisoformat(cd).astimezone(datetime.timezone.utc).strftime('%Y-%m-%d')
+    line='pre-fork' if sha in pre else 'public' if sha in pub else 'experimental' if sha in exp else 'converged'
+    period='T3' if line=='converged' and '2026-09-05'<=d<='2026-11-28' else 'T2' if line!='converged' and '2026-07-01'<=d<='2026-09-05' else 'T1' if line!='converged' and '2026-04-01'<=d<='2026-06-30' else ''
+    mrows.append(dict(sha=sha,month=d[:7],line=line,period=period))
+m01=[];vol=[]
+for name,pred in groups:
+    g=[r for r in rows if pred(r)]
+    code=[r for r in g if r['category']=='code']; cnb=[r for r in code if not r['bulk']]
+    nm=sum(1 for m in mrows if pred(m))
+    vol.append(dict(group=name,nonmerge_commits=len(g),merge_commits=nm,code_commits=len(code),bulk_code_commits_excluded=len(code)-len(cnb),bulk_noncode=sum(1 for r in g if r['bulk'] and r['category']!='code'),
+        docs_specs_tests_only=sum(1 for r in g if r['category']=='docs-specs-tests-only'),other_non_src=sum(1 for r in g if r['category']=='other-non-src'),
+        changed_lines_all_nonbulk=sum(r['added']+r['deleted'] for r in g if not r['bulk']),src_changed_lines_code_nonbulk=sum(r['src_added']+r['src_deleted'] for r in cnb),
+        pr_suffix_share_code=round(sum(r['pr_suffix'] for r in cnb)/len(cnb),4) if cnb else '',
+        **{f'code_{c}':sum(1 for r in cnb if r['cls']==c) for c in CL},**{f'srclines_{c}':sum(r['src_added']+r['src_deleted'] for r in cnb if r['cls']==c) for c in CL}))
+    for c in ['ALL']+CL:
+        sub=[r for r in cnb if c=='ALL' or r['cls']==c]
+        st=stats([r['n_components'] for r in sub]); st2=stats([r['n_top'] for r in sub])
+        m01.append(dict(group=name,cls=c,n_code_commits=st['n'],comp_median=st['median'],comp_p90=st['p90'],comp_mean=st['mean'],share_ge2_components=st['share2'],
+                        top_median=st2['median'],top_p90=st2['p90'],top_mean=st2['mean'],share_ge2_toplevel=st2['share2']))
+def wr(name,data):
+    with open(O+'/'+name,'w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=list(data[0].keys())); w.writeheader(); w.writerows(data)
+wr('m01c-m01d-components-per-commit.csv',m01); wr('volume-denominators.csv',vol)
+# co-change
+co=[]
+for name in ('T1','T2-pre-fork','T2-public','T2-experimental','T2-pooled','T3'):
+    pred=dict(groups)[name]
+    cnb=[r for r in rows if pred(r) and r['category']=='code' and not r['bulk']]
+    N=len(cnb); single=collections.Counter(); pair=collections.Counter()
+    for r in cnb:
+        for a in r['comps']: single[a]+=1
+        for a,b in itertools.combinations(r['comps'],2): pair[(a,b)]+=1
+    for (a,b),v in sorted(pair.items(),key=lambda x:-x[1]):
+        co.append(dict(period=name,n_code_commits=N,a=a,b=b,both=v,n_a=single[a],n_b=single[b],support=round(v/N,5),conf_a_to_b=round(v/single[a],4),conf_b_to_a=round(v/single[b],4),jaccard=round(v/(single[a]+single[b]-v),4)))
+wr('cochange-pairs-full.csv',co)
+wr('cochange-pairs.csv',[c for c in co if c['both']>=3])
+top=[]
+for name in ('T1','T2-pre-fork','T2-public','T2-experimental','T2-pooled','T3'):
+    top+= [c for c in co if c['period']==name][:15]
+wr('cochange-top15.csv',top)
+# component touch counts per period
+ct=[]
+for name in ('T1','T2-pre-fork','T2-public','T2-experimental','T2-pooled','T3'):
+    pred=dict(groups)[name]; cnb=[r for r in rows if pred(r) and r['category']=='code' and not r['bulk']]
+    single=collections.Counter(a for r in cnb for a in r['comps'])
+    for a,v in single.most_common(): ct.append(dict(period=name,component=a,code_commits=v,share=round(v/len(cnb),4)))
+wr('component-touch-counts.csv',ct)
+wr('bulk-commits.csv',[dict(sha=r['sha'],date=r['date'],line=r['line'],category=r['category'],n_files=r['n_files'],subject=r['subject'][:100]) for r in rows if r['bulk'] and r['month']>='2026-01'])
+wr('code-commits-compact.csv',[dict(sha=r['sha'][:12],date=r['date'],line=r['line'],period=r['period'],cls=r['cls'],fix=r['fix'],bulk=r['bulk'],n_components=r['n_components'],n_top=r['n_top'],src_churn=r['src_added']+r['src_deleted']) for r in rows if r['category']=='code' and r['month']>='2026-01'])

@@ -1,0 +1,43 @@
+# m04e_seam_census: who imports a seam module and who imports behind it (AST, core src)
+# usage: python m04e_seam_census.txt <core src root>
+import ast,sys,pathlib,json,collections
+ROOT=pathlib.Path(sys.argv[1])
+imports=collections.defaultdict(set)  # file -> set of (module, name)
+for p in sorted(ROOT.rglob("*.py")):
+    rel=str(p.relative_to(ROOT))
+    try: t=ast.parse(p.read_text(encoding="utf-8"))
+    except Exception: continue
+    pkg=rel[:-3].replace("/",".").split(".")
+    for n in ast.walk(t):
+        if isinstance(n,ast.ImportFrom):
+            if n.level:
+                base=pkg[:-n.level] if not rel.endswith("__init__.py") else pkg[:-1][:len(pkg)-n.level]
+                mod=".".join(base+([n.module] if n.module else []))
+            else: mod=n.module or ""
+            for a in n.names: imports[rel].add((mod,a.name))
+        elif isinstance(n,ast.Import):
+            for a in n.names: imports[rel].add((a.name,None))
+def fq(m,n): return m if n is None else m+"."+n
+def census(seam, behind_prefix, inside_prefixes, label):
+    via=set();by=collections.defaultdict(set)
+    for f,s in imports.items():
+        if any(f.startswith(i) for i in inside_prefixes): continue
+        for m,n in s:
+            full=fq(m,n)
+            if m==seam or full==seam or m.startswith(seam+"."): via.add(f)
+            elif m==behind_prefix or m.startswith(behind_prefix+".") or full.startswith(behind_prefix+"."):
+                by[f].add(m)
+    top=collections.Counter(f.split("/")[0] for f in by)
+    mods=collections.Counter(m for f in by for m in by[f])
+    return {"seam":seam,"behind_prefix":behind_prefix,"consumers_excluded_prefixes":inside_prefixes,"files_importing_seam":len(via),"files_importing_behind_seam":len(by),"files_importing_both":len(via & set(by)),"bypass_files_by_top_package":dict(top),"behind_modules_top15":mods.most_common(15),"bypass_files":sorted(by)}
+out={
+ "charter.offering.api (consumers outside src/charter)":census("charter.offering.api","charter.offering",("charter/",),""),
+ "charter.activation.api (consumers outside src/charter)":census("charter.activation.api","charter.activation",("charter/",),""),
+ "charter.offering.api (consumers = everything outside charter/offering, incl. rest of charter)":census("charter.offering.api","charter.offering",("charter/offering/",),""),
+ "specify_cli.status.adapters (consumers outside specify_cli/status)":census("specify_cli.status.adapters","specify_cli.status",("specify_cli/status/",),""),
+ "specify_cli.tracker (consumers outside specify_cli/tracker) vs spec_kitty_tracker":census("specify_cli.tracker","spec_kitty_tracker",("specify_cli/tracker/",),""),
+ "charter.offering.pack_paths (consumers outside charter/offering) vs charter.offering.packs":census("charter.offering.pack_paths","charter.offering.packs",("charter/offering/",),""),
+}
+tot=collections.Counter(f.split("/")[0] for f in imports)
+out["_files_by_top_package"]=dict(tot)
+json.dump(out,sys.stdout,indent=1)

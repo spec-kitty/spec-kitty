@@ -1,0 +1,245 @@
+"""Shared filesystem conventions at head: which components construct the same paths under
+.kittify/, kitty-specs/ (incl. the Mission directory) and the per-user directories.
+
+Usage: shared_state.py <extract_dir> <sha> <outdir>
+
+Method (static, AST):
+  * A "path expression" is (a) a `/` operator chain, (b) a call to Path(...), PurePath(...),
+    .joinpath(...), os.path.join(...), or (c) a string literal containing an anchor followed by "/".
+  * Segments that are string literals, or Names/attributes resolving to a module-level string
+    constant (same module, or imported by `from m import NAME`, one hop), are kept; every other
+    segment becomes "<var>".
+  * Anchors: ".kittify"; "kitty-specs"; a per-user directory (call to user_state_dir /
+    user_cache_dir / user_config_dir, Path.home(), expanduser("~...")); and a Mission directory
+    variable: a leading Name/attribute whose identifier matches
+    (feature|mission|spec)_dir or kitty_specs(_dir)? -> reported under "kitty-specs/<mission>".
+  * Key = anchor + up to 3 following segments. key1 = anchor + first following segment.
+  * Read/write classification is by co-occurrence inside the outermost enclosing function of the
+    path expression: W when that function contains a call to write_text, write_bytes, unlink,
+    rmtree, mkdir, touch, rename, os.replace, shutil.copy*/move, json.dump, *.dump, open(..., mode
+    with w/a/x), or a callee whose name contains atomic_write / write_atomic / append_event /
+    save_ ; R when it contains read_text, read_bytes, open (other), json.load(s), safe_load, load,
+    exists, is_file, is_dir, iterdir, glob, rglob. A site at module or class level is "const".
+Limits: paths handed over through accessor functions or dataclass fields are attributed to the
+component that constructs them, not to the one that finally opens the file; co-occurrence in one
+function does not prove that the write hits that path; variable-name anchors miss Mission
+directories held under other names.
+"""
+from __future__ import annotations
+
+import ast
+import csv
+import json
+import re
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+from common import components, load
+
+root, sha, outdir = Path(sys.argv[1]) / "src", sys.argv[2], Path(sys.argv[3])
+d = load(sha)
+mods = d["modules"]
+raw, comp = components(d)
+MISSION_VAR = re.compile(r"(^|_)(feature|mission|spec)_dir$|^kitty_specs(_dir|_root|_path)?$")
+USER_FUNCS = {"user_state_dir": "<user-state-dir>", "user_cache_dir": "<user-cache-dir>", "user_config_dir": "<user-config-dir>"}
+W_ATTR = {"write_text", "write_bytes", "unlink", "rmtree", "mkdir", "touch", "rename", "copy", "copy2", "copyfile", "copytree", "move", "dump", "safe_dump", "dump_all"}
+W_NAME = re.compile(r"atomic_write|write_atomic|append_event|^save_|_save$|write_json|write_yaml")
+R_ATTR = {"read_text", "read_bytes", "load", "loads", "safe_load", "exists", "is_file", "is_dir", "iterdir", "glob", "rglob"}
+
+trees = {m: ast.parse((root / e["path"]).read_text(encoding="utf-8", errors="replace")) for m, e in mods.items()}
+# module-level string constants
+consts: dict[str, dict[str, str]] = {}
+for m, tree in trees.items():
+    c = {}
+    for n in tree.body:
+        tgt = val = None
+        if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name):
+            tgt, val = n.targets[0].id, n.value
+        elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.value is not None:
+            tgt, val = n.target.id, n.value
+        if tgt and isinstance(val, ast.Constant) and isinstance(val.value, str):
+            c[tgt] = val.value
+    consts[m] = c
+imported: dict[str, dict[str, tuple[str, str]]] = defaultdict(dict)
+for r in d["imports"]:
+    if r["kind"] == "from" and r.get("resolved") and not r.get("name_is_module"):
+        imported[r["src"]][r["asname"] or r["name"]] = (r["resolved"], r["name"])
+
+
+def const_of(m: str, node) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id in consts[m]:
+            return consts[m][node.id]
+        imp = imported[m].get(node.id)
+        if imp and imp[0] in consts and imp[1] in consts[imp[0]]:
+            return consts[imp[0]][imp[1]]
+    return None
+
+
+def ident(node) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def callee(node: ast.Call) -> str | None:
+    return ident(node.func)
+
+
+def flatten(m: str, node) -> list[str] | None:
+    """Return path segments for a path expression, or None when node is not one."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        left = flatten(m, node.left) or seg(m, node.left)
+        right = flatten(m, node.right) or seg(m, node.right)
+        return left + right
+    if isinstance(node, ast.Call):
+        nm = callee(node)
+        if nm in ("Path", "PurePath", "PosixPath", "join", "joinpath"):
+            segs: list[str] = []
+            if nm == "joinpath" and isinstance(node.func, ast.Attribute):
+                segs += flatten(m, node.func.value) or seg(m, node.func.value)
+            if nm == "join" and not (isinstance(node.func, ast.Attribute) and ident(node.func.value) == "path"):
+                return None
+            for a in node.args:
+                segs += flatten(m, a) or seg(m, a)
+            return segs
+    return None
+
+
+def seg(m: str, node) -> list[str]:
+    c = const_of(m, node)
+    if c is not None:
+        return [s for s in c.replace("\\", "/").split("/") if s not in ("", ".")] or ["<var>"]
+    if isinstance(node, ast.Call):
+        nm = callee(node)
+        if nm in USER_FUNCS:
+            return [USER_FUNCS[nm]]
+        if nm == "home":
+            return ["<home>"]
+        if nm == "expanduser":
+            return ["<home>"]
+    nm = ident(node)
+    if nm and MISSION_VAR.search(nm):
+        return ["kitty-specs", "<mission>"]
+    return ["<var>"]
+
+
+ANCH = {".kittify", "kitty-specs", "<user-state-dir>", "<user-cache-dir>", "<user-config-dir>", "<home>"}
+
+
+def key_of(segs: list[str]):
+    for i, s in enumerate(segs):
+        if s in ANCH:
+            tail = segs[i + 1 : i + 4]
+            return "/".join([s] + tail), "/".join([s] + tail[:1]) if s != "kitty-specs" else "/".join([s] + tail[:2])
+    return None
+
+
+def ops(fn) -> tuple[bool, bool]:
+    w = r = False
+    for n in ast.walk(fn):
+        if not isinstance(n, ast.Call):
+            continue
+        nm = callee(n) or ""
+        if nm == "open":
+            mode = None
+            if len(n.args) > 1 and isinstance(n.args[1], ast.Constant):
+                mode = n.args[1].value
+            for kw in n.keywords:
+                if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+                    mode = kw.value.value
+            if isinstance(mode, str) and any(ch in mode for ch in "wax+"):
+                w = True
+            else:
+                r = True
+        elif nm == "replace" and isinstance(n.func, ast.Attribute) and ident(n.func.value) == "os":
+            w = True
+        elif nm in W_ATTR or W_NAME.search(nm):
+            w = True
+        elif nm in R_ATTR:
+            r = True
+    return w, r
+
+
+sites = []  # (component, module, line, key, key1, cls)
+for m, tree in trees.items():
+    def visit(node, fn):
+        for child in ast.iter_child_nodes(node):
+            cfn = fn
+            if fn is None and isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                cfn = child
+            segs = None
+            if isinstance(child, (ast.BinOp, ast.Call)):
+                segs = flatten(m, child)
+            elif isinstance(child, ast.Constant) and isinstance(child.value, str) and len(child.value) < 200 and "\n" not in child.value:
+                v = child.value
+                if ".kittify/" in v or "kitty-specs/" in v:
+                    segs = [s for s in v.replace("\\", "/").split("/") if s]
+                    segs = [re.sub(r"\{.*?\}|<.*?>", "<var>", s) for s in segs]
+            if segs:
+                k = key_of(segs)
+                if k:
+                    if cfn is None:
+                        cls = "const"
+                    else:
+                        w, r = fn_ops.setdefault(id(cfn), ops(cfn))
+                        cls = "W" if w else ("R" if r else "ref")
+                        if w and r:
+                            cls = "RW"
+                    sites.append((comp[m], m, child.lineno, k[0], k[1], cls))
+                    continue  # do not descend: avoid double counting sub-chains
+            visit(child, cfn)
+
+    fn_ops: dict[int, tuple[bool, bool]] = {}
+    visit(tree, None)
+
+outdir.mkdir(exist_ok=True, parents=True)
+agg = defaultdict(lambda: defaultdict(Counter))
+for c, m, line, k, k1, cls in sites:
+    agg[k1][c][cls] += 1
+    agg[k1][c]["sites"] += 1
+mods_by = defaultdict(lambda: defaultdict(set))
+for c, m, line, k, k1, cls in sites:
+    mods_by[k1][c].add(m)
+with open(outdir / "shared-paths-by-component-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["path_key", "component", "modules", "sites", "sites_in_function_with_write_call", "sites_in_function_with_read_call_only", "sites_ref_only", "sites_module_level_constant"])
+    for k1 in sorted(agg):
+        for c in sorted(agg[k1]):
+            a = agg[k1][c]
+            w.writerow([k1, c, len(mods_by[k1][c]), a["sites"], a["W"] + a["RW"], a["R"], a["ref"], a["const"]])
+rows = []
+for k1, by in agg.items():
+    writers = [c for c, a in by.items() if a["W"] + a["RW"] > 0]
+    rows.append([k1, len(by), len(writers), sum(a["sites"] for a in by.values()), len({m for c in mods_by[k1] for m in mods_by[k1][c]}), ";".join(sorted(writers))[:400]])
+rows.sort(key=lambda r: (-r[1], -r[3]))
+with open(outdir / "shared-paths-summary-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["path_key", "components_constructing", "components_with_write_cooccurrence", "sites", "modules", "write_cooccurring_components"])
+    w.writerows(rows)
+full = Counter((s[3]) for s in sites)
+summary = {
+    "revision": sha,
+    "path_sites": len(sites),
+    "modules_with_sites": len({s[1] for s in sites}),
+    "modules_total": len(mods),
+    "components_with_sites": len({s[0] for s in sites}),
+    "components_total": len(set(comp.values())),
+    "distinct_path_keys_depth1": len(agg),
+    "keys_constructed_by_2_or_more_components": sum(1 for r in rows if r[1] >= 2),
+    "keys_with_write_cooccurrence_in_2_or_more_components": sum(1 for r in rows if r[2] >= 2),
+    "by_anchor": {a: {"keys": sum(1 for r in rows if r[0].split("/")[0] == a), "keys_2plus_components": sum(1 for r in rows if r[0].split("/")[0] == a and r[1] >= 2), "keys_2plus_writer_components": sum(1 for r in rows if r[0].split("/")[0] == a and r[2] >= 2), "sites": sum(r[3] for r in rows if r[0].split("/")[0] == a), "components": len({c for k1 in agg if k1.split("/")[0] == a for c in agg[k1]})} for a in sorted(ANCH)},
+    "literal_dot_kittify_constant_definitions": sorted((m, n) for m in consts for n, v in consts[m].items() if v == ".kittify"),
+    "literal_kitty_specs_constant_definitions": sorted((m, n) for m in consts for n, v in consts[m].items() if v == "kitty-specs"),
+    "top_keys": rows[:40],
+    "top_full_keys": full.most_common(40),
+}
+json.dump(summary, open(outdir / "shared-paths-summary-head.json", "w"), indent=1)
+print(json.dumps({k: v for k, v in summary.items() if k not in ("top_keys", "top_full_keys")}, indent=1))
+for r in rows[:40]:
+    print(r[:5])

@@ -1,0 +1,192 @@
+"""Exception leakage at head: exception classes defined in one component and caught (`except X`)
+or raised (`raise X`) by name in another component.
+
+Usage: exceptions.py <extract_dir> <sha> <outdir>
+
+Method (static): a class is an exception class when its base chain, resolved by name through the
+importing module's import statements (re-exports followed up to 8 hops), reaches a builtin
+exception. A use site is an `except` clause type or a `raise` expression whose Name / dotted
+attribute resolves the same way to such a class. Limits: names bound by assignment, star imports,
+exception classes passed as values, `isinstance` checks, and catches of a base class that also
+catch a foreign subclass are not attributed.
+"""
+from __future__ import annotations
+
+import ast
+import builtins
+import csv
+import json
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+from common import components, load
+
+root, sha, outdir = Path(sys.argv[1]) / "src", sys.argv[2], Path(sys.argv[3])
+d = load(sha)
+mods = d["modules"]
+raw, comp = components(d)
+BUILTIN_EXC = {n for n, o in vars(builtins).items() if isinstance(o, type) and issubclass(o, BaseException)}
+
+classes: dict[str, dict[str, list[str]]] = {}  # module -> class name -> base exprs
+trees = {}
+for m, e in mods.items():
+    tree = ast.parse((root / e["path"]).read_text(encoding="utf-8", errors="replace"))
+    trees[m] = tree
+    cl = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ClassDef):
+            cl.setdefault(n.name, [ast.unparse(b) for b in n.bases])
+    classes[m] = cl
+
+# alias maps
+name_alias: dict[str, dict[str, tuple[str, str | None]]] = defaultdict(dict)  # module -> local -> (module, name|None)
+for r in d["imports"]:
+    if r["kind"] == "dynamic" or not r.get("resolved"):
+        continue
+    m = r["src"]
+    if r["kind"] == "from":
+        local = r["asname"] or r["name"]
+        if r.get("name_is_module"):
+            name_alias[m][local] = (r["resolved"], None)
+        elif r.get("exact", True):
+            name_alias[m][local] = (r["resolved"], r["name"])
+    else:
+        if r["asname"]:
+            if r.get("exact", True):
+                name_alias[m][r["asname"]] = (r["resolved"], None)
+        else:
+            name_alias[m].setdefault("import:" + r["target"], (r["target"], None))
+
+
+def resolve(mod: str, dotted: str, depth: int = 0):
+    """Resolve a dotted expression used in `mod` to (defining module, class name) or None."""
+    if depth > 8 or mod not in mods:
+        return None
+    parts = dotted.split(".")
+    head = parts[0]
+    if len(parts) == 1:
+        if head in classes[mod]:
+            return (mod, head)
+        al = name_alias[mod].get(head)
+        if al and al[1] is not None:
+            return resolve(al[0], al[1], depth + 1)
+        return None
+    # dotted: try alias for head, else `import a.b.c` full-path forms
+    al = name_alias[mod].get(head)
+    if al:
+        tgt, nm = al
+        if nm is None:
+            cur = tgt
+            rest = parts[1:]
+            while len(rest) > 1 and f"{cur}.{rest[0]}" in mods:
+                cur = f"{cur}.{rest[0]}"
+                rest = rest[1:]
+            if len(rest) == 1:
+                return resolve(cur, rest[0], depth + 1)
+        return None
+    for i in range(len(parts) - 1, 0, -1):
+        cand = ".".join(parts[:i])
+        if cand in mods and ("import:" + cand) in name_alias[mod] or any(k.startswith("import:" + cand) for k in name_alias[mod]):
+            if cand in mods and len(parts) - i == 1:
+                return resolve(cand, parts[i], depth + 1)
+    return None
+
+
+is_exc: dict[tuple[str, str], bool] = {}
+
+
+def exc(mod: str, name: str, stack=()) -> bool:
+    key = (mod, name)
+    if key in is_exc:
+        return is_exc[key]
+    if key in stack:
+        return False
+    res = False
+    for b in classes[mod].get(name, []):
+        last = b.split("[")[0]
+        if last in BUILTIN_EXC or last.split(".")[-1] in BUILTIN_EXC and last.split(".")[0] in ("builtins",):
+            res = True
+            break
+        r = resolve(mod, last)
+        if r and exc(r[0], r[1], stack + (key,)):
+            res = True
+            break
+    is_exc[key] = res
+    return res
+
+
+exc_classes = [(m, c) for m in classes for c in classes[m] if exc(m, c)]
+print("exception classes", len(exc_classes), "of classes", sum(len(v) for v in classes.values()))
+
+
+def names_of(node):
+    if node is None:
+        return []
+    if isinstance(node, ast.Tuple):
+        return [x for e in node.elts for x in names_of(e)]
+    if isinstance(node, ast.Call):
+        return names_of(node.func)
+    if isinstance(node, (ast.Name, ast.Attribute)):
+        try:
+            return [ast.unparse(node)]
+        except Exception:
+            return []
+    return []
+
+
+sites = []  # (use module, kind, defining module, class, line)
+tot_named = Counter()
+for m, tree in trees.items():
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ExceptHandler):
+            kind, exprs = "caught", names_of(n.type)
+        elif isinstance(n, ast.Raise):
+            kind, exprs = "raised", names_of(n.exc)
+        else:
+            continue
+        for x in exprs:
+            tot_named[kind] += 1
+            r = resolve(m, x)
+            if r and exc(*r):
+                sites.append((m, kind, r[0], r[1], n.lineno))
+internal = len(sites)
+cross = [s for s in sites if comp[s[0]] != comp[s[2]]]
+pair = defaultdict(lambda: {"caught": 0, "raised": 0, "classes": set()})
+for m, kind, dm, c, line in cross:
+    p = pair[(comp[dm], comp[m])]
+    p[kind] += 1
+    p["classes"].add((dm, c))
+outdir.mkdir(exist_ok=True, parents=True)
+with open(outdir / "exception-leakage-pairs-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["defining_component", "using_component", "caught_sites", "raised_sites", "distinct_exception_classes"])
+    for (a, b), p in sorted(pair.items(), key=lambda kv: -(kv[1]["caught"] + kv[1]["raised"])):
+        w.writerow([a, b, p["caught"], p["raised"], len(p["classes"])])
+with open(outdir / "exception-leakage-sites-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["defining_component", "defining_module", "exception_class", "using_component", "using_module", "line", "kind"])
+    for m, kind, dm, c, line in sorted(cross, key=lambda s: (comp[s[2]], s[2], s[3], s[0], s[4])):
+        w.writerow([comp[dm], dm, c, comp[m], m, line, kind])
+leaked = {(s[2], s[3]) for s in cross}
+by_def = Counter(comp[s[2]] for s in cross)
+layer_pairs = Counter((s[2].split(".")[0], s[0].split(".")[0], s[1]) for s in cross if s[2].split(".")[0] != s[0].split(".")[0])
+summary = {
+    "revision": sha,
+    "classes_total": sum(len(v) for v in classes.values()),
+    "exception_classes_defined": len(exc_classes),
+    "named_except_or_raise_expressions": dict(tot_named),
+    "sites_resolved_to_internal_exception_class": internal,
+    "sites_cross_component": len(cross),
+    "share_cross_component": round(len(cross) / internal, 4),
+    "cross_component_caught": sum(1 for s in cross if s[1] == "caught"),
+    "cross_component_raised": sum(1 for s in cross if s[1] == "raised"),
+    "exception_classes_used_across_a_component_boundary": len(leaked),
+    "share_of_exception_classes": round(len(leaked) / len(exc_classes), 4),
+    "component_pairs": len(pair),
+    "top_defining_components": by_def.most_common(15),
+    "cross_layer_sites": {f"{a} defined, used in {b} ({k})": v for (a, b, k), v in sorted(layer_pairs.items())},
+    "top_classes": Counter(f"{s[2]}.{s[3]}" for s in cross).most_common(20),
+}
+json.dump(summary, open(outdir / "exception-leakage-summary-head.json", "w"), indent=1)
+print(json.dumps({k: v for k, v in summary.items() if k not in ("top_classes",)}, indent=1))

@@ -1,0 +1,44 @@
+import csv,os,sys,re,subprocess,random,fnmatch,json
+S=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,S)
+from parse import parse
+meta={r['sha']:r for r in csv.DictReader(open(S+'/commits.csv'))}
+cs=parse(S+'/raw_numstat.txt')
+REQ=re.compile(r'^[+-]\s*"?[A-Za-z0-9_.-]+(\[[^\]]*\])?\s*(==|>=|<=|~=|<|>)')
+def pin(paths,sha):
+    hit=[]
+    for p in paths:
+        if fnmatch.fnmatch(p,'packs/*.source.yaml') or p.startswith('pins/') or p=='uv.lock': hit.append(p)
+        elif p=='pyproject.toml':
+            d=subprocess.run(['git','-C','/home/user/spec-kitty','show','--format=','-U0',sha,'--','pyproject.toml'],capture_output=True,text=True).stdout
+            if any(REQ.match(l) for l in d.splitlines() if not l.startswith(('+++','---'))): hit.append(p+'(dependency line)')
+    return hit
+def contract(paths):
+    hit=[]
+    for p in paths:
+        if p.startswith(('kitty-specs/','tests/')): continue
+        segs=p.split('/'); b=segs[-1]
+        if any(s in('contracts','contract','schemas','schema') for s in segs[:-1]) or fnmatch.fnmatch(b,'*.schema.json') or fnmatch.fnmatch(b,'*schema*.yaml') or fnmatch.fnmatch(b,'*schema*.yml') or fnmatch.fnmatch(b,'openapi*'): hit.append(p)
+    return hit
+A=[];B=[];neither=0;win=0
+for c in cs:
+    m=meta[c['sha']]
+    if not(m['line']=='converged' and '2026-09-07'<=m['date']<='2026-11-28' and m['fix']=='1' and m['bulk']=='0'): continue
+    win+=1
+    paths=sorted({x for a,d,o,n in c['files'] for x in (o,n)})
+    ph=pin(paths,c['sha']); ch=contract(paths); nc=int(m['n_components'])
+    rec=dict(sha=c['sha'],date=m['date'],n_components=nc,pin_lock=';'.join(ph),contract=';'.join(ch)[:200],subject=c['subject'][:140])
+    if nc>=2 or ph or ch:
+        rec['reason']='+'.join([x for x,y in(('multi-component',nc>=2),('pin-lock',bool(ph)),('contract',bool(ch))) if y]); A.append(rec)
+    elif nc==1: B.append(rec)
+    else: neither+=1
+print('fix commits in window',win,'A',len(A),'B',len(B),'neither (0 components, no pin/contract)',neither)
+import collections
+print(collections.Counter(r['reason'] for r in A))
+for name,fr in(('m02a',A),('m02b',B)):
+    fr.sort(key=lambda r:r['sha'])
+    smp=random.Random(20261128).sample(fr,30)
+    with open(S+f'/out/{name}-frame.csv','w',newline='') as f:
+        keys=['sha','date','n_components','reason','pin_lock','contract','subject'] if name=='m02a' else ['sha','date','n_components','subject']
+        w=csv.DictWriter(f,fieldnames=keys,extrasaction='ignore'); w.writeheader(); w.writerows(fr)
+    json.dump(smp,open(S+f'/{name}_sample.json','w'),indent=1)
+    for r in smp: print(name,r['sha'][:10],r['date'],r.get('reason',''),r['subject'][:90])

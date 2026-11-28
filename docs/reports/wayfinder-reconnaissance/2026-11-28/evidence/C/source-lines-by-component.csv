@@ -1,0 +1,1099 @@
+point,line,revision,component,py_lines
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/(root),5577
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/acceptance,626
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/agent_utils,370
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/cli,10864
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/core,7899
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/dashboard,1911
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/diagnostics,204
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/events,185
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/upgrade,7469
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/consolidation,1840
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/orchestrator,7712
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/scripts,2251
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/template,879
+month-end 2026-01,pre-fork,033571b9334a,specify_cli/validators,721
+month-end 2026-02,pre-fork,25637803c1b2,charter/offering,260
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/(root),5661
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/acceptance,628
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/agent_utils,502
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/cli,16482
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/charter,2266
+month-end 2026-02,pre-fork,25637803c1b2,charter/(root),65
+month-end 2026-02,pre-fork,25637803c1b2,charter/activation,137
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/core,9232
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/dashboard,2063
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/diagnostics,208
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/dossier,9983
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/events,185
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/git,131
+month-end 2026-02,pre-fork,25637803c1b2,glossary,5029
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/upgrade,7969
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/consolidation,2107
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/mission_v1,1320
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/missions,27
+month-end 2026-02,pre-fork,25637803c1b2,runtime,1418
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/orchestrator_api,1137
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/runtime,1310
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/scripts,2315
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/spec_kitty_events,996
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/status,3715
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/sync,4294
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/template,971
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/tracker,1347
+month-end 2026-02,pre-fork,25637803c1b2,specify_cli/validators,813
+month-end 2026-03,pre-fork,515745f1fb05,charter/offering,259
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/(root),6678
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/acceptance,744
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/agent_utils,517
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/cli,18167
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/charter,2259
+month-end 2026-03,pre-fork,515745f1fb05,charter/(root),65
+month-end 2026-03,pre-fork,515745f1fb05,charter/activation,137
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/context,721
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/core,7027
+month-end 2026-03,pre-fork,515745f1fb05,mission_runtime,265
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/dashboard,2108
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/diagnostics,229
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/dossier,9815
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/events,185
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/git,171
+month-end 2026-03,pre-fork,515745f1fb05,glossary,5056
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/upgrade,10247
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/consolidation,2080
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/migration,2106
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/mission_v1,1311
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/missions,27
+month-end 2026-03,pre-fork,515745f1fb05,runtime,1461
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/orchestrator_api,1175
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/ownership,557
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/requirement_mapping,187
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/runtime,1489
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/scripts,1691
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/shims,477
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/skills,601
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/spec_kitty_events,953
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/state,291
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/status,2882
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/sync,5722
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/template,980
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/tracker,1834
+month-end 2026-03,pre-fork,515745f1fb05,specify_cli/validators,801
+month-end 2026-04,pre-fork,f8d099418390,charter/(root),1362
+month-end 2026-04,pre-fork,f8d099418390,charter/activation,9993
+month-end 2026-04,pre-fork,f8d099418390,charter/offering,7411
+month-end 2026-04,pre-fork,f8d099418390,kernel,694
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/(root),4394
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/acceptance,1096
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/agent_utils,676
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/auth,4543
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/bulk_edit,1017
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/calibration,616
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/charter_runtime,916
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/cli,29586
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/compat,3377
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/context,997
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/core,7646
+month-end 2026-04,pre-fork,f8d099418390,mission_runtime,288
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/dashboard,3308
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/diagnostics,315
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/decisions,1405
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/doc_analysis,1859
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/charter_pack_synthesizer,1301
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/dossier,2960
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/events,150
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/git,1110
+month-end 2026-04,pre-fork,f8d099418390,glossary,6403
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/identity,29
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/intake,723
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/invocation,2192
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/lanes,2979
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/upgrade,13094
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/consolidation,1144
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/migration,2918
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/mission_loader,1298
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/mission_step_contracts,367
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/mission_v1,1336
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/missions,902
+month-end 2026-04,pre-fork,f8d099418390,runtime,8114
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/orchestrator_api,1310
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/ownership,801
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/paths,560
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/policy,1084
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/post_merge,546
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/release,530
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/requirement_mapping,185
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/retrospective,2676
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/review,1754
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/runtime,1908
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/saas,347
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/saas_client,552
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/scripts,1469
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/shims,397
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/skills,2317
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/state,1019
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/status,5556
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/sync,10141
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/task_utils,470
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/template,726
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/tracker,3747
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/validators,704
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/widen,1759
+month-end 2026-04,pre-fork,f8d099418390,specify_cli/workspace,1022
+month-end 2026-05,pre-fork,48aea2bc9795,charter/(root),2454
+month-end 2026-05,pre-fork,48aea2bc9795,charter/activation,16941
+month-end 2026-05,pre-fork,48aea2bc9795,charter/offering,10149
+month-end 2026-05,pre-fork,48aea2bc9795,kernel,850
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/(root),4740
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/acceptance,1656
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/agent_utils,694
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/audit,2099
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/auth,5097
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/bulk_edit,1111
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/calibration,623
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/charter_freshness,21
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/charter_runtime,2875
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/charter_preflight,36
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/cli,42784
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/compat,3638
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/context,997
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/coordination,1856
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/core,8620
+month-end 2026-05,pre-fork,48aea2bc9795,mission_runtime,309
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/dashboard,3497
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/diagnostics,315
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/decisions,1437
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/doc_analysis,1864
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/charter_packs,1205
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/charter_pack_synthesizer,1309
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/dossier,3233
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/events,150
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/git,1917
+month-end 2026-05,pre-fork,48aea2bc9795,glossary,6342
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/identity,369
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/intake,726
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/invocation,2189
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/lanes,3648
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/upgrade,13447
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/consolidation,2079
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/migration,5064
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/mission_loader,1292
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/mission_step_contracts,393
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/mission_v1,1337
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/missions,1545
+month-end 2026-05,pre-fork,48aea2bc9795,runtime,9614
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/orchestrator_api,1433
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/ownership,804
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/paths,565
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/policy,1169
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/post_merge,774
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/readiness,1335
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/release,530
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/requirement_mapping,185
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/retrospective,6308
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/review,2364
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/runtime,2028
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/saas,347
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/saas_client,552
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/scripts,1473
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/shims,395
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/skills,2525
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/state,1019
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/status,7154
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/sync,14437
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/task_utils,478
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/tasks,141
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/template,739
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/tracker,3758
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/validators,704
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/widen,1783
+month-end 2026-05,pre-fork,48aea2bc9795,specify_cli/workspace,1189
+month-end 2026-06,pre-fork,64966b837c04,charter/(root),2470
+month-end 2026-06,pre-fork,64966b837c04,charter/activation,21208
+month-end 2026-06,pre-fork,64966b837c04,charter/offering,13563
+month-end 2026-06,pre-fork,64966b837c04,glossary,6434
+month-end 2026-06,pre-fork,64966b837c04,kernel,932
+month-end 2026-06,pre-fork,64966b837c04,mission_runtime,2153
+month-end 2026-06,pre-fork,64966b837c04,runtime,10577
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/(root),5950
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/acceptance,2208
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/agent_utils,714
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/audit,2104
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/auth,5140
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/bulk_edit,1262
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/calibration,634
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/charter_freshness,21
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/charter_runtime,2994
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/charter_preflight,36
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/cli,54402
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/compat,5125
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/context,1056
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/coordination,4864
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/core,9731
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/dashboard,3601
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/diagnostics,315
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/decisions,1539
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/delivery,3501
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/doc_analysis,1864
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/doctor,183
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/charter_packs,1314
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/charter_pack_synthesizer,1312
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/dossier,3246
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/event_journal,931
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/events,573
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/git,2697
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/identity,444
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/intake,728
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/invocation,2777
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/lanes,5415
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/consolidation,6237
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/migration,5480
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/mission_loader,1297
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/mission_step_contracts,418
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/mission_v1,1337
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/missions,2978
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/orchestrator_api,1856
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/ownership,1114
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/paths,577
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/policy,1193
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/post_merge,1195
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/proof,401
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/readiness,1453
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/release,531
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/requirement_mapping,214
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/retrospective,6841
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/review,2466
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/runtime,2189
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/saas,366
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/saas_client,552
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/session_presence,1226
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/shims,398
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/skills,2863
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/state,1088
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/status,9259
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/sync,18381
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/task_utils,505
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/tasks,142
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/template,748
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/tool_surface,6895
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/tracker,3966
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/upgrade,15768
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/validators,770
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/widen,1785
+month-end 2026-06,pre-fork,64966b837c04,specify_cli/workspace,1283
+month-end 2026-07,pre-fork,bb2020fea924,charter/(root),1880
+month-end 2026-07,pre-fork,bb2020fea924,charter/activation,26804
+month-end 2026-07,pre-fork,bb2020fea924,charter/offering,20773
+month-end 2026-07,pre-fork,bb2020fea924,glossary,6379
+month-end 2026-07,pre-fork,bb2020fea924,kernel,1154
+month-end 2026-07,pre-fork,bb2020fea924,mission_runtime,3775
+month-end 2026-07,pre-fork,bb2020fea924,runtime,12779
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/(root),6647
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/acceptance,3817
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/agent_utils,719
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/ast_analysis,192
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/audit,2113
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/auth,5140
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/bulk_edit,1627
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/calibration,636
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/charter_runtime,3052
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/cli,72610
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/compat,5373
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/context,1216
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/contracts,841
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/coordination,7561
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/core,11328
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/dashboard,3850
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/diagnostics,315
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/decisions,1584
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/delivery,5699
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/distribution,791
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/doc_analysis,1864
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/docs,400
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/doctor,183
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/charter_packs,1335
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/charter_pack_synthesizer,1329
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/dossier,3964
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/drg_writers,239
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/event_journal,1457
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/events,611
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/git,3006
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/identity,733
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/intake,728
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/invocation,3417
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/lanes,5869
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/consolidation,7120
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/migration,9028
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/mission_loader,1295
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/mission_step_contracts,431
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/mission_v1,1338
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/missions,3631
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/orchestrator_api,1998
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/ownership,1126
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/paths,578
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/policy,1260
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/post_merge,1517
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/proof,401
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/readiness,1447
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/release,524
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/requirement_mapping,214
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/retrospective,7139
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/review,5250
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/runtime,2450
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/saas,345
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/saas_client,779
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/session_presence,1238
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/shims,398
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/skills,2968
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/state,1205
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/status,11992
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/sync,23281
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/task_utils,752
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/tasks,902
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/template,698
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/tool_surface,6945
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/tracker,4255
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/upgrade,18489
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/validators,770
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/widen,1867
+month-end 2026-07,pre-fork,bb2020fea924,specify_cli/workspace,1307
+month-end 2026-08,public,eff63532607d,charter/(root),1820
+month-end 2026-08,public,eff63532607d,charter/activation,33271
+month-end 2026-08,public,eff63532607d,charter/offering,24017
+month-end 2026-08,public,eff63532607d,(src root),104
+month-end 2026-08,public,eff63532607d,glossary,6383
+month-end 2026-08,public,eff63532607d,kernel,2582
+month-end 2026-08,public,eff63532607d,mission_runtime,4392
+month-end 2026-08,public,eff63532607d,runtime,13638
+month-end 2026-08,public,eff63532607d,specify_cli/(root),7879
+month-end 2026-08,public,eff63532607d,specify_cli/acceptance,4391
+month-end 2026-08,public,eff63532607d,specify_cli/agent_utils,722
+month-end 2026-08,public,eff63532607d,specify_cli/ast_analysis,192
+month-end 2026-08,public,eff63532607d,specify_cli/audit,2183
+month-end 2026-08,public,eff63532607d,specify_cli/auth,5618
+month-end 2026-08,public,eff63532607d,specify_cli/bootstrap,299
+month-end 2026-08,public,eff63532607d,specify_cli/bulk_edit,1869
+month-end 2026-08,public,eff63532607d,specify_cli/calibration,656
+month-end 2026-08,public,eff63532607d,specify_cli/charter_runtime,4294
+month-end 2026-08,public,eff63532607d,specify_cli/cli,82345
+month-end 2026-08,public,eff63532607d,specify_cli/compat,5543
+month-end 2026-08,public,eff63532607d,specify_cli/config,124
+month-end 2026-08,public,eff63532607d,specify_cli/context,1217
+month-end 2026-08,public,eff63532607d,specify_cli/contracts,841
+month-end 2026-08,public,eff63532607d,specify_cli/coordination,7888
+month-end 2026-08,public,eff63532607d,specify_cli/core,12651
+month-end 2026-08,public,eff63532607d,specify_cli/dashboard,4000
+month-end 2026-08,public,eff63532607d,specify_cli/diagnostics,315
+month-end 2026-08,public,eff63532607d,specify_cli/decisions,2328
+month-end 2026-08,public,eff63532607d,specify_cli/delivery,5718
+month-end 2026-08,public,eff63532607d,specify_cli/distribution,806
+month-end 2026-08,public,eff63532607d,specify_cli/doc_analysis,1912
+month-end 2026-08,public,eff63532607d,specify_cli/docs,400
+month-end 2026-08,public,eff63532607d,specify_cli/doctor,183
+month-end 2026-08,public,eff63532607d,specify_cli/charter_packs,2285
+month-end 2026-08,public,eff63532607d,specify_cli/charter_pack_synthesizer,1351
+month-end 2026-08,public,eff63532607d,specify_cli/dossier,4216
+month-end 2026-08,public,eff63532607d,specify_cli/drg_writers,239
+month-end 2026-08,public,eff63532607d,specify_cli/event_journal,1130
+month-end 2026-08,public,eff63532607d,specify_cli/events,611
+month-end 2026-08,public,eff63532607d,specify_cli/git,3100
+month-end 2026-08,public,eff63532607d,specify_cli/identity,733
+month-end 2026-08,public,eff63532607d,specify_cli/intake,926
+month-end 2026-08,public,eff63532607d,specify_cli/invocation,3514
+month-end 2026-08,public,eff63532607d,specify_cli/lanes,6882
+month-end 2026-08,public,eff63532607d,specify_cli/consolidation,7561
+month-end 2026-08,public,eff63532607d,specify_cli/migration,10427
+month-end 2026-08,public,eff63532607d,specify_cli/mission_loader,1314
+month-end 2026-08,public,eff63532607d,specify_cli/mission_step_contracts,656
+month-end 2026-08,public,eff63532607d,specify_cli/mission_v1,1338
+month-end 2026-08,public,eff63532607d,specify_cli/missions,3755
+month-end 2026-08,public,eff63532607d,specify_cli/orchestrator_api,2077
+month-end 2026-08,public,eff63532607d,specify_cli/ownership,1229
+month-end 2026-08,public,eff63532607d,specify_cli/paths,578
+month-end 2026-08,public,eff63532607d,specify_cli/policy,1322
+month-end 2026-08,public,eff63532607d,specify_cli/post_merge,1500
+month-end 2026-08,public,eff63532607d,specify_cli/proof,424
+month-end 2026-08,public,eff63532607d,specify_cli/provisioning,206
+month-end 2026-08,public,eff63532607d,specify_cli/readiness,1461
+month-end 2026-08,public,eff63532607d,specify_cli/release,524
+month-end 2026-08,public,eff63532607d,specify_cli/requirement_mapping,620
+month-end 2026-08,public,eff63532607d,specify_cli/retrospective,7608
+month-end 2026-08,public,eff63532607d,specify_cli/review,6765
+month-end 2026-08,public,eff63532607d,specify_cli/runtime,2928
+month-end 2026-08,public,eff63532607d,specify_cli/saas,345
+month-end 2026-08,public,eff63532607d,specify_cli/saas_client,1391
+month-end 2026-08,public,eff63532607d,specify_cli/session_presence,1243
+month-end 2026-08,public,eff63532607d,specify_cli/shims,398
+month-end 2026-08,public,eff63532607d,specify_cli/skills,3001
+month-end 2026-08,public,eff63532607d,specify_cli/state,1295
+month-end 2026-08,public,eff63532607d,specify_cli/status,13432
+month-end 2026-08,public,eff63532607d,specify_cli/sync,36491
+month-end 2026-08,public,eff63532607d,specify_cli/task_utils,773
+month-end 2026-08,public,eff63532607d,specify_cli/tasks,902
+month-end 2026-08,public,eff63532607d,specify_cli/tasks_authoring,166
+month-end 2026-08,public,eff63532607d,specify_cli/template,745
+month-end 2026-08,public,eff63532607d,specify_cli/tool_surface,7002
+month-end 2026-08,public,eff63532607d,specify_cli/tracker,5998
+month-end 2026-08,public,eff63532607d,specify_cli/upgrade,20860
+month-end 2026-08,public,eff63532607d,specify_cli/validators,879
+month-end 2026-08,public,eff63532607d,specify_cli/widen,1867
+month-end 2026-08,public,eff63532607d,specify_cli/workspace,1346
+month-end 2026-08,experimental,ab2c3ea89eb1,charter/(root),1773
+month-end 2026-08,experimental,ab2c3ea89eb1,charter/activation,31974
+month-end 2026-08,experimental,ab2c3ea89eb1,charter/offering,23313
+month-end 2026-08,experimental,ab2c3ea89eb1,(src root),115
+month-end 2026-08,experimental,ab2c3ea89eb1,glossary,6383
+month-end 2026-08,experimental,ab2c3ea89eb1,kernel,2581
+month-end 2026-08,experimental,ab2c3ea89eb1,mission_runtime,4254
+month-end 2026-08,experimental,ab2c3ea89eb1,runtime,13568
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/(root),7196
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/acceptance,4194
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/agent_utils,722
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/ast_analysis,192
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/audit,2243
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/auth,5763
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/bootstrap,301
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/bulk_edit,1869
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/calibration,636
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/charter_runtime,3578
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/cli,76063
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/compat,5559
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/config,114
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/context,1216
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/contracts,841
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/coordination,7929
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/core,12356
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/dashboard,4033
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/diagnostics,317
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/decisions,2383
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/distribution,852
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/doc_analysis,1912
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/docs,400
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/doctor,183
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/charter_packs,2285
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/charter_pack_synthesizer,1351
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/dossier,3568
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/drg_writers,239
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/events,611
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/git,3015
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/identity,740
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/intake,926
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/invocation,3347
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/lanes,6635
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/consolidation,7573
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/migration,10102
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/mission_loader,1314
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/mission_step_contracts,536
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/mission_v1,1338
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/missions,3751
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/orchestrator_api,2112
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/ownership,1193
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/paths,578
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/policy,1359
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/post_merge,1510
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/proof,424
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/provisioning,206
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/readiness,1461
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/release,524
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/requirement_mapping,587
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/retrospective,7586
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/review,6620
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/runtime,2818
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/saas_client,1050
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/session_presence,1243
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/shims,398
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/skills,3001
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/state,1409
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/status,14015
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/task_utils,785
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/tasks,902
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/tasks_authoring,164
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/team_projection,8
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/template,745
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/tool_surface,7009
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/tracker,6230
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/upgrade,20696
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/validators,879
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/widen,1867
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/workspace,1346
+month-end 2026-08,experimental,ab2c3ea89eb1,specify_cli/zeitgeist_client,5716
+month-end 2026-09,converged,f4dc26694c94,charter/(root),2225
+month-end 2026-09,converged,f4dc26694c94,charter/activation,35912
+month-end 2026-09,converged,f4dc26694c94,charter/offering,24985
+month-end 2026-09,converged,f4dc26694c94,glossary,6255
+month-end 2026-09,converged,f4dc26694c94,kernel,3973
+month-end 2026-09,converged,f4dc26694c94,mission_runtime,5875
+month-end 2026-09,converged,f4dc26694c94,runtime,15427
+month-end 2026-09,converged,f4dc26694c94,specify_cli/(root),8517
+month-end 2026-09,converged,f4dc26694c94,specify_cli/acceptance,5234
+month-end 2026-09,converged,f4dc26694c94,specify_cli/agent_utils,712
+month-end 2026-09,converged,f4dc26694c94,specify_cli/asset_preservation,702
+month-end 2026-09,converged,f4dc26694c94,specify_cli/ast_analysis,192
+month-end 2026-09,converged,f4dc26694c94,specify_cli/audit,2293
+month-end 2026-09,converged,f4dc26694c94,specify_cli/auth,6531
+month-end 2026-09,converged,f4dc26694c94,specify_cli/bootstrap,302
+month-end 2026-09,converged,f4dc26694c94,specify_cli/bulk_edit,1891
+month-end 2026-09,converged,f4dc26694c94,specify_cli/calibration,637
+month-end 2026-09,converged,f4dc26694c94,specify_cli/charter_runtime,4607
+month-end 2026-09,converged,f4dc26694c94,specify_cli/cli,91233
+month-end 2026-09,converged,f4dc26694c94,specify_cli/compat,5607
+month-end 2026-09,converged,f4dc26694c94,specify_cli/config,115
+month-end 2026-09,converged,f4dc26694c94,specify_cli/consolidation,17319
+month-end 2026-09,converged,f4dc26694c94,specify_cli/context,1361
+month-end 2026-09,converged,f4dc26694c94,specify_cli/contracts,869
+month-end 2026-09,converged,f4dc26694c94,specify_cli/coordination,9860
+month-end 2026-09,converged,f4dc26694c94,specify_cli/core,14417
+month-end 2026-09,converged,f4dc26694c94,specify_cli/dashboard,4483
+month-end 2026-09,converged,f4dc26694c94,specify_cli/diagnostics,315
+month-end 2026-09,converged,f4dc26694c94,specify_cli/decisions,3053
+month-end 2026-09,converged,f4dc26694c94,specify_cli/distribution,852
+month-end 2026-09,converged,f4dc26694c94,specify_cli/doc_analysis,1382
+month-end 2026-09,converged,f4dc26694c94,specify_cli/docs,400
+month-end 2026-09,converged,f4dc26694c94,specify_cli/doctor,207
+month-end 2026-09,converged,f4dc26694c94,specify_cli/charter_packs,3205
+month-end 2026-09,converged,f4dc26694c94,specify_cli/charter_pack_synthesizer,1351
+month-end 2026-09,converged,f4dc26694c94,specify_cli/dossier,3416
+month-end 2026-09,converged,f4dc26694c94,specify_cli/drg_writers,239
+month-end 2026-09,converged,f4dc26694c94,specify_cli/events,776
+month-end 2026-09,converged,f4dc26694c94,specify_cli/git,4764
+month-end 2026-09,converged,f4dc26694c94,specify_cli/identity,731
+month-end 2026-09,converged,f4dc26694c94,specify_cli/intake,960
+month-end 2026-09,converged,f4dc26694c94,specify_cli/invocation,4009
+month-end 2026-09,converged,f4dc26694c94,specify_cli/lanes,10393
+month-end 2026-09,converged,f4dc26694c94,specify_cli/live_work,4124
+month-end 2026-09,converged,f4dc26694c94,specify_cli/migration,10847
+month-end 2026-09,converged,f4dc26694c94,specify_cli/mission_loader,1361
+month-end 2026-09,converged,f4dc26694c94,specify_cli/mission_step_contracts,854
+month-end 2026-09,converged,f4dc26694c94,specify_cli/mission_v1,126
+month-end 2026-09,converged,f4dc26694c94,specify_cli/missions,4380
+month-end 2026-09,converged,f4dc26694c94,specify_cli/orchestrator_api,4331
+month-end 2026-09,converged,f4dc26694c94,specify_cli/ownership,1193
+month-end 2026-09,converged,f4dc26694c94,specify_cli/paths,623
+month-end 2026-09,converged,f4dc26694c94,specify_cli/policy,1912
+month-end 2026-09,converged,f4dc26694c94,specify_cli/post_merge,1591
+month-end 2026-09,converged,f4dc26694c94,specify_cli/provisioning,206
+month-end 2026-09,converged,f4dc26694c94,specify_cli/readiness,1461
+month-end 2026-09,converged,f4dc26694c94,specify_cli/release,557
+month-end 2026-09,converged,f4dc26694c94,specify_cli/requirement_mapping,1197
+month-end 2026-09,converged,f4dc26694c94,specify_cli/retrospective,8019
+month-end 2026-09,converged,f4dc26694c94,specify_cli/review,6627
+month-end 2026-09,converged,f4dc26694c94,specify_cli/runtime,4773
+month-end 2026-09,converged,f4dc26694c94,specify_cli/saas_client,1197
+month-end 2026-09,converged,f4dc26694c94,specify_cli/session_presence,1682
+month-end 2026-09,converged,f4dc26694c94,specify_cli/shims,373
+month-end 2026-09,converged,f4dc26694c94,specify_cli/skills,4475
+month-end 2026-09,converged,f4dc26694c94,specify_cli/state,1477
+month-end 2026-09,converged,f4dc26694c94,specify_cli/status,16540
+month-end 2026-09,converged,f4dc26694c94,specify_cli/task_utils,815
+month-end 2026-09,converged,f4dc26694c94,specify_cli/tasks,1633
+month-end 2026-09,converged,f4dc26694c94,specify_cli/tasks_authoring,164
+month-end 2026-09,converged,f4dc26694c94,specify_cli/template,888
+month-end 2026-09,converged,f4dc26694c94,specify_cli/tool_surface,9888
+month-end 2026-09,converged,f4dc26694c94,specify_cli/tracker,6070
+month-end 2026-09,converged,f4dc26694c94,specify_cli/upgrade,23689
+month-end 2026-09,converged,f4dc26694c94,specify_cli/validators,912
+month-end 2026-09,converged,f4dc26694c94,specify_cli/widen,1872
+month-end 2026-09,converged,f4dc26694c94,specify_cli/workspace,1677
+month-end 2026-09,converged,f4dc26694c94,specify_cli/zeitgeist_client,7648
+month-end 2026-10,converged,78fc10e8cff0,charter/(root),2143
+month-end 2026-10,converged,78fc10e8cff0,charter/activation,43834
+month-end 2026-10,converged,78fc10e8cff0,charter/offering,29316
+month-end 2026-10,converged,78fc10e8cff0,glossary,6264
+month-end 2026-10,converged,78fc10e8cff0,kernel,7435
+month-end 2026-10,converged,78fc10e8cff0,mission_runtime,6473
+month-end 2026-10,converged,78fc10e8cff0,runtime,15956
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/(root),8564
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/acceptance,5617
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/agent_utils,913
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/asset_preservation,702
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/ast_analysis,192
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/audit,2503
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/bootstrap,301
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/bulk_edit,2218
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/calibration,637
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/charter_pack_synthesizer,1320
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/charter_packs,2859
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/charter_runtime,4659
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/cli,98280
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/compat,5186
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/config,115
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/consolidation,26022
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/context,1788
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/contracts,869
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/coordination,14362
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/core,15770
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/decisions,3405
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/design,1021
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/diagnostics,256
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/distribution,852
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/doc_analysis,1352
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/docs,400
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/doctor,213
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/dossier,2953
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/drg_writers,239
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/events,624
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/git,7070
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/identity,731
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/intake,960
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/invocation,4515
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/lanes,12068
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/migration,12147
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/mission_loader,1431
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/mission_step_contracts,886
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/mission_v1,126
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/missions,4468
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/orchestrator_api,5472
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/ownership,1196
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/paths,623
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/policy,2022
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/post_merge,1632
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/provisioning,83
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/readiness,540
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/release,557
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/requirement_mapping,1257
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/retrospective,8033
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/review,7292
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/runtime,5204
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/services,1879
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/session_presence,1819
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/shims,369
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/skills,6389
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/state,2578
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/status,18607
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/task_utils,802
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/tasks,1863
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/tasks_authoring,164
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/template,950
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/tool_surface,10169
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/tracker,2652
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/upgrade,30550
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/validators,922
+month-end 2026-10,converged,78fc10e8cff0,specify_cli/workspace,1768
+month-end 2026-11,converged,5c4fc5a79de1,charter/(root),2163
+month-end 2026-11,converged,5c4fc5a79de1,charter/activation,45426
+month-end 2026-11,converged,5c4fc5a79de1,charter/offering,30136
+month-end 2026-11,converged,5c4fc5a79de1,glossary,6383
+month-end 2026-11,converged,5c4fc5a79de1,kernel,9179
+month-end 2026-11,converged,5c4fc5a79de1,mission_runtime,6868
+month-end 2026-11,converged,5c4fc5a79de1,runtime,17627
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/(root),9327
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/acceptance,6108
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/agent_utils,1095
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/asset_preservation,702
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/ast_analysis,192
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/audit,2593
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/bootstrap,305
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/bulk_edit,2346
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/calibration,637
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/charter_pack_synthesizer,1320
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/charter_packs,2859
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/charter_runtime,4654
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/cli,107407
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/compat,5161
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/config,277
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/consolidation,36414
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/context,1895
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/contracts,869
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/coordination,15036
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/core,16156
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/decisions,3654
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/design,1021
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/diagnostics,256
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/distribution,852
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/doc_analysis,1352
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/docs,401
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/doctor,482
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/dossier,3009
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/drg_writers,239
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/events,633
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/git,8595
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/identity,760
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/intake,960
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/invocation,5367
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/lanes,16574
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/migration,12003
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/mission_loader,1399
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/mission_step_contracts,886
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/mission_v1,232
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/missions,5195
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/orchestrator_api,5855
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/ownership,1370
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/paths,627
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/policy,2023
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/post_merge,1674
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/provisioning,83
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/readiness,540
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/release,645
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/requirement_mapping,1560
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/retrospective,8483
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/review,9326
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/runtime,5726
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/services,2111
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/session_presence,2030
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/shims,369
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/skills,6486
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/state,2799
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/status,21397
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/task_utils,799
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/tasks,2380
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/tasks_authoring,164
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/template,950
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/tool_surface,10743
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/tracker,2652
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/upgrade,33155
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/validators,1112
+month-end 2026-11,converged,5c4fc5a79de1,specify_cli/workspace,2872
+P3a (public end; T2 end),public,614c52cb382d,charter/(root),1822
+P3a (public end; T2 end),public,614c52cb382d,charter/activation,34017
+P3a (public end; T2 end),public,614c52cb382d,charter/offering,24079
+P3a (public end; T2 end),public,614c52cb382d,(src root),104
+P3a (public end; T2 end),public,614c52cb382d,glossary,6383
+P3a (public end; T2 end),public,614c52cb382d,kernel,2582
+P3a (public end; T2 end),public,614c52cb382d,mission_runtime,4421
+P3a (public end; T2 end),public,614c52cb382d,runtime,14396
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/(root),7893
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/acceptance,4463
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/agent_utils,722
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/ast_analysis,192
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/audit,2183
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/auth,5618
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/bootstrap,299
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/bulk_edit,1869
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/calibration,656
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/charter_runtime,4294
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/cli,83971
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/compat,5543
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/config,124
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/context,1217
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/contracts,841
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/coordination,8481
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/core,13072
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/dashboard,4000
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/diagnostics,315
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/decisions,2354
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/delivery,5718
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/distribution,806
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/doc_analysis,1912
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/docs,400
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/doctor,183
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/charter_packs,2285
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/charter_pack_synthesizer,1351
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/dossier,4073
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/drg_writers,239
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/event_journal,1130
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/events,611
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/git,3121
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/identity,733
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/intake,926
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/invocation,3878
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/lanes,6882
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/consolidation,7707
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/migration,10490
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/mission_loader,1314
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/mission_step_contracts,663
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/mission_v1,1338
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/missions,4391
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/orchestrator_api,4035
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/ownership,1229
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/paths,578
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/policy,1322
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/post_merge,1546
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/proof,424
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/provisioning,206
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/readiness,1461
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/release,524
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/requirement_mapping,620
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/retrospective,7610
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/review,6783
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/runtime,2839
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/saas,345
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/saas_client,1391
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/session_presence,1243
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/shims,398
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/skills,3001
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/state,1295
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/status,13905
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/sync,36491
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/task_utils,782
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/tasks,917
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/tasks_authoring,166
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/template,745
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/tool_surface,7094
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/tracker,5998
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/upgrade,20860
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/validators,879
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/widen,1867
+P3a (public end; T2 end),public,614c52cb382d,specify_cli/workspace,1346
+P3b (experimental end; T2 end),experimental,f57b06dd875a,charter/(root),1822
+P3b (experimental end; T2 end),experimental,f57b06dd875a,charter/activation,33972
+P3b (experimental end; T2 end),experimental,f57b06dd875a,charter/offering,23987
+P3b (experimental end; T2 end),experimental,f57b06dd875a,(src root),115
+P3b (experimental end; T2 end),experimental,f57b06dd875a,glossary,6383
+P3b (experimental end; T2 end),experimental,f57b06dd875a,kernel,2581
+P3b (experimental end; T2 end),experimental,f57b06dd875a,mission_runtime,4287
+P3b (experimental end; T2 end),experimental,f57b06dd875a,runtime,14586
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/(root),7479
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/acceptance,4321
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/agent_utils,722
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/ast_analysis,192
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/audit,2253
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/auth,5823
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/bootstrap,301
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/bulk_edit,1869
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/calibration,637
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/charter_runtime,4289
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/cli,78317
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/compat,5559
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/config,115
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/context,1217
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/contracts,841
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/coordination,8496
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/core,12721
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/dashboard,4120
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/diagnostics,315
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/decisions,2409
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/distribution,852
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/doc_analysis,1912
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/docs,400
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/doctor,183
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/charter_packs,2285
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/charter_pack_synthesizer,1351
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/dossier,3416
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/drg_writers,239
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/events,611
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/git,3082
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/identity,740
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/intake,926
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/invocation,3711
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/lanes,6790
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/consolidation,7781
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/migration,10287
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/mission_loader,1314
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/mission_step_contracts,660
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/mission_v1,1338
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/missions,4387
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/orchestrator_api,4023
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/ownership,1193
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/paths,578
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/policy,1359
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/post_merge,1556
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/proof,424
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/provisioning,206
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/readiness,1461
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/release,524
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/requirement_mapping,587
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/retrospective,7605
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/review,6408
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/runtime,2820
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/saas_client,1063
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/session_presence,1243
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/shims,398
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/skills,3001
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/state,1451
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/status,14573
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/task_utils,794
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/tasks,917
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/tasks_authoring,164
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/team_projection,8
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/template,745
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/tool_surface,7102
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/tracker,6237
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/upgrade,21459
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/validators,880
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/widen,1867
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/workspace,1346
+P3b (experimental end; T2 end),experimental,f57b06dd875a,specify_cli/zeitgeist_client,5832
+convergence merge,converged,2554bd13adc2,charter/(root),1822
+convergence merge,converged,2554bd13adc2,charter/activation,33972
+convergence merge,converged,2554bd13adc2,charter/offering,23987
+convergence merge,converged,2554bd13adc2,(src root),115
+convergence merge,converged,2554bd13adc2,glossary,6383
+convergence merge,converged,2554bd13adc2,kernel,2581
+convergence merge,converged,2554bd13adc2,mission_runtime,4287
+convergence merge,converged,2554bd13adc2,runtime,14586
+convergence merge,converged,2554bd13adc2,specify_cli/(root),7479
+convergence merge,converged,2554bd13adc2,specify_cli/acceptance,4321
+convergence merge,converged,2554bd13adc2,specify_cli/agent_utils,722
+convergence merge,converged,2554bd13adc2,specify_cli/ast_analysis,192
+convergence merge,converged,2554bd13adc2,specify_cli/audit,2253
+convergence merge,converged,2554bd13adc2,specify_cli/auth,5823
+convergence merge,converged,2554bd13adc2,specify_cli/bootstrap,301
+convergence merge,converged,2554bd13adc2,specify_cli/bulk_edit,1869
+convergence merge,converged,2554bd13adc2,specify_cli/calibration,637
+convergence merge,converged,2554bd13adc2,specify_cli/charter_runtime,4289
+convergence merge,converged,2554bd13adc2,specify_cli/cli,78317
+convergence merge,converged,2554bd13adc2,specify_cli/compat,5559
+convergence merge,converged,2554bd13adc2,specify_cli/config,115
+convergence merge,converged,2554bd13adc2,specify_cli/context,1217
+convergence merge,converged,2554bd13adc2,specify_cli/contracts,841
+convergence merge,converged,2554bd13adc2,specify_cli/coordination,8496
+convergence merge,converged,2554bd13adc2,specify_cli/core,12721
+convergence merge,converged,2554bd13adc2,specify_cli/dashboard,4120
+convergence merge,converged,2554bd13adc2,specify_cli/diagnostics,315
+convergence merge,converged,2554bd13adc2,specify_cli/decisions,2409
+convergence merge,converged,2554bd13adc2,specify_cli/distribution,852
+convergence merge,converged,2554bd13adc2,specify_cli/doc_analysis,1912
+convergence merge,converged,2554bd13adc2,specify_cli/docs,400
+convergence merge,converged,2554bd13adc2,specify_cli/doctor,183
+convergence merge,converged,2554bd13adc2,specify_cli/charter_packs,2285
+convergence merge,converged,2554bd13adc2,specify_cli/charter_pack_synthesizer,1351
+convergence merge,converged,2554bd13adc2,specify_cli/dossier,3416
+convergence merge,converged,2554bd13adc2,specify_cli/drg_writers,239
+convergence merge,converged,2554bd13adc2,specify_cli/events,611
+convergence merge,converged,2554bd13adc2,specify_cli/git,3082
+convergence merge,converged,2554bd13adc2,specify_cli/identity,740
+convergence merge,converged,2554bd13adc2,specify_cli/intake,926
+convergence merge,converged,2554bd13adc2,specify_cli/invocation,3711
+convergence merge,converged,2554bd13adc2,specify_cli/lanes,6790
+convergence merge,converged,2554bd13adc2,specify_cli/consolidation,7781
+convergence merge,converged,2554bd13adc2,specify_cli/migration,10287
+convergence merge,converged,2554bd13adc2,specify_cli/mission_loader,1314
+convergence merge,converged,2554bd13adc2,specify_cli/mission_step_contracts,660
+convergence merge,converged,2554bd13adc2,specify_cli/mission_v1,1338
+convergence merge,converged,2554bd13adc2,specify_cli/missions,4387
+convergence merge,converged,2554bd13adc2,specify_cli/orchestrator_api,4023
+convergence merge,converged,2554bd13adc2,specify_cli/ownership,1193
+convergence merge,converged,2554bd13adc2,specify_cli/paths,578
+convergence merge,converged,2554bd13adc2,specify_cli/policy,1359
+convergence merge,converged,2554bd13adc2,specify_cli/post_merge,1556
+convergence merge,converged,2554bd13adc2,specify_cli/proof,424
+convergence merge,converged,2554bd13adc2,specify_cli/provisioning,206
+convergence merge,converged,2554bd13adc2,specify_cli/readiness,1461
+convergence merge,converged,2554bd13adc2,specify_cli/release,524
+convergence merge,converged,2554bd13adc2,specify_cli/requirement_mapping,587
+convergence merge,converged,2554bd13adc2,specify_cli/retrospective,7605
+convergence merge,converged,2554bd13adc2,specify_cli/review,6408
+convergence merge,converged,2554bd13adc2,specify_cli/runtime,2820
+convergence merge,converged,2554bd13adc2,specify_cli/saas_client,1063
+convergence merge,converged,2554bd13adc2,specify_cli/session_presence,1243
+convergence merge,converged,2554bd13adc2,specify_cli/shims,398
+convergence merge,converged,2554bd13adc2,specify_cli/skills,3001
+convergence merge,converged,2554bd13adc2,specify_cli/state,1451
+convergence merge,converged,2554bd13adc2,specify_cli/status,14573
+convergence merge,converged,2554bd13adc2,specify_cli/task_utils,794
+convergence merge,converged,2554bd13adc2,specify_cli/tasks,917
+convergence merge,converged,2554bd13adc2,specify_cli/tasks_authoring,164
+convergence merge,converged,2554bd13adc2,specify_cli/team_projection,8
+convergence merge,converged,2554bd13adc2,specify_cli/template,745
+convergence merge,converged,2554bd13adc2,specify_cli/tool_surface,7102
+convergence merge,converged,2554bd13adc2,specify_cli/tracker,6237
+convergence merge,converged,2554bd13adc2,specify_cli/upgrade,21459
+convergence merge,converged,2554bd13adc2,specify_cli/validators,880
+convergence merge,converged,2554bd13adc2,specify_cli/widen,1867
+convergence merge,converged,2554bd13adc2,specify_cli/workspace,1346
+convergence merge,converged,2554bd13adc2,specify_cli/zeitgeist_client,5832
+fork point,pre-fork,38090b6493dd,charter/(root),2114
+fork point,pre-fork,38090b6493dd,charter/activation,30765
+fork point,pre-fork,38090b6493dd,charter/offering,22613
+fork point,pre-fork,38090b6493dd,glossary,6383
+fork point,pre-fork,38090b6493dd,kernel,2477
+fork point,pre-fork,38090b6493dd,mission_runtime,4220
+fork point,pre-fork,38090b6493dd,runtime,13404
+fork point,pre-fork,38090b6493dd,specify_cli/(root),7398
+fork point,pre-fork,38090b6493dd,specify_cli/acceptance,3905
+fork point,pre-fork,38090b6493dd,specify_cli/agent_utils,722
+fork point,pre-fork,38090b6493dd,specify_cli/ast_analysis,192
+fork point,pre-fork,38090b6493dd,specify_cli/audit,2176
+fork point,pre-fork,38090b6493dd,specify_cli/auth,5164
+fork point,pre-fork,38090b6493dd,specify_cli/bootstrap,299
+fork point,pre-fork,38090b6493dd,specify_cli/bulk_edit,1868
+fork point,pre-fork,38090b6493dd,specify_cli/calibration,636
+fork point,pre-fork,38090b6493dd,specify_cli/charter_runtime,3578
+fork point,pre-fork,38090b6493dd,specify_cli/cli,79785
+fork point,pre-fork,38090b6493dd,specify_cli/compat,5543
+fork point,pre-fork,38090b6493dd,specify_cli/context,1216
+fork point,pre-fork,38090b6493dd,specify_cli/contracts,841
+fork point,pre-fork,38090b6493dd,specify_cli/coordination,7748
+fork point,pre-fork,38090b6493dd,specify_cli/core,12225
+fork point,pre-fork,38090b6493dd,specify_cli/dashboard,3996
+fork point,pre-fork,38090b6493dd,specify_cli/diagnostics,317
+fork point,pre-fork,38090b6493dd,specify_cli/decisions,2328
+fork point,pre-fork,38090b6493dd,specify_cli/delivery,5565
+fork point,pre-fork,38090b6493dd,specify_cli/distribution,806
+fork point,pre-fork,38090b6493dd,specify_cli/doc_analysis,1912
+fork point,pre-fork,38090b6493dd,specify_cli/docs,400
+fork point,pre-fork,38090b6493dd,specify_cli/doctor,183
+fork point,pre-fork,38090b6493dd,specify_cli/charter_packs,1424
+fork point,pre-fork,38090b6493dd,specify_cli/charter_pack_synthesizer,1329
+fork point,pre-fork,38090b6493dd,specify_cli/dossier,4304
+fork point,pre-fork,38090b6493dd,specify_cli/drg_writers,239
+fork point,pre-fork,38090b6493dd,specify_cli/event_journal,1130
+fork point,pre-fork,38090b6493dd,specify_cli/events,611
+fork point,pre-fork,38090b6493dd,specify_cli/git,3095
+fork point,pre-fork,38090b6493dd,specify_cli/identity,733
+fork point,pre-fork,38090b6493dd,specify_cli/intake,926
+fork point,pre-fork,38090b6493dd,specify_cli/invocation,3514
+fork point,pre-fork,38090b6493dd,specify_cli/lanes,5882
+fork point,pre-fork,38090b6493dd,specify_cli/consolidation,7456
+fork point,pre-fork,38090b6493dd,specify_cli/migration,9788
+fork point,pre-fork,38090b6493dd,specify_cli/mission_loader,1314
+fork point,pre-fork,38090b6493dd,specify_cli/mission_step_contracts,536
+fork point,pre-fork,38090b6493dd,specify_cli/mission_v1,1338
+fork point,pre-fork,38090b6493dd,specify_cli/missions,3631
+fork point,pre-fork,38090b6493dd,specify_cli/orchestrator_api,1999
+fork point,pre-fork,38090b6493dd,specify_cli/ownership,1126
+fork point,pre-fork,38090b6493dd,specify_cli/paths,578
+fork point,pre-fork,38090b6493dd,specify_cli/policy,1297
+fork point,pre-fork,38090b6493dd,specify_cli/post_merge,1500
+fork point,pre-fork,38090b6493dd,specify_cli/proof,424
+fork point,pre-fork,38090b6493dd,specify_cli/provisioning,206
+fork point,pre-fork,38090b6493dd,specify_cli/readiness,1452
+fork point,pre-fork,38090b6493dd,specify_cli/release,524
+fork point,pre-fork,38090b6493dd,specify_cli/requirement_mapping,563
+fork point,pre-fork,38090b6493dd,specify_cli/retrospective,7587
+fork point,pre-fork,38090b6493dd,specify_cli/review,5827
+fork point,pre-fork,38090b6493dd,specify_cli/runtime,2526
+fork point,pre-fork,38090b6493dd,specify_cli/saas,345
+fork point,pre-fork,38090b6493dd,specify_cli/saas_client,1391
+fork point,pre-fork,38090b6493dd,specify_cli/session_presence,1243
+fork point,pre-fork,38090b6493dd,specify_cli/shims,398
+fork point,pre-fork,38090b6493dd,specify_cli/skills,3001
+fork point,pre-fork,38090b6493dd,specify_cli/state,1254
+fork point,pre-fork,38090b6493dd,specify_cli/status,13225
+fork point,pre-fork,38090b6493dd,specify_cli/sync,31725
+fork point,pre-fork,38090b6493dd,specify_cli/task_utils,773
+fork point,pre-fork,38090b6493dd,specify_cli/tasks,902
+fork point,pre-fork,38090b6493dd,specify_cli/template,744
+fork point,pre-fork,38090b6493dd,specify_cli/tool_surface,7001
+fork point,pre-fork,38090b6493dd,specify_cli/tracker,5915
+fork point,pre-fork,38090b6493dd,specify_cli/upgrade,19580
+fork point,pre-fork,38090b6493dd,specify_cli/validators,770
+fork point,pre-fork,38090b6493dd,specify_cli/widen,1867
+fork point,pre-fork,38090b6493dd,specify_cli/workspace,1346
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,charter/offering,259
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/(root),6678
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/acceptance,744
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/agent_utils,517
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/cli,18167
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/charter,2259
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,charter/(root),65
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,charter/activation,137
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/context,721
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/core,7027
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,mission_runtime,265
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/dashboard,2108
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/diagnostics,229
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/dossier,9815
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/events,185
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/git,171
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,glossary,5056
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/upgrade,10247
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/consolidation,2080
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/migration,2106
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/mission_v1,1311
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/missions,27
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,runtime,1461
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/orchestrator_api,1175
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/ownership,557
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/requirement_mapping,187
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/runtime,1489
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/scripts,1691
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/shims,477
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/skills,601
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/spec_kitty_events,953
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/state,291
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/status,2882
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/sync,5722
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/template,980
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/tracker,1834
+T1 start (before 2026-04-01),pre-fork,515745f1fb05,specify_cli/validators,801

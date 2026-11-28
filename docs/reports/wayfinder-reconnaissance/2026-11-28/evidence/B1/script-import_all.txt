@@ -1,0 +1,12 @@
+"""Import every module named in the extractor output inside the disposable clone's venv; record failures."""
+import importlib, json, sys, traceback, collections
+names = sorted(json.load(open(sys.argv[1]))["modules"])
+fail = []
+for n in names:
+    try:
+        importlib.import_module(n)
+    except BaseException as exc:  # noqa
+        tb = traceback.extract_tb(exc.__traceback__)
+        trig = [f for f in tb if f.name == "<module>" and "/src/" in f.filename]
+        fail.append({"module": n, "trigger_module_level_frame": (f"{trig[-1].filename.split('/src/')[-1]}:{trig[-1].lineno}" if trig else ""), "type": type(exc).__name__, "message": str(exc).splitlines()[0][:300] if str(exc) else "", "raised_in": f"{tb[-1].filename.split('/src/')[-1]}:{tb[-1].lineno}" if tb else ""})
+print(json.dumps({"python": sys.version.split()[0], "modules_attempted": len(names), "failed": len(fail), "by_type": collections.Counter(f["type"] for f in fail), "by_trigger_frame": collections.Counter(f["trigger_module_level_frame"] for f in fail).most_common(), "failures": fail}, indent=1))

@@ -1,0 +1,8 @@
+#!/bin/bash
+# usage: mk.sh <repo> <id>  -- dump current working diff of scratch clone as patch, reset, check
+S=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E2
+cd $S/$1 || exit 1
+git diff > $S/out/M-$2.patch.txt
+git checkout -q -- .
+test -z "$(git status --porcelain)" || { echo "NOT CLEAN"; git status --porcelain; }
+git apply --check $S/out/M-$2.patch.txt && echo "OK $2 $(git diff --stat /dev/null /dev/null 2>/dev/null) lines=$(grep -c '^[+-][^+-]' $S/out/M-$2.patch.txt)"

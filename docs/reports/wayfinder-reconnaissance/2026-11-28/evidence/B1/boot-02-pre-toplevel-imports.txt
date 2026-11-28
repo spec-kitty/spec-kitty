@@ -1,0 +1,16 @@
+$ .venv/bin/python -c 
+import importlib,sys
+for n in ['kernel','charter','glossary','runtime','mission_runtime','specify_cli','specify_cli.cli','charter.offering','charter.activation']:
+    try: importlib.import_module(n); print(n,'OK')
+    except BaseException as e: print(n,'FAIL',type(e).__name__,str(e)[:200])
+
+kernel OK
+charter OK
+glossary OK
+runtime OK
+mission_runtime OK
+specify_cli OK
+specify_cli.cli OK
+charter.offering OK
+charter.activation OK
+exit_code=0

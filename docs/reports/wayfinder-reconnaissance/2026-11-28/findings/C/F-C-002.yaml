@@ -1,0 +1,53 @@
+finding_id: F-C-002
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: volume-denominators
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: core history
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: Commits that change only docs/, kitty-specs/, .kittify/ or tests/ are 1,560 of 2,806 non-merge commits in
+  T1 (55.6%), 2,231 of 4,427 in T2 (50.4%) and 5,002 of 10,051 in T3 (49.8%). Commits outside src/ that are not
+  in that set are 296 (10.5%), 380 (8.6%) and 2,022 (20.1%).
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/volume-denominators.csv
+  method: python3 script-analyze.txt
+  sha256: 83ba94775c13e9d382993e9b371b835a93eafd0aa3e86dd8f570c4cb96334809
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the non-code share is produced by one month.
+  result: Every month from 2026-01 to 2026-11 has more non-code than code non-merge commits (lowest code share 14.6%
+    in 2026-01, highest 52.6% on the experimental line in 2026-08).
+relations: []
+confidence: high
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

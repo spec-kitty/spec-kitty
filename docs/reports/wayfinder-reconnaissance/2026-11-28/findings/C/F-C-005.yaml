@@ -1,0 +1,73 @@
+finding_id: F-C-005
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01c
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: core components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Components touched per code commit (98 components after the rename map; bulk commits excluded): T1 median
+  2, 90th percentile 6, mean 2.82 (n=947); T2 pooled median 1, p90 3, mean 1.86 (n=1,809; pre-fork 1/4/2.07, public
+  1/3/1.82, experimental 1/3/1.63); T3 median 1, p90 3, mean 1.68 (n=3,026). No trend is drawn across the convergence
+  merge.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/rename-map.csv
+  method: python3 script-build.txt (as build.py)
+  sha256: 7333c2a4968b6f03f15f48de31e4d4be715b7a334851ff4030b6808c48084c05
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/components.csv
+  method: python3 script-build.txt
+  sha256: 29433d6d8d30d07ac09f826b5b3d8c41e7e785d96f2f207e9de7be1294946861
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Recomputed with the six top-level packages as components, and split commits by whether the subject ends
+    in a pull request number (a proxy for squash commits).
+  result: The top-level variant keeps the order T1 > T2 > T3 (mean 1.33, 1.15, 1.13). Commits with a pull request
+    suffix touch more components in every period (mean 3.45 vs 2.36 in T1, 1.74 vs 1.63 in T3), and their share
+    differs by period (42.6%, 21.0%, 44.2%), so the unit of measurement is not uniform (F-C-029).
+relations: []
+confidence: high
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

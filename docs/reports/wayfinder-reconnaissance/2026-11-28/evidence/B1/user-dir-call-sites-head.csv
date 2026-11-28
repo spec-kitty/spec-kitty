@@ -1,0 +1,13 @@
+component,module,line,helper
+charter.offering,charter.offering.packs.pack_fetch,73,user_cache_dir
+kernel,kernel.service_artifacts,80,user_cache_dir
+kernel,kernel.user_dirs_legacy,130,user_cache_dir
+kernel,kernel.user_dirs_legacy,130,user_config_dir
+kernel,kernel.user_dirs_legacy,130,user_state_dir
+kernel,kernel.user_dirs_legacy,140,user_state_dir
+kernel,kernel.user_dirs_legacy,167,user_config_dir
+runtime,runtime.next._runtime_pkg_notice,54,user_state_dir
+specify_cli.compat,specify_cli.compat.cache,495,user_cache_dir
+specify_cli.compat,specify_cli.compat.config,109,user_config_dir
+specify_cli.core,specify_cli.core.upgrade_notifier,73,user_cache_dir
+specify_cli.upgrade,specify_cli.upgrade.ledger,114,user_state_dir

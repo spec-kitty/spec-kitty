@@ -1,0 +1,43 @@
+"""Cross-check of the B1 AST extractor against grimp 3.20 at head (and one historical point)."""
+import sys, json
+sys.path.insert(0, sys.argv[1] + "/src")
+sys.path.insert(0, "scripts")
+import grimp, networkx as nx
+from common import load, edges, scc
+sha = sys.argv[2]
+d = load(sha)
+tops = sorted({m.split(".")[0] for m in d["modules"]})
+res = {"revision": sha, "grimp": "3.20", "tops": tops}
+for label, excl in (("all", False), ("exclude_type_checking", True)):
+    g = grimp.build_graph(*tops, include_external_packages=False, exclude_type_checking_imports=excl, cache_dir=None)
+    gm = set(g.modules)
+    ge = set()
+    for m in gm:
+        for t in g.find_modules_directly_imported_by(m):
+            ge.add((m, t))
+    res[label] = {"grimp_modules": len(gm), "grimp_edges": len(ge)}
+    all_e, load_e = edges(d)
+    if not excl:
+        mine = set(all_e)
+    else:
+        mine = set()
+        for r in d["imports"]:
+            if r["kind"] != "dynamic" and r.get("resolved") and not r["tc"] and r["src"] != r["resolved"]:
+                mine.add((r["src"], r["resolved"]))
+    res[label]["extractor_modules"] = len(d["modules"])
+    res[label]["extractor_edges"] = len(mine)
+    res[label]["only_grimp_modules"] = sorted(gm - set(d["modules"]))[:20]
+    res[label]["only_extractor_modules"] = sorted(set(d["modules"]) - gm)[:20]
+    res[label]["only_grimp_edges_n"] = len(ge - mine)
+    res[label]["only_extractor_edges_n"] = len(mine - ge)
+    res[label]["only_grimp_edges_sample"] = sorted(ge - mine)[:15]
+    res[label]["only_extractor_edges_sample"] = sorted(mine - ge)[:15]
+    G = nx.DiGraph(); G.add_nodes_from(gm); G.add_edges_from(ge)
+    big = [c for c in nx.strongly_connected_components(G) if len(c) > 1]
+    res[label]["grimp_nx_modules_in_cycle"] = sum(map(len, big)); res[label]["grimp_nx_largest_scc"] = max(map(len, big), default=0)
+    mine_scc = [c for c in scc(list(d["modules"]), mine) if len(c) > 1]
+    res[label]["extractor_modules_in_cycle"] = sum(map(len, mine_scc)); res[label]["extractor_largest_scc"] = max(map(len, mine_scc), default=0)
+    G2 = nx.DiGraph(); G2.add_nodes_from(d["modules"]); G2.add_edges_from(mine)
+    b2 = [c for c in nx.strongly_connected_components(G2) if len(c) > 1]
+    res[label]["extractor_edges_nx_modules_in_cycle"] = sum(map(len, b2)); res[label]["extractor_edges_nx_largest_scc"] = max(map(len, b2), default=0)
+print(json.dumps(res, indent=1))

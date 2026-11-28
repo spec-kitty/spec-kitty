@@ -1,0 +1,71 @@
+finding_id: F-C-010
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: co-change-matrix
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement.
+subject:
+  component: core component pairs
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'T2 co-change by line segment: pre-fork (829 code commits) cli with core 41 (support 4.9%), charter/activation
+  with cli 37, cli with status 37; public (277) specify_cli root files with cli 16 (5.8%), cli with core 13, charter/activation
+  with charter/offering 12; experimental (703) root files with cli 27 (3.8%), cli with core 20, charter/activation
+  with charter/offering 18. Pooled (1,809): cli with core 74 and root files with cli 74 (4.1% each); specify_cli/cli
+  is touched by 629 commits (34.8%).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/cochange-top15.csv
+  method: python3 script-analyze.txt
+  sha256: 42a176baaff6a05c8423312f26feed3e2b580e9e0195538789ffc33bdf1e39ce
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/cochange-pairs.csv
+  method: python3 script-analyze.txt (pairs with >=3 joint commits; full file sha256 1c69f6dcb323f01df36f0565a33309d3a4c6958aa44b2f1dc9f34af6badaf22b)
+  sha256: 565d0ef837d2238b846c2faadca8fd518564e761c460f4c446db847b254c4d9b
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/component-touch-counts.csv
+  method: python3 script-analyze.txt
+  sha256: afeafdcf9a86125af9025de3bb8dbd3c121e3ef6a6285ccda7c10e1e6d00c641
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Compared the top pairs of the public and experimental segments for a pair present on one line only.
+  result: The same three pairs lead both lines; the fourth differs (cli with orchestrator_api on the public line,
+    charter/activation with cli on the experimental line).
+relations: []
+confidence: high
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

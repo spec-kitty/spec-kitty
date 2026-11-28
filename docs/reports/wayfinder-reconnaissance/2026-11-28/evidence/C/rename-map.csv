@@ -1,0 +1,50 @@
+kind,historical,today,note
+directory,src/doctrine/,src/charter/offering/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/constitution/,src/charter/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/synthesizer/,src/charter/activation/synthesizer/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/context_renderers/,src/charter/activation/context_renderers/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/corpus/,src/charter/activation/corpus/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/evidence/,src/charter/activation/evidence/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/neutrality/,src/charter/activation/neutrality/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/charter/packs/,src/charter/activation/packs/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/glossary/,src/glossary/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/next/,src/runtime/next/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/merge/,src/specify_cli/consolidation/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/doctrine_synthesizer/,src/specify_cli/charter_pack_synthesizer/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/doctrine/,src/specify_cli/charter_packs/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/charter_lint/,src/specify_cli/charter_runtime/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/constitution/,src/specify_cli/charter/,applied when file lineage does not end under src/ or ends in the historical directory
+directory,src/specify_cli/static/,src/specify_cli/dashboard/,applied when file lineage does not end under src/ or ends in the historical directory
+file-lineage-aggregate,charter/(root),charter/activation,47 historical file paths
+file-lineage-aggregate,charter/(root),charter/offering,1 historical file paths
+file-lineage-aggregate,charter/activation,charter/offering,1 historical file paths
+file-lineage-aggregate,charter/context_renderers,charter/activation,14 historical file paths
+file-lineage-aggregate,charter/corpus,charter/activation,3 historical file paths
+file-lineage-aggregate,charter/evidence,charter/activation,3 historical file paths
+file-lineage-aggregate,charter/neutrality,charter/activation,3 historical file paths
+file-lineage-aggregate,charter/packs,charter/activation,2 historical file paths
+file-lineage-aggregate,charter/synthesizer,charter/activation,23 historical file paths
+file-lineage-aggregate,constitution,charter/(root),4 historical file paths
+file-lineage-aggregate,constitution,charter/activation,8 historical file paths
+file-lineage-aggregate,constitution,specify_cli/charter,2 historical file paths
+file-lineage-aggregate,doctrine,charter/(root),2 historical file paths
+file-lineage-aggregate,doctrine,charter/offering,999 historical file paths
+file-lineage-aggregate,specify_cli/(root),specify_cli/acceptance,1 historical file paths
+file-lineage-aggregate,specify_cli/(root),specify_cli/requirement_mapping,1 historical file paths
+file-lineage-aggregate,specify_cli/(root),specify_cli/upgrade,1 historical file paths
+file-lineage-aggregate,specify_cli/charter_lint,specify_cli/charter_runtime,7 historical file paths
+file-lineage-aggregate,specify_cli/cli,charter/activation,1 historical file paths
+file-lineage-aggregate,specify_cli/constitution,charter/(root),1 historical file paths
+file-lineage-aggregate,specify_cli/constitution,charter/activation,1 historical file paths
+file-lineage-aggregate,specify_cli/constitution,specify_cli/charter,9 historical file paths
+file-lineage-aggregate,specify_cli/core,mission_runtime,1 historical file paths
+file-lineage-aggregate,specify_cli/dashboard,specify_cli/diagnostics,1 historical file paths
+file-lineage-aggregate,specify_cli/doctrine,charter/activation,2 historical file paths
+file-lineage-aggregate,specify_cli/doctrine,charter/offering,5 historical file paths
+file-lineage-aggregate,specify_cli/doctrine,specify_cli/charter_packs,10 historical file paths
+file-lineage-aggregate,specify_cli/doctrine_synthesizer,specify_cli/charter_pack_synthesizer,3 historical file paths
+file-lineage-aggregate,specify_cli/git,kernel,1 historical file paths
+file-lineage-aggregate,specify_cli/glossary,glossary,22 historical file paths
+file-lineage-aggregate,specify_cli/merge,specify_cli/consolidation,21 historical file paths
+file-lineage-aggregate,specify_cli/next,runtime,20 historical file paths
+file-lineage-aggregate,specify_cli/static,specify_cli/dashboard,3 historical file paths

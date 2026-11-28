@@ -1,0 +1,94 @@
+period,chain_ref,tag,seq,sha,date,line,cls,fix,n_components,cited_in,subject
+T1,#626,purposive,1,62c019b727b0,2026-04-14,pre-fork,capability-growth,0,3,subject,feat(agents): register Kiro CLI as first-class agent (closes #246) (#626)
+T1,#626,purposive,2,95ad7d78e7bd,2026-04-15,pre-fork,corrective-maintenance,1,10,body,fix(windows): close 6 findings from post-merge mission review (#633)
+T1,#626,purposive,3,b348ba3774ee,2026-08-28,experimental,compatibility-work,1,2,body,fix(#663): route remaining migration detect() reads through symlink-safe gitignore helper
+T1,#626,purposive,4,9aa81f542f6c,2026-08-30,experimental,compatibility-work,1,1,body,fix(upgrade): fail closed on unsafe same-version detect
+T1,#626,purposive,5,589795235d4f,2026-08-30,experimental,compatibility-work,0,3,body,Rename IgnoreFilePathError to GitignorePathError; rebuild read_ignore_file_text on O_NOFOLLOW
+T1,#626,purposive,6,e84a448f3f88,2026-08-30,experimental,compatibility-work,1,1,body,"fix(upgrade): treat symlinked-ignore detect() as migration failure, not skip"
+T1,#626,purposive,7,96f7f898ed5d,2026-08-30,experimental,compatibility-work,0,2,body,Catch IgnoreFilePathError at every detect()/apply() call site
+T1,#626,purposive,8,d7b947d52a45,2026-08-30,experimental,compatibility-work,0,2,body,Route migration detect() gitignore/claudeignore reads through a symlink-safe helper
+T1,#2090,purposive,1,661d4c328c69,2026-06-24,pre-fork,capability-growth,0,8,subject,feat: kind-aware write-surface placement — planning artifacts to primary (#2090)
+T1,#2090,purposive,2,746e78cac595,2026-06-25,pre-fork,corrective-maintenance,1,1,body,fix(lanes): decouple auto-rebase managed set from surface residue
+T1,#2090,purposive,3,b9c30511fd28,2026-06-25,pre-fork,corrective-maintenance,1,1,body,"fix(orchestrator-api): read PRIMARY artifacts off the primary surface, not coord (#2118)"
+T1,#2090,purposive,4,aa02837012ec,2026-07-23,pre-fork,corrective-maintenance,1,1,body,fix(lanes): keep analysis-report auto-rebase-managed after COORD→PRIMARY rehome
+T1,#2070,purposive,1,5b8e317aa587,2026-06-22,pre-fork,corrective-maintenance,1,4,body,"fix(WP09): pure stored-topology read on read paths (no persist, #1814) + adopt resolve_context_for_mission + harden infe"
+T1,#2070,purposive,2,7c5f6812522f,2026-06-23,pre-fork,capability-growth,0,19,subject,feat(coordination): single-authority topology cleanup & dedup (#2070)
+T1,#2070,purposive,3,746e78cac595,2026-06-25,pre-fork,corrective-maintenance,1,1,body,fix(lanes): decouple auto-rebase managed set from surface residue
+T1,#2070,purposive,4,0d775dc1e642,2026-06-28,pre-fork,other,0,5,body,Mission-Lifecycle Tooling Friction (#2217–#2223) (#2224)
+T1,#2070,purposive,5,aa02837012ec,2026-07-23,pre-fork,corrective-maintenance,1,1,body,fix(lanes): keep analysis-report auto-rebase-managed after COORD→PRIMARY rehome
+T2,#2773,purposive,1,1fe96a9d7c08,2026-07-19,pre-fork,other,0,1,body,"test/ci: burn down tracked 3.2.x CI reds (#2807, #2809, #2812)"
+T2,#2773,purposive,2,2aff71e9709a,2026-07-19,pre-fork,restructuring,0,1,body,refactor(charter): retire dead charter.generator + charter.extractor (#1797)
+T2,#2773,purposive,3,457fc3612edd,2026-07-19,pre-fork,corrective-maintenance,1,1,body,fix(charter): keep synthesize gate canonical (charter.yaml) + remove dead charter.md-only test
+T2,#2773,purposive,4,3408996e735c,2026-07-19,pre-fork,corrective-maintenance,1,1,subject,fix(charter): repair fresh-project synthesize + seed charter.md companion (#2773 regression)
+T2,#2773,purposive,5,53030b051303,2026-07-19,pre-fork,capability-growth,0,7,subject,feat(charter): consolidate the compiled bundle into an authoritative charter.yaml (#2773)
+T2,#2773,purposive,6,00bc5598573b,2026-07-22,pre-fork,corrective-maintenance,1,1,body,fix(charter): #2850 — charter-status CLI reds (stale governance/pack-config fixtures + mapping-shaped charter: pointer d
+T2,#2773,purposive,7,6bdb91b13f86,2026-09-19,converged,corrective-maintenance,1,2,body,fix(charter): report `charter sync` as an explicit no-op instead of a failure
+T2,#2773,purposive,8,0189965d78e0,2026-10-13,converged,compatibility-work,0,5,body,feat(charter)!: remove the charter sync no-op compatibility command (#5828)
+T2,#3488,purposive,1,4b03c48f22ff,2026-08-20,public,corrective-maintenance,1,3,body,"fix(charter,doctrine): deliver loaded doctrine to the dispatched agent (M4)"
+T2,#3488,purposive,2,10ad39dbe015,2026-08-20,public,capability-growth,0,1,subject,feat(doctor): surface unresolved operating-procedures in doctor doctrine (#3488)
+T2,#3488,purposive,3,358c081c442e,2026-08-20,public,capability-growth,0,1,subject,"feat(doctrine): validate + data-drive agent operating-procedures (#2994, #3352, #3488)"
+T2,#3488,purposive,4,e2ccc391f893,2026-08-22,public,corrective-maintenance,1,2,subject,fix(doctrine): project type-wide governance + procedure rationale into the DRG; bind emit↔delivery (#3604/#3605/#3488)
+T2,#3488,purposive,5,227b2237bd50,2026-09-01,experimental,capability-growth,0,1,subject,feat(doctor): surface unresolved operating-procedures in doctor doctrine (#3488)
+T2,#3488,purposive,6,b196e0e10e6f,2026-09-01,experimental,capability-growth,0,1,subject,"feat(doctrine): validate + data-drive agent operating-procedures (#2994, #3352, #3488)"
+T2,#3488,purposive,7,e4bb708b6f8d,2026-09-01,experimental,corrective-maintenance,1,3,body,"fix(charter,doctrine): deliver loaded doctrine to the dispatched agent (M4)"
+T2,#3488,purposive,8,7ba3713bc008,2026-09-01,experimental,convergence-activity,1,2,subject,fix(doctrine): project type-wide governance + procedure rationale into the DRG; bind emit↔delivery (#3604/#3605/#3488)
+T2,#3131,purposive,1,87d851382fc5,2026-09-02,public,corrective-maintenance,1,1,subject,fix(merge-retention): fold pre-merge squad findings (#3131)
+T2,#3131,purposive,2,5abf67dee57b,2026-09-02,public,corrective-maintenance,1,1,subject,"fix(merge-retention): thread tri-state flags into dry-run forecast (FR-008, #3131)"
+T2,#3131,purposive,3,0bb98b340ac0,2026-09-02,public,capability-growth,0,2,subject,feat(merge-retention): create-time retention opt-in flags + mint (#3131)
+T2,#3131,purposive,4,fc9a556855f2,2026-09-02,public,capability-growth,0,1,subject,feat(merge-retention): dry-run forecast reuses the retention resolver (#3131)
+T2,#3131,purposive,5,836451fd3f54,2026-09-02,public,corrective-maintenance,1,3,subject,fix(merge-retention): honor retention fail-closed across success+abort (#3131)
+T2,#3131,purposive,6,a62762c6a454,2026-09-02,public,capability-growth,0,2,subject,feat(merge-retention): meta.json retention fields + pure resolver (#3131)
+T2,#3131,purposive,7,a53b916d81b6,2026-09-05,experimental,corrective-maintenance,1,1,subject,fix(merge-retention): fold pre-merge squad findings (#3131)
+T2,#3131,purposive,8,3b9afa23b9e0,2026-09-05,experimental,corrective-maintenance,1,1,subject,"fix(merge-retention): thread tri-state flags into dry-run forecast (FR-008, #3131)"
+T2,#3131,purposive,9,f7c74f17d158,2026-09-05,experimental,corrective-maintenance,1,3,subject,fix(merge-retention): honor retention fail-closed across success+abort (#3131)
+T2,#3131,purposive,10,bf6487494dae,2026-09-05,experimental,capability-growth,0,2,subject,feat(merge-retention): create-time retention opt-in flags + mint (#3131)
+T2,#3131,purposive,11,dd117aa1ea9c,2026-09-05,experimental,capability-growth,0,1,subject,feat(merge-retention): dry-run forecast reuses the retention resolver (#3131)
+T2,#3131,purposive,12,9383ad34364b,2026-09-05,experimental,capability-growth,0,2,subject,feat(merge-retention): meta.json retention fields + pure resolver (#3131)
+T2,#3131,purposive,13,f194d10956c5,2026-09-15,converged,corrective-maintenance,1,2,body,fix(merge): tear the coord worktree down before deleting its branch (#3926) (#4378)
+T2,#2947,purposive,1,7b6c9f4fadf3,2026-09-02,public,corrective-maintenance,1,1,body,fix(landing): gate committed_wp_lane on mission_number so it never clobbers an in-flight coord lane
+T2,#2947,purposive,2,e9576629b5da,2026-09-02,public,corrective-maintenance,1,1,body,fix(next): query-mode merge-conflict verdict keeps kind:query (not kind:blocked)
+T2,#2947,purposive,3,40a3e24dd689,2026-09-02,public,capability-growth,0,1,subject,"feat(next): route the next control loop through committed authority (#3780, #2947)"
+T2,#2947,purposive,4,aedd276f8eec,2026-09-02,public,capability-growth,0,2,subject,feat(next): committed-authority module + status board reads committed lanes (#2947)
+T2,#2947,purposive,5,1a01659ca9a6,2026-09-03,experimental,convergence-activity,0,2,subject,feat(next): committed-authority module + status board reads committed lanes (#2947)
+T2,#2947,purposive,6,b6387093742e,2026-09-05,experimental,convergence-activity,1,1,body,fix(next): query-mode merge-conflict verdict keeps kind:query (not kind:blocked)
+T2,#2947,purposive,7,298678485198,2026-09-05,experimental,convergence-activity,0,1,subject,"feat(next): route the next control loop through committed authority (#3780, #2947)"
+T3,#6164,purposive,1,6d673e5969f6,2026-10-13,converged,corrective-maintenance,1,1,body,fix(toml): drop UnreadableTomlTableError from __all__ (#470 dead-code gate)
+T3,#6164,purposive,2,9582e94ef72e,2026-10-13,converged,corrective-maintenance,1,1,body,fix(toml): refuse rewriting a present-but-unparseable config instead of wiping it
+T3,#6164,purposive,3,6e88382ad361,2026-10-14,converged,corrective-maintenance,1,2,body,fix(landing): small review cleanups after the hosted removal
+T3,#6164,purposive,4,3b1f7498866c,2026-10-14,converged,restructuring,0,5,body,refactor(landing): delete symbols orphaned by the hosted removal
+T3,#6164,purposive,5,d601e29f1e53,2026-10-14,converged,corrective-maintenance,1,2,body,fix(landing): let a repo leave a removed tracker provider
+T3,#6164,purposive,6,2dd5e50930d1,2026-10-14,converged,compatibility-work,1,1,body,fix(landing): keep the retired-hosted-target cleanup migration
+T3,#6164,purposive,7,d58e78335bcb,2026-10-14,converged,restructuring,0,17,subject,"refactor(core)!: remove the frozen hosted, sync and drain surfaces (#6164)"
+T3,#6164,purposive,8,3eb620264ae7,2026-10-15,converged,other,0,1,body,test(cli-commands): fold pre-PR review nitpicks (#6221)
+T3,#6164,purposive,9,d0e5289c7b80,2026-10-15,converged,compatibility-work,0,1,body,"test(cli-commands): re-pin stale reds and harden a non-hermetic test (#6221, #6241)"
+T3,#6164,purposive,10,f31122e2bbb7,2026-10-19,converged,capability-growth,0,2,body,feat(glossary): write every glossary event through the spec-kitty-events ledger contract (#6399)
+T3,#6164,purposive,11,caee42ea9896,2026-10-19,converged,other,0,1,body,build(deps): consume spec-kitty-events 11.0.0 and retire the local-only lifecycle set (#6399)
+T3,#6164,purposive,12,4acff3d1de0f,2026-11-08,converged,corrective-maintenance,1,3,body,fix(mission-state): remove hosted teamspace dry-run residue (S8)
+T3,#6164,purposive,13,0366ea427d27,2026-11-17,converged,other,0,1,body,docs(context): refresh the footgun and concept pages and drain their burn-down
+T3,#6164,purposive,14,2ce8f40aebf6,2026-11-20,converged,other,0,1,body,docs(skills): say a review rejection without a feedback file is refused
+T3,#5668,purposive,1,b0fb4e5a4303,2026-10-05,converged,corrective-maintenance,1,1,body,fix(consolidation): measure approved-content presence from the pre-mutation tip (#5788)
+T3,#5668,purposive,2,68c30688dc42,2026-10-05,converged,corrective-maintenance,1,1,subject,fix(landing): gate the coordination seed's everything-on-disk commit on a carry basis (#5651 x #5668)
+T3,#5668,purposive,3,124e39d101da,2026-10-05,converged,capability-growth,0,7,body,"feat(consolidation): land a bare-slug coordination Mission via a directory alias (#5651, #5611)"
+T3,#5668,purposive,4,664938b4f62d,2026-10-05,converged,corrective-maintenance,1,1,subject,fix(consolidation): refuse a lane with content beyond its approval before any branch moves (#5668)
+T3,#5668,purposive,5,f449e1a75411,2026-10-17,converged,corrective-maintenance,1,4,body,fix(consolidate): fail-closed single_branch implementation-evidence + independence net (#5939)
+T3,#4941,purposive,1,24355ec0283e,2026-09-26,converged,other,0,1,subject,docs: repoint #4990 residual-tracking references to #4941
+T3,#4941,purposive,2,b843b112574f,2026-10-15,converged,other,0,1,body,"docs(consolidation): correct the wrong ""Lamport"" reducer docstrings (#6213)"
+T3,#4941,purposive,3,c8bcb237551b,2026-10-15,converged,corrective-maintenance,1,2,subject,fix(status): honour a rejection recorded after a clock-ahead approval (#4941)
+T3,#4941,purposive,4,451a7064bc62,2026-11-03,converged,other,0,1,body,docs: state the wall-clock status ordering on the living surfaces (#6604)
+T3,#7747,purposive,1,3e604a9c9b76,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(lane-cleanup): write the lane-tip ref before the branch removal (#7747, Tier R confirm 4 nit 1)"
+T3,#7747,purposive,2,2e54a71d478f,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(lane-cleanup): keep the lane-tip ref of a lane removed on the Mission-branch proof (#7747, operator ruling)"
+T3,#7747,purposive,3,692c256433bf,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(lane-cleanup): the Mission branch's own first-parent line is never a lane's work (#7747, Tier R confirm 2 B1)"
+T3,#7747,purposive,4,56422cb9a793,2026-11-24,converged,corrective-maintenance,1,2,subject,"fix(lane-cleanup): credit only later approved work built on the lane's version (#7747, Tier R confirm)"
+T3,#7747,purposive,5,c903d37566d4,2026-11-24,converged,corrective-maintenance,1,2,subject,"fix(lane-cleanup): credit a lane's superseded path only to an approved lane's later commit (#7747, Tier R B1)"
+T3,#7747,purposive,6,4ab89a3e74c6,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(lane-cleanup): an error in the Mission-branch proof never aborts cleanup (#7747, Tier R N4)"
+T3,#7747,purposive,7,ddbb5c3a8dea,2026-11-24,converged,corrective-maintenance,1,2,subject,"fix(lane-cleanup): satisfy the architectural gates (#7747, #7325)"
+T3,#7747,purposive,8,d2dd0dca5742,2026-11-24,converged,corrective-maintenance,1,2,subject,fix(lane-cleanup): honour a carried PASS anchor and set aside a synced status log (#7747)
+T3,#7747,purposive,9,4002f08df5e6,2026-11-24,converged,corrective-maintenance,1,3,subject,fix(lane-cleanup): fold the R24 adversarial squad's findings (#7747)
+T3,#7747,purposive,10,212b9035a66b,2026-11-24,converged,corrective-maintenance,1,3,subject,"fix(lane-cleanup): the lane's own changes only, the snapshot as a projection, and the Mission-branch proof (#7747)"
+T3,#7747,purposive,11,cba57053ee46,2026-11-24,converged,corrective-maintenance,1,3,subject,"fix(lane-cleanup): fold the WP02/WP03 review notes (#7747, #7325)"
+T3,#7747,purposive,12,19c468157b83,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(doctor): prove ancestry before the merge-tree gate for a released lane (#7747, review F1)"
+T3,#7747,purposive,13,48f8c80f688f,2026-11-24,converged,corrective-maintenance,1,1,subject,fix(doctor): judge a released Mission's lane with the shared landing proof (#7747)
+T3,#7747,purposive,14,cc73940e130b,2026-11-24,converged,corrective-maintenance,1,1,subject,"fix(accept): pr-mode lane cleanup passes the Mission slug to the landing proof (G1, #7747)"
+T3,#7747,purposive,15,abc704694051,2026-11-24,converged,capability-growth,0,2,subject,feat(lanes): one landing proof sets aside only Mission bookkeeping the lane never authored (#7747)
+T3,#7747,purposive,16,f5da46210951,2026-11-26,converged,corrective-maintenance,1,2,body,fix(consolidate): correctness review folds (#7848)
+T3,#7747,purposive,17,4ffd2c7b1df3,2026-11-26,converged,restructuring,0,3,body,"perf(consolidate): pin the landing ref, cache commit-id probes, the remote list and the common dir (#7848)"

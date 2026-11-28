@@ -1,0 +1,48 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "grimp": "3.20",
+ "tops": [
+  "charter",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ],
+ "all": {
+  "grimp_modules": 1490,
+  "grimp_edges": 8332,
+  "extractor_modules": 1490,
+  "extractor_edges": 8332,
+  "only_grimp_modules": [],
+  "only_extractor_modules": [],
+  "only_grimp_edges_n": 0,
+  "only_extractor_edges_n": 0,
+  "only_grimp_edges_sample": [],
+  "only_extractor_edges_sample": [],
+  "grimp_nx_modules_in_cycle": 494,
+  "grimp_nx_largest_scc": 201,
+  "extractor_modules_in_cycle": 494,
+  "extractor_largest_scc": 201,
+  "extractor_edges_nx_modules_in_cycle": 494,
+  "extractor_edges_nx_largest_scc": 201
+ },
+ "exclude_type_checking": {
+  "grimp_modules": 1490,
+  "grimp_edges": 8140,
+  "extractor_modules": 1490,
+  "extractor_edges": 8140,
+  "only_grimp_modules": [],
+  "only_extractor_modules": [],
+  "only_grimp_edges_n": 0,
+  "only_extractor_edges_n": 0,
+  "only_grimp_edges_sample": [],
+  "only_extractor_edges_sample": [],
+  "grimp_nx_modules_in_cycle": 477,
+  "grimp_nx_largest_scc": 193,
+  "extractor_modules_in_cycle": 477,
+  "extractor_largest_scc": 193,
+  "extractor_edges_nx_modules_in_cycle": 477,
+  "extractor_edges_nx_largest_scc": 193
+ }
+}

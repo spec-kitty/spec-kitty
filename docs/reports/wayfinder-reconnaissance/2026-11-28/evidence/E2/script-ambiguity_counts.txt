@@ -1,0 +1,15 @@
+#!/bin/bash
+# Static counts over production source (src/ only) of core at head, supporting the ambiguity findings.
+cd /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E2/spec-kitty
+echo "core HEAD=$(git rev-parse HEAD); grep $(grep --version | head -1)"
+imp='^[[:space:]]*(from|import)[[:space:]]+'
+echo "A1 import statements of runtime.next._internal_runtime under src/specify_cli: lines=$(grep -rEn "${imp}runtime\.next\._internal_runtime" src/specify_cli --include=*.py | wc -l) files=$(grep -rElE "${imp}runtime\.next\._internal_runtime" src/specify_cli --include=*.py | wc -l) of_py_files=$(find src/specify_cli -name '*.py' | wc -l)"
+for layer in kernel charter glossary runtime mission_runtime; do echo "A4 import statements of specify_cli under src/$layer: lines=$(grep -rEn "${imp}specify_cli(\.|[[:space:]]|$)" src/$layer --include=*.py | wc -l) files=$(grep -rlE "${imp}specify_cli(\.|[[:space:]]|$)" src/$layer --include=*.py | wc -l) of_py_files=$(find src/$layer -name '*.py' | wc -l)"; done
+echo "A6 modules importing kernel.event_log_append.append_event_log_lines: files=$(grep -rlE "${imp}kernel\.event_log_append[[:space:]]+import.*append_event_log_lines" src --include=*.py | wc -l)"
+grep -rlE "${imp}kernel\.event_log_append[[:space:]]+import.*append_event_log_lines" src --include=*.py | sed 's/^/   /'
+echo "A6 public module-level append_* functions in src/specify_cli/status/store.py: $(grep -cE '^def append_' src/specify_cli/status/store.py)"
+grep -nE '^def append_' src/specify_cli/status/store.py | sed 's/^/   /'
+echo "A6 'append_event_log_lines' in kernel.event_log_append.__all__: $(sed -n '/^__all__/,/^]/p' src/kernel/event_log_append.py | grep -c 'append_event_log_lines')"
+echo "A2 CONTEXT_SCHEMA_VERSION: $(grep -n '^CONTEXT_SCHEMA_VERSION' src/charter/activation/context_contract.py)"
+echo "IC-4 CONTRACT_VERSION: $(grep -n '^CONTRACT_VERSION' src/specify_cli/orchestrator_api/envelope.py)"
+echo "IC-6 WP_WINDOW_SCHEMA_VERSION: $(grep -n '^WP_WINDOW_SCHEMA_VERSION' src/specify_cli/status/wp_window.py)"

@@ -1,0 +1,444 @@
+"""Head-only analyses from the extractor output: component graph, enforced-model check (M03a),
+no-intended-model share (M03c), private access, CLI-library imports, external-package imports.
+
+Usage: head.py <sha> <outdir> [<site-packages dir of locked external packages>]
+"""
+from __future__ import annotations
+
+import ast
+import csv
+import json
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+from common import S, components, edges, load, scc
+
+sha, outdir = sys.argv[1], Path(sys.argv[2])
+site = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+outdir.mkdir(parents=True, exist_ok=True)
+d = load(sha)
+mods = d["modules"]
+raw, comp = components(d)
+all_e, load_e = edges(d)
+
+# ---------------------------------------------------------------- A. component graph
+nodes = defaultdict(lambda: {"modules": 0, "lines_physical": 0, "lines_code": 0})
+for m, e in mods.items():
+    n = nodes[comp[m]]
+    n["modules"] += 1
+    n["lines_physical"] += e["lines_physical"]
+    n["lines_code"] += e["lines_code"]
+cw = Counter()
+clw = Counter()
+crec = Counter()
+for (s, t), k in all_e.items():
+    if comp[s] != comp[t]:
+        cw[(comp[s], comp[t])] += 1
+        crec[(comp[s], comp[t])] += k
+for (s, t), k in load_e.items():
+    if comp[s] != comp[t]:
+        clw[(comp[s], comp[t])] += 1
+with open(outdir / "component-edges-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["from", "to", "weight", "load_time_weight"])
+    for (a, b), k in sorted(cw.items()):
+        w.writerow([a, b, k, clw.get((a, b), 0)])
+cn = sorted(nodes)
+
+
+def closure(edge_keys):
+    adj = defaultdict(set)
+    for a, b in edge_keys:
+        adj[a].add(b)
+    out = {}
+    for n in cn:
+        seen = set()
+        st = [n]
+        while st:
+            x = st.pop()
+            for y in adj[x]:
+                if y not in seen:
+                    seen.add(y)
+                    st.append(y)
+        out[n] = seen
+    return out
+
+
+cl_all = closure(cw)
+cl_load = closure(clw)
+indeg = Counter(b for a, b in cw)
+outdeg = Counter(a for a, b in cw)
+with open(outdir / "component-nodes-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["component", "modules", "lines_physical", "lines_code", "out_degree", "in_degree", "reaches_all", "reaches_load_time", "reached_by_all", "in_component_cycle_all", "in_component_cycle_load_time"])
+    scc_all = [c for c in scc(cn, cw.keys()) if len(c) > 1]
+    scc_load = [c for c in scc(cn, clw.keys()) if len(c) > 1]
+    in_all = {x for c in scc_all for x in c}
+    in_load = {x for c in scc_load for x in c}
+    reached_by = Counter(y for n in cn for y in cl_all[n] if y != n)
+    for n in cn:
+        w.writerow([n, nodes[n]["modules"], nodes[n]["lines_physical"], nodes[n]["lines_code"], outdeg[n], indeg[n], len(cl_all[n] - {n}), len(cl_load[n] - {n}), reached_by[n], n in in_all, n in in_load])
+mutual = sorted({tuple(sorted((a, b))) for (a, b) in cw if (b, a) in cw})
+mutual_load = sorted({tuple(sorted((a, b))) for (a, b) in clw if (b, a) in clw})
+graph = {
+    "revision": sha,
+    "nodes": [{"component": n, **nodes[n]} for n in cn],
+    "edges": [{"from": a, "to": b, "weight": k, "load_time_weight": clw.get((a, b), 0), "import_records": crec[(a, b)]} for (a, b), k in sorted(cw.items())],
+    "component_sccs_all": [sorted(c) for c in scc_all],
+    "component_sccs_load_time": [sorted(c) for c in scc_load],
+    "mutual_pairs_all": mutual,
+    "mutual_pairs_load_time": mutual_load,
+    "summary": {
+        "components": len(cn),
+        "component_edges_all": len(cw),
+        "component_edges_load_time": len(clw),
+        "possible_directed_pairs": len(cn) * (len(cn) - 1),
+        "components_in_cycle_all": len(in_all),
+        "largest_component_scc_all": max(map(len, scc_all), default=0),
+        "components_in_cycle_load_time": len(in_load),
+        "largest_component_scc_load_time": max(map(len, scc_load), default=0),
+        "mutual_pairs_all": len(mutual),
+        "mutual_pairs_load_time": len(mutual_load),
+        "module_edges_cross_component_all": sum(cw.values()),
+        "module_edges_cross_component_load_time": sum(clw.values()),
+    },
+}
+json.dump(graph, open(outdir / "component-graph-head.json", "w"), indent=1)
+print("A", graph["summary"])
+
+# top-level (layer) graph
+lw = Counter()
+llw = Counter()
+for (s, t), k in all_e.items():
+    a, b = s.split(".")[0], t.split(".")[0]
+    if a != b:
+        lw[(a, b)] += 1
+for (s, t), k in load_e.items():
+    a, b = s.split(".")[0], t.split(".")[0]
+    if a != b:
+        llw[(a, b)] += 1
+with open(outdir / "layer-edges-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["from_layer", "to_layer", "module_edges_all", "module_edges_load_time"])
+    for (a, b), k in sorted(lw.items()):
+        w.writerow([a, b, k, llw.get((a, b), 0)])
+
+# ---------------------------------------------------------------- B. enforced model (M03a)
+LAYERS = ["kernel", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"]
+FORBID = {  # LayerRule should_not pairs in tests/architectural/test_layer_rules.py at head
+    "kernel": {"charter", "specify_cli", "glossary", "runtime", "mission_runtime"},
+    "charter": {"specify_cli", "glossary", "runtime", "mission_runtime"},
+    "glossary": {"specify_cli"},
+}
+MR_LEDGER = {"coordination", "core", "migration", "mission", "mission_metadata", "missions", "retrospective", "status", "task_utils", "workspace"}
+RT_LEDGER = {"bulk_edit", "coordination", "core", "events", "invocation", "lanes", "migration", "mission", "mission_loader", "mission_metadata", "mission_step_contracts", "mission_v1", "missions", "requirement_mapping", "retrospective", "review", "runtime", "shims", "status", "status_lanes", "task_utils", "workspace"}
+CONSOLE_LEDGER = {
+    "specify_cli/consolidation/" + x
+    for x in ["done_bookkeeping.py", "mission_number/bake.py", "forecast.py", "push_preflight.py", "git_probes.py", "preflight.py", "executor.py", "coord_strand.py", "phase_claim.py", "phase_advance.py", "phase_bookkeeping.py", "phase_gate.py", "phase_teardown.py", "phase_finalize.py", "entry_preflight.py", "resume_recovery.py"]
+}
+recs = d["imports"]
+
+
+def targets(r):
+    """Module strings the gate's collector would see for one import record (resolved form)."""
+    if r["kind"] == "from" and r.get("name_is_module"):
+        return [r["target"], r["resolved"]]
+    return [r["target"]]
+
+
+viol = []  # (rule, src module, target, line)
+unlisted = []
+layer_pairs = Counter()
+for r in recs:
+    st = r["src"].split(".")[0]
+    for t in targets(r):
+        tt = t.split(".")[0]
+        if tt in LAYERS and tt != st:
+            layer_pairs[(st, tt, r["kind"])] += 1
+            if tt in FORBID.get(st, ()):  # static LayerRule: dynamic string imports are outside pytestarch's graph
+                (viol if r["kind"] != "dynamic" else unlisted).append(("layer_rule" if r["kind"] != "dynamic" else "dynamic_literal_outside_layer_rule_graph", r["src"], t, r["line"]))
+ledger_use = {"mission_runtime": defaultdict(list), "runtime": defaultdict(list)}
+for r in recs:
+    st = r["src"].split(".")[0]
+    if st not in ("runtime", "mission_runtime"):
+        continue
+    for t in targets(r):
+        if t != "specify_cli" and not t.startswith("specify_cli."):
+            continue
+        if r["kind"] == "from" and r["target"] == "specify_cli":
+            t = r["resolved"] if r.get("name_is_module") else "specify_cli"
+        sub = t.split(".")[1] if "." in t else ""
+        led = MR_LEDGER if st == "mission_runtime" else RT_LEDGER
+        ledger_use[st][sub].append((r["src"], t, r["line"], r["fn"], r["tc"]))
+        if sub not in led:
+            viol.append((f"{st}_specify_cli_ledger", r["src"], t, r["line"]))
+        if st == "runtime" and (t == "specify_cli.cli" or t.startswith("specify_cli.cli.") or t == "specify_cli.next" or t.startswith("specify_cli.next.")):
+            viol.append(("runtime_forbidden_cli_next", r["src"], t, r["line"]))
+console_importers = set()
+console_sites = 0
+for r in recs:
+    if not r["src"].startswith("specify_cli.consolidation"):
+        continue
+    for t in targets(r):
+        if t == "specify_cli.cli.console":
+            console_importers.add(mods[r["src"]]["path"])
+            console_sites += 1
+        elif t == "specify_cli.cli" or t.startswith("specify_cli.cli."):
+            if not (r["kind"] == "from" and t == "specify_cli.cli" and r["name"] == "console" and r.get("name_is_module")):
+                viol.append(("consolidation_cli_boundary", r["src"], t, r["line"]))
+for p in console_importers - CONSOLE_LEDGER:
+    viol.append(("consolidation_console_ledger", p, "specify_cli.cli.console", 0))
+for r in recs:
+    if r["src"] == "specify_cli.git.ref_advance" and r["kind"] != "dynamic" and (r["target"] == "specify_cli" or r["target"].startswith("specify_cli.")):
+        viol.append(("ref_advance_zero_specify_cli", r["src"], r["target"], r["line"]))
+m03a = {
+    "revision": sha,
+    "violations_not_recorded": [list(v) for v in viol],
+    "violations_not_recorded_count": len(viol),
+    "dynamic_literal_imports_crossing_a_forbidden_layer_pair": [list(v) for v in unlisted],
+    "ledgers": {
+        "_EXCLUDED_FROM_LAYER_ENFORCEMENT": {"entries": 0},
+        "_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI": {
+            "entries": len(MR_LEDGER),
+            "baseline_cap": 10,
+            "live_subpackages": sorted(ledger_use["mission_runtime"]),
+            "stale_entries": sorted(MR_LEDGER - set(ledger_use["mission_runtime"])),
+            "import_records_covered": sum(len(v) for v in ledger_use["mission_runtime"].values()),
+            "import_statements_covered": len({(x[0], x[2]) for v in ledger_use["mission_runtime"].values() for x in v}),
+            "importing_modules": len({x[0] for v in ledger_use["mission_runtime"].values() for x in v}),
+            "distinct_module_edges": len({(x[0], x[1]) for v in ledger_use["mission_runtime"].values() for x in v}),
+            "records_in_function_body": sum(1 for v in ledger_use["mission_runtime"].values() for x in v if x[3]),
+            "per_subpackage_records": {k: len(v) for k, v in sorted(ledger_use["mission_runtime"].items())},
+        },
+        "_RUNTIME_ALLOWED_SPECIFY_CLI": {
+            "entries": len(RT_LEDGER),
+            "baseline_cap": 22,
+            "live_subpackages": sorted(ledger_use["runtime"]),
+            "stale_entries": sorted(RT_LEDGER - set(ledger_use["runtime"])),
+            "import_records_covered": sum(len(v) for v in ledger_use["runtime"].values()),
+            "import_statements_covered": len({(x[0], x[2]) for v in ledger_use["runtime"].values() for x in v}),
+            "importing_modules": len({x[0] for v in ledger_use["runtime"].values() for x in v}),
+            "distinct_module_edges": len({(x[0], x[1]) for v in ledger_use["runtime"].values() for x in v}),
+            "records_in_function_body": sum(1 for v in ledger_use["runtime"].values() for x in v if x[3]),
+            "records_type_checking": sum(1 for v in ledger_use["runtime"].values() for x in v if x[4]),
+            "per_subpackage_records": {k: len(v) for k, v in sorted(ledger_use["runtime"].items())},
+        },
+        "_MERGE_CLI_CONSOLE_IMPORTERS": {
+            "entries": len(CONSOLE_LEDGER),
+            "live_importers": len(console_importers),
+            "stale_entries": sorted(CONSOLE_LEDGER - console_importers),
+            "import_records_covered": console_sites,
+        },
+    },
+    "layer_pair_import_records": {f"{a}->{b} [{k}]": v for (a, b, k), v in sorted(layer_pairs.items())},
+}
+json.dump(m03a, open(outdir / "m03a-enforced-model-head.json", "w"), indent=1)
+print("B violations", len(viol), "dynamic", unlisted, {k: (v["entries"], v.get("import_records_covered")) for k, v in m03a["ledgers"].items()})
+
+# ---------------------------------------------------------------- M03c
+tot = sum(e["lines_physical"] for e in mods.values())
+layer_lines = Counter()
+for m, e in mods.items():
+    layer_lines[m.split(".")[0]] += e["lines_physical"]
+cons = sum(e["lines_physical"] for m, e in mods.items() if m.startswith("specify_cli.consolidation"))
+refadv = mods["specify_cli.git.ref_advance"]["lines_physical"]
+m03c = {
+    "revision": sha,
+    "line_counting": "physical lines of every non-test .py file under src/",
+    "total_lines": tot,
+    "layer_lines": dict(layer_lines),
+    "intra_layer_rules_in_enforced_model": {
+        "specify_cli.consolidation (may not import specify_cli.cli.* except console)": cons,
+        "specify_cli/git/ref_advance.py (imports zero specify_cli)": refadv,
+    },
+    "lines_with_an_intra_layer_rule_as_source": cons + refadv,
+    "lines_with_no_intended_internal_model": tot - cons - refadv,
+    "share_no_intended_internal_model": round((tot - cons - refadv) / tot, 4),
+    "specify_cli_lines": layer_lines["specify_cli"],
+    "specify_cli_share_of_all_lines": round(layer_lines["specify_cli"] / tot, 4),
+    "specify_cli_no_internal_model_share": round((layer_lines["specify_cli"] - cons - refadv) / layer_lines["specify_cli"], 4),
+    "cross_component_module_edges_total": sum(cw.values()),
+    "cross_component_module_edges_between_layers": sum(k for (a, b), k in cw.items() if a.split(".")[0] != b.split(".")[0]),
+    "cross_component_module_edges_inside_one_layer": sum(k for (a, b), k in cw.items() if a.split(".")[0] == b.split(".")[0]),
+}
+json.dump(m03c, open(outdir / "m03c-no-intended-model-head.json", "w"), indent=1)
+print("M03c", m03c["share_no_intended_internal_model"], m03c["cross_component_module_edges_inside_one_layer"], m03c["cross_component_module_edges_total"])
+
+# ---------------------------------------------------------------- C. private access
+def is_priv(seg: str) -> bool:
+    return seg.startswith("_") and not (seg.startswith("__") and seg.endswith("__"))
+
+
+rows = []
+x_records = 0
+cnt = Counter()
+pair_cnt = Counter()
+for r in recs:
+    if r["kind"] == "dynamic" or not r.get("resolved") or r["src"] == r["resolved"]:
+        continue
+    s, t = r["src"], r["resolved"]
+    if comp[s] == comp[t]:
+        continue
+    x_records += 1
+    kinds = []
+    if any(is_priv(seg) for seg in t.split(".")):
+        kinds.append("private_module")
+    if r["kind"] == "from" and not r.get("name_is_module") and r["name"] != "*":
+        if is_priv(r["name"]):
+            kinds.append("private_name")
+        al = mods[t]["all"]
+        if al is not None and not mods[t]["all_dynamic"] and r["name"] not in al and not is_priv(r["name"]):
+            kinds.append("not_in___all__")
+    if kinds:
+        cnt["any"] += 1
+        pair_cnt[(comp[s], comp[t])] += 1
+        for k in kinds:
+            cnt[k] += 1
+        rows.append([comp[s], comp[t], s, t, r["name"] or "", r["line"], "+".join(kinds), r["fn"], r["tc"]])
+with open(outdir / "private-access-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["from_component", "to_component", "importer_module", "imported_module", "name", "line", "kinds", "in_function", "type_checking"])
+    w.writerows(sorted(rows))
+mods_with_all = sum(1 for e in mods.values() if e["all"] is not None)
+x_from_into_all = sum(1 for r in recs if r["kind"] == "from" and r.get("resolved") and comp[r["src"]] != comp[r["resolved"]] and not r.get("name_is_module") and mods[r["resolved"]]["all"] is not None and not mods[r["resolved"]]["all_dynamic"])
+priv = {
+    "revision": sha,
+    "cross_component_import_records": x_records,
+    "records_with_any_private_access": cnt["any"],
+    "rate_per_1000_cross_component_import_records": round(1000 * cnt["any"] / x_records, 2),
+    "by_kind": {k: {"count": v, "per_1000": round(1000 * v / x_records, 2)} for k, v in cnt.items() if k != "any"},
+    "modules_declaring___all__": mods_with_all,
+    "modules_total": len(mods),
+    "cross_component_from_imports_into_modules_with_static___all__": x_from_into_all,
+    "not_in___all___rate_within_that_population_per_1000": round(1000 * cnt["not_in___all__"] / max(x_from_into_all, 1), 2),
+    "top_component_pairs": [[a, b, k] for (a, b), k in pair_cnt.most_common(25)],
+    "by_target_component": Counter(r[1] for r in rows).most_common(20),
+}
+json.dump(priv, open(outdir / "private-access-summary-head.json", "w"), indent=1)
+print("C", {k: v for k, v in priv.items() if k not in ("top_component_pairs", "by_target_component")})
+
+# ---------------------------------------------------------------- F. CLI libraries outside the CLI adapter
+CLI_LIBS = {"typer", "rich", "click"}
+ADAPTER = "specify_cli.cli"
+clirows = Counter()
+climods = defaultdict(set)
+for r in recs:
+    if r["kind"] == "dynamic":
+        continue
+    top = r["target"].split(".")[0]
+    if top in CLI_LIBS and not r.get("internal"):
+        c = comp[r["src"]]
+        clirows[(c, top, "load" if not (r["fn"] or r["tc"]) else ("type_checking" if r["tc"] else "function"))] += 1
+        climods[(c, top)].add(r["src"])
+with open(outdir / "cli-library-imports-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["component", "library", "importing_modules", "component_modules", "records_load_time", "records_in_function", "records_type_checking", "is_cli_adapter"])
+    for (c, lib) in sorted(climods):
+        w.writerow([c, lib, len(climods[(c, lib)]), nodes[c]["modules"], clirows[(c, lib, "load")], clirows[(c, lib, "function")], clirows[(c, lib, "type_checking")], c == ADAPTER])
+outside = {c for (c, lib) in climods if c != ADAPTER}
+mods_out = {m for (c, lib), ms in climods.items() if c != ADAPTER for m in ms}
+mods_in = {m for (c, lib), ms in climods.items() if c == ADAPTER for m in ms}
+print("F components outside adapter importing typer/rich/click:", len(outside), "of", len(cn) - 1, "modules", len(mods_out), "of", len(mods) - nodes[ADAPTER]["modules"], "adapter modules", len(mods_in), "of", nodes[ADAPTER]["modules"])
+json.dump(
+    {
+        "revision": sha,
+        "cli_adapter_component": ADAPTER,
+        "components_outside_adapter_importing": len(outside),
+        "components_outside_adapter_total": len(cn) - 1,
+        "modules_outside_adapter_importing": len(mods_out),
+        "modules_outside_adapter_total": len(mods) - nodes[ADAPTER]["modules"],
+        "adapter_modules_importing": len(mods_in),
+        "adapter_modules_total": nodes[ADAPTER]["modules"],
+        "by_library_modules_outside_adapter": {lib: len({m for (c, l2), ms in climods.items() if c != ADAPTER and l2 == lib for m in ms}) for lib in sorted(CLI_LIBS)},
+        "by_layer_modules_importing": dict(Counter(m.split(".")[0] for m in mods_out | mods_in)),
+        "non_specify_cli_modules": sorted(m for m in mods_out if not m.startswith("specify_cli")),
+    },
+    open(outdir / "cli-library-imports-summary-head.json", "w"),
+    indent=1,
+)
+
+# ---------------------------------------------------------------- G. external contract packages
+EXT = {"spec_kitty_events", "spec_kitty_tracker"}
+ext_all: dict[str, list[str] | None] = {}
+
+
+def ext_module_all(modname: str):
+    if site is None:
+        return None
+    if modname in ext_all:
+        return ext_all[modname]
+    p = site.joinpath(*modname.split("."))
+    f = p / "__init__.py" if p.is_dir() else p.with_suffix(".py")
+    res = None
+    if f.is_file():
+        tree = ast.parse(f.read_text())
+        for n in tree.body:
+            tgt = None
+            if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets):
+                tgt = n.value
+            elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id == "__all__":
+                tgt = n.value
+            if tgt is not None and isinstance(tgt, (ast.List, ast.Tuple)):
+                res = [e.value for e in tgt.elts if isinstance(e, ast.Constant)]
+    else:
+        res = "MODULE_NOT_FOUND"
+    ext_all[modname] = res
+    return res
+
+
+erows = []
+for r in recs:
+    if r["kind"] == "dynamic":
+        top = r["target"].split(".")[0]
+        if top in EXT:
+            erows.append([comp[r["src"]], r["src"], r["line"], top, r["target"], "", "dynamic", "", r["fn"], r["tc"]])
+        continue
+    top = r["target"].split(".")[0]
+    if top not in EXT or r.get("internal"):
+        continue
+    t = r["target"]
+    name = r["name"] or ""
+    priv_mod = any(is_priv(s2) for s2 in t.split(".")[1:])
+    al = ext_module_all(t) if r["kind"] == "from" else None
+    sub = None
+    if r["kind"] == "from" and site is not None:
+        subp = site.joinpath(*t.split("."), name)
+        sub = subp.is_dir() or subp.with_suffix(".py").is_file()
+    if r["kind"] == "import":
+        cls = "module_import" + ("_private_path" if priv_mod else "")
+    elif al == "MODULE_NOT_FOUND":
+        cls = "module_not_in_locked_package"
+    elif priv_mod or is_priv(name):
+        cls = "private"
+    elif sub:
+        cls = "submodule"
+    elif al is None:
+        root_all = ext_module_all(top)
+        cls = "submodule_without___all__:name_in_root___all__" if isinstance(root_all, list) and name in root_all else "submodule_without___all__:name_not_in_root___all__"
+    elif name in al:
+        cls = "public_in___all__" if t == top else "public_in_submodule___all__"
+    else:
+        cls = "not_in___all__"
+    erows.append([comp[r["src"]], r["src"], r["line"], top, t, name, r["kind"], cls, r["fn"], r["tc"]])
+with open(outdir / "external-package-imports-head.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["component", "importer_module", "line", "package", "imported_module", "name", "kind", "classification", "in_function", "type_checking"])
+    w.writerows(sorted(erows))
+esum = {"revision": sha}
+for pkg in sorted(EXT):
+    rr = [x for x in erows if x[3] == pkg]
+    esum[pkg] = {
+        "import_records": len(rr),
+        "importing_modules": len({x[1] for x in rr}),
+        "importing_components": sorted({x[0] for x in rr}),
+        "components_count": len({x[0] for x in rr}),
+        "records_by_component": Counter(x[0] for x in rr).most_common(),
+        "records_by_classification": dict(Counter(x[7] or x[6] for x in rr)),
+        "records_by_imported_module": Counter(x[4] for x in rr).most_common(),
+        "distinct_names": len({(x[4], x[5]) for x in rr}),
+        "records_load_time": sum(1 for x in rr if not x[8] and not x[9]),
+        "by_layer": dict(Counter(x[1].split(".")[0] for x in rr)),
+    }
+json.dump(esum, open(outdir / "external-package-imports-summary-head.json", "w"), indent=1)
+print("G", {p: (esum[p]["import_records"], esum[p]["components_count"], esum[p]["records_by_classification"]) for p in EXT})

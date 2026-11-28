@@ -1,0 +1,110 @@
+"""G2 import-graph extractor for core Python (src/ layout).
+Usage: python3 -I g2_pyimports.py <src_dir> <out_csv>
+Emits one row per imported name: src_module,src_file,lineno,target_module,form,lazy,type_checking,imported_name,raw_target
+- form: import | from | relative | dynamic
+- lazy: 1 if inside a function body
+- type_checking: 1 if under `if TYPE_CHECKING:` / `if typing.TYPE_CHECKING:`
+Targets are resolved to the longest prefix that exists as a module/package under src_dir;
+third-party targets are kept as-is (first segment) and flagged by the consumer.
+"""
+import ast, csv, sys
+from pathlib import Path
+
+SRC = Path(sys.argv[1]).resolve()
+OUT = sys.argv[2]
+FIRST_PARTY = {p.name for p in SRC.iterdir() if p.is_dir() and (p / "__init__.py").exists()}
+DYN = {"import_module", "__import__", "find_spec"}
+
+def exists_mod(dotted):
+    p = SRC.joinpath(*dotted.split("."))
+    return p.is_dir() or p.with_suffix(".py").is_file()
+
+def resolve(dotted):
+    parts = dotted.split(".")
+    if parts[0] not in FIRST_PARTY:
+        return dotted
+    for i in range(len(parts), 0, -1):
+        cand = ".".join(parts[:i])
+        if exists_mod(cand):
+            return cand
+    return parts[0]
+
+def modname(path):
+    rel = path.relative_to(SRC).with_suffix("")
+    parts = list(rel.parts)
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+def pkg_of(path):
+    rel = path.relative_to(SRC).with_suffix("")
+    return list(rel.parts[:-1])
+
+def is_tc(test):
+    return (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+        isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
+
+rows = []
+errors = []
+for top in sorted(FIRST_PARTY):
+    for path in sorted((SRC / top).rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except Exception as e:  # record, never skip silently
+            errors.append((str(path), repr(e)))
+            continue
+        src_mod = modname(path)
+        relf = str(path.relative_to(SRC))
+        def visit(node, lazy, tc):
+            for child in ast.iter_child_nodes(node):
+                cl, ct = lazy, tc
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    cl = True
+                if isinstance(child, ast.If) and is_tc(child.test):
+                    # body is type-checking only; orelse is not
+                    for b in child.body:
+                        handle(b, cl, True); visit(b, cl, True)
+                    for b in child.orelse:
+                        handle(b, cl, ct); visit(b, cl, ct)
+                    handle_expr(child.test, cl, ct)
+                    continue
+                handle(child, cl, ct)
+                visit(child, cl, ct)
+        def emit(target, form, node, lazy, tc, name=""):
+            rows.append([src_mod, relf, node.lineno, resolve(target), form, int(lazy), int(tc), name, target])
+        def handle_expr(node, lazy, tc):
+            pass
+        def handle(node, lazy, tc):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    emit(a.name, "import", node, lazy, tc)
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0:
+                    base = node.module or ""; form = "from"
+                else:
+                    pkg = pkg_of(path)
+                    if path.name == "__init__.py":
+                        pkg = list(path.relative_to(SRC).parts[:-1])
+                    if node.level > 1:
+                        pkg = pkg[: len(pkg) - (node.level - 1)]
+                    base = ".".join(pkg + ([node.module] if node.module else [])); form = "relative"
+                for a in node.names:
+                    full = f"{base}.{a.name}" if base else a.name
+                    tgt = full if (base.split(".")[0] in FIRST_PARTY and exists_mod(full)) else base
+                    emit(tgt, form, node, lazy, tc, a.name)
+            elif isinstance(node, ast.Call):
+                f = node.func
+                name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", None)
+                if name in DYN and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                    emit(node.args[0].value, "dynamic", node, lazy, tc)
+        visit(tree, False, False)
+
+with open(OUT, "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["src_module", "src_file", "lineno", "target_module", "form", "lazy", "type_checking", "imported_name", "raw_target"])
+    w.writerows(rows)
+print(f"files_parsed_ok={len({r[1] for r in rows})} rows={len(rows)} parse_errors={len(errors)}")
+for e in errors:
+    print("PARSE_ERROR", *e)

@@ -1,0 +1,73 @@
+finding_id: F-C-014
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry
+    that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled. Written in classification-rules.txt
+    before measurement. T2 is sampled pooled over its three line segments (59 pre-fork, 26 public, 65 experimental).
+subject:
+  component: cross-component imports
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'New cross-component import edges per 1,000 changed Python lines under src/ (stratified sample of 150 code
+  commits per period, stratum-weighted ratio, 95% bootstrap interval): edges new to the changed files T1 2.14 (1.17..3.86),
+  T2 0.73 (0.22..3.68), T3 1.03 (0.53..1.66); edges absent from the whole parent tree T1 1.38 (0.63..2.74), T2 0.24
+  (0.05..1.30), T3 0.28 (0.07..0.54). Sampled commits adding at least one component edge: 34, 20 and 14 of 150;
+  adding an edge new to the repository: 20, 7 and 5 of 150.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01f-summary.csv
+  method: aggregation of m01f-sample.csv
+  sha256: 37cf5735e5e414759c127887bd2b3b4de0c5bc4bdb547f3156923d9dc43c1775
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/m01f-bootstrap.csv
+  method: inline-steps.txt step 10
+  sha256: 70de0453eec1abda8efe5ee17510e02040fc3c6194bea6fd16675b09df470196
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/m01f-sample.csv
+  method: python3 script-m01f.txt
+  sha256: 541c93be3c605bb49222e5699e77a4a23b8c2db8aadd47deb419cf3d2f956161
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: 'Method limits: AST walk of changed .py files only; all import statements count, including function-local
+    and TYPE_CHECKING imports; dynamic imports and string references are not seen; a moved file shows as removed
+    and added edges; component of an import target is resolved by name, not by the tree; one syntax-error file skipped.'
+  population: 947 / 1,809 / 3,026 code commits
+  sample: 150 per period, proportional by class
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked at whether one commit dominates a period estimate and at removed edges.
+  result: 'In T2 one restructuring commit holds 65.8% of the sampled changed lines, which widens the T2 interval;
+    T1 and T3 maxima are 16.2% and 7.7%. Removed component edges in the sample (weighted): 95, 523 and 39.'
+relations: []
+confidence: medium
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

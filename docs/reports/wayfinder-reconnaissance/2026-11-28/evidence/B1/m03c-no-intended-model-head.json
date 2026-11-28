@@ -1,0 +1,26 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "line_counting": "physical lines of every non-test .py file under src/",
+ "total_lines": 524936,
+ "layer_lines": {
+  "charter": 77725,
+  "glossary": 6383,
+  "kernel": 9179,
+  "mission_runtime": 6868,
+  "runtime": 17627,
+  "specify_cli": 407154
+ },
+ "intra_layer_rules_in_enforced_model": {
+  "specify_cli.consolidation (may not import specify_cli.cli.* except console)": 36414,
+  "specify_cli/git/ref_advance.py (imports zero specify_cli)": 1238
+ },
+ "lines_with_an_intra_layer_rule_as_source": 37652,
+ "lines_with_no_intended_internal_model": 487284,
+ "share_no_intended_internal_model": 0.9283,
+ "specify_cli_lines": 407154,
+ "specify_cli_share_of_all_lines": 0.7756,
+ "specify_cli_no_internal_model_share": 0.9075,
+ "cross_component_module_edges_total": 4855,
+ "cross_component_module_edges_between_layers": 1605,
+ "cross_component_module_edges_inside_one_layer": 3250
+}

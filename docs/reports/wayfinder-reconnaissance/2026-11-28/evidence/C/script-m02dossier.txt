@@ -1,0 +1,49 @@
+import csv,json,os,re,subprocess,sys,collections
+S=os.path.dirname(os.path.abspath(__file__)); R='/home/user/spec-kitty'
+def git(*a): return subprocess.run(['git','-C',R,*a],capture_output=True,text=True,errors='replace').stdout
+def api(path):
+    r=subprocess.run(['gh','api',path],capture_output=True,text=True)
+    try: return json.loads(r.stdout) if r.returncode==0 else None
+    except Exception: return None
+_pr={}
+def pr_of(sha):
+    if sha in _pr: return _pr[sha]
+    prs=api(f'repos/spec-kitty/spec-kitty/commits/{sha}/pulls') or []
+    merged=[p for p in prs if p.get('merged_at')] or prs
+    p=sorted(merged,key=lambda p:p.get('merged_at') or '')[0] if merged else None
+    _pr[sha]=p; return p
+def blame_candidates(sha):
+    diff=git('show','--format=','-U0','-M',sha,'--','src/')
+    cur=None;cands=collections.Counter();n=0
+    for l in diff.splitlines():
+        if l.startswith('--- '): cur=None if l.endswith('/dev/null') else l[6:]
+        m=re.match(r'^@@ -(\d+)(?:,(\d+))? ',l)
+        if m and cur and cur.endswith('.py'):
+            start=int(m.group(1)); cnt=int(m.group(2)) if m.group(2) is not None else 1
+            if cnt==0: start=max(1,start); cnt=1
+            if start==0: continue
+            out=git('blame','-l','-w','-s','-L',f'{start},+{min(cnt,40)}',sha+'^','--',cur)
+            for b in out.splitlines(): cands[b.split()[0].lstrip('^')]+=1
+            n+=1
+            if n>=12: break
+    return cands.most_common(3)
+out=[]
+for name in('m02a','m02b'):
+    for r in json.load(open(S+f'/{name}_sample.json')):
+        sha=r['sha']; body=git('log','-1','--format=%B',sha)
+        p=pr_of(sha); d=dict(frame=name,sha=sha,date=r['date'],subject=r['subject'],body=body[:2500],files=git('show','--stat=110','--format=',sha)[-1500:])
+        if p:
+            d['pr']=dict(repo=p['base']['repo']['full_name'],number=p['number'],title=p['title'],created=p['created_at'],merged=p.get('merged_at'),head=p['head']['ref'],body=(p.get('body') or '')[:3000])
+        refs=sorted({int(x) for x in re.findall(r'#(\d{3,5})',r['subject']+' '+body)})
+        d['refs']=refs; d['issues']=[]
+        for n in refs[:4]:
+            if p and n==p['number']: continue
+            i=api(f'repos/spec-kitty/spec-kitty/issues/{n}')
+            if i: d['issues'].append(dict(number=n,is_pr='pull_request' in i,title=i['title'],created=i['created_at'],user_type=i['user']['type'],labels=[l['name'] for l in i.get('labels',[])],body=(i.get('body') or '')[:1800]))
+        bc=[]
+        for bsha,cnt in blame_candidates(sha):
+            bp=pr_of(bsha)
+            bc.append(dict(sha=bsha,lines=cnt,date=git('log','-1','--format=%cs',bsha).strip(),subject=git('log','-1','--format=%s',bsha).strip()[:140],pr=bp['number'] if bp else None,pr_title=bp['title'][:120] if bp else None,pr_merged=bp.get('merged_at') if bp else None,
+                           kitty_specs=sorted({x.split('/')[1] for x in git('show','--format=','--name-only',bsha).splitlines() if x.startswith('kitty-specs/') and '/' in x[12:]})[:3]))
+        d['blame']=bc; out.append(d); print(name,sha[:10],p['number'] if p else None,[b['pr'] for b in bc],flush=True)
+json.dump(out,open(S+'/m02_dossier.json','w'),indent=1)

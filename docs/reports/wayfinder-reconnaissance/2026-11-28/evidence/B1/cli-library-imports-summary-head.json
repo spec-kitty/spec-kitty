@@ -1,0 +1,27 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "cli_adapter_component": "specify_cli.cli",
+ "components_outside_adapter_importing": 19,
+ "components_outside_adapter_total": 73,
+ "modules_outside_adapter_importing": 59,
+ "modules_outside_adapter_total": 1296,
+ "adapter_modules_importing": 147,
+ "adapter_modules_total": 194,
+ "by_library_modules_outside_adapter": {
+  "click": 4,
+  "rich": 33,
+  "typer": 39
+ },
+ "by_layer_modules_importing": {
+  "runtime": 1,
+  "specify_cli": 202,
+  "glossary": 2,
+  "charter": 1
+ },
+ "non_specify_cli_modules": [
+  "charter.activation.synthesizer.errors",
+  "glossary.checkpoint",
+  "glossary.observation",
+  "runtime.next.runtime_bridge_retrospective"
+ ]
+}

@@ -1,0 +1,54 @@
+finding_id: F-C-019
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M02a
+  deviation: null
+subject:
+  component: detection of defects fixed across components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Detection route in the M02a sample of 30: (a) automated check before the introducing change reached main
+  1; (b) automated run after it reached main 0; (c) a person 22 (issue opened by a person 15, reviewer or review
+  squad before merge 7); untraceable 7, all seven being pre-merge folds in the same pull request whose message names
+  no detector. Among the 15 defects introduced by an earlier change on main, all 15 were detected by route (c).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m02-trace-sample.csv
+  method: python3 script-m02dossier.txt, then analyst judgement, inline-steps.txt step 9 (dossier sha256 d83ad27d668c2fb5a8a65c1a019a1809320eca937ae37087a46a6ea3fda34357)
+  sha256: 6bcd25b943b015f9035b77abbf7e22c09f17011b0bc2e08bc69ba455da31db7c
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Detector taken from commit, pull request and issue text; a reviewer may be a person or an agent review
+    squad and the text does not always say which.
+  population: 666
+  sample: 30
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for any sampled cross-component fix whose message or issue names a nightly or post-merge run as
+    detector.
+  result: None in the 30. One M02b case does (F-C-019).
+relations: []
+confidence: medium
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- reliability
+- testability
+candidate_invariants: []
+open_questions: []

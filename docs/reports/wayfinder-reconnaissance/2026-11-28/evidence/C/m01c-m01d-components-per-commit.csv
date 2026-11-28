@@ -1,0 +1,148 @@
+group,cls,n_code_commits,comp_median,comp_p90,comp_mean,share_ge2_components,top_median,top_p90,top_mean,share_ge2_toplevel
+month 2026-01 pre-fork,ALL,182,1.0,3,1.632,0.3516,1.0,1,1.0,0.0
+month 2026-01 pre-fork,capability-growth,61,1,3,1.721,0.377,1,1,1.0,0.0
+month 2026-01 pre-fork,corrective-maintenance,72,1.0,2,1.472,0.2778,1.0,1,1.0,0.0
+month 2026-01 pre-fork,restructuring,4,2.0,3,2.0,0.75,1.0,1,1.0,0.0
+month 2026-01 pre-fork,compatibility-work,17,1,3,1.706,0.4118,1,1,1.0,0.0
+month 2026-01 pre-fork,convergence-activity,0,,,,,,,,
+month 2026-01 pre-fork,other,28,1.0,4,1.75,0.3929,1.0,1,1.0,0.0
+month 2026-02 pre-fork,ALL,319,1,3,1.542,0.2696,1,1,1.075,0.0658
+month 2026-02 pre-fork,capability-growth,141,1,2,1.319,0.1844,1,1,1.064,0.0496
+month 2026-02 pre-fork,corrective-maintenance,108,1.0,3,1.63,0.2778,1.0,1,1.083,0.0741
+month 2026-02 pre-fork,restructuring,7,1,8,2.714,0.4286,1,2,1.143,0.1429
+month 2026-02 pre-fork,compatibility-work,32,1.0,3,1.844,0.4062,1.0,1,1.094,0.0938
+month 2026-02 pre-fork,convergence-activity,8,2.0,3,1.875,0.75,1.0,1,1.0,0.0
+month 2026-02 pre-fork,other,23,1,3,1.609,0.3478,1,1,1.087,0.087
+month 2026-03 pre-fork,ALL,62,1.5,6,3.29,0.5,1.0,2,1.306,0.2419
+month 2026-03 pre-fork,capability-growth,18,1.5,13,5.056,0.5,1.0,3,1.5,0.2778
+month 2026-03 pre-fork,corrective-maintenance,23,1,5,2.522,0.3913,1,2,1.174,0.1739
+month 2026-03 pre-fork,restructuring,2,3.0,5,3.0,0.5,1.5,2,1.5,0.5
+month 2026-03 pre-fork,compatibility-work,8,1.0,3,1.375,0.25,1.0,1,1.0,0.0
+month 2026-03 pre-fork,convergence-activity,0,,,,,,,,
+month 2026-03 pre-fork,other,11,3,6,3.455,0.9091,1,2,1.455,0.4545
+month 2026-04 pre-fork,ALL,218,2.0,8,3.729,0.6606,1.0,3,1.486,0.3486
+month 2026-04 pre-fork,capability-growth,52,3.0,12,4.5,0.8462,1.0,2,1.577,0.4423
+month 2026-04 pre-fork,corrective-maintenance,107,2,6,2.682,0.5234,1,2,1.271,0.215
+month 2026-04 pre-fork,restructuring,6,2.5,18,4.833,0.6667,1.0,3,1.5,0.3333
+month 2026-04 pre-fork,compatibility-work,18,2.0,7,4.111,0.7222,1.0,3,1.611,0.3889
+month 2026-04 pre-fork,convergence-activity,0,,,,,,,,
+month 2026-04 pre-fork,other,35,4,12,5.4,0.7714,2,3,1.943,0.6
+month 2026-05 pre-fork,ALL,291,1,4,2.285,0.4742,1,2,1.23,0.1787
+month 2026-05 pre-fork,capability-growth,33,2,5,2.758,0.697,1,2,1.394,0.303
+month 2026-05 pre-fork,corrective-maintenance,183,1,4,1.989,0.4317,1,2,1.197,0.1639
+month 2026-05 pre-fork,restructuring,6,1.0,2,1.333,0.3333,1.0,1,1.0,0.0
+month 2026-05 pre-fork,compatibility-work,30,1.0,2,1.533,0.3667,1.0,1,1.1,0.1
+month 2026-05 pre-fork,convergence-activity,0,,,,,,,,
+month 2026-05 pre-fork,other,39,2,8,4.0,0.5897,1,2,1.385,0.2308
+month 2026-06 pre-fork,ALL,438,2.0,5,2.728,0.5274,1.0,2,1.326,0.2466
+month 2026-06 pre-fork,capability-growth,104,2.0,7,3.375,0.5481,1.0,2,1.471,0.3269
+month 2026-06 pre-fork,corrective-maintenance,219,2,4,2.315,0.5342,1,2,1.256,0.2237
+month 2026-06 pre-fork,restructuring,27,2,7,2.519,0.5556,1,3,1.407,0.2222
+month 2026-06 pre-fork,compatibility-work,29,2,4,2.103,0.5172,1,1,1.069,0.069
+month 2026-06 pre-fork,convergence-activity,3,19,19,15.0,1.0,3,3,2.667,1.0
+month 2026-06 pre-fork,other,56,1.0,7,2.911,0.4286,1.0,2,1.357,0.25
+month 2026-07 pre-fork,ALL,504,1.0,4,2.089,0.4107,1.0,2,1.169,0.1409
+month 2026-07 pre-fork,capability-growth,103,2,8,3.563,0.5728,1,2,1.417,0.3592
+month 2026-07 pre-fork,corrective-maintenance,247,1,3,1.692,0.332,1,1,1.109,0.0891
+month 2026-07 pre-fork,restructuring,26,2.0,4,2.269,0.6538,1.0,1,1.077,0.0769
+month 2026-07 pre-fork,compatibility-work,59,1,2,1.661,0.4746,1,1,1.119,0.0847
+month 2026-07 pre-fork,convergence-activity,21,2,3,1.905,0.5714,1,1,1.0,0.0
+month 2026-07 pre-fork,other,48,1.0,2,1.479,0.1875,1.0,2,1.125,0.1042
+month 2026-08 pre-fork,ALL,325,1,4,2.043,0.3785,1,2,1.218,0.1785
+month 2026-08 pre-fork,capability-growth,64,2.0,7,2.703,0.5156,1.0,2,1.328,0.2812
+month 2026-08 pre-fork,corrective-maintenance,167,1,3,1.563,0.3293,1,2,1.168,0.1317
+month 2026-08 pre-fork,restructuring,25,3,15,5.24,0.72,1,2,1.32,0.28
+month 2026-08 pre-fork,compatibility-work,20,1.0,3,1.6,0.35,1.0,2,1.2,0.15
+month 2026-08 pre-fork,convergence-activity,14,1.0,3,1.857,0.4286,1.0,2,1.5,0.3571
+month 2026-08 pre-fork,other,35,1,2,1.171,0.1143,1,1,1.086,0.0857
+month 2026-08 public,ALL,183,1,3,1.902,0.4754,1,2,1.191,0.1913
+month 2026-08 public,capability-growth,28,2.0,5,2.179,0.6786,1.0,2,1.214,0.2143
+month 2026-08 public,corrective-maintenance,103,1,3,1.806,0.4175,1,2,1.204,0.2039
+month 2026-08 public,restructuring,19,1,6,2.158,0.4737,1,2,1.211,0.2105
+month 2026-08 public,compatibility-work,15,2,4,2.267,0.6,1,2,1.2,0.2
+month 2026-08 public,convergence-activity,7,2,3,1.714,0.5714,1,2,1.143,0.1429
+month 2026-08 public,other,11,1,2,1.273,0.2727,1,1,1.0,0.0
+month 2026-08 experimental,ALL,479,1,3,1.605,0.3132,1,1,1.073,0.0605
+month 2026-08 experimental,capability-growth,49,1,2,1.286,0.2245,1,1,1.02,0.0204
+month 2026-08 experimental,corrective-maintenance,201,1,2,1.323,0.2338,1,1,1.03,0.0299
+month 2026-08 experimental,restructuring,20,2.0,6,3.25,0.65,1.0,2,1.15,0.15
+month 2026-08 experimental,compatibility-work,40,1.0,2,1.625,0.35,1.0,1,1.075,0.025
+month 2026-08 experimental,convergence-activity,107,1,3,1.738,0.4393,1,2,1.14,0.1402
+month 2026-08 experimental,other,62,1.0,3,2.0,0.2903,1.0,1,1.113,0.0484
+month 2026-09 public,ALL,94,1.0,3,1.649,0.3511,1.0,2,1.128,0.117
+month 2026-09 public,capability-growth,18,2.0,2,2.389,0.7778,1.0,2,1.222,0.2222
+month 2026-09 public,corrective-maintenance,46,1.0,3,1.457,0.2391,1.0,1,1.043,0.0435
+month 2026-09 public,restructuring,10,1.0,3,1.7,0.3,1.0,2,1.2,0.2
+month 2026-09 public,compatibility-work,1,1,1,1.0,0.0,1,1,1.0,0.0
+month 2026-09 public,convergence-activity,9,1,4,1.778,0.4444,1,3,1.444,0.3333
+month 2026-09 public,other,10,1.0,1,1.1,0.1,1.0,1,1.0,0.0
+month 2026-09 experimental,ALL,224,1.0,3,1.688,0.3438,1.0,2,1.156,0.1295
+month 2026-09 experimental,capability-growth,17,2,2,1.647,0.5294,1,1,1.059,0.0588
+month 2026-09 experimental,corrective-maintenance,81,1,3,1.593,0.2716,1,1,1.062,0.0617
+month 2026-09 experimental,restructuring,10,1.0,3,1.7,0.3,1.0,2,1.2,0.2
+month 2026-09 experimental,compatibility-work,6,1.0,7,2.167,0.3333,1.0,2,1.167,0.1667
+month 2026-09 experimental,convergence-activity,89,1,3,1.831,0.4045,1,2,1.292,0.2247
+month 2026-09 experimental,other,21,1,2,1.333,0.2381,1,1,1.0,0.0
+month 2026-09 converged,ALL,799,1,3,1.783,0.3442,1,2,1.129,0.1101
+month 2026-09 converged,capability-growth,81,2,8,3.086,0.5432,1,2,1.259,0.2222
+month 2026-09 converged,corrective-maintenance,414,1.0,2,1.507,0.2923,1.0,1,1.085,0.0797
+month 2026-09 converged,restructuring,74,1.0,4,2.135,0.3649,1.0,2,1.162,0.1486
+month 2026-09 converged,compatibility-work,59,1,3,1.78,0.4237,1,2,1.186,0.1017
+month 2026-09 converged,convergence-activity,42,1.0,2,1.5,0.2857,1.0,2,1.119,0.119
+month 2026-09 converged,other,129,1,3,1.744,0.3566,1,2,1.147,0.1163
+month 2026-10 converged,ALL,1167,1,3,1.742,0.3685,1,2,1.151,0.1268
+month 2026-10 converged,capability-growth,70,2.0,8,3.414,0.7143,1.0,2,1.514,0.3857
+month 2026-10 converged,corrective-maintenance,616,1.0,3,1.567,0.3425,1.0,2,1.143,0.1282
+month 2026-10 converged,restructuring,165,1,4,1.861,0.4121,1,2,1.164,0.1212
+month 2026-10 converged,compatibility-work,150,1.0,3,1.893,0.4067,1.0,1,1.067,0.0467
+month 2026-10 converged,convergence-activity,37,1,2,1.486,0.4054,1,2,1.216,0.2162
+month 2026-10 converged,other,129,1,2,1.419,0.1938,1,1,1.054,0.0543
+month 2026-11 converged,ALL,1060,1.0,3,1.537,0.3151,1.0,2,1.117,0.1057
+month 2026-11 converged,capability-growth,77,2,4,2.26,0.5584,1,2,1.182,0.1558
+month 2026-11 converged,corrective-maintenance,594,1.0,3,1.527,0.3266,1.0,2,1.128,0.1212
+month 2026-11 converged,restructuring,134,1.0,3,1.5,0.291,1.0,2,1.134,0.1194
+month 2026-11 converged,compatibility-work,94,1.0,2,1.426,0.3404,1.0,1,1.032,0.0319
+month 2026-11 converged,convergence-activity,33,1,4,2.061,0.4242,1,2,1.242,0.1515
+month 2026-11 converged,other,128,1.0,1,1.133,0.0938,1.0,1,1.039,0.0312
+T1,ALL,947,2,6,2.823,0.5417,1,2,1.334,0.2492
+T1,capability-growth,189,2,7,3.577,0.6561,1,2,1.487,0.3545
+T1,corrective-maintenance,509,1,4,2.275,0.4951,1,2,1.238,0.2004
+T1,restructuring,39,2,7,2.692,0.5385,1,3,1.359,0.2051
+T1,compatibility-work,77,2,4,2.351,0.5065,1,2,1.208,0.1558
+T1,convergence-activity,3,19,19,15.0,1.0,3,3,2.667,1.0
+T1,other,130,2.0,8,3.908,0.5692,1.0,3,1.523,0.3385
+T2-pre-fork,ALL,829,1,4,2.071,0.3981,1,2,1.188,0.1556
+T2-pre-fork,capability-growth,167,2,8,3.234,0.5509,1,2,1.383,0.3293
+T2-pre-fork,corrective-maintenance,414,1.0,3,1.64,0.3309,1.0,2,1.133,0.1063
+T2-pre-fork,restructuring,51,2,6,3.725,0.6863,1,2,1.196,0.1765
+T2-pre-fork,compatibility-work,79,1,2,1.646,0.443,1,2,1.139,0.1013
+T2-pre-fork,convergence-activity,35,2,3,1.886,0.5143,1,2,1.2,0.1429
+T2-pre-fork,other,83,1,2,1.349,0.1566,1,1,1.108,0.0964
+T2-public,ALL,277,1,3,1.816,0.4332,1,2,1.17,0.1661
+T2-public,capability-growth,46,2.0,3,2.261,0.7174,1.0,2,1.217,0.2174
+T2-public,corrective-maintenance,149,1,3,1.698,0.3624,1,2,1.154,0.1544
+T2-public,restructuring,29,1,5,2.0,0.4138,1,2,1.207,0.2069
+T2-public,compatibility-work,16,2.0,4,2.188,0.5625,1.0,2,1.188,0.1875
+T2-public,convergence-activity,16,1.5,3,1.75,0.5,1.0,2,1.312,0.25
+T2-public,other,21,1,2,1.19,0.1905,1,1,1.0,0.0
+T2-experimental,ALL,703,1,3,1.632,0.3229,1,1,1.1,0.0825
+T2-experimental,capability-growth,66,1.0,2,1.379,0.303,1.0,1,1.03,0.0303
+T2-experimental,corrective-maintenance,282,1.0,2,1.401,0.2447,1.0,1,1.039,0.039
+T2-experimental,restructuring,30,2.0,6,2.733,0.5333,1.0,2,1.167,0.1667
+T2-experimental,compatibility-work,46,1.0,2,1.696,0.3478,1.0,1,1.087,0.0435
+T2-experimental,convergence-activity,196,1.0,3,1.781,0.4235,1.0,2,1.209,0.1786
+T2-experimental,other,83,1,3,1.831,0.2771,1,1,1.084,0.0361
+T3,ALL,3026,1.0,3,1.681,0.3434,1.0,2,1.133,0.115
+T3,capability-growth,228,2.0,7,2.908,0.6009,1.0,2,1.311,0.25
+T3,corrective-maintenance,1624,1.0,3,1.537,0.3239,1.0,2,1.123,0.1133
+T3,restructuring,373,1,3,1.786,0.3592,1,2,1.153,0.126
+T3,compatibility-work,303,1,3,1.726,0.3894,1,1,1.079,0.0528
+T3,convergence-activity,112,1.0,3,1.661,0.3661,1.0,2,1.188,0.1607
+T3,other,386,1.0,2,1.433,0.215,1.0,1,1.08,0.0674
+T2-pooled,ALL,1809,1,3,1.861,0.3742,1,2,1.151,0.1288
+T2-pooled,capability-growth,279,2,5,2.634,0.5197,1,2,1.272,0.2401
+T2-pooled,corrective-maintenance,845,1,3,1.57,0.3077,1,1,1.105,0.0923
+T2-pooled,restructuring,110,2.0,6,3.0,0.5727,1.0,2,1.191,0.1818
+T2-pooled,compatibility-work,141,1,3,1.723,0.4255,1,1,1.128,0.0922
+T2-pooled,convergence-activity,247,1,3,1.794,0.4413,1,2,1.215,0.1781
+T2-pooled,other,187,1,2,1.545,0.2139,1,1,1.086,0.0588

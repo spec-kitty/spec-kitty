@@ -1,0 +1,139 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "violations_not_recorded": [],
+ "violations_not_recorded_count": 0,
+ "dynamic_literal_imports_crossing_a_forbidden_layer_pair": [
+  [
+   "dynamic_literal_outside_layer_rule_graph",
+   "charter.offering.missions.glossary_hook",
+   "glossary.attachment",
+   115
+  ]
+ ],
+ "ledgers": {
+  "_EXCLUDED_FROM_LAYER_ENFORCEMENT": {
+   "entries": 0
+  },
+  "_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI": {
+   "entries": 10,
+   "baseline_cap": 10,
+   "live_subpackages": [
+    "coordination",
+    "core",
+    "migration",
+    "mission",
+    "mission_metadata",
+    "missions",
+    "retrospective",
+    "status",
+    "task_utils",
+    "workspace"
+   ],
+   "stale_entries": [],
+   "import_records_covered": 119,
+   "import_statements_covered": 90,
+   "importing_modules": 7,
+   "distinct_module_edges": 30,
+   "records_in_function_body": 116,
+   "per_subpackage_records": {
+    "coordination": 11,
+    "core": 42,
+    "migration": 1,
+    "mission": 2,
+    "mission_metadata": 1,
+    "missions": 38,
+    "retrospective": 1,
+    "status": 19,
+    "task_utils": 3,
+    "workspace": 1
+   }
+  },
+  "_RUNTIME_ALLOWED_SPECIFY_CLI": {
+   "entries": 22,
+   "baseline_cap": 22,
+   "live_subpackages": [
+    "bulk_edit",
+    "coordination",
+    "core",
+    "events",
+    "invocation",
+    "lanes",
+    "migration",
+    "mission",
+    "mission_loader",
+    "mission_metadata",
+    "mission_step_contracts",
+    "mission_v1",
+    "missions",
+    "requirement_mapping",
+    "retrospective",
+    "review",
+    "runtime",
+    "shims",
+    "status",
+    "status_lanes",
+    "task_utils",
+    "workspace"
+   ],
+   "stale_entries": [],
+   "import_records_covered": 194,
+   "import_statements_covered": 138,
+   "importing_modules": 20,
+   "distinct_module_edges": 98,
+   "records_in_function_body": 99,
+   "records_type_checking": 7,
+   "per_subpackage_records": {
+    "bulk_edit": 1,
+    "coordination": 15,
+    "core": 19,
+    "events": 1,
+    "invocation": 7,
+    "lanes": 7,
+    "migration": 1,
+    "mission": 4,
+    "mission_loader": 3,
+    "mission_metadata": 10,
+    "mission_step_contracts": 4,
+    "mission_v1": 2,
+    "missions": 10,
+    "requirement_mapping": 6,
+    "retrospective": 31,
+    "review": 5,
+    "runtime": 4,
+    "shims": 2,
+    "status": 49,
+    "status_lanes": 6,
+    "task_utils": 2,
+    "workspace": 5
+   }
+  },
+  "_MERGE_CLI_CONSOLE_IMPORTERS": {
+   "entries": 16,
+   "live_importers": 16,
+   "stale_entries": [],
+   "import_records_covered": 17
+  }
+ },
+ "layer_pair_import_records": {
+  "charter->glossary [dynamic]": 1,
+  "charter->kernel [from]": 208,
+  "glossary->charter [from]": 7,
+  "glossary->kernel [from]": 11,
+  "mission_runtime->kernel [from]": 12,
+  "mission_runtime->kernel [import]": 1,
+  "mission_runtime->specify_cli [from]": 119,
+  "runtime->charter [from]": 30,
+  "runtime->kernel [from]": 31,
+  "runtime->mission_runtime [from]": 64,
+  "runtime->specify_cli [from]": 194,
+  "specify_cli->charter [dynamic]": 1,
+  "specify_cli->charter [from]": 937,
+  "specify_cli->charter [import]": 1,
+  "specify_cli->glossary [from]": 36,
+  "specify_cli->kernel [from]": 1073,
+  "specify_cli->kernel [import]": 2,
+  "specify_cli->mission_runtime [from]": 735,
+  "specify_cli->runtime [dynamic]": 1,
+  "specify_cli->runtime [from]": 95
+ }
+}

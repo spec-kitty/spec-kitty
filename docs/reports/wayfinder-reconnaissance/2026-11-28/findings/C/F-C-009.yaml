@@ -1,0 +1,70 @@
+finding_id: F-C-009
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: co-change-matrix
+  deviation: null
+subject:
+  component: core component pairs
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'T1 co-change (947 code commits, 79 components touched, 874 pairs with at least 3 joint commits): the largest
+  pair is charter/offering with specify_cli/cli, 84 commits (support 8.9%; 40.6% of charter/offering commits also
+  touch cli), then cli with status 82 (73.2% of status commits), cli with the retired sync package 77, specify_cli
+  root files with cli 73 (78.5% of root-file commits), cli with core 66. 12 of the 15 largest pairs include specify_cli/cli,
+  which is touched by 470 of 947 code commits (49.6%).'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/cochange-top15.csv
+  method: python3 script-analyze.txt
+  sha256: 42a176baaff6a05c8423312f26feed3e2b580e9e0195538789ffc33bdf1e39ce
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/cochange-pairs.csv
+  method: python3 script-analyze.txt (pairs with >=3 joint commits; full file sha256 1c69f6dcb323f01df36f0565a33309d3a4c6958aa44b2f1dc9f34af6badaf22b)
+  sha256: 565d0ef837d2238b846c2faadca8fd518564e761c460f4c446db847b254c4d9b
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/component-touch-counts.csv
+  method: python3 script-analyze.txt
+  sha256: afeafdcf9a86125af9025de3bb8dbd3c121e3ef6a6285ccda7c10e1e6d00c641
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked for a top pair that does not involve specify_cli/cli.
+  result: 'Three of the top 15: charter/offering with specify_cli/missions (46), charter/activation with charter/offering
+    (43), status with sync (42).'
+relations: []
+confidence: high
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

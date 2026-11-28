@@ -1,0 +1,119 @@
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Downloading cpython-3.11.15-linux-x86_64-gnu (download) (29.5MiB)
+ Downloaded cpython-3.11.15-linux-x86_64-gnu (download)
+Using CPython 3.11.15
+Creating virtual environment at: .venv
+   Building spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone
+   Building spec-kitty-services @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/packages/spec-kitty-services
+      Built spec-kitty-services @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/packages/spec-kitty-services
+      Built spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone
+Prepared 2 packages in 12.83s
+Installed 103 packages in 424ms
+ + annotated-doc==0.0.4
+ + annotated-types==0.7.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + bandit==1.9.4
+ + boolean-py==5.0
+ + build==1.4.4
+ + cachecontrol==0.14.4
+ + certifi==2026.10.19
+ + cffi==2.0.0
+ + chardet==5.2.0
+ + charset-normalizer==3.4.7
+ + click==8.3.3
+ + codespell==2.4.3
+ + coverage==7.13.5
+ + cryptography==50.0.0
+ + cyclonedx-python-lib==11.7.0
+ + defusedxml==0.7.1
+ + diff-cover==10.2.0
+ + execnet==2.1.2
+ + filelock==4.2.10
+ + google-re2==1.1.20251105
+ + h11==0.16.0
+ + hatchling==1.31.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + idna==3.15
+ + iniconfig==2.3.0
+ + jinja2==3.1.6
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + libcst==1.8.6
+ + librt==0.9.0
+ + license-expression==30.4.4
+ + linkify-it-py==2.1.0
+ + markdown-it-py==4.0.0
+ + markupsafe==3.0.3
+ + mdit-py-plugins==0.5.0
+ + mdurl==0.1.2
+ + msgpack==1.2.4
+ + mutmut==3.5.0
+ + mypy==1.20.2
+ + mypy-extensions==1.1.0
+ + networkx==3.6.1
+ + packageurl-python==0.17.6
+ + packaging==26.2
+ + pathspec==1.1.0
+ + pip==26.2.1
+ + pip-api==0.0.34
+ + pip-audit==2.10.0
+ + pip-requirements-parser==32.0.1
+ + platformdirs==4.9.6
+ + pluggy==1.6.0
+ + psutil==7.2.2
+ + py-cpuinfo2==10.1.1
+ + py-serializable==2.1.0
+ + pycparser==3.0
+ + pydantic==2.13.3
+ + pydantic-core==2.46.3
+ + pygments==2.20.0
+ + pyparsing==3.3.2
+ + pyproject-hooks==1.2.0
+ + pytest==9.0.3
+ + pytest-asyncio==1.3.0
+ + pytest-benchmark==5.3.0
+ + pytest-cov==7.1.0
+ + pytest-timeout==2.4.0
+ + pytest-xdist==3.8.0
+ + pytestarch==4.0.1
+ + python-ulid==3.1.0
+ + pyyaml==6.0.3
+ + readchar==4.2.2
+ + referencing==0.37.0
+ + requests==2.33.1
+ + respx==0.23.1
+ + rich==15.0.0
+ + rpds-py==0.30.0
+ + ruamel-yaml==0.19.1
+ + ruff==0.15.12
+ + setproctitle==1.3.7
+ + shellingham==1.5.4
+ + socksio==1.0.0
+ + sortedcontainers==2.4.0
+ + spec-kitty-cli==4.0.0rc9 (from file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone)
+ + spec-kitty-events==11.3.0
+ + spec-kitty-services==4.0.0rc9 (from file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/packages/spec-kitty-services)
+ + spec-kitty-tracker==0.5.2
+ + stevedore==5.7.0
+ + textual==8.2.4
+ + toml==0.10.2
+ + tomli==2.4.1
+ + tomli-w==1.2.0
+ + trove-classifiers==2026.6.1.19
+ + typer==0.27.3
+ + types-jsonschema==4.26.0.20260408
+ + types-psutil==7.2.2.20260408
+ + types-pyyaml==6.0.12.20260408
+ + types-requests==2.33.0.20260408
+ + types-toml==0.10.8.20260408
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.2
+ + uc-micro-py==2.0.0
+ + urllib3==2.8.0
+
+real	0m23.657s
+user	0m3.131s
+sys	0m1.463s
+exit 0

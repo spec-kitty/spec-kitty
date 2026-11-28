@@ -1,0 +1,667 @@
+sha,date,n_components,reason,pin_lock,contract,subject
+0080d676df553959e099948fa49ee3af550c7804,2026-09-07,3,multi-component,,,fix(cutover-guard): list the base tree recursively and name the non-mission arm accurately
+008913c8ec7ba170605c9ea71336766c8a969521,2026-09-23,2,multi-component,,,"fix(status): mission-state --fix preserves by default, closing the unregistered-event_type silent-loss class (#4993, #4897)"
+00e3e037f7a8210f56eeb09d305ac6990c66074a,2026-09-27,0,pin-lock,pyproject.toml(dependency line);uv.lock,,"fix(deps): mirror pytestarch into the dev dependency group (WP02, #5160)"
+00e7b70e72c8b0c5710a7f30076454765f684250,2026-10-04,2,multi-component,,,fix(status): commit single_branch status annotations (#5655)
+010fe26800510e13cab739516da33a54335b3b8c,2026-11-08,2,multi-component,,,fix(status): name the next step on the board and deleted-branch refusals
+01b1cb8200742a29d0d22c01ae4bb55483afe90f,2026-10-27,2,multi-component,,,"fix(policy): one authority for the done issue-matrix verdict (#6711, #6712)"
+01b8ba24f400e92f061f16d766d59f66e8ca8938,2026-10-11,2,multi-component,,,fix(review): don't revert an ADOPTED review-cycle on transition failure (#5969)
+01f264024bd286eb6ffe2967b5f529bf2736c690,2026-11-12,2,multi-component,,,fix(accept): commit the acceptance record through the placement seam (#7550)
+02969efcc14a38472dcf30091eb4bf9b47db9bd7,2026-10-08,3,multi-component,,,"fix(workflow): a rollback I/O error is a coded refusal, not a traceback (#5819)"
+0356bbdcb7859645d9d937bb5e033cce8dbc1b2e,2026-10-22,3,multi-component,,,fix(agents): an explicit empty agent list means no agents (#6494)
+03aeb9279ff4e734e6e9b93f4871e50aba53291b,2026-11-06,2,multi-component,,,fix(doctor): rebuild lanes.json with the derived planning commit (#7210)
+04099ee522ca18fc2b0cb968b5b0c6dd1922ed71,2026-09-30,2,multi-component,,,fix(create): commit_to_target is single_branch-only; ambiguous selector fails closed (#5100)
+04197fe8c2997d72467768f39cfd16b4313bca05,2026-09-07,3,multi-component,,,fix(ci): format upgrade changes and seed runtime state
+043e709c492372b897029fff9c74e7be10cdf389,2026-10-22,3,multi-component,,,"fix: fold review findings (gate evasion, seam residue, platform newlines)"
+046e9e28ea750f94524c93a755fb31048c37476a,2026-10-07,3,multi-component,,,fix(consolidation): meta.json merge driver honours the merge base (#5460)
+0484725645c4882e8cd891b9a56cf37242fb83c3,2026-09-26,2,multi-component,,,fix(merge): recover a behind-own-HEAD primary on --resume + adjudicate the MERGE no-op (#4997)
+052b58607dade5a75bca8f32280d074940cb8d7f,2026-10-06,2,multi-component,,,fix(landing): stop `charter new --help` naming the deprecated doctrine command
+0596a7c1d4763b838a101bef45dace595eb18dd6,2026-09-10,6,multi-component,,,fix(windows): guard POSIX-only fchmod/O_NOFOLLOW/dir_fd on the install & projection path
+059992fae83a9542a7444fbdcbd24f65ecfa9288,2026-10-05,2,multi-component,,,fix(consolidation): print refusals an operator can act on
+0736ec8222da9ef857953f69f3bce3a25f3a8d2c,2026-11-11,2,multi-component,,,"fix(landing): a branch-only meta warning says found-on, and a failed branch listing degrades (#7552)"
+07caa6025cbc686f96528aa2b00ccf8afcfa77f8,2026-10-19,4,multi-component,,,"fix(charter): resolve activation tokens and selections through one layer-aware identity index (#6406, #6407)"
+08651af350cc4b72c2eac6ad42785c5eff059b38,2026-11-08,4,multi-component,,,fix(upgrade): stamp merged_at only on terminal-WP evidence read through the door
+08676afd79165abc00c3d72fbae5579e6a083f77,2026-09-28,2,multi-component,,,fix(decisions): doctor decisions repairs defer-then-resolve and refuses unreconcilable history (#4919)
+088c2f1661627830aded1f9de94eda039f2c0d56,2026-11-03,3,multi-component,,,fix(accept): preserve owned authority in implementation evidence
+09bca55275a85e891a2cec272c4b9c17e03a3262,2026-10-31,2,multi-component,,,fix(charter): a first interview or activate leaves an absent activation key absent (#6685)
+0aa6026a89f24c6eea47429770f8ebde3e81a84b,2026-11-26,2,multi-component,,,"fix(landing): harden the commit-id read cache keys (#7848 review M1, M2, N3)"
+0b264084128da282ed217efa96de0f31debdfb23,2026-10-08,2,multi-component,,,fix(5229): metadata writers keep every key and stamp the canonical capability map
+0b3685fe82c7a70303ffdd80a599428de9d513bb,2026-11-07,12,multi-component,,,fix(#7276): route branch code through the owning seams the architectural gates name
+0b5a166fbc62094bea99a00bacfb509143e56829,2026-10-07,2,multi-component,,,fix(landing): duplicate meta.json keys decline the pre-accept exemption (#5835)
+0c4c501d7f3ae89afe3bcb4e008ffc4c049d424a,2026-09-16,2,multi-component,,,fix(#4607): auth doctor --server reports F-008 and exits 1 on a failed server check (#4630)
+0c89a465ab79d9acec3df5236f5b2241161f904e,2026-09-30,3,multi-component,,,"fix(topology): an unstamped mission never derives single_branch at runtime (#5100 FR-013, #2602, squad N7)"
+0cd1b036315a7adc1af186c7562a3e83b516cda5,2026-11-08,2,multi-component,,,"fix(doctor): word #4531 right, mirror CPython's flag order, and keep one tracked-id reader"
+0d31c5dffbcd891ff9fcb6946dbd4e9d6be5bd85,2026-10-04,2,multi-component,,,fix(migrate): treat non-UTF-8 WP files as malformed and scope MISSION_SELECTOR_REJECTED to the selector (#5579)
+0d5603184c6f274b4b7137d8185aff4da3e6f57f,2026-09-19,6,multi-component,,,"fix(WP07): harden audit-tail readers + replace runtime_bridge mask via the guarded-read seam, preserving missing-vs-corrupt contracts (#4746"
+0d65852ff3c72fd3cfe74053b58b09dad30f195c,2026-11-23,3,multi-component,,,fix(finalize): fold the adversarial squad on the single_branch planning pin
+0d8ba296741f5cf73a373d026b1f00cae0249e02,2026-11-02,2,multi-component,,,fix: share validated custody only within each root command
+0e7af2fe73e47900347e43f0b39a03afb9074fd2,2026-10-18,2,multi-component,,,fix(charter): route preflight heal through the charter.activation seam
+0e7afab9883f8a6e77a360442feb2597e92cd62f,2026-11-08,2,multi-component,,,fix(ownership): a trailing-slash directory entry still overlaps files inside it
+0ec755931ee3b3dc8dbe290047e3125cd24835d4,2026-10-04,2,multi-component,,,"fix(landing): count a live-coordination refusal as refused, not also as skipped (#5579)"
+0f3cb3973d125bdb606d9fc410a4d17abe603b63,2026-11-02,2,multi-component,,,fix(landing): route the mid8 handle comparison through the naming seam
+0f96cc29e2905d8e492dfdb1cf5a44c75d0c5cd2,2026-09-24,2,multi-component,,,fix(landing): route surface-resolver import through the mission_runtime facade (#5001)
+0fdc6451f0b38e57c2b5cce6958df1274d0891b0,2026-09-20,2,multi-component,,,fix(next): label query-mode preflight failure consumer=next (#4731)
+0fe06c01c21fa5fc2b067c520e3613c7679c41e6,2026-10-01,2,multi-component,,,fix(charter): derive doctrine kind vocabulary from one authority (#5409)
+10347897a35b6e3b89940a38a45f49362c10d6b1,2026-10-08,2,multi-component,,,"fix(status): guard txn rollback against OSError, C-locale non-git probe (#5819)"
+115500fa7d5a934aa79a6440482f96ac8db50fe7,2026-10-11,13,multi-component,,,fix(guard): name the tool-owned tree bound tool_root and validate the Mission slug before the topology read (#5965 #5966)
+117c1cce9c6a730b0b60e7bb4a9c47c3bc364243,2026-11-03,2,multi-component,,,fix(6741): resolve activation tokens through the one URN authority
+11b99e99f5fbdf5d89ed0861f0771fb8db2337ed,2026-11-15,2,multi-component,,,fix(coordination): fold the pre-PR squad findings (#7633)
+126dd7e1666d16a2b3f2e58edadf00ff9a712e51,2026-11-12,3,multi-component,,,fix(landing): import MERGE_ACTOR through the specify_cli.status package door
+129527bfa4f228e1905ae4935bc1d8d2f9c8a4b5,2026-10-29,2,multi-component,,,fix(review): use bounded project budgets across owned baseline and candidate (#6746)
+12f39e5319b40b367ccdaaa9416232e4590b94be,2026-11-07,12,multi-component,,,fix(7056): every root walk stops at the git ceiling
+12ffce664e7dfa2b39f5eae7c035713cca1a2627,2026-09-23,2,multi-component,,,fix(#4931 #4926): preserve operator .kittify/templates on init (prover provenance + manager backup) and make research prove-or-preserve; rec
+136ce6f1afc8197d6da7d2c8caf28cd72f5b9ad4,2026-10-08,2,multi-component,,,"fix(workflow): hold one Mission lock across the implement claim, report honestly, warn on shared workspaces (#5819, #5804, #5796, #5099)"
+13c345bccd9113e694138f3916618507b06466be,2026-10-06,2,multi-component,,,fix(doctor): report and install missing pack skills (#5801)
+1485bfa1073d458822d89a56a23a2c208ac11a0a,2026-10-07,2,multi-component,,,fix(landing): a ref comparison git cannot make refuses with ORIGIN_COMPARE_FAILED instead of a traceback (#5780)
+14b27ce4e4c405583be11ebb05fa1c16b4d6ebfb,2026-09-17,2,multi-component,,,"fix(next): resolve guard 'looked for' paths from real artifact tags, not failure messages (#3883)"
+14f39060808e7e7e56267a9be323e0faa4e0331a,2026-11-26,4,multi-component,,,fix(consolidate): architecture review folds (#7848)
+15be352885dcbabb671f673c175efba781254325,2026-09-28,2,multi-component,,,fix(orchestrator-api): accept-mission applies the host readiness verdict (#4934)
+15ce3ec7e43015ef98a2910e3cdd4f547245b5b6,2026-09-30,2,multi-component,,,fix(landing): doctor coordination --fix re-stamps through the backfill seam with runtime_reading (#5100)
+1642b8e5981898334ffbafada38e41b8acebbbd3,2026-10-07,2,multi-component,,,"fix(migration): repair round-trips lane rows via StatusEvent, keeps non-lane rows and order byte-identical (#5811)"
+17b9ea04d790628d65f4b584d4fd0f437b5984c1,2026-10-12,2,multi-component,,,fix(landing): route pack-descriptor loading through the charter.packs facade
+17bbc8dc0efcab6782191f0e0fa6554c867bda7b,2026-10-07,2,multi-component,,,fix(upgrade): make mission-state step report-only under drain (#5811)
+17d48fc7e0b0cd68149b4b9dbdb25113011dfb3a,2026-10-08,5,multi-component,,,"fix(5401,5671,4722): safe-commit keeps rename sources, commits links as links and refuses unknown paths"
+18c54db8e92523875a7bbf0b8f51eae2479abb59,2026-09-27,3,multi-component,,,fix(coord): probe the remote before flattening a coordination mission (#4979)
+19c1b2ad003ca2b094ec161fa01d649d799597b1,2026-10-05,2,multi-component,,,fix(lanes): declare primary-owned bookkeeping; stale check ignores it and identical overlaps (#5457)
+1a0c8b467af253eb0185fa19d0d50880b2b6475e,2026-10-21,3,multi-component,,,fix(reliability): replace four quadratic-backtracking regexes with linear parses (#4696)
+1a0c946d57433972615616c84289d5a69401dd2d,2026-11-05,2,multi-component,,,fix(landing): keep absent-lane recovery conditional on actual history
+1a744bc4e40734322c161027c6fd42f9fbc81e37,2026-09-20,3,multi-component,,,fix(merge-safety): detect untracked work before worktree removal + envelope orchestrator refusal (#4753)
+1b8a03be160a556920332ed4f264f3946c9d501f,2026-11-19,3,multi-component,,,fix(review): judge a planning-lane WP that has no review range (#7726)
+1bdfce7da0a0ddb8dd959cdf42fc498380312d3c,2026-10-03,2,multi-component,,,fix(implement): compare planning artifacts by Git object id so CRLF-only differences are clean (#5576)
+1c80b3cfe2e68d531c099103d2bf8e6d5d1c77f7,2026-09-19,2,multi-component,,,fix(upgrade): point `upgrade --help` at the install-and-upgrade guide's real path
+1cd4ed1338926e492e3b5cb89b3b0cf515cb8189,2026-10-05,0,pin-lock,uv.lock,,fix(deps): bump pyjwt 2.13.0->2.15.1 and urllib3 2.7.0->2.8.0 for security
+1d4507b14afc4f7d201c77aae0b04fc45fd284fe,2026-10-29,2,multi-component,,,fix(owned-refusal): keep the owned code through orchestrator-api plan/tasks and repair-runtime-lock (#6353)
+1da464bd44218a3723b47baba2a2f923e7fdd811,2026-09-18,2,multi-component,,,fix(runtime): delete read-only managed assets safely on Windows (#4703 family)
+1ee17545aa59e0067f310b638fa1e62d50562d86,2026-09-16,2,multi-component,,,fix(merge): read dry-run retention off the PRIMARY_METADATA surface (#3833) (#4592)
+1f6326a74f9adf0fa2033563cd45af3be9e8e20d,2026-11-22,3,multi-component,,,fix(tool-surface): route every remaining planner and recheck through the mode predicate (#4927)
+2059819ed2af8cc8b78cea279aa3ae200312f2a1,2026-11-02,2,multi-component,,,"fix(landing): the scope refusals cross the activation seam, not an internal module"
+210335d11562cb77bc33d7b57240e140af05207c,2026-10-19,2,multi-component,,,fix(landing): exit 1 when the glossary repair lock times out; drop a dead assignment
+212b9035a66b52461c2a360f3fb305c09907de7b,2026-11-24,3,multi-component,,,"fix(lane-cleanup): the lane's own changes only, the snapshot as a projection, and the Mission-branch proof (#7747)"
+2138d70d78fe4cbe0971eb279c8025db5bd46cb5,2026-10-29,3,multi-component,,,"fix(doctor): name each residue reason, report corrupt meta.json and a broken index (#5875)"
+218ade0b4bb3f543d676baaa92d7fa1e44ffcf6f,2026-11-19,2,multi-component,,,fix(review): bulk-edit review gate judges the WP's review range (#7726)
+218c93801b28d6629395f34fa9ca7e58f4d377a4,2026-11-02,2,multi-component,,,fix(tasks): find_repo_root's plain-.git fallback stops at the git ceiling (#7022)
+219f0de732116d4004e7b15625b353d3d68a8374,2026-10-07,2,multi-component,,,fix(landing): the undecidable reason names the file and error that failed (#5835)
+21ca0413281ac06f1ae2f77c89e00f3504d80c19,2026-09-27,3,multi-component,,,fix(landing): fall back to the legacy markdown issue matrix on the coordination ref
+220b48b26778d52fe16817c2dee38a5da96ff1c7,2026-11-09,0,pin-lock,pyproject.toml(dependency line);uv.lock,,fix(deps): drop the unused mcp runtime dependency
+2220af0de943679fe2afc81a7e2ad6316a76ef45,2026-11-05,0,pin-lock,uv.lock,,fix(security): refresh certifi to the vendor-recommended trust bundle
+2237f57215454c152428b52c0ba5fab7fc8cbf15,2026-10-05,1,contract,,src/charter/offering/schemas/skill.schema.yaml,fix(landing): bound the skill id and stop it accepting a trailing newline
+2270f7a2dca53684f64a7e9f89c58583d4fd3e44,2026-11-12,3,multi-component,,,"fix(next): commit the event row next writes into the coordination worktree (WP03, #5938)"
+22ce85917980995fd357d084603e859018f55286,2026-10-08,2,multi-component,,,"fix(landing): a checkout-lock order violation is an internal error, not STATUS_LOCK_HELD"
+22f59a0370ccb1c905a1487029a959c32f485311,2026-09-20,3,multi-component,,,fix(status): review_ref is pointer-only; drop the note fallbacks and the #3954 interim wire bound
+22ffc0bb9a5e2da7632e153a41690b35367f3372,2026-09-09,2,multi-component,,,fix(init): install merge-driver git config at init time (#4146) (#4153)
+233d82a82919fd7b6ed5e9fbc5f530205349fa83,2026-11-06,3,multi-component,,,fix(charter): fold the pre-PR squad's containment findings (#7263)
+234765dae3908c064b6e2b86655965b86451807c,2026-11-25,2,multi-component,,,fix(WP01): fold review cycle 1 for #7729
+23a065f5944e0129c887f76572f862fd91ed19fd,2026-11-13,2,multi-component,,,fix(landing): resolve the merge target through the seam's PRIMARY_METADATA reader
+23aa6adb1e4843d62f16a2ca06fd964f7c4758c9,2026-11-08,2,multi-component,,,fix(review): an opaque declared-command failure carries a bound identity and the verdict reports the candidate exit (#6751)
+23be588f34690fdd31a04b574512a42d2a8d58f0,2026-11-13,2,multi-component,,,fix(consolidation): start a verified resume's late window at the persisted coordination tip (#7491)
+23c67e029b27f2a74803b51ac298e19152719cc1,2026-10-08,2,multi-component,,,fix(status): Mission write primitive with verified rollback (#5819)
+2426e9c91c116dadd67407b9cc4e4b648572fe00,2026-09-23,3,multi-component,,,fix(#4921): enforce the mission-brief overwrite invariant in the write_mission_brief chokepoint via a shared guard_destructive_overwrite pri
+2446a12cd9c84a9a3b04dbe8b4078ba09a3e2e8f,2026-11-13,2,multi-component,,,fix(ci): import read_dir_for from the mission_runtime root; resolve loops through the kernel (#7546)
+24bb36828503ecf3ae0d8f85a2018eb0cd87c592,2026-09-14,2,multi-component,,,fix(merge): preserve target-newer planning files on squash via 3-way merge (#3942)
+252a07c7f8d9393c38e3cba890e3c5328da67f3a,2026-10-20,2,multi-component,,,fix(upgrade): declare and gate migrations that need a git repository (#6539)
+25afc57eb41220c4f672b89a1356104cb59fb055,2026-11-07,2,multi-component,,,fix(landing): a lane with merged operator sparse patterns stays managed
+27f4295f54beab006cb72c067671ec018b8b5c34,2026-11-23,2,multi-component,,,fix(ci): list git paths through kernel.git in the pin window and the derivation walk
+2836439a1fa5760f5f3c68c4e66512657daf71c1,2026-10-07,4,multi-component,,,fix(status): a WP leaves review or approval only through a recorded verdict or an operator force with a note (#5446)
+285a3c09e5dd9a5dbb3085876538d370cef5c959,2026-11-07,2,multi-component,,,fix(landing): count an octopus merge's own changes in the stale-lane check
+28788dbb568e71a41fd97ec1804b3f16338619eb,2026-11-07,2,multi-component,,,fix(decisions): doctor --repair refuses a busy decisions lock (#6763)
+28a58807cedb797c848a47e5878e789a88f4086a,2026-11-01,2,multi-component,,,fix(landing): refuse a backfill mint over an unreadable tracked identity; give refusals stable codes
+28cb689c4644eb8b5e7a97c25b6326311aa47019,2026-10-12,2,multi-component,,,fix(mission): let an operator-explicit discard delete the Mission's own branch (#6071)
+2957e78697331a221481271b91706e323308f2e9,2026-10-16,2,multi-component,,,fix(atomic): overwrite read-only destinations under atomic_write (#6228)
+2aa19757f1070a99c58e2c5455bf64a19d945386,2026-10-29,4,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(decisions): open waits on the decisions lock without a bound; lock timeouts become LOCK_TIMEOUT (#4848)
+2c1caf3927d9903ccba8593830a5bdf05a87d5ab,2026-11-22,4,multi-component,,,fix: import the remedy builder from the mission_runtime root; restore the manual fallback (#5287)
+2c1d550ffb55fdb6d81c8e1a8464a61b49c238b9,2026-11-12,3,multi-component,,,"fix(next): one event-log committer for next and answer-decision; correct annotations (WP03 rework, #5938)"
+2c82180184cb432d651ea038a11c4369640e2bcf,2026-10-13,2,multi-component,,,fix(next): surface decision log commit failures in JSON
+2c974ef422f68eb10108ecc0185d2e3f3dee1bd9,2026-09-10,2,multi-component,,,fix(landing): extend re-assess-under-lock convergence to two external callers
+2cb8ff22d630e604bf664ff810ce0d766c2892ea,2026-11-06,2,multi-component,,,fix(landing): keep refusing writes over artifacts synthesis did not create
+2ccd215ea5759da0ae58e778936385ecfb0f7fdd,2026-10-29,2,multi-component,,,fix(migrate): scope backfill-wp-status with its own walker's Mission rule (#5875)
+2cd5bfe61f1901c46a2a5fb81b39b566c65fdd85,2026-11-06,2,multi-component,,,fix(landing): prove the late window in the composed directory too
+2d27ba3f76143994f98cac11d8344c3e5f8c7572,2026-10-06,2,multi-component+contract,,src/specify_cli/tool_surface/contracts/migration-compatibility.md,fix(landing): report projected pack-skill paths under repaired_paths
+2d2bbd75a5d1ab706a9ace6d96bc094ba52fe095,2026-10-29,2,multi-component,,,fix(charter): origin-aware synthesis collision refusal (#6510)
+2d4dd87b33a02cd9e6bd934f90ba1d0c6664e488,2026-10-22,2,multi-component,,,fix(review): refuse an unreadable review lock before the claim (#6386)
+2daa5a55e3f2af8e474937d883f054be377b16d4,2026-10-03,2,multi-component,,,fix(landing): correct the landing recovery advice and warnings
+2def76ee1c3340c04de87956ed63b80f0694b702,2026-09-29,2,multi-component,,,fix(lanes): planning claim never merges code lanes onto the target checkout (#5296)
+2e97550eb8f85e29fc5a2664fa2bb27ad26bccc2,2026-10-11,0,pin-lock,pyproject.toml(dependency line);uv.lock,,fix(deps): adopt spec-kitty-events 10.4.2 to fix the status-diary reducer end-to-end (#5967)
+2ec16dd03f213a9c276431b967939efdb43ea0c4,2026-10-20,2,multi-component,,,"fix(charter): detected languages follow the 20% rule and non-interactive stores say so (#6444, DM-01M5ASPC)"
+2f249123d972fd4e13dff884b5ba8315c5c132f4,2026-10-29,2,multi-component,,,fix(status): route the continuity seed check through is_migration_actor; cite events PR #102 (#6271)
+2f8a558e6c51f091a22e3b55179e0c7038477e48,2026-09-28,4,multi-component,,,"fix: fold pre-PR review findings (#4919, #4964, #4900, #4933, #4940)"
+2fa9e1157ae4cfdafb620981f06cd407a3f54e7a,2026-11-12,4,multi-component,,,"fix(accept,consolidate): fold the independent review of the closeout recovery (#7544)"
+2fd7eabf01367bec881e7b8cfa296f47746d3758,2026-09-25,2,multi-component,,,fix(mission-runtime): coord read fails closed on an unmaterialised worktree (#4959)
+306423bfc70a16c7881e7b46145fbb0069eb3676,2026-11-01,2,multi-component,,,fix(6514): refuse a forced for_review rewind that carries no review_ref
+30746436fe2bf4961e69e498a7298d2f710e1488,2026-10-01,4,multi-component,,,fix(consolidate): roll back every post-mutation exit through one authority and refuse protected targets up front (#5385)
+30a183935e83bf570e3aedf864ba533b070646b5,2026-10-13,3,multi-component,,,fix(research): validate native planning requirements (#3546)
+30f672179e7c44c2912788c0aef6532d9c1e43c1,2026-10-01,2,multi-component,,,fix(consolidate): hollow-review warning discounts documented rejections (#2267)
+326b6481e8c1cf443959ccbd76541168141af430,2026-09-27,2,multi-component,,,fix(doctrine): stop calling the Mission a feature in core prompts and templates (#5206)
+329041c28aae77fd56c0fd5bf1e2ee84fa12b0b0,2026-09-27,3,multi-component,,,fix(landing): scope the fan-out drain gate to the emitting mission's repository
+32bef085a30b87fd39c74ce7301b661683cca318,2026-10-06,2,multi-component,,,fix(charter): reach ArtifactKind through the charter.drg facade in specify_cli (#5538)
+3372ed867ec0e636babc88ddd741be6fa1e13f1b,2026-10-05,2,multi-component,,,fix(landing): drop the two exports the guarded step no longer needs
+3385a916304f94013e5ca8e14c2dd7613482f34f,2026-10-18,2,multi-component,,,fix(mission-runtime): make the write-target gate owned-aware (#6320)
+33c117e03d9f78894925e79430c743cdd37e1c44,2026-10-03,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/mission-status/examples/MissionOverview.sparse.yaml;contracts/mission-status/examples/WorkPackage.provisional.yaml;contracts/mission-status/parameters/L,"fix(contracts): close the stream, redaction and cursor gaps of the mission-status contract (#5558)"
+3405af2e51160ab54f17bb20e2ff78c44e510081,2026-11-08,2,multi-component,,,fix(implement): commit a default Mission's claim in its topic holder (#7372)
+3436c63a10cf8769aca03049affc73db63125b7f,2026-11-03,2,multi-component,,,"fix(landing): bound SCOPE_OVERSIZED reason and update docstring (F3,F4); retire redundant WPMetadata tests (F5)"
+345ea11586a49940681b8d3b9e217712f1e91c7d,2026-11-07,2,multi-component,,,fix(landing): make the git-anchor refusal notice read correctly
+35479fd82429fdf5ff2c979ba7481e0fba97dd4c,2026-09-27,2,multi-component,,,fix(review): gate 4 reads issue-matrix verdicts from the coordination partition
+356d95418e50e9c4e5ffe7b9767a3b1e00143111,2026-09-19,3,multi-component,,,fix(landing): surface MISSION_AMBIGUOUS_SELECTOR for ambiguous bare handles (#4723)
+35f4d719171e6a340ad66866fafc8891764dfaa3,2026-11-05,2,multi-component,,,fix(7108): name the work package in every subtask completion recipe
+367931b9994d338fde2ed9f3efcd96724549f9f0,2026-09-29,2,multi-component,,,"fix(landing): never report an advanced, unrecorded branch as untouched; RefResyncError is our own move"
+36ab0a9cfe2d9df27d2372a1048a5f8b4fe5afe9,2026-11-02,3,multi-component,,,fix: propagate validated owned charter scope through prompts
+36ee5152e82801760d91ad72def1916affa0384e,2026-10-10,2,multi-component,,,fix(landing): describe add-history as a status event log note in help and CLI reference (#5986)
+370a6b7630a59945bf8b74a67bbb3315ef1e118d,2026-11-23,2,multi-component,,,fix(ci): regenerate the completion manifest; import status names from the package root
+3937c75f54363da355765e3447a7395a473fa8ba,2026-10-07,2,multi-component,,,fix(landing): refusal and remedy texts say what actually happened (#5780)
+3af0871e0d79a51d498e2299b7ac4495152b2786,2026-11-01,2,multi-component,,,fix(review): retire the feedback draft once its record is durable (#6632)
+3c24a508f10f9039aa2d008a2a17f2ebd4c94cf8,2026-09-17,0,pin-lock,uv.lock,,fix(deps): bump transitive pip to 26.2.1 (CVE-2026-13346)
+3c2bdae4dfe69022e0a7a14fcd88e67a0620be31,2026-10-08,3,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(orchestrator-api): start-implementation reports a held checkout lock as an envelope (#5819)
+3c5b8a3678207353178969b19d7601b1a93fc770,2026-10-26,3,multi-component,,,"fix(ci): heavy architectural battery after #6606 routing (#6603, #6606)"
+3d58558b03c51cba5182e3e56ef363e017ec0b9e,2026-09-19,2,multi-component,,,fix(agent): default `tasks status --mission` to the sole active mission
+3dc4ca94f7f559fa1019c135263fc9735b1bba40,2026-11-03,2,multi-component,,,fix(6910): call the write service under the contract's /api/v1 prefix
+3ee5e12470990ede42b37a7d1201c08c3cc0ca48,2026-11-02,2,multi-component,,,fix(#6267): fold the independent review's findings
+3f1073be7ec8bc987a6349820e5e7333d383a8d2,2026-11-04,2,multi-component,,,fix(migration): state the tracked-meta refusal invariant instead of a dead guard (#7113)
+3f14740b45d97f794d27f89647c92612c9713bee,2026-11-03,2,multi-component,,,"fix(6493): report a stated-empty agent list as set up, not broken"
+4002f08df5e6d7c4fb30f6291b51d5ec47fdfe62,2026-11-24,3,multi-component,,,fix(lane-cleanup): fold the R24 adversarial squad's findings (#7747)
+409b0ef4fe71e7790199c3db70b471b53e015a23,2026-10-21,8,multi-component,,,"fix: adversarial-review findings for the command-skill rename (#6475, #6470)"
+40a2e57ee48f9496e629eb9837081682a223a714,2026-09-20,2,multi-component,,,fix(merge): scope 'merge --abort' to spec-kitty state (#4754)
+41979c2c9aa34920d5a7e2179a3f4ce2f868b42e,2026-10-01,2,multi-component,,,"fix(git): branch advance and worktree guards read git paths as data (#5392, #5400)"
+41dcefc915ffd40f30cff155604e3c7c118cf751,2026-09-07,2,multi-component,,,fix: compose selected bundle staging with skill repair
+420f2bbda766ceb36f3f5324d685f0dc383015a3,2026-10-20,2,multi-component,,,"fix(upgrade): a repository probe that cannot run is a recorded failure, not a crash (#6539)"
+42c37d4c02970916cc8f99278d8c2433ddd57230,2026-11-13,2,multi-component,,,"fix(archive): resolve the reclaim Mission through the placement seam, keep create's census call"
+4310b89b5dffc3396e76c2647cd6aea5274fbbd1,2026-11-02,2,multi-component,,,fix(consolidate): refuse a --target override onto a protected branch (#6464)
+43a43226070be0b3d9d9ed0315d5d0a72f520092,2026-10-16,2,multi-component,,,fix(landing): restore read-only mode on the atomic_write failure path (#6228)
+43af053e38cff65682009476a609e24bae011fb1,2026-09-27,3,multi-component,,,fix(landing): resolve the coordination matrix source only when a mission has gating references
+44bd9dab154707888fbd235dd4cac8fb4c6b84cd,2026-10-08,2,multi-component,,,fix(landing): an index residue after the commit landed reports that it DID land
+46178e1e26cdabaee322422e496cb70e87749a40,2026-10-08,2,multi-component,,,fix(5443): the upgrade commit carries the migration's untracks through safe_commit index_deletions
+4676f94943de0f5adc5ab88be766bb2c477acbaa,2026-09-28,3,multi-component,,,fix(provenance): make template-set paths portable
+4683d5faaf2078f9f7312fe24fba73eadef652a7,2026-10-13,3,multi-component,,,"fix(command-skill-regen): name regenerated paths, gate regenerate on the state contract at runtime, prune retired drift (#6155)"
+46f37835caeab78dce84096b6c9c7ae6097d10ad,2026-10-08,2,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(landing): register the three new safe-commit error codes in the orchestrator contract
+47097815ffd481c8ac72b5b6a309e093cf0e17ea,2026-10-19,3,multi-component,,,fix(charter): deliver synthesized how-we-apply tactics through their directive (#6404)
+471ca83e25c7ba28f1a2c7baad1ac0b54ad20286,2026-10-04,2,multi-component,,,fix(implement): guard the single_branch claim on agent action implement (#5459)
+4753cb49905fe33e2dc878df40874090031c298d,2026-10-22,3,multi-component,,,fix(kernel): keep the docs links in kernel.site_urls so per-PR tests reach them (#6468)
+4780247fa3c691abaa8555bc50ab5c8b1329d4c4,2026-09-28,2,multi-component,,,fix(landing): fail the upgrade closed on an unreadable charter.yaml
+47955528a61df8e2398d8a535008fac8a8c023d1,2026-10-05,3,multi-component,,,fix(doctrine): honour org packs' own replaceable-builtins sanction in doctor doctrine (#5767)
+47ea8cae9351e8ebaf2f1f19677b66c28a618d3c,2026-10-05,2,multi-component,,,fix(landing): reach the conflict error through charter and union an explicitly listed skill set
+49a895dc2345116b3731e94479716a1bb93334bd,2026-09-28,2,multi-component,,,fix(core): containment seams refuse symlink loops on every interpreter (#3189)
+4a297648977dd5b3e0b501ef0cf391f9eadf1e1d,2026-10-07,2,multi-component,,,"fix(status): exempt pre-accept Missions in the shared cut-over predicate (#5835, #5300)"
+4aadcb70576bcd92550c5fd5d4cb3318b0c428f9,2026-11-02,2,multi-component,,,fix(landing): refuse reserved tier names in the org pack write seam
+4acff3d1de0f8298b4a90ed9bd5f1b2f6b780926,2026-11-08,3,multi-component,,,fix(mission-state): remove hosted teamspace dry-run residue (S8)
+4b320fd9d86ae8ea11c982b1b3f3fedf90476506,2026-11-22,3,multi-component,,,fix(coordination): materialize a teammate's coordination branch from its tracking ref (#5936)
+4b3b360b986a6e16e5dd1748bbf3cf485e274e20,2026-10-29,3,multi-component,,,fix(doctor): report org fragment nodes whose body_path escapes the pack (#6418)
+4baef1563786e9d36eab2f7358e16499d899eaa4,2026-10-22,3,multi-component,,,fix(upgrade): make the first upgrade after init commit nothing (#6416)
+4bf73e88946eb79e462bfa591883d4e66c6db881,2026-10-17,3,multi-component,,,"fix(mission-runtime,consolidation): one meaning for an unclassified mission artifact kind (#5697)"
+4c4fbb593683e40bfb878c1fb6d9ff3ecbb302eb,2026-11-08,2,multi-component,,,fix(session-start): bound the .kittify walk with the git ceiling (#7122)
+4c82783417e44926bc5009f6a3e414e034296efc,2026-10-27,0,contract,,contracts/lint/ruleset.yaml;contracts/tools/fixtures/vacuum/enum-case-pack-tier-misspelled.yaml;contracts/tools/negative_cases.json,fix(contracts): enum-case accepts the pack tier built-in (#6402)
+4c83784e9d499a257101aea92ba0061a4667009f,2026-11-02,2,multi-component,,,fix(6273): report failed repairs and keep the bundle-probe cause
+4ca8cdbf74763ea0dd0b62aa36e5bb90e0e32811,2026-11-07,3,multi-component,,,fix(status): source the runtime-state directory name from its owner (#6516)
+4cbe0136002383b669feada4d0515b097a2d26db,2026-09-30,2,multi-component,,,fix(landing): translate the whole-kind fail-closed error in every compile caller (#5257)
+4e386f5267b9c65f1b4c70c122d19ebb4d07823d,2026-10-21,2,multi-component,,,fix(security): keep meta.json branch names out of git option position (#4304)
+4eb3e9a4f003ca7262113414f5cb8d9cb30eabbd,2026-11-08,2,multi-component+pin-lock,pyproject.toml(dependency line);uv.lock,,fix(typing): clear scoped mypy and lint-hygiene debt (QW1)
+4f0532ff283cae28129a1303b1be6e874c3a4973,2026-10-20,2,multi-component,,,"fix(charter): settle languages one-way and store them with the interview answers (#6540, #6542)"
+4f1de13588520b855384dcfb6affc7ee7c788e4b,2026-09-19,2,multi-component,,,fix(WP02): guard workflow import/export against invalid files via the CLI error seam (#4738)
+4f6fc50729d958640eaf535e44bc204e6dcdeeab,2026-10-11,2,multi-component,,,"fix(consolidation): scope #5863 drift gate to a present, content-drifted snapshot"
+4f94c2f644e6c44980928d36667d6e6914763380,2026-09-15,2,multi-component,,,fix(landing): record the verified PR landing commit and resolve the owned mission target (#4278)
+4f9efb7f3ff709299c5b494423c16e206b01a23b,2026-09-24,3,multi-component,,,fix(landing): route reconciliation/write-seam imports through package facades (#5001)
+4fe08c47fa96c7bc90495a108f8601a2f8061ca1,2026-10-04,3,multi-component,,,fix(consolidate): give a coordination branch that moved after landing a stable code and exit code (#5613)
+500419708d2dd8bc2a9e789689bf6199699b6e7c,2026-10-11,2,multi-component,,,fix(status): conflict on a concurrent event-log fork instead of silent LWW fold (#5967)
+505c6aeeb5445f60a0c203284c1ae7c7466451f3,2026-09-29,4,multi-component,,,fix(finalize): make planning refresh atomic and fail closed
+50dd05e5f277031a8a29e7c49ba89230b2ca05f0,2026-10-25,2,multi-component,,,fix(upgrade): supersede the 3.2.5 and 3.2.6rc3 gitignore backfills by rc8's narrowing (#6589)
+514b3f20fd4e7e37e3c8f6625cb3de053eac2ba4,2026-10-21,2,multi-component,,,fix(landing): read the Agent Skills name and description limits through the activation seam
+5196c3f8f27897e311bf613a6cedaf6c4bedf9bd,2026-09-20,2,multi-component,,,fix(landing): record dropped change_mode value in normalized action (#4800)
+51ffa33de6af9533c58dd576f3200d55ce588e78,2026-10-27,3,multi-component,,,fix(policy): pre-PR squad fold for the done terminality gate (#6653)
+52021a22cd9a51ab1fab0b979d4770395f0c1c0f,2026-10-25,4,multi-component,,,fix(upgrade): leave residue kitty-specs/ dirs alone in migration seams (#6627)
+53a034ad5c4137f1553db1934dfc68435a90373b,2026-11-01,2,multi-component,,,fix(upgrade): make the predicted dry-run verdict visible and its declaration auditable (#6552)
+53c4c34e67464429f2686e63d6974d112f36cf48,2026-11-08,3,multi-component,,,fix(status): export landing evidence through the status package; allowlist the backfill migration
+546ba9412ffacda364d1a0f00f81dd3a3abefa48,2026-10-09,2,multi-component,,,fix(coordination): refuse a materialized coordination worktree checked out on the wrong branch (#2908)
+55397f1ebf7811c7cae499e6008b0e5f3203c262,2026-09-21,3,multi-component,,,"fix(charter): reach slug_for through the charter.drg facade, not charter.offering (#4832)"
+55fb09f724ee3ef605f840a304aeb68262893fb4,2026-10-05,2,multi-component,,,fix(landing): name each preserved file and say what to do when upgrade keeps local edits
+56422cb9a7938c17313aea8a6eb1371a8ba45695,2026-11-24,2,multi-component,,,"fix(lane-cleanup): credit only later approved work built on the lane's version (#7747, Tier R confirm)"
+56904d9ecf90fbc0ca7ff62124159c25d8a05a8c,2026-10-07,0,contract,,docs/contracts/upstream-3.0.0-shape.json,fix(landing): re-vendor the planning contract artifact with the DESIGN_* codes (#5846)
+575c3df335fee164b1b303fbbd626f18fe8f0cea,2026-11-22,2,multi-component,,,fix(tool-surfaces): upgrade and doctor --fix repair orientation blocks to one content (#5215)
+57918bcfc78a6008c2957b8e40d8f52c6ac70f3d,2026-11-02,2,multi-component,,,fix(landing): route the charter context profile lookup through the activation seam
+57be5f7b11025684f6cb1c044b1d09998b56c0b6,2026-10-03,0,contract,,contracts/tools/breaking_check.py,fix(landing): order semver prereleases by precedence in breaking_check (#5558)
+57d19e06886a478ea95a31414750e388ac011517,2026-11-01,2,multi-component,,,fix(landing): the interview keeps the unparseable-config warning it had before the shared resolver
+58206e6cadd95b53caa06beb780a0e148a26691a,2026-11-11,3,multi-component,,,fix(decisions): the decisions runtime lock is never dirt and never committed (#7498)
+584a5b964a5aed9ba35781fda00a1432f0e0220e,2026-11-28,2,multi-component,,,fix(session-presence): writers own their file lists; fold #7879 review
+5885a3cdb4046f8d65994c54929d35e6a4551046,2026-11-08,13,multi-component,,,"fix(acceptance): acceptance, review and ownership path fixes (QW10)"
+58cc6df59060c867a5df7faab735a7fa739c25de,2026-11-23,2,multi-component,,,fix(finalize): a docs work package gets its own lane in a lane topology (#7809)
+58d2593add979854d7948ed1ae264b20f80837b6,2026-11-08,3,multi-component,,,"fix(materialize): skip read-side residue in materialize, charter activate and release notes (#6758)"
+5936580554a7b62fce282130da83e2f24c948ae4,2026-09-29,2,multi-component,,,fix(charter): route rc5 provenance migration through shared catalog accessor
+598ce642c3cd6232ec3ff75f5315871aab42d3ee,2026-11-07,2,multi-component,,,fix(landing): keep negative metadata evidence within Git discovery semantics
+5998dc0b735daf63ecffb2b82f0c82cbd84d6990,2026-10-03,0,contract,,contracts/tools/fixtures/verify_pins/clean/artifacts/tool-1.0.bin;contracts/tools/fixtures/verify_pins/clean/contracts/tools/pins.json;contracts/tools/fixtures/verify_pins/exit2/zero_uses_lines/artifa,fix(contracts): keep the verify_pins artefact copies out of the zip ignore rule (#5558)
+59ad62872e7ece4e06c4e032d8b86051612dedc0,2026-10-05,2,multi-component,,,"fix(landing): refuse when a skill the org requires cannot be rendered, installed or not"
+59bfc75d7f5e0b7e3c92979dfed08f675c4a00c2,2026-11-08,4,multi-component,,,fix(status): agent tasks status reads through the one status read door
+59d190a71f9bcac0aa388541cdb9278fb97a95fa,2026-10-19,3,multi-component,,,fix(charter): later-declared org pack wins for every DRG URN
+5a06ceb15ad0e8c6232e3057f31bd0fe5382557e,2026-09-29,2,multi-component,,,fix(charter): generate --from-interview re-derives languages from the current answers (#4614)
+5ae9a418870644953783398464f147f248e40b10,2026-09-29,2,multi-component,,,fix(consolidation): attribute mixed lanes per WP so canceled content cannot ship (#5046)
+5b3c7c910811d9fadbd82d093101e5b099ec808d,2026-11-03,2,multi-component,,,fix(landing): preserve mission protection for owned handle aliases
+5b822c28ca7980e365bbb1d11ebb6a98b094b40e,2026-11-01,2,multi-component,,,fix(landing): refuse to restore a tracked meta.json over a staged edit
+5bbc795c97535fe034ad2c3a290d0292d2812e8d,2026-11-19,4,multi-component,,,fix(review): judge renames and merge-only work in the first-parent window (#7726)
+5d15384c444ccb7175090e8f7baf297ff0be0dcb,2026-10-04,2,multi-component,,,fix(landing): select WP files through one case-sensitive owner shared by bootstrap and the planner (#5579)
+5e3923f96dcc931e56d394eec73c019c8dfb916f,2026-11-25,2,multi-component,,,fix(WP01): keep a project-local Codex home out of git in every clone (#7729)
+5e44c1915ab57c018799464146c9066796d51020,2026-11-01,2,multi-component,,,fix(status): build the dry-run WPStatusChanged payload through the status transition authority (#6449)
+5ee210c8d7c8e002da64b2d08a462c8b2b8bee4d,2026-10-26,3,multi-component,,,fix(upgrade): probe residue once before the shipped walk and record git failures (#6669)
+5f4c66720c4a349518c9f9e161682d3c5752f2cf,2026-10-07,2,multi-component,,,fix(orchestrator-api): planning-only consolidate-mission gates origin once
+5f5a81f7cf913c7cdcac047e9f993f7afaac5100,2026-11-13,2,multi-component,,,fix(review): derive a planning WP's range from event commits only where they share its work's branch (#7578)
+5f8465c5310222008c661cc7e6c5e9903f7acf25,2026-10-13,4,multi-component,,,"fix(landing): count, de-duplicate and surface regenerated command skills (#6155)"
+5ffc238c1f07f600ecca3adea071775266dca56b,2026-11-02,2,multi-component,,,fix(upgrade): the dry run heads its migration list with what it would apply (#6234)
+601e62d619bd4b55f6991f812736211053e6210c,2026-10-27,2,multi-component,,,fix(charter): read the org required floor through the activation seam (#6417)
+60a9cb19ae2a3dcf0c5b798e909e4d0435a3d589,2026-10-07,2,multi-component,,,fix(landing): the pre-accept exemption counts only claim-time legacy runtime (#5835)
+6140b975364eba8666b90616cbf6eb732f23f48d,2026-10-05,4,multi-component,,,fix(security): guard git probes against option injection; pin skill source containment (Sonar S6350/S2083)
+619bd11376342abaae67e18588ff12c2def336f1,2026-09-19,2,multi-component,,,fix(routes): match the no-origin remedy to its diagnosis
+61f057b6dee6ff5b613351213c9ed348b04dec09,2026-10-10,2,multi-component,,,fix(charter): resolve --include and activate across the full org-pack chain
+62201963cdd39d2abb970b47f9bd7de1de9f0c5b,2026-11-13,3,multi-component,,,fix(review): the review prompt's topology diff_command is the review range's git diff (#7590)
+622ccb13e32ec06d71b2bb977317273cbbe1ba9d,2026-10-05,2,multi-component,,,fix(landing): name the lane work tips when their listing is what cannot be read
+6269777dc3471a575a85e0b118e8d06826371057,2026-09-23,2,multi-component,,,fix(skills): host-safe Windows upgrade — close the follow_symlinks crash class + suppress phantom mode divergence (#4923 #4927)
+63caf8cec0b5ef06cfe92c13e9688694aab9494f,2026-10-01,4,multi-component,,,"fix(retrospect,consolidate): review claims are the review path, not a bypass (#2267)"
+63dc8fe1ae29f33995bddd1faac85a9239dd3d2d,2026-09-07,2,multi-component,,,fix(runtime): integrate main's emitter hardening without restoring retired surfaces
+63de2b4a27cdb636a6e20f8e68279c573a17045f,2026-11-07,2,multi-component,,,fix(lanes): the for_review gate reads the lane branch (#7278)
+640dcefd1f59ef37b3833a006cc947b05fb30ddf,2026-11-02,2,multi-component,,,fix(landing): one owner for the prompt mission/checkout invariant
+642359bbae6b776cd8128788b549ba2b3914f395,2026-10-13,3,multi-component,,,fix: scope subtask status updates by work package
+644ad1a30eacc9def2050ed1887d9746415c532c,2026-10-29,3,multi-component,,,fix(decisions): terminal verbs and open retry repair a missing opening and its artifact (#4848)
+64a552f1aa5f537f9a16a8ce07ee041387c8743c,2026-10-03,0,contract,,contracts/mission-status/schemas/StreamCursor.yaml,fix(landing): mark the structured stream cursor provisional
+65089d28aa754a1f5ee4d7c3b23aeb9a9945fdb4,2026-10-25,3,multi-component,,,fix(upgrade): keep an absent activation key absent when promoting interview selections (#6629)
+6534fda855dd47073b219436675208c1faa97069,2026-10-11,4,multi-component,,,"fix(consolidate): pass run context to rollback and teardown, keep only-copy files on a refused teardown (#5965 #5966)"
+6584f1c6e6c525f398b47d95920f8875002a1949,2026-11-23,2,multi-component,,,fix(finalize): keep the single_branch planning pin on the planning commit across a rebase
+65f430d147e9749e449ff6cacc9ced187f5d6ef5,2026-10-05,2,multi-component,,,fix(landing): classify every failure to establish the in-force skills by one condition
+66b7083fb3cfdaf50c852ce0e173c7a59d2c6c8f,2026-11-27,2,multi-component,,,fix(merge-guard): parse git config -z output in kernel.git (path-listing owner gate) (#5604)
+6701cdbf9706f343f184f33e43fb0109e2ccd5f0,2026-11-02,2,multi-component,,,fix(charter): converge the malformed charter_packs refusal on ACTIVE_CHARTER_CONFIG_INVALID (#6772)
+6721a69020c98f1dfee7d8e936bbe392b4db8352,2026-11-05,2,multi-component,,,fix(landing): quote paths in printed recreate and hand commands (#7173)
+687ec5d2ca5d3ebdd244a6850538892c9e317393,2026-11-12,2,multi-component,,,fix(landing): run the gate fallback in the interpreter the lane probe checked
+68cf5f60d457557b2d2e1f5dd669b524d63702d4,2026-11-22,2,multi-component,,,fix(status): a remote-only branch is a typed status-read refusal (#5287)
+6932e37c6007eab9685d8555a734dd0d5af96bc6,2026-09-30,2,multi-component,,,fix(landing): accept's cleanup hint says consolidate removes a minted Mission branch (#5100)
+694eadb2b2f4df98bb473ed2c01b94da3e69a811,2026-09-07,2,multi-component,,,fix(cutover-guard): classify a relocated non-mission directory instead of failing closed
+6959be8b7824937cbcc7e719480916178ae1dee6,2026-11-12,3,multi-component,,,fix(#5938): next commits its event row in the repository root checkout too
+6a002d99e1c3ef5dbc543a9adb60df57bb58bdb0,2026-09-20,2,multi-component,,,fix(charter): keep catalog.references coherent on activate + worktree-safe writes (#4785)
+6aaa3187a1ee6bda9cda4d1c2d5cc82b86826978,2026-11-15,2,multi-component,,,"fix(coordination): the lock-free probe answers the policy question only (#7633, review cycle 1)"
+6ab1f9ddf4486b8fb0c83224e90d17dc4ec0a4d8,2026-11-17,3,multi-component,,,fix(consolidate): refuse a --target retarget whose recorded target cannot be written (#5783)
+6af1d49bf9d0e7787cb9d08ab32f130dff128cfe,2026-10-17,3,multi-component,,,fix(consolidate): strict single_branch independence + fail-closed on uncomputable window (#5939 review)
+6b2c2ef4c92503de0f4b1a9e02a7284feaaf587d,2026-09-23,2,multi-component,,,fix(status): shared authoritative non-lane event-type registry preserves DecisionPoint rows in mission-state repair (#4897)
+6b4015c4d1b7c289d83ce55bb711dcc815688267,2026-09-20,3,multi-component,,,"fix(cli): say slash commands run inside the coding agent, not the shell"
+6bdb91b13f86872b5ed043ae71dbf2db24a3c027,2026-09-19,2,multi-component,,,fix(charter): report `charter sync` as an explicit no-op instead of a failure
+6c239fc2a4a4aee76966fb6eef8defcc32ae3d0a,2026-11-12,3,multi-component,,,fix(landing): ignore consolidation's done bookkeeping in the acceptance freshness check
+6d003334db1af941f50a62c06a24b3bdfed7eda3,2026-09-30,2,multi-component,,,fix(landing): consolidate names the mission branch when run from any other checkout (#5100)
+6dce9a450cf37de966a0501b449b6f4f0f78d9f0,2026-10-07,2,multi-component,,,fix(status): route decode_actor through the status facade (#5811)
+6e88382ad3616012e5f0f448d0c33c81777ee91c,2026-10-14,2,multi-component,,,fix(landing): small review cleanups after the hosted removal
+6f5654d029cd963d0f7d138a3d7853eb83a11c13,2026-10-22,2,multi-component,,,fix(runtime): a read-only home folder warns instead of stopping the CLI (#6473)
+6fc84a01f1ab289ef13a8f043f3c9ec162234195,2026-09-09,2,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(orchestrator-api): map unsafe --mission ValueError to INVALID_MISSION JSON envelope (#2879) (#4025)
+70922b72a1efa5cea6c605b472c4b986d52907a9,2026-11-08,2,multi-component,,,fix(landing): name a duplicate requirement declaration as a duplicate
+711db3ab7686531c00977a1bb448aa6ffa12046e,2026-11-07,2,multi-component,,,fix(decisions): fold the pre-PR squad findings into the lock refusal (#6763)
+71a32dc2fdbfafa1a77695cf4e6021fb1e35b2da,2026-11-15,2,multi-component,,,fix(coordination): coordination-less status commits take their checkout from the placement seam (#7633)
+72ded3fd78665421c676fbf6dfb171d881b1e38a,2026-10-11,5,multi-component,,,"fix(guard): route Mission-type, husk, worktree-memory, coord-seed and pack-source destroys through the guard (#5965 #5966)"
+7323ad9739c5c0ea0ee542600c7e3b3ff28316e5,2026-10-09,2,multi-component,,,fix(charter): validate authored canonical org-fragment endpoints (#5833)
+73682930e756383d34b72b925aacc5e8309ae260,2026-10-07,2,multi-component,,,fix(consolidate): refuse when origin has status evidence or lanes this clone lacks (#5780)
+73829eaa170c9136a8861bc5d2c6e560f23e5554,2026-11-02,2,multi-component,,,fix(landing): reach the org pack write seam through the charter.drg facade
+73e9d402fd25f6466e5ab6e8c4184214468fc357,2026-10-07,2,multi-component,,,fix(landing): the merge-driver config step asks git whether the project is a clone root (#5759)
+73f2c0df426fb50f25208dd69de28c084960054e,2026-11-10,2,multi-component,,,fix(landing): frame status-log rows through jsonl_lines in the write guard and the merge
+744e10a20f91ff2bbb309a0b1ba72c104ef59f87,2026-09-24,2,multi-component,,,fix(mission-state): relocate the repair audit trail to a git-tracked root (#4928)
+746011feb379aff88ab253d33729aec00f1f40f7,2026-11-13,2,multi-component,,,fix(archive): reclaim preflights through the bookkeeping-commit owner and reads meta fail-closed (#4041)
+749fee4619139eabfaa1f34cef6588a1c324be52,2026-10-03,0,contract,,contracts/tools/contract_resolver.py;contracts/tools/fixtures/bundle/roots/unreadable/alpha/openapi.yaml,fix(landing): report unreadable contract files with a stable refusal code
+74b51623932dcf8674b7b4667771c179a91fe559,2026-10-26,2,multi-component,,,"fix(review): record --review-feedback-file content on approval; quote the replay reviewer (#6652, #6654)"
+7523d41117dd08ac998eb9ebd8f6b6875340a451,2026-10-11,3,multi-component,,,fix(kernel-git): read branch/merge diff paths through kernel.git (#5965 #5966)
+7591f81287c8b8864fc254b51906cd0e6e363542,2026-10-27,2,multi-component,,,fix(policy): done judges every issue-matrix row; PASS says what it judged (#6653)
+75ba1ff3c27a00482afa5d2ec28e4073ed23fca0,2026-10-07,2,multi-component,,,fix(review): honour SPEC_KITTY_ORIGIN_CHECK and name both diverged-lane recoveries
+762a1d37b622214d79b88fdc7da6ea18d2bde56d,2026-11-18,2,multi-component,,,"fix(init): name every root-commit outcome; route cli as incidental pack reader (#7612, #7235)"
+767157b6e1d6fc8b29d83122092589bc197af615,2026-10-05,2,multi-component,,,fix(landing): fail closed on outcome states that should not occur
+7680accfd0c6f09ca5046c46c1cc2a2059f3cd3a,2026-10-01,3,multi-component,,,fix(runtime): fold pre-PR squad findings (run-index port)
+76d0d6b7a3b9ad0693ff92f6fe6eebe3cf0e812b,2026-11-07,2,multi-component,,,fix(landing): align negative identity evidence with Git start-ceiling semantics
+76da419fa6412302d975faa0eed8735af47db43d,2026-10-12,2,multi-component,,,fix(landing): never overwrite an earlier kept discard tip
+76ede70a44580dcfb56fa903736dcc38a064cd28,2026-11-15,2,multi-component,,,fix(workflow): the legacy follow-up commit runs in the placement seam's status checkout (#7633)
+788db8ffb417722ab02021c955d688711d5c6aef,2026-09-20,5,multi-component,,,fix(canonical-state): converge & recover the mission-state wedge; derive implementer attribution (#4758 #4786)
+795b2acf102f089f985945cc8c6e95407f1e1d89,2026-10-01,2,multi-component,,,fix(cli): retrospect commits through the mission commit router and writes its event where it commits (#5353)
+7a36e8bf61a4db18daa0bfd9cd6c65ab77ff4c49,2026-09-29,2,multi-component,,,fix(landing): a snapshot seeded when an older record was resumed is not called pre-consolidation
+7aa115042f26b3ad2fbe7d95ea88aa12db8cc51e,2026-11-23,3,multi-component,,,fix(consolidation): an approval stamp survives the review's own unpushed sync merge (#7802)
+7aceccef3ecacfc1f44dc15baa8cd310ebf06eab,2026-11-18,2,multi-component,,,fix(status): a rewinder's submission and the review claimant cannot complete a bare claim (#7712)
+7b0655535ac03559212db201af3cb398e177b119,2026-10-04,2,multi-component,,,fix(landing): resolve --mission through the canonical handle resolver like the sibling migrate commands (#5579)
+7b25460e0a8f1749f598f74962871feed8b3abad,2026-10-03,0,contract,,contracts/tools/breaking_check.py,fix(landing): only reachable release tags can be the breaking_check baseline (#5558)
+7b56f3e8ce973a3e8b9521d9b0df7588b9344c6e,2026-11-08,2,multi-component,,,fix(consolidation): stable dry-run error codes and a missing-branch refusal
+7b9866eaf63cd6ac23dd3ec510f1b9fc271a3341,2026-09-22,3,multi-component,,,fix(landing): surface a failed post-reopen marker clear as a retryable error
+7bab110ccef0b971c57d947690bbe65614e18663,2026-09-07,2,multi-component,,,fix(windows): mark migrate before root callback
+7bb12c256287b43da0a5d1c37531c0ab342b36d6,2026-10-05,2,multi-component,,,fix(landing): keep a retired started lane's id reserved across later re-finalizes
+7bd0287ad9984f5940fa91b4ee1a0ad9b3594506,2026-11-08,2,multi-component,,,"fix(charter): repeatable --include, and refuse a comma selector (#3261)"
+7bd158a2ed105e18f6e53a19ced2e23f1dad4eca,2026-09-07,2,multi-component,,,fix: guard paired managed skills across canonical provisioning
+7bf548d733844168ed79c0aea077dfe1bc3e18d1,2026-10-13,2,multi-component,,,fix(landing): finalize re-stamps receipts and next gate holds the lock
+7c00e67bf6a5359b5e7cef260f6d61f741501769,2026-10-08,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/mission-status/paths/drift.yaml;contracts/mission-status/paths/ops_invocations.yaml;contracts/mission-status/responses/OpsUnreadable.yaml;contracts/miss,"fix(contract): fold the pre-merge squad findings into the contract prose, readers and proofs (#5776)"
+7c16a41b9ecd276ae09de9a129af5845ffa0b054,2026-09-27,3,multi-component,,,fix(documentation): canonical iteration mode is mission_specific (#5205)
+7c9fe3374fafe3cccc99a4b30aca523707d105df,2026-10-03,0,contract,,contracts/tools/event_mapping_check.py;contracts/tools/example_check.py;contracts/tools/fixtures/event_mapping_check/code/lifecycle_events_without_plan_started.py,fix(contracts): check the allow-list both ways and report a deleted required example (#5558)
+7d0caa7f090feb90ad5744ff1e0cc910fd672de3,2026-11-08,2,multi-component,,,fix(upgrade): render the tracked-meta restore remedy through the git-remedies home (#7178)
+7d1738848fe5ab000dfa1cd1973aa31c65fd60da,2026-10-10,2,multi-component,,,fix(landing): preserve the quiet fallback-scan suppression on the effective set (#6006)
+7d5af5151b03777afa891a6c509cbd9d4aafddfb,2026-11-08,3,multi-component,,,fix(status): clear the dead-symbol and residue-walker gates on #7431
+7db2973104320d217e5393edb9db143086f6836e,2026-11-01,2,multi-component,,,fix(6719): route the lock import through the activation seam; skip it for a no-op migration
+7e9a69443889ae4a5c3ccc1bdcf6d2777f1865f9,2026-10-20,2,multi-component,,,fix(sonar): rank all Severity comparisons; chain dossier manifest specs
+7fa385ea0bffd17356cc8593e4093c5ee6a9927c,2026-11-06,3,multi-component,,,fix(prune): keep commits only a destroyed reflog still reached (#7211)
+7fa73fe5989013026b021c344e4a17e6f1906dc6,2026-10-22,4,multi-component+contract,,src/charter/offering/schemas/activation-preset.schema.yaml;src/charter/offering/schemas/agent-profile.schema.yaml;src/charter/offering/schemas/directive.schema.yaml;src/charter/offering/schemas/import,"fix(schemas): move schema $ids to spec-kitty.ai, one owned-domain authority (#6468)"
+8053fd570b2684dbab8997ea5babe7227cf6666e,2026-10-03,0,contract,,contracts/tools/fixtures/verify_pins/exit2/workflow_unreadable/.github/workflows/contracts.yml;contracts/tools/fixtures/verify_pins/exit2/workflow_unreadable/artifacts/plugin-2.0.jar;contracts/tools/f,fix(landing): exit 2 with WORKFLOW_UNREADABLE for an unreadable workflow (#5558)
+80ca66da0b55952e1f5ad6d80e1b7ea446fcecad,2026-09-30,2,multi-component,,,fix(lanes): route the lane-tip hook glob through the naming seam; stop composing <rev>^{tree} (#5115)
+80e35d8374cb2a056723cdf3835e0abfc05bd238,2026-10-09,4,multi-component,,,"fix(landing): say ""topic branch"" in operator text, not the deprecated ""feature branch"""
+82325b7cbcb202cc1ed406d4325cfa493cf9e0c3,2026-10-28,2,multi-component,,,fix(charter): close the diagnostic code set by construction; doctor fails on dropped selections (#6460)
+82812ea5109cac16e5c9bdc605e21d11a0946248,2026-11-12,2,multi-component,,,"fix(init): commit the files init writes inside a git repository (WP05, #7555)"
+8283a488515eeb8e24e746fc7bd6a778e3f464bc,2026-11-02,2,multi-component,,,"fix(events): CI-gate repairs for #6611 — unfreeze revert, dead-symbol fix, generated artifacts"
+8336f4871c9fe63adb0a20296b101699d3e3b941,2026-10-04,2,multi-component,,,fix(migrate): refuse backfill-wp-status for Missions with a live coordination surface (#5579)
+83de9bd8b6a06fd86d796185eaefb2c6e76f38bb,2026-10-31,2,multi-component,,,"fix(6770): re-baseline the target snapshot too, and keep only anchors that stay accurate"
+84c90a2ee459fcfc721f5adda087b8622b31663a,2026-09-28,2,multi-component,,,"fix(research): scaffold via canonical resolve_template, retire legacy resolver (#5254)"
+85e677c3c96b29ff2b65d1f1268badfdc667f60f,2026-11-08,2,multi-component,,,fix(consolidate): read merge-tree through a kernel.git query
+864f20fb900635fe47094fa3f66dc9075eb0644c,2026-10-29,5,multi-component,,,"fix: compare identities segment-wise, record the full review identity, count only author-written Mission content (#6715)"
+8672a9a34e9507e02120b757f87e5b520d7032ea,2026-10-08,2,multi-component,,,fix(landing): resolve-time owned-mission screen follows links again
+868321d407030ca02fdf7cbd422c11d6d221174e,2026-10-05,2,multi-component,,,"fix(upgrade): derive kind, reasons, messages and the closing line from one outcome"
+87d19a4d4efb99891b427e27b415758ca7d53117,2026-11-12,2,multi-component,,,"fix(gates): count only this Mission's dirt in record-analysis and the single_branch claim (WP02, #7556)"
+888a72312f16dfa35ed54594c9dd3081c5f7d39d,2026-11-01,2,multi-component,,,fix(review): describe the feedback draft lifecycle in the prompt and docs (#6632)
+888e5ac8da018357744b4d930c98cdbecb70fd44,2026-10-10,2,multi-component,,,fix(#5988): anchor owned-checkout birth-write lock on the owned root
+88ca02dbd9af5a9c31485049f64ff7fbdd97dff0,2026-11-02,2,multi-component,,,fix: bind owned analysis inputs and currency to validated roots
+89d9098c07d51c93357e5939adfbd9ca7aefd571,2026-11-05,2,multi-component,,,fix(7128): treat a pin-verified pack tree as clean material input
+8a2ae66274a1ca2ac0ce57f0431d654895249c42,2026-11-19,2,multi-component,,,fix(landing): judge forbidden .kittify edits in the bulk-edit review gate
+8a7b116947ccc7a4a1b88b704ac3b09714fbe410,2026-09-16,2,multi-component,,,fix(accept): check build paths against the tree being accepted (#4254)
+8b97879dba2a0d03c28b786894393559a8552df6,2026-10-31,2,multi-component,,,fix(consolidate): project every coordination commit in the late teardown window (#6791)
+8bbf03977f2a8282e4769e4c6fcbfe10cb0f45dc,2026-11-12,4,multi-component,,,fix(landing): route the analysis material inputs through the read resolver; rename the surface root; type the dirt partition
+8bf146f7034461d06baa244f11cf2e1ebfaf141c,2026-10-23,4,multi-component,,,fix(upgrade): retire the stale documentation/research template forks (#5280)
+8c5703e48fa9fd911a58e4a102ca7d86385c978c,2026-10-29,4,multi-component,,,fix: refuse hollow or self-approved work packages on every topology (#6715)
+8c777281efdd289d785c2e0877cc2954235f383a,2026-10-22,2,multi-component,,,fix(review): refuse a committed review lock before the claim (#6386)
+8c89aa90fe3d51f8f406158de0a30b98ac4a7ab0,2026-10-13,2,multi-component,,,fix(ownership): infer valid surfaces for mixed paths and literal files
+8da24d5a49d1f2e4a2267edb3dd728a1dd3687d8,2026-10-13,2,multi-component,,,fix(migration): verdict backfill refreshes an existing status.json after appending (#5869)
+8dd5077beec2f3b5725513cd166c65f46deaa2e3,2026-11-23,2,multi-component,,,"fix(single-branch): name live pin remedies, close the doctor pin gaps, amend the ADR"
+8eb22aa5137b8e29ec759b55a4ddb907c613a7b1,2026-10-04,2,multi-component,,,"fix(migrate): report a failed status.json refresh as a warning, not a Mission error (#5579)"
+8f3149ae5b4f0260a6bcdcb0bf0e250446c0abe5,2026-11-01,2,multi-component,,,fix(lifecycle): write each Op lifecycle record to its own file (#7003)
+8f605c6326cd77661c3a11c0bf6982389ad71f40,2026-09-27,2,multi-component,,,fix(charter): route migrate charter-encoding through the cp1252 tie-break detector (#4962 WP02)
+8fb28bfafb55fab5be801fadb017df59f5873270,2026-09-19,3,multi-component,,,fix: corrupt per-mission state files fail closed instead of crashing (#4642)
+900e369ebef01992f88a1a1c6402c0ff3a9497eb,2026-09-26,4,multi-component,,,fix(lanes): resolve target-branch tip via refs/heads to avoid same-named-tag misresolution (#4857)
+906e408a521e239e79455452d4742c1fcf8048bd,2026-11-22,3,multi-component,,,fix(tool-surface): decide permission repairs through one host-aware mode predicate (#4927)
+908d5e14475758b155e30dd81ee822c7de835bc1,2026-10-11,2,multi-component,,,fix(landing): resolve the common git dir when writing local excludes (#5434)
+90abcd78e8654541c0c73316028f36e59c7b9e65,2026-10-19,3,multi-component+pin-lock,packs/built-in.source.yaml;packs/internal.source.yaml,,fix(landing): verify the whole pack tree against a full-tree digest in the pin (#6451)
+911d08e60f3e5bc572d2404abee962ac058a6751,2026-09-20,2,multi-component,,,fix(terminology): lane-consolidation phrasing in merge/abort docstrings
+92a200070eaf6513d0e38b44dde3ae65abd1f8e8,2026-09-20,3,multi-component,,,fix(tool-surface): repair every detected-stale surface and converge in one run (#4782 #4776 #4777 #4134)
+946f0c99706605586c5954907c080e6947a31fda,2026-10-20,2,multi-component,,,fix(landing): the verbose upgrade preview says it would fail when the repository probe cannot run
+94b864d453d1f97565795350605b423795b8be47,2026-10-03,11,multi-component,,,fix(landing): keep the coordination home intact through review follow-ups
+952c14d76f560cdd835ec233e14840bec426ab16,2026-10-20,2,multi-component,,,"fix(charter): name the languages store when it fails, and never overwrite a key set during the interview (#6542)"
+956bcb52d76a4315fb3ef80e2108f91be6cd6b17,2026-11-02,2,multi-component,,,fix(audit): judge collisions on selectable Missions only (#6757)
+958c1ed04b267a50b96528b91ad7fdc050c00017,2026-10-01,2,multi-component,,,fix(retrospect): one predicate for documented review rejections (#2267)
+977d7e2723db7812c39c2eeea0fabc1cfdb4717e,2026-10-11,5,multi-component,,,fix(guard): route tool-owned tree deletions through remove_tool_owned_tree (#5965 #5966)
+978860e249f9c66805f1c349d4d77dd14c57787d,2026-09-30,2,multi-component,,,fix(landing): mission close --discard leaves the minted branch first and fails closed (#5100)
+982413120820ab52ec5b1cf033b7071f691e7fbb,2026-09-15,3,multi-component,,,"fix(#3929): register the runtime producer at bridge entry, not status import"
+98579f552126cca1de253f72303428ed9de5fc41,2026-11-13,2,multi-component,,,"fix(landing): reclaim refuses an unfinished consolidation, names unknown missions, narrows its excepts"
+98956a6fcfea9aa3c979daaf77f447951fee7a9c,2026-10-06,2,multi-component,,,fix(upgrade): restore the recorded version when an upgrade fails (#4275)
+989667221b521e804d2e7cfee01cb0911500de6d,2026-09-16,2,multi-component,,,"fix(#3951): agent verdict-command nesting, decision list, approve-gate remedy"
+98bbc69abf82747e7a1d8cda947a2dbad42946c6,2026-09-26,2,multi-component,,,fix(landing): consume the canonical git-op detector in the report transaction
+9909e273618184e1de7c79ef0c40ab699380df32,2026-10-13,5,multi-component,,,fix: share coordination and identity meta keys with audit registry (#3461)
+991cd1ce3a29197cad962479eb1334b08e7e899d,2026-09-21,2,multi-component,,,fix(charter): route scaffolder+engine through slug_for + #4834 path-update (#4832 #4834)
+9940ecd1d6c16a7f5ed700ca4020b9598d04231d,2026-11-19,2,multi-component,,,fix(review): fold adversarial review into the bulk-edit range gate (#7726)
+998424417a9deca842f35f7fce68159568c7ebe7,2026-11-01,2,multi-component,,,fix(accept): judge a pruned lane branch's evidence against the verified landing commit
+99ce2441dd6526d075dbdf9920377dce45b9bba8,2026-09-17,2,multi-component,,,fix(landing): fail-loud on corrupt charter-scope config (#4600)
+9a34e8bef161a673cfb6f478a6c6e1e051415d61,2026-11-17,8,multi-component,,,fix(consolidate): answer repeated git reads from a run-scoped cache (#7689)
+9a41c0d64655f4d6778940a71d6e151eb0c72173,2026-10-06,5,multi-component,,,fix(charter): derive every remaining kind-vocabulary mirror from ArtifactKind (#5538)
+9b313f74006226b8033254630c0781a40f6b209f,2026-09-28,2,multi-component,,,fix: keep task parse errors behind status facade
+9cef1d59cc755cef3b96dfa025eae4655b669413,2026-10-06,4,multi-component,,,"fix(charter): fold the pre-PR review findings (#5538, #4836)"
+9d80ec43ead13586be4d53bd3836038d18541918,2026-09-23,2,multi-component,,,fix(landing): fail closed on --resume target-content conflict (#4892)
+9e5dc1e274a7b067b6b34fea8e55c71651dd5ed0,2026-10-03,0,contract,,contracts/tools/no_pytest_scan.py,fix(landing): scan tools/ recursively and catch a runner name built at an import or process sink (#5558)
+9e9152e6e384cfc4ac30cd77265605132b57a608,2026-11-01,2,multi-component,,,fix(landing): take the decision anchor lock through event_log_lock so a nested same-log take is re-entrant
+9eb9e0400d3bd6b77c8ac34d78439743a315ad0e,2026-11-10,3,multi-component,,,fix(review): let the implementer's submission refine its claim identity (#7159)
+9ed59d9c5c43d7fc5d85cac34d8365841b2d81ad,2026-10-07,2,multi-component,,,fix(accept): accept and orchestrator-api check origin freshness
+9ef6b8b6c05409ea619fa31110b40095ee8c9992,2026-11-13,2,multi-component,,,fix(mission_runtime): the placement seam names the checkout that holds a Mission write (#7546)
+9ffe19ab9a3c3907f77711801ff490423b0cc140,2026-10-29,3,multi-component,,,fix(doctor): keep the audit engine on its own Mission rule; residue is doctor-identity only (#5875)
+a0161be0ebcd2bed59a6e42c8a7a0e9e1eb2a806,2026-10-08,3,multi-component,,,fix(5443): route merge conclusions through the owner; the commit-scope gate starts empty
+a0616c4390a43d8b59b910555b716057546d9d1b,2026-11-08,4,multi-component,,,fix(git): harden git and kernel safety paths (QW5)
+a07dfc19647bfb38addba129f5c14b3c06dc58a9,2026-11-23,2,multi-component,,,"fix(next,doctor): fold the Tier R non-blocking findings on the planning pin"
+a0cea8f62d363221e81e21f45ea60f0228833e09,2026-09-30,2,multi-component,,,fix(migration): skip terminal (archived) missions in restamp + doctor topology (#5100)
+a0d4ccf8d853f9c777301e45114463acbbd8bbaf,2026-10-18,2,multi-component,,,fix(runtime): reconcile plan mission artifact vocabulary so plan missions advance past specify (#6388)
+a20d2e3d8a59c49e4aa616afc365c7d4880f1b0f,2026-09-30,2,multi-component,,,"fix(charter): resolve a submodule to its own working tree, not .git/modules (#5353)"
+a2393fb3804b0361fa29119a64b50b260e25798e,2026-11-01,4,multi-component,,,fix(lifecycle): harden the per-record write paths after review (#7003)
+a2bda31531e3e6eb04cbf503cf1235869c8d2d7b,2026-10-03,0,contract,,contracts/tools/fixtures/bundle/roots/unreadable/alpha/openapi.yaml;contracts/tools/fixtures/enum_pin_check/exit2/pins_unreadable/pins.json;contracts/tools/fixtures/example_check/exit2/manifest_unread,fix(landing): report a yaml or json file the leak scan cannot parse as PARSE_FAILED (#5558)
+a2c6643224bd65b197ad76abcf2ae86ade5ee517,2026-11-27,4,multi-component,,,"fix(merge-guard): guard the merging checkout, read config live, one merge env and attribute source (#5604)"
+a2cad3746f885499e39e7c1e1685404a56c78d2d,2026-11-08,3,multi-component,,,fix(lanes): lane and recovery correctness fixes (QW4)
+a31618cf5997369931aed0a1e794d18895f17885,2026-10-10,2,multi-component,,,fix(upgrade): usage errors come from the command's own click
+a3b12ec0c47d68ef81db48a77ea1f75b524debc2,2026-11-23,5,multi-component,,,fix(review): create a remote-only lane branch from the owning remote's tracking ref (#7806)
+a4369f9b6d86d89abc826480dc04cbbaa2e8c44d,2026-10-29,3,multi-component,,,"fix(doctor): also report org asset sidecars whose path escapes the pack, with stable finding codes (#6418)"
+a4770f3f5692dea9ed7284668a71c62a793ef62d,2026-09-28,2,multi-component,,,fix(consolidate): user-owned meta.json edits block consolidation instead of being overwritten (#4933)
+a56bb218a0e5875fcfaf5f631f13fbf81ce70663,2026-11-10,3,multi-component,,,fix(next): name the commit step in the implement prompt's WHEN DONE block (#7510)
+a5b16d6705f5f50c7a09ef738e209cf1c6ab247a,2026-10-26,2,multi-component,,,fix(landing): refuse a non-UTF-8 --review-feedback-file with a typed error (#6652)
+a5c6fd9ac91d834ff5b21b62a230c0ba18cc5b8a,2026-09-30,2,multi-component,,,fix(git): write refs/spec-kitty/** bookkeeping refs through ref_advance (#5115)
+a5c8f2f66d42ee0a20ee593105a0326f7578a9fc,2026-11-06,2,multi-component,,,fix(consolidate): forecast the squash content check under squash (#7244)
+a64858dd340edcdbaa22323e21df669cbcb11eb2,2026-11-10,3,multi-component,,,fix(doctor): close stale lifecycle records in doctor ops --close-stale (#7346)
+a6855ce83cebd355d0806efa26c4d1503b85b480,2026-10-10,2,multi-component,,,fix(tasks): map-requirements resolves and writes the owned single-branch mission (#5878)
+a6a0147fa9edeee4c0b62cc2fbe14609f93f1f64,2026-09-29,2,multi-component,,,fix(invocation): record --artifact URLs verbatim instead of path-normalising them
+a6bf715923d4cb615c9c7581ff9510606b321b48,2026-10-22,2,multi-component,,,fix(compat): point upgrade guidance at the owned docs site (#6468)
+a6d4e90704461f954de7ca93ec9182579fa3cec4,2026-09-22,2,multi-component,,,fix(merge-driver): fail closed on genuinely-diverged verdict field (#4880)
+a6f8add16f909e09da3525bd26eb18e2a80990c2,2026-10-17,2,multi-component,,,fix(acceptance): thread owned-checkout authority through verdict + branch gate (#6023)
+a709eed77c0b2df6873ee64831824cc4b1775754,2026-09-25,2,multi-component,,,"fix(decisions): resolve meta.json + ledger via PRIMARY, ending the coord-husk split-brain (#4966)"
+a7272a8b5e2b1b9ecc6276581823a99b81940fbd,2026-10-11,3,multi-component,,,fix(guard): retire is_residue and fold WP02/WP05/WP09 guard review findings (#5965 #5966)
+a7a271723fdbd88c632f799b699fe190ddaa7ba0,2026-11-02,2,multi-component,,,"fix(6450): accept names consolidate on coordination topology, and the done refusal names its cause (#6450)"
+a83cefda1756c0bfe710598b62b4b68a2db6e2e6,2026-09-22,3,multi-component,,,fix: preserve reopen completion proof until audit
+a83d5db3541145cee6cea5c0c7ce20d2a2fa1811,2026-10-07,4,multi-component,,,fix(landing): enforce the review-exit rule in the transition pipeline on every surface (#5446)
+a8760f015a1adf95eee826f0711b96a2fea2af02,2026-10-06,3,multi-component,,,fix(consolidation): resync the kept coordination checkout after a rollback (#5638)
+a8d4c91c2a7a91301f48f42c3d85bbf04dd03c1a,2026-11-22,2,multi-component,,,fix: fold the PR-review nits on the remote-only remedy (#5287)
+a8dd1812a6918bf2eaf484127492eeae560c681f,2026-10-29,3,multi-component,,,"fix(charter): consistent activate output, skill freeze warning, one stored activation spelling"
+a931ebf9055def3b271dcc37d12550e58d7ee1ed,2026-10-19,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/mission-status/paths/missions_missionId_artifacts.yaml;contracts/mission-status/paths/missions_missionId_artifacts_content.yaml,fix(mission-status-api): artifact reads deny by default by name (#6422)
+a9f38becf34806e2b42f1b31fd060d22158e6d7c,2026-10-08,4,multi-component,,,fix(decisions): adapt #5925 runtime-lock fix to current main
+ab1fc6640fab0e1c6480594a9ffee73654e7cb70,2026-11-05,2,multi-component,,,fix(landing): preserve owned checkout paths in completion advice
+ab3f6253657d448932794455046bc7c025ad1a13,2026-09-07,2,multi-component,,,fix(status): repair the architectural gates Mission A's merge left red
+ab826f0e6d6680cc21698b9c15e06b8075ec5339,2026-10-07,2,multi-component,,,fix(landing): re-stamp work package receipts only after a confirmed native finalize success (#5846)
+ab898376b965bab5ed22c74aadbc110476ddf43f,2026-11-01,2,multi-component,,,"fix(landing): generator proposals are never auto-accepted, and the refusal code is proposal_not_selectable"
+ac38c94b4d03b3d805668e3545e35d11e3e84d2f,2026-10-12,2,multi-component,,,fix(landing): update the baseline wording the parity goldens and docstrings still tied to implement time
+ac547170852dd977d07628b7b2c704944d48a956,2026-10-27,2,multi-component,,,fix(charter): fail closed when the synthesis manifest is unreadable (#6454)
+ad4c8cc8efad34376ddfd4d43397014dd2f54c2d,2026-09-18,2,multi-component,,,Fix explicit upgrade version queries in piped output (#4704)
+ad5a4658dc7043353efcdffd7786deb7e6b73d7f,2026-11-13,4,multi-component,,,fix(consolidate): an --abort refusal names a remedy that completes the abort (#7600)
+adf53c57af23343d4cde05770e6d8d44c597c66d,2026-11-08,2,multi-component,,,fix(consolidate): lane cleanup follows the run's own auto-rebase and the status log
+ae0a1c2cbb05f905a2b271c275af2eef5d86718a,2026-10-15,2,multi-component,,,fix(orchestrator-api): surface decision-log commit warnings from answer-decision
+af8759bf5dc3a6239624ed0e12ffe0cf4b2f2794,2026-09-27,14,multi-component,,,"fix(lanes,merge): key lane branch and worktree names on the creation input only (#5108)"
+af8f7d0fc4373f1ca89d676958ca2d3f7c54abb0,2026-11-02,3,multi-component,,,fix(6277): report repo-relative charter paths as POSIX on every OS
+afa09c266684e160a7344ad1b8fe33c45d1b2ec8,2026-09-19,2,multi-component,,,"fix: consistent mission-handle resolution across CLI commands (#4631, #4682)"
+afb182a18ca344c5a09543961a42173f0e104b6f,2026-11-13,2,multi-component,,,fix(consolidate): missing-branch and refused-CAS rollback outcomes name a next step (#7600 fold)
+aff208ec6fdf97c9bbda04cc404c2584195331b8,2026-09-26,2,multi-component,,,fix(landing): close a gitignored-file data-loss hole in behind-HEAD recovery (#4997)
+b04f2bc30ab368832ac23ad264a56c692ac38c3d,2026-10-03,0,contract,,contracts/mission-status/examples/PageCursorRefusal.invalid.yaml;contracts/mission-status/examples/_index.yaml;contracts/mission-status/paths/missions.yaml;contracts/mission-status/responses/PageCurso,fix(landing): constrain the GET /missions 400 to the page-cursor refusal code
+b092c0be227a619780a834f4dba004a3a8c9d351,2026-10-20,2,multi-component,,,"fix(upgrade): one shared predicate for the repository gate, probed lazily in the preview (#6539)"
+b11e3f478577c6bd26a82c11f31a0ec1ef34ca18,2026-11-02,2,multi-component,,,"fix(landing): one owner for the startup claim scan, and it sees abbreviations"
+b1b229599b745c2c483297b2cfe2d01cf9ddfa4c,2026-11-07,3,multi-component,,,fix(consolidation): approval windows for single_branch missions (#7283)
+b25f45a5647290b56767144dfa9da1e1cbd93dd6,2026-09-20,4,multi-component,,,fix(doctor): repair legacy change_mode instead of aborting; honest per-mission reporting (#4778 #4780 #4779)
+b27ab7714303bef15f80d16d30927a1db21c73c5,2026-10-31,2,multi-component,,,fix(landing): run explicit and install-slot binaries from the verified cache
+b30225904de0f74d379f036105fd3dc98c8c26f5,2026-11-13,3,multi-component,,,"fix(landing): render the range's gaps and notes, escape paths and cap the cited list"
+b3354cb8cd3a44ae67313e2b60affb5b82bcd40e,2026-10-26,3,multi-component,,,"fix(events): fold pre-PR squad findings (#6603, #6606)"
+b37d34835da96dfe8641534a83a6e7a860266144,2026-10-08,2,multi-component,,,fix(coordination): retry a sibling worktree entry caught mid-add instead of refusing it (#5894)
+b3bd9c911aaefe6f2fe731e138f0b09ed859232d,2026-11-01,3,multi-component,,,fix(upgrade): restore or take back the tracked identity on every entry point (#6673)
+b3c7971a8bf7c4580324c737884c5de6847eea6a,2026-10-08,2,multi-component,,,fix(landing): the allocator reports its own WP stamp instead of the claim inferring it from bytes
+b41e6cc99b9036706f95519ce46867171e0b6288,2026-10-17,2,multi-component,,,fix(charter): route the resume-probe capability read through charter.activation.api
+b593f15dc85980df1204a0e5f4d07509c6f1726e,2026-11-13,2,multi-component,,,fix(landing): surface a landed-coordination ref that would not clear
+b5a73687ef1832dab347aceb1b407b74ef23d9a9,2026-10-26,2,multi-component,,,fix(next): keep an owned mission's Op records in the owned checkout (#6682)
+b5a7a34cfc0a389891f4ae8cbe0e5f3650721912,2026-11-08,3,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,"fix(orchestrator-api): envelope a BookkeepingError and a stray StatusReadPathNotFound (#5642, #5156)"
+b5b83013402537ef78e0cc9b7a8c235d22b37ee3,2026-10-04,2,multi-component,,,fix(consolidate): --resume recovers a mission or lane worktree that only lags its own HEAD (#5613)
+b65a493aadc732e0c670a63ee27282b0b9a915fc,2026-10-07,2,multi-component,,,fix(landing): malformed terminal evidence declines the pre-accept exemption (#5835)
+b6fce3f0855da3619f1490e59e46d774b03c5759,2026-10-20,2,multi-component,,,fix(charter): append and record only reach-only styleguides; CLI names no kind (#6442)
+b71badc6e13703865944bbba364df8611305cffa,2026-10-03,3,multi-component,,,fix(coordination): heal reverts only the strand commits the marker recorded (#5572)
+b7830bd783ab7f7de5573a0d81570acac9f31013,2026-09-20,2,multi-component,,,fix(review): skip the pre-review gate in repos that never declared it (#3821)
+b7d1100ebab5e13f9ac4595c9cf1e45600df8737,2026-10-18,2,multi-component,,,fix(cli): thread owned-checkout through issue-verdict and the coord-owned read path (#6320)
+b84d94d5399af51bdc75ab486c00a9acd5057d79,2026-10-07,3,multi-component,,,fix(mission-state): one is-a-Mission predicate; residue dirs are not Missions (#5812)
+b87def90b30a6d3452b3cb7977b856b9a9dea81b,2026-11-02,2,multi-component,,,"fix(agents): state the observed set before editing a legacy config, and document the default (#6501)"
+b97b13f2e638798427b2134ab16665ff1c45faa7,2026-11-18,2,multi-component,,,"fix(retarget): keep a killed run's attestation undoable, key the merge record by meta.json identity, widen the skip-worktree refusal to orch"
+b9f33fc274dc0b585eedfe5f97ba688219786963,2026-09-28,2,multi-component,,,fix: route provenance migration through charter facades
+b9fb306b33d0ae9bb3a0e10bcf72e5a3a9e32575,2026-10-08,3,multi-component,,,"fix(status): lock add-history and tracer-append, key status locks on the Mission directory (#5820, #5467)"
+ba1aa571f55a52508453106e2390e08c81bd48c2,2026-11-20,2,multi-component,,,fix(move-task): help names only the review feedback file for a rejection
+ba53bae4966ffb24c55a5595deb01ff0df0740d7,2026-11-11,2,multi-component,,,fix(coherence): count a kitty-ops/lifecycle/<ULID>.json record as bookkeeping (#7346)
+bbab2e6efc59d5125754bc6a9fee71d7718c34fc,2026-10-03,0,contract,,contracts/tools/verify_pins.py,fix(landing): refuse a pinned tool without a url in verify_pins (#5558)
+bc44ce830457c28fe054324bd87e4098df9e21c4,2026-11-07,2,multi-component,,,fix(op-record): stop persisting a model identifier on the Op started event
+bc950c6af76f2d2a5238e5dc9c53dc037b6c4f5b,2026-09-07,2,multi-component,,,fix: retain commands across canonical mission provisioning
+bca8750abeee6c96f8987ee23bb674d7d9e23f45,2026-10-12,0,contract,,contracts/tools/gradle_pin_check.py,fix(landing): make the acceptance-jvm Gradle pin guard claim only what it checks
+bcc0746cba2fd693d807d2d3a578e30de56bb1a5,2026-11-05,3,multi-component,,,fix(upgrade): leave non-Mission worktrees alone unless named (#7173)
+bcf1e62387b739b5a31652b6e472453cd5262277,2026-10-05,2,multi-component,,,fix(landing): leave a project with no pack skill in force independent of org DRG health
+bcf8ff6f1d0ed1b7440ab608ccda0ef2b03701db,2026-10-03,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/mission-status/examples/WorkPackage.override-partial.yaml;contracts/mission-status/examples/WorkPackage.override.yaml;contracts/mission-status/examples/,fix(contracts): show a partial review override with complete false and state the WpId drop rule (#5558)
+bcf9e46d28f9b10dbd8d6773e2135774f4c09b5d,2026-09-15,2,multi-component,,,fix(cli): preserve unrelated resolver ValueErrors (#4469)
+bd2146a0dfe4e7ae2219ea5034cba87258b2e143,2026-11-18,4,multi-component,,,fix(skills): honour CLAUDE_CONFIG_DIR and retire spk-gate-merge
+bd703d6471a5b4f99d3d07490878cd19019db879,2026-10-16,2,multi-component,,,fix(migrate): report files not moved to overrides honestly (#5450)
+bdf2d2b7ba65c3bf98b43ee49ef542ca7c02c8c7,2026-10-05,3,multi-component,,,fix(pack-skills): one sha256: digest authority; source_hash covers requires and rendered name
+bed0abee4ddf8492f9aacab651f996fde6b2267a,2026-10-26,2,multi-component,,,fix(landing): end every event-log refusal with its error code
+beeccb432ab1b4b615ff34468e75688bbeba9884,2026-11-28,2,multi-component,,,fix(upgrade): a second upgrade no longer settles the agent-folder notice (#7878)
+bf707b463b9e2c655e3a0d10aac14419aa7f5903,2026-09-07,3,multi-component,,,fix(upgrade): validate legacy targets without fetching or persisting
+bf86162bbc30611a60418d861ee8a11aa8c6feba,2026-11-15,2,multi-component,,,fix(coordination): name the holder and keep the probe equal to acquire (#7633)
+c0cf5b03eda10c6ea9644d9b4223ef1b5dede7c4,2026-10-03,0,contract,,contracts/tools/fixtures/verify_pins/clean/artifacts/plugin-2.0.jar;contracts/tools/fixtures/verify_pins/clean/contracts/tools/pins.json;contracts/tools/fixtures/verify_pins/exit2/zero_uses_lines/arti,fix(landing): refuse a verify_pins run that never hashed a pinned digest (#5558)
+c0db42da8534961f39a48f47d6f6977dbf8302e9,2026-10-16,2,multi-component,,,fix(finalize): keep WP-file dependencies that wps.yaml leaves out (#5448)
+c0f455d068087aba6f7bca2f9163e6286de3ffb0,2026-10-13,5,multi-component,,,fix(research): scope requirement kinds and reject template placeholders
+c0fa11a8535565ab13f1318ccd2e380a01b47d0c,2026-11-22,4,multi-component,,,fix: fold the review-squad findings into the remote-only remedy (#5287)
+c1659b0705fe1bb0916451e069a7ef230e80a22c,2026-11-05,2,multi-component,,,fix(landing): use canonical pinned-pack admission authorities
+c18c800d57ecaefd743cd8a3f31df7ccdaf8dcdc,2026-11-02,4,multi-component,,,fix: preserve reopen feedback and charter dependency boundaries
+c19d8c39fee7505c0f211b4197d50309a6fa75a0,2026-10-16,2,multi-component,,,fix(migration): legacy charter refusal honors --json (#6232)
+c1ba4e4f3b04c0d440bcfffa8efa6e353c27c879,2026-11-02,2,multi-component,,,fix(6969): run the default check set on a bare spec-kitty doctor
+c1d95d635639fdcbee47fb1f35a0f04645619e14,2026-10-10,4,multi-component,,,fix(charter): wire LAYERED_REPOSITORY_KIND_PLURALS through charter.drg (#5824)
+c1fdfc035d784d62b864e534c93313eb1d443594,2026-10-05,2,multi-component,,,fix(consolidation): canceled work is never exempt from the approval-stamp bound; one message names every claim-time refusal (#5720)
+c22aca4d5cd0c72a8ea329e9022acf4368b362b2,2026-10-12,0,pin-lock,pyproject.toml(dependency line);uv.lock,,fix(deps): adopt spec-kitty-events 10.4.4 so a backfilled rejection is not overridden (#6084)
+c275b7023e981e011f7c52ad8211e44feb2def3d,2026-11-18,3,multi-component,,,"fix(status): a forced claim refines the implementer of record, a re-submission out of review completes it (#7712)"
+c2957b8383e795b77a0d364aa88856e70981ad67,2026-10-22,2,multi-component,,,fix(consolidation): keep test-only line-attribution helpers out of __all__ (#6309)
+c3116ab6ad8784ccfd9d1ee084e032ea6197659a,2026-10-03,3,multi-component,,,fix(landing): carry the verified-landing anchor only over this run's own commit (#5570)
+c328b02357eb2d29b25f30f6b57594670ac7a760,2026-11-03,2,multi-component,,,fix(7149): owned accept reads canceled WPs from the owned checkout; name empty declarations
+c34f237386cfc84b3049b6f623ba69958c9c7aae,2026-11-03,4,multi-component,,,"fix(6661): sweep Op records in every checkout, not only the root"
+c36224e69919af4a60f88ee93dd86e39add432c6,2026-10-13,2,multi-component,,,fix: native stale-content gates skip a path with no resolvable git repository (#5879)
+c3655464e44130b8e560537041e5aeb9a24c3daa,2026-09-26,2,multi-component,,,"fix(landing): close the marker-branch escape hatch that deleted differing operator files (#4961, #5050)"
+c3a5058deead85e2fcc4072970944fd9ab8da1cd,2026-10-01,2,multi-component,,,"fix(runtime): locked, repo-relative RunIndex port (#5390, #5389)"
+c3b591e3fbfe0bba3aa0b4a7a56b2dbfeb33a5c2,2026-09-29,2,multi-component,,,fix(landing): doctrine validator reaches reserved language tokens through the charter door
+c3bc086189e523a9fe48a4886706952e34d4fb91,2026-09-07,2,multi-component,,,fix: compose command and managed skill parent creation
+c43d84abd151c983cafe704723d0591413aff85f,2026-10-08,2,multi-component,,,fix(coordination): the coord fallback arm surfaces a refused rollback (#5819)
+c4a65639e3f52c473667c99deea456f38bc3a95a,2026-10-07,3,multi-component,,,fix(landing): the two-way opt-out covers the mission-to-target leg for every strategy (#5460)
+c5643c5e86b0509daeb3c98ab641811971b9733e,2026-09-14,2,multi-component,,,fix(merge): restore merged_at writer + reopen-aware is_mission_merged (#4090 #4091)
+c67cc2ad29daacd977f022661a66957bfd5e782e,2026-10-03,0,contract,,contracts/tools/breaking_check.py;contracts/tools/fixtures/breaking_check/baseline_extended/things/CHANGELOG.md;contracts/tools/fixtures/breaking_check/baseline_extended/things/openapi.yaml;contracts/,fix(landing): close response-schema gaps in the breaking-change check (#5558)
+c70231e9a8c32956d55412ede4b3b2ee0ef971da,2026-10-27,2,multi-component,,,fix: accept completed plan runtimes without fabricated work packages
+c70e92bf9a82a11e5ad1010028e9436781502877,2026-09-15,2,multi-component,,,fix(docs): restore freshness gate on main
+c75a443d2a4238eaf6a506530c62577da7bd52b6,2026-10-03,0,contract,,contracts/tools/contract_resolver.py;contracts/tools/fixtures/contract_resolver/escapes_root/openapi.yaml;contracts/tools/fixtures/contract_resolver/escapes_root/paths/x.yaml;contracts/tools/fixtures/,fix(landing): refuse contract refs that escape the contracts root
+c7b0f710455bcac42fe6a580fd93c687fac3a92d,2026-11-03,3,multi-component,,,fix(6955): a forced approved reopen records a wire-valid event
+c7bb082faf3c3c9ed7709c67e833275bad6098b4,2026-11-07,4,multi-component,,,fix(7262): one kernel classifier decides whether a .git can hold a Mission's identity
+c81dfbd6e4d5ba9333554a96e0f7fe3fe5bc7917,2026-10-25,3,multi-component,,,fix(invocation): write Op records in the invoking checkout and refuse before writing (#6564)
+c8bcb237551b3fcddf31444c7f04c9aac851347d,2026-10-15,2,multi-component+pin-lock,pyproject.toml(dependency line);uv.lock,,fix(status): honour a rejection recorded after a clock-ahead approval (#4941)
+c903d37566d45cd318fb618d0cfe70fe2befb52b,2026-11-24,2,multi-component,,,"fix(lane-cleanup): credit a lane's superseded path only to an approved lane's later commit (#7747, Tier R B1)"
+cad38d2df62b59feb80299d491126a542c2c99dd,2026-10-13,3,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(5903): refuse safe_commit commits that carry hook-staged paths
+caef80452b4e159cd3dae5e2ae2ca91578b3b260,2026-11-10,2,multi-component,,,fix(next): name the catalog default instead of listing it (#7511)
+cb4252d05fb4be060a5cf1db200e9984599bb081,2026-09-11,4,multi-component,,,fix: resolve org directive identities across charter activation and delivery (#4185)
+cb6c48b9ba52049763df7c45b56b1cd601a6398c,2026-10-07,3,multi-component,,,fix(landing): an ambiguous remote refuses in enforce mode (#5780)
+cba57053ee46f67f2f13d39335a52981a381f4c9,2026-11-24,3,multi-component,,,"fix(lane-cleanup): fold the WP02/WP03 review notes (#7747, #7325)"
+cbfedfa194af0701e87b8e46f7aa65baad3b6ac3,2026-10-01,3,multi-component,,,fix(coord): keep a coordination mission's status log off the target branch (#5440)
+cc025c2061004eab9dced5ade5b18b553a065493,2026-10-03,0,contract,,contracts/lint/ruleset.yaml;contracts/mission-status/CHANGELOG.md;contracts/mission-status/openapi.yaml;contracts/mission-status/schemas/PageCursorRefusal.yaml;contracts/mission-status/schemas/StreamR,"fix(contracts): tighten the lint, negative-case and release checks, close response schemas and treat -SNAPSHOT as work in progress (#5558)"
+cca2b62aacd6369dd288327873b181d2c666e28d,2026-10-20,2,multi-component,,,fix(landing): report the DETECTED language store only after a real write
+cd2e6b8aa377ece261dca4f41d4564e2a443445a,2026-10-10,3,multi-component,,,fix(decision): resolve owned single-branch missions at Decision Moment entry points (#5874)
+cd82e5e33f91d20f398d7956c9ababa48f638ba2,2026-10-05,2,multi-component,,,fix(landing): read the org-pack registry strictly where skills are retired
+cdde1cb511e3cf441f5b193ccc13a16961bdad96,2026-09-20,2,multi-component,,,fix(cli): upgrade --yes is fully non-interactive and exits honestly (#4775)
+ce39dfd3bff4fb9d07ad5e9d22ed38a50a9a6e01,2026-10-05,2,multi-component,,,fix(landing): refuse instead of retiring installed pack skills when the pack cannot be read
+ce4e57e1e6cd77a5efad81797748e62b6a8f18f8,2026-10-25,3,multi-component,,,"fix(status,decisions): a verdict keeps the review binding; the decisions lock is bookkeeping"
+ce5c19f245ee7a334001bf8a34e93bf29e974a1b,2026-10-04,4,multi-component,,,fix(mission-runtime): classify quickstart.md and contracts/** as PRIMARY planning kinds (#5552)
+cf40a5850c2517f709155263c0399652efd846f2,2026-10-13,2,multi-component,,,"fix(landing): decide subtask ownership from the authored roster, fail closed"
+cfb49a65a92de4f0d581b579d8a7ed54f29adf2e,2026-09-16,2,multi-component,,,fix(#4433): init's already-initialized check includes the vibe skill-path pointer (#4564)
+d0340a035b1bef695ec928614e864592dcd5d99a,2026-11-22,3,multi-component,,,fix(coordination): one truthful remedy for a remote-only branch (#5287)
+d074349fdf91c91de20c13af48557698f5ee8205,2026-09-14,2,multi-component,,,fix(mission-create): abandonment-aware idempotency guard + --allow-duplicate escape hatch (#4033) (#4338)
+d0ce154a3249d42a865e0dc67fb37f39ee2ba347,2026-10-29,2,multi-component,,,fix(landing): clear the pre-existing mypy errors in the charter activation files this PR touches
+d1466fc683f73f934d987f2c1226ee3a3d83e602,2026-11-10,2,multi-component,,,"fix(landing): compact a catalog default per kind, not for the whole block"
+d184116fefcea9fdaeb1faddaa82ce808bdcacd8,2026-11-06,4,multi-component,,,fix(guard): fold the pre-PR squad findings into the landed removal
+d2519c58eb00bd3b97e13e9db5996d2b3879ac51,2026-11-02,2,multi-component,,,fix(6917): validate the charter config before the scoped read answers
+d26850fc97ab78d67994f1f6b5322f4492e89234,2026-11-07,2,multi-component,,,fix(7076): the test suite's tempfile root sits inside the harness git ceiling; one boundary for the root walks
+d298e4609447db52f708c62466f6d47a36195279,2026-10-05,2,multi-component,,,fix(landing): refuse when the lane-tip listing cannot be read instead of reading no tips
+d2dd0dca5742b6df5e240577b5db4d667037ab00,2026-11-24,2,multi-component,,,fix(lane-cleanup): honour a carried PASS anchor and set aside a synced status log (#7747)
+d45ec106e3ff36e5315fab7ba5effde963e513dc,2026-10-29,3,multi-component,,,"fix(owned-checkout): owned legacy issue-matrix migration and one C2 owned refusal (#6354, #6353)"
+d49ae0d6843330fc22d19401e10787fc8a4f5974,2026-10-03,2,multi-component,,,fix(consolidation): delete the coordination branch only at the gated tip (#5570)
+d4be7a1940f2ad388757c0965087f50391f6fdcc,2026-11-01,2,multi-component,,,fix(6719): take the synthesis lock for the activation writes
+d4eca9fe80b91dece5e8720ba3b2fa3f7605920b,2026-09-28,8,multi-component,,,fix: route the remaining loop-sensitive path guards through the kernel primitive (#3189)
+d53e60300036ededbef8c69d38c22dae4f65a03a,2026-09-21,3,multi-component,,,fix(auth): route token-bearing flows to the session issuer; fence get_saas_base_url (#4755)
+d601e29f1e53a836bdb18470968e6d0a843d9539,2026-10-14,2,multi-component,,,fix(landing): let a repo leave a removed tracker provider
+d72fccb72a9d31635c3499539070ea159bac3428,2026-11-12,2,multi-component,,,"fix(next): advancing next never rewinds a finalized software-dev board (#7553, #5929, #7565)"
+d79f18ce532cd645a1af7e76dd774b5b04d3e34a,2026-10-13,2,multi-component,,,fix(landing): skip the repository-root plan interview for owned runs; warn on stale copy in research
+d7b6450ce4e46e4b25c19aaeaff92bbe46d4cd80,2026-09-28,2,multi-component,,,fix(consolidate): record and verify the announced mission_number on the target (#4900)
+d7ff5db1a67ac826eaa1eb93d4d0fdbd43d7c1b2,2026-10-11,5,multi-component,,,"fix(consolidate): route migration, runner, init, merge and utils tree deletions through remove_tool_owned_tree (#5965 #5966)"
+d8829074b712cc5ffc5168baf03661255d197c64,2026-11-01,2,multi-component,,,fix(landing): keep the shipped 3.2.6rc1 cutover migration byte-identical; skip the tracked-absent Mission in cutover_mission
+d8c70fcbaac1e9b8d3878f64fca6095552ae7be6,2026-10-09,2,multi-component,,,"fix(landing): say charter pack, not doctrine, in operator help text"
+d8e2be68fc0d5b11861ad5548016188d4477ee2f,2026-10-07,2,multi-component,,,fix(status): read meta.json through the canonical _read_meta in pre_accept_exemption (#5835)
+d966c004e7a7a0aac055a2b21507bad67194528a,2026-11-03,2,multi-component,,,fix(7149): refuse an unreadable ownership declaration as OWNERSHIP_UNRESOLVED
+d97f297d07bd0f14edc936873834737ca459802b,2026-11-22,3,multi-component,,,fix(session-presence): harden orientation slug lookup and newline handling (#5215)
+d99785caacd965c6446d02eafd63e3d743111dd1,2026-10-07,3,multi-component,,,fix(landing): init and upgrade keep a customized merge driver (#5759)
+dac9922c9a6bd35085fe8ee046f282eec78258f2,2026-10-12,2,multi-component,,,fix(landing): record a repository-relative record_path on the runtime terminus events too (#5868)
+db4c9de44e001af0f971e0d0912e035a7a9767d9,2026-09-27,2,multi-component,,,fix(merge): fail closed when a derived status.json cannot be regenerated (pre-PR squad fold)
+dba8ebcc26aa5f2cc0a6b14a6ebe156e340d1e42,2026-11-12,2,multi-component,,,fix(implement): fail-open lane test invocation in implement; workspace-neutral foreign advice
+dbde24f8e687fbf78357a66542ace643c813fff1,2026-10-20,2,multi-component,,,"fix(charter): keep declared-language order, one tree walk, scan lists (#6444)"
+dc3d4b11ce16145eecda8415bd43e373904e1889,2026-10-16,2,multi-component,,,fix(invocation): refuse unstorable evidence before the Op closes (#5397)
+dc4124a423300542d01c891657c3ea3fec0c0dc7,2026-09-17,3,multi-component,,,fix: close live review findings
+dcbc003f210d1784a76c2593a6baf91ddffb43a3,2026-10-27,2,multi-component,,,"fix(events): take the glossary ledger lock once per batch, not per event (#6706)"
+dcbee3d27b73aab2cb4fd23dfb65872d5968b7f6,2026-11-18,2,multi-component,,,fix(retarget): refuse a target that disagrees with a persisted retarget and undo a retarget run's attestations with it (#7692)
+dccf8ea782fb4445125cac1f843d8556962a7c42,2026-11-05,3,multi-component,,,fix(7106): keep a claim's runtime bookkeeping out of the analysis fingerprint
+dd8ce8ca0d0d0774ea8069b21266809331f67161,2026-10-13,2,multi-component,,,fix(landing): delegate the entry's target branch to placement (#6142)
+dda8be9fd8f9f6570a3c132e7300c6307fd47c0c,2026-10-22,8,multi-component,,,fix(gitignore): ignore only Spec Kitty's own files in agent folders (#6474)
+ddaebde538dee649410465c67dc669ab49d079df,2026-11-11,3,multi-component,,,"fix(next,lanes): import the status read door through the specify_cli.status package; owned query reads its mission type from PRIMARY metadat"
+ddbb5c3a8dea5c2ce2816caf89c90660ad5ece4e,2026-11-24,2,multi-component,,,"fix(lane-cleanup): satisfy the architectural gates (#7747, #7325)"
+de51f2259a555f6bea7b0e0ddc9c94a0dde5ade9,2026-10-08,3,multi-component,,,fix: keep owned decision runtime locks out of Git and repair tracked locks
+de728d5c8a1b016560bc7831f011638edb70d32e,2026-11-10,2,multi-component,,,fix(landing): pair lifecycle records through one record-level authority
+dfb190e1a4218fa982a11a452e12d5f382407f39,2026-11-01,2,multi-component,,,fix(upgrade): every seam restores or refuses a tracked-absent meta.json (#6673)
+e06ebaf06afb859c7fbb9f9e80a0f86bccc593ff,2026-11-05,2,multi-component,,,fix(landing): keep owned facts at the prompt presentation boundary
+e072b2b9949a311a460e0555e0986c860b3068f0,2026-11-12,3,multi-component,,,fix(landing): next and answer-decision always surface a failed staging restore with its stash ref (#5938)
+e08b897ab45cd94ba22377c5f1522355dff7a35f,2026-09-30,3,multi-component,,,fix(requirements): route setup-plan gate and retrospective FR coverage through the ID grammar
+e0aa918cd37cc6fb3ac98b4ac0ce199c7a98a2b7,2026-11-07,2,multi-component,,,"fix(landing): keep ""retry the command"" out of the owned next refusal"
+e13ceb49a7deb5d37987e34005bcb60fd7b1ca8c,2026-10-05,3,multi-component,,,fix(landing): refuse a skill namespace that is not a safe directory-name prefix
+e14e469c71c8965d973fd15069d1db2661c95e05,2026-11-02,2,multi-component,,,fix: honor validated owned checkout in startup project gates
+e1c63d2a663a791ee69c2e5b6ddcb62b1b9f92fb,2026-09-09,1,pin-lock,pyproject.toml(dependency line);uv.lock,,fix(deps): bound typer <0.28 and dedup the typer._click exception shim (#3794) (#4016)
+e1e28a4ceca308de75a5d1eeb7a4e1cc5b6297e0,2026-09-28,2,multi-component,,,fix(agent-config): never replace a settings.json that cannot be decoded (#4940)
+e3027880c63b9161e643f7271a6c4643725d29ad,2026-11-07,3,multi-component,,,"fix(7262): read the ceiling as git does, let git's ownership diagnosis win, name the .git in every notice"
+e356cee034c0f040f68eedf5b98d316bf434f247,2026-09-27,5,multi-component,,,"fix(decisions,coordination): materialize the coordination worktree before decision writes (#5113)"
+e455ce26c1ec8f1dd2b2fb7debe104825e462602,2026-09-18,2,multi-component,,,"fix: reconcile coord/lane actor-identity representation (#4665, #4670, #4673, #3029)"
+e4e6b4a0a6d2fcbfb2b7521a57d58936b9337802,2026-10-08,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/tools/provisional_check.py,fix(landing): require the qualified token when a provisional property name is shared
+e52e4d63a321dd82f155a9f4eb5db0175e9b63a2,2026-11-08,2,multi-component,,,fix(landing): offer --to-branch only as the safe-commit example in the protected-branch remedy
+e54712c66b3e90edaa6cc616a8590062fa72f73f,2026-10-03,0,contract,,contracts/tools/fixture_builder.py;contracts/tools/leak_patterns.py;contracts/tools/leak_scan.py,fix(landing): widen the e-mail leak pattern and add secret and token patterns (#5558)
+e596f7deefdaf07fc4a9cbd30a9e6097b654114d,2026-10-22,3,multi-component,,,fix(gitignore): read built-in skill names through a names-only seam (#6474)
+e6a2e64d0258d4c8c852fb9160658c2fa644c23a,2026-10-07,2,multi-component,,,"fix(upgrade): commit only on success, never ignored paths, name held files"
+e6c62c0c9f82a93c88475d4cec439eca98c4a5b8,2026-11-02,3,multi-component+contract,,docs/contracts/upstream-3.0.0-shape.json,fix(6997): register SAFE_COMMIT_DIRECTORY_ARGUMENT in the orchestrator contract
+e6d885d98b4788ceec3fdded5a5a595c74e54b55,2026-11-12,2,multi-component,,,"fix(lanes): probe without -P, record repository-relative origins, bound the probe's git reads"
+e6e13cc12f23e7cb994d2cd22ee466ffb9a5c2c6,2026-11-05,3,multi-component,,,fix(landing): report a partly removed worktree as removed and keep its branch (#7173)
+e7606b133dc1bb8b7d62cc728b8740abb4023955,2026-10-07,2,multi-component,,,fix(init): install clone-local merge drivers on existing clones (#5759)
+e7ed9fbc5cfa6e4c5257243f9c5d41fbe34b0e35,2026-10-17,2,multi-component,,,fix(orchestrator): topology-gate the single_branch axis before any slug work (#5939)
+e8186a911b3dc35998bb13199888f6ef9827b320,2026-09-28,2,multi-component,,,fix(provenance): require checkout proof for legacy templates
+e8443651a5dcac15f4be8679d39ef0c02bbb1a79,2026-10-08,2,multi-component,,,fix(workflow): release the Mission lock before the claim's lane sync (#5819)
+e84544173bec89c62572c26d5d4ce7597698eecc,2026-09-19,2,multi-component,,,fix(landing): populate GuardedReadError.path on MissionMetaReadError + DecisionIndexReadError
+e86a8e214e311489c8de1722213ab3aa13a6b70d,2026-10-10,3,multi-component,,,fix(record-analysis): record the analysis report under the validated owned checkout (#5893)
+e8a740770a65b1fed3b348be2b063b689d5b5126,2026-10-22,2,multi-component,,,fix(landing): agent remove names preserved files that git now shows
+e95b0faf1d1dea116a3fbe0d522fd4af0ffb2500,2026-09-20,2,multi-component,,,fix(merge): route coord + orchestrator worktree destroys through the guard (#4753)
+e95ed51d204a7e01682c1930867f31fef9b27d5f,2026-10-13,2,multi-component,,,fix(landing): refuse moments on/off cleanly and treat non-UTF-8 as unreadable
+e9bea60563f1f8cd5f8dc9486d01204e86f8d0bb,2026-10-10,2,multi-component,,,fix(landing): thread the create write root into the documentation-state birth write
+e9cbff2d4cfb2ea6307aa0308bbcecb3bd90bac9,2026-11-06,5,multi-component,,,fix(landing): refuse a derived pin a lane branch does not contain
+ea76d5fd3eecb6decd8dd6868b117630eec2303e,2026-11-07,2,multi-component,,,fix(lanes): keep an operator's sparse patterns; report a failed lane exclusion (#7276)
+eaf3b218a26e5f50063a37c0b83bfda2588ff6f8,2026-09-23,2,multi-component,,,fix(merge): fail closed on target source conflicts in default squash (#4892)
+eb7eb6a9f5bbf86b74190142f2d5a7ab41ead567,2026-11-13,3,multi-component,,,"fix(archive,consolidate): reclaim hint in JSON, late-commit wording, one resume command (#7598 fold)"
+eb8cdb03ab895d373faf424dd2dab801eff830a5,2026-11-07,2,multi-component,,,fix(consolidation): attribute a lane's reviewed dependency merges (#7307)
+eb95260fc1b0c72aadfa901080c47edf7ee182d6,2026-11-10,2,multi-component,,,fix(landing): name a deactivated id instead of reporting none selected
+ec0e5ad621496df903d19646ffcfc6aab3848c0c,2026-11-01,2,multi-component,,,fix(6433): cascades start from the artifact you named; IdentityIndex is the one stem↔id authority
+ec20cbec86844970d58d2a24319cddadc1e777c4,2026-09-27,6,multi-component,,,fix(landing): resolve the drain repo scope from the owning repo on every path
+eceb59182760b600f591d22fc386802dc887d024,2026-10-19,4,multi-component,,,fix(invocation): skip the Op-record auto-commit where kitty-ops is untracked or ignored (#6410)
+ed598a8e528a5d73d5e228f905b6a23e78b50ac1,2026-09-22,3,multi-component,,,fix(#4858 #4868 #4884): verdict-matrix RMW preservation
+ed6d34e755f137587e17c52c9882a79276de4085,2026-09-21,11,multi-component,,,"fix(local-write-safety): symlink-safe locks, atomic decision index, non-destructive init, 0600 credentials"
+ee6cdb7edc02a4bbf962c4fad92e72b84140b00b,2026-10-18,2,multi-component,,,fix(cli): thread owned-checkout carrier through three secondary surfaces
+ee78fc1ab0c13664d80b6562e0c6d48b67050df7,2026-11-06,3,multi-component,,,fix(finalize-tasks): derive a missing planning pin through #7238's resolver (#7210)
+eee49c83990fdb55c00bf41d49e74fdb5af38c1e,2026-09-09,3,multi-component,,,fix(finalize): --refresh-planning-commit re-points the frozen planning SHA (#4141) (#4157)
+ef0c2388b2da5f0c0ed2238534f6e4c9a0f80ef1,2026-09-09,4,multi-component,,,fix(upgrade): recover missing authority and disclose supporting repairs (#4082)
+ef6d1b6a2688fdaf8b9351e8c87463627bf9a1bc,2026-10-06,6,multi-component,,,fix(charter): move operator surfaces off the deprecated doctrine tier and wrong config keys (#4836)
+ef704c3303db5d2330ecedd72deb57bbe519c942,2026-10-20,3,multi-component,,,fix(charter): review cycle 1 for the project-intent rename (#6443)
+f073e1246fafdb887adf26d068aa273c8e24d6db,2026-10-22,2,multi-component,,,"fix(consolidation): judge canceled content line by line, not by an all-lines subset (#6309)"
+f11eef18e5654368196109e758366c4ca7198431,2026-11-18,2,multi-component,,,fix(status): only an explicit re-submission completes a bare claim; foreign claims join the implementer set (#7712)
+f183be1e4688283f666cad25c956ff0d8afdc0a8,2026-11-12,3,multi-component,,,fix(lanes): put the lane venv first on PATH and keep the recorded probe free of machine paths
+f188c091454264c70a37c0da43c9e965b1e960d5,2026-11-06,2,multi-component,,,fix(landing): protect every unowned project directive and no-op before the pipeline
+f194d10956c5887f34c510ef85ce46bfe5d45716,2026-09-15,2,multi-component,,,fix(merge): tear the coord worktree down before deleting its branch (#3926) (#4378)
+f19d0d84ccf2045ed9b432bcfdc884ce3e281898,2026-11-05,2,multi-component,,,fix(landing): print a recreate command that matches whether the branch was kept (#7173)
+f1b50fdff5e68506c59493b1e9b2bf4590f22ecc,2026-11-05,2,multi-component,,,fix(landing): print the tip-keeping hand command from ref_advance's bookkeeping write (#7173)
+f2a6e8db0f29ebb8eabda2f9067b2df317491eb1,2026-11-02,4,multi-component,,,fix: require project authority before global migrations
+f2b4b2bc65c73b3fab0b782d0fe284e386ecd3e9,2026-11-20,2,multi-component,,,fix(landing): keep missing Mission artifacts blocking under a path-convention waiver
+f2be03af4889c89184fdb3a4aeb90fc3f90b3a87,2026-09-08,8,multi-component,,,fix: forward-port reviewed first-run recovery hotfix (#4084)
+f2ddac08fddef5287099d0a29392eb74f5efbf32,2026-11-11,7,multi-component,,,fix(doctor): doctor coordination --fix acts only on the Missions named (#7552)
+f2e4a18d8a30ec2b93b6d1e78b78c1bf65013cf2,2026-10-08,3,multi-component,,,"fix(implement): hold the Mission lock from claim emit to claim commit and the checkout lock from occupancy scan to claim (#5468, #5796)"
+f2eb08cc881d906389d5259ec8e989eb757d7260,2026-09-26,2,multi-component,,,fix(migrate): preserve customised .kittify assets via ownership guard (#4961)
+f33484ddcce7a865610ac54a7dd1cc9f70540869,2026-10-11,3,multi-component,,,fix(lanes): route lane allocation and Mission-creation destructive ops through the guard (#5965 #5966)
+f33a70fb6c97731aa5bb1f57c1dfad4e6fd5af9d,2026-09-25,1,pin-lock,pyproject.toml(dependency line);uv.lock,,fix(deps): adopt spec-kitty-events 10.4.0 to close the concurrent-rejection reducer bug (#4990)
+f3acf582ad88965dfb986fa064a34e1ea5760e52,2026-10-03,0,contract,,contracts/mission-status/examples/MissionDetail.early.yaml;contracts/mission-status/examples/MissionOverviewPage.middle.yaml;contracts/mission-status/schemas/MissionHead.yaml,fix(landing): make mid8 non-nullable
+f3e4b7885614a50f64d36b5cdd1e2d7757544efd,2026-10-03,2,multi-component,,,fix(ci): close architectural and interpreter-shard gaps
+f43599bff124dc6e71a532313ac8f68f326ddb6e,2026-10-11,3,multi-component,,,fix(consolidate): route consolidation-family destructive sites through the guard (#5965 #5966)
+f449e1a754110af9d8c8a4bc75a8f8d6c2abbda2,2026-10-17,4,multi-component,,,fix(consolidate): fail-closed single_branch implementation-evidence + independence net (#5939)
+f4b05017f8388655dfaeadcb344e9227f38dc969,2026-11-18,3,multi-component,,,fix(init): make the root commit on an unborn branch (#7612)
+f50069efdff5798691be43d77e5db0284b763865,2026-09-30,2,multi-component,,,fix(landing): destroyed-lane guard fails closed when the lane-tip recorder is not active (#5100)
+f5413ee0c50307722474830615b590fa70428b56,2026-10-29,2,multi-component,,,fix(charter): read synthesis ownership only for project-layer directives (#6510)
+f5a34808f3be6f84199cebc866077887cc4899db,2026-09-13,3,multi-component,,,fix(auth): migrate retired hosted target and restore canonical env override precedence (#4259) (#4262)
+f5da462109515c0287b56e4469ffe47494ea1f95,2026-11-26,2,multi-component,,,fix(consolidate): correctness review folds (#7848)
+f617b34628d22488040d4c30c80441d0e8a304c5,2026-10-27,2,multi-component,,,fix(mission_runtime): typed ISSUE_MATRIX_NOT_AUTHORED on the coordination ref read (#6653)
+f69d4efa0d53921cfcbfce1ae9ca8a0e8029f90b,2026-10-08,4,multi-component,,,fix(status): key review-cycle and backfill status locks on the Mission directory name (#5819)
+f760090977ab361c6908da60129286ea59bc4b57,2026-10-07,2,multi-component,,,fix(migration): schema-3 runner no longer commits and rolls back cleanly
+f84f14541bcd75abfb7fbe32a3d4f67521954d59,2026-11-06,2,multi-component,,,fix(prune): delete a landed branch by compare-and-swap (#7212)
+f8fee580bbd0025da039336c94fa3a8fc6ae068f,2026-11-22,4,multi-component,,,fix(landing): align the remote-only remedy with tracking-ref materialization
+fa36ae7bd40037623f491abbfc9b409208949f1a,2026-09-26,2,multi-component,,,fix(tasks): count TREESAME-pruned source commits in behind-count via --full-history (#4593)
+fa5f083ca194da2ee0b0d9c593a81d3893208575,2026-10-11,3,multi-component,,,fix(lanes): write .spec-kitty exclude to the common dir + backfill migration; remove dead per-worktree writer (#5434)
+fa921fcc37375eb01a861a47dff822c7ab4fbee5,2026-11-02,3,multi-component,,,fix: bind generated charter fetches to owned missions
+fac8568d47762cb6611fbd35edd03043279250a0,2026-09-09,3,multi-component,,,"fix(lanes,invocation): #4120 — union-merge stale-lane-base event-log add/add; resolve local --profile ids (#4137)"
+fc38aacf5c67417dca82af570a8f3cef1805fb96,2026-10-08,2,multi-component,,,fix(landing): bump the orchestrator-api contract to 1.14.0 for the three safe-commit codes
+fc6d339ec61989258c15368bdb5695d8a284f87c,2026-11-07,3,multi-component,,,fix(landing): leave a legacy Mission's lane status files in place
+fce455fefe7cc8b3c597eccb81c6eba29fe87f99,2026-11-19,4,multi-component,,,fix(review): operator rulings A/B and review fold for the bulk-edit gate (#7726)
+fd0c25f96ef660d17978c1e8994eda80d318befc,2026-10-31,2,multi-component,,,fix(landing): a cascade deactivation that leaves children on names each deactivate command (#6873)
+fd8784506f07e25ee6216a9cedff512cb7a3aba9,2026-09-24,3,multi-component,,,fix(coordination): refuse stale-local-head self-materialization; route issue-verdict through the fail-closed resolver (#4970)
+fe4f5dd94a1a51e13bb45ee0104b5849627cc1f7,2026-09-29,2,multi-component,,,fix(landing): one global consolidation lock-id constant for the executor and --abort
+fe5e3d7ad806ee57ce45862a87e160de87871167,2026-10-21,2,multi-component,,,fix(landing): route the charter.yaml gate through the activation seam
+feb623c31f269d348554075a349337298c2ff53e,2026-11-09,0,pin-lock,pyproject.toml(dependency line);uv.lock,,"fix(deps): bump mcp, msgpack and filelock past known advisories"
+ff6005109f64390ab79c914e2b496ee2653dd874,2026-09-30,9,multi-component,,,"fix(lanes): a planning_artifact WP never requires the lane-planning ref (#5100, WP02)"
+ff686fe92fd9c5891a58f70faecdc8d5a7f5d55c,2026-10-03,0,contract,,contracts/mission-status/CHANGELOG.md;contracts/mission-status/parameters/EventsStreamCursor.yaml;contracts/mission-status/paths/events.yaml;contracts/mission-status/schemas/StreamCursorString.yaml;co,"fix(contracts): mark contract-owned stream rules x-provisional, widen cursor disjointness test (#5558)"
+ffabf8d52aaba06ebb0c2f84371dcd9ca2873622,2026-09-30,2,multi-component,,,fix(doctor): topology findings carry a truthful remedy (FR-015)
+ffd4655cd5343883a45a07a3d5942bc8cbe51058,2026-11-25,2,multi-component,,,fix(WP01): list exclude-only visibility through kernel.git (#7729)

@@ -1,0 +1,135 @@
+# Code identifiers containing architecture terms, top 14 per term, core src at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+# command: git grep -I -h -o -i -P '\b[A-Za-z_]*<w>[A-Za-z_]*\b' <rev> -- 'src/**/*.py' | sort | uniq -c | sort -rn | head -14
+== runtime
+runtime:1971  mission_runtime:803  RuntimeError:429  runtime_bridge:100  _internal_runtime:89  Runtime:70  charter_runtime:69  MissionRuntimeError:49  runtime_checkable:47  runtime_bridge_io:46  get_runtime_root:43  runtime_decision:41  backfill_runtime_state:41  runtime_bridge_cores:36  
+== dispatch
+dispatch:289  dispatched:36  Dispatch:34  dispatches:17  dispatching:7  dispatched_claim_identity:7  _should_dispatch_via_composition:7  _mt_dispatch_one_gate:7  _mt_dispatch_transition_gates:6  _dn_composition_dispatch:6  Dispatches:6  DispatchedClaimIdentity:6  _resolve_dispatch_binding:5  _composition_dispatch_inputs:5  
+== invocation
+invocation:755  invocation_id:303  Invocation:68  invocations:67  ProfileInvocationRecord:51  primary_paths_created_this_invocation:31  ProfileInvocationExecutor:31  InvocationError:31  InvocationPayload:30  LaneTestInvocation:21  invocation_context:19  InvocationWriteError:19  mark_invocation_succeeded:17  InvocationWriter:16  
+== orchestrat
+orchestrator:275  orchestrator_api:51  orchestration:51  Orchestrate:11  orchestrators:10  approved_after_orchestrator_fix:9  Orchestrator:8  Orchestration:8  orchestrates:7  orchestrator_version:5  orchestrator_id:5  Orchestrates:4  EvidenceOrchestrator:4  test_orchestrator_api:3  
+== coordinat
+coordination:3555  coordination_branch:567  CoordinationBranchDeleted:140  routes_through_coordination:103  CoordinationWorkspace:94  CoordinationWorktreeUnmaterialized:82  Coordination:69  COORDINATION_BRANCH_DELETED:30  COORDINATION:29  CoordinationTeardownError:26  teardown_coordination:25  coordinated:23  CoordinationWorkspaceBranchMismatch:23  is_coordination_kind_file:22  
+== harness
+harness:170  harnesses:25  harness_key:25  HarnessCapabilityRecord:13  HARNESS_CAPABILITY_MATRIX:9  Harness:5  Harnesses:3  _sync_harness_hooks:2  HARNESS_PLAN_SOURCES:2  SessionPresenceAllHarnessesMigration:1  
+== runner
+runner:221  runner_cls:24  get_runner:19  MigrationRunner:19  GlossaryAwarePrimitiveRunner:13  GatewayCommandRunner:12  GlossaryRunnerProtocol:10  glossary_runner:9  test_runner:8  runners:8  _ensure_runner_registered:8  Runner:6  cli_runner:5  SubprocessCommandRunner:5  
+== assignment
+assignment:101  AgentAssignment:31  wp_agent_assignment:24  assignments:12  reassignment:10  needs_number_assignment:8  RACIAssignment:8  _mt_reassignment_binding_fields:7  needs_agent_assignment:6  _lane_assignment_or_legacy:6  assignment_lists_dunder_all:5  review_agent_assignment:4  _review_agent_assignment:3  _inferred_assignment:3  
+== attempt
+attempt:216  attempted:82  attempts:31  attempting:20  begin_attempt:18  Attempt:16  _AttemptStart:15  attempted_provenance_kind:12  attempted_forms:10  attempt_auto_rebase:10  silent_auto_run_attempted:8  origin_binding_attempted:8  would_have_attempted:7  _attempt_auto_refresh:7  
+== session
+session:161  session_presence:60  SessionPresenceContent:39  SessionStart:27  SessionPresenceManager:21  Session:15  supersession:14  _emit_sparse_session_warning:9  SESSION_START_EVENT:9  session_start:8  SESSION_STOP_CMD:8  SESSION_START_CMD:8  sessions:7  session_started_at:6  
+== projection
+projection:527  projections:34  coord_tip_after_projection:24  ProjectionRule:22  LateProjectionRefusalKind:21  LateProjectionRefused:18  bookkeeping_projection:17  ProjectionTeardownAbort:17  step_projection:11  refresh_projection:11  projection_gate:11  test_extractor_projection:9  PreparedProjection:9  refresh_execution_projection:8  
+== snapshot
+snapshot:1826  snapshots:76  StatusSnapshot:68  materialize_snapshot:60  interview_snapshot:60  snapshot_path:52  SNAPSHOT_FILENAME:49  drg_snapshot:48  Snapshot:39  wp_snapshot:35  wp_snapshot_state:28  MissionRunSnapshot:28  MissionPolicySnapshot:26  _read_snapshot:25  
+== materializ
+materialized:226  materialize:218  materialization:85  CoordinationWorktreeUnmaterialized:82  materializes:80  UNMATERIALIZED:75  unmaterialized:66  materialize_snapshot:60  MATERIALIZED:50  _materialize_decision:36  materialized_at:30  materialize_coord_surface_for_write:26  tolerate_unmaterialized_coord:21  materializing:21  
+== ledger
+ledger:820  activation_ledger:41  MigrationLedger:33  ledger_dir:32  LedgerFinding:32  load_activation_ledger:31  LEDGER:30  ledger_posture:29  ActivationLedger:26  ledger_path:25  ACTIVATION_LEDGER:24  LedgerRecord:22  resolve_ledger_source:20  activation_ledger_store:18  
+== seam
+seam:1955  placement_seam:487  seams:89  PlacementSeam:87  Seam:64  WriteSeamResult:45  write_seam:35  _io_seam:28  seam_coord_router:14  SEAM:14  presence_seam:8  seam_repo_root:7  seam_commit_checkout:7  mission_finalize_seams:7  
+== adapter
+adapter:321  adapters:55  adapter_id:42  adapter_version:39  AdapterOutput:30  _engine_adapter:22  Adapter:19  SynthesisAdapter:15  syn_adapter:14  TypeAdapter:12  adapter_name:10  adapter_hints:10  FixtureAdapter:10  effective_adapter_version:9  
+== contract
+contract:1817  contracts:607  Contract:115  mission_step_contracts:68  MissionStepContract:50  mission_step_contract:49  MISSION_STEP_CONTRACT:36  contract_ref:34  MissionStepContractRepository:34  CONTRACT:29  EventLogReadContract:28  step_contracts:23  StepContractExecutor:20  json_contract:19  
+== service
+service:884  ActiveCharterService:128  ServiceRefusalCode:61  CharterOfferingService:61  status_service:49  ServiceTarget:49  ServiceAsset:49  _build_offering_service:47  ServiceRefusal:46  ServicePinError:43  ServicePin:43  services:42  active_charter_service_builder:36  charter_service:34  
+== daemon
+daemon:28  sync_daemon_control:1  
+== journal
+journal:32  CreateRollbackJournal:10  rollback_journal:9  journals:7  best_journal:4  _rollback_journal:4  latest_run_journal:2  _RUN_JOURNAL_FILENAME:2  
+
+# Class definitions with sense-bearing names, core src
+src/charter/activation/activation_ledger.py:222:class ActivationLedger:
+src/charter/activation/activation_ledger.py:768:class LedgerMigrationRefusal:
+src/charter/activation/activation_ledger.py:787:class LedgerMigrationRefused(ActiveCharterConfigError):
+src/charter/activation/activation_ledger.py:796:class LedgerMove:
+src/charter/activation/activation_ledger.py:805:class LedgerMigrationPlan:
+src/charter/activation/activation_ledger.py:1142:class LedgerFinding:
+src/charter/activation/activation_ledger.py:1157:class LedgerFindings:
+src/charter/activation/synthesizer/evidence.py:90:class CorpusSnapshot:
+src/glossary/attachment.py:181:class GlossaryAwarePrimitiveRunner:
+src/kernel/activation_ledger_store.py:72:class ActivationLedgerFormatError(KittyInternalConsistencyError):
+src/kernel/glossary_runner.py:68:class GlossaryRunnerProtocol(Protocol):
+src/mission_runtime/resolution.py:2466:class PlacementSeam:
+src/runtime/next/_internal_runtime/schema.py:92:class RACIAssignment(BaseModel):
+src/runtime/next/_internal_runtime/schema.py:385:class MissionPolicySnapshot(BaseModel):
+src/runtime/next/_internal_runtime/schema.py:476:class MissionRunSnapshot(BaseModel):
+src/runtime/next/runtime_bridge_cores.py:496:class _ArtifactPresenceSnapshotLike(Protocol):
+src/runtime/next/runtime_bridge_io.py:1309:class ArtifactPresenceSnapshot:
+src/specify_cli/cli/commands/agent/mission_finalize_commit.py:1179:class FinalizeWriteLedger:
+src/specify_cli/cli/commands/implement_claim.py:52:class DispatchedClaimIdentity:
+src/specify_cli/consolidation/bookkeeping_projection.py:637:class ProjectionResult:
+src/specify_cli/consolidation/bookkeeping_projection.py:920:class LateProjectionRefusalKind(StrEnum):
+src/specify_cli/consolidation/bookkeeping_projection.py:948:class LateProjectionRefused(Exception):
+src/specify_cli/consolidation/lane_cleanup.py:175:class MissionBranchProjection:
+src/specify_cli/consolidation/rollback.py:606:class _AttemptStart:
+src/specify_cli/coordination/teardown.py:105:class ProjectionTeardownGate:
+src/specify_cli/coordination/teardown.py:127:class ProjectionTeardownAbort(RuntimeError):
+src/specify_cli/coordination/write_seam.py:197:class WriteSeamUsageError(ValueError):
+src/specify_cli/coordination/write_seam.py:220:class WriteSeamResult:
+src/specify_cli/core/ledger_posture.py:47:class LedgerPosture:
+src/specify_cli/core/mission_creation_rollback.py:245:class CreateRollbackJournal:
+src/specify_cli/decisions/fork.py:76:class LedgerProbeError(RuntimeError):
+src/specify_cli/decisions/fork.py:119:class LedgerHomeFinding:
+src/specify_cli/dossier/models.py:267:class MissionDossierSnapshot(BaseModel):
+src/specify_cli/invocation/projection_policy.py:30:class ProjectionRule:
+src/specify_cli/retrospective/schema.py:156:class ProposalApplyAttempt(BaseModel):
+src/specify_cli/retrospective/summary.py:126:class SummarySnapshot(BaseModel):
+src/specify_cli/session_presence/content.py:32:class SessionPresenceContent:
+src/specify_cli/session_presence/manager.py:41:class SessionPresenceManager:
+src/specify_cli/skills/installer.py:1264:class PackSkillProjection:
+src/specify_cli/status/models.py:1012:class StatusSnapshot:
+src/specify_cli/status/models.py:1084:class AgentAssignment:
+src/specify_cli/status/models.py:1199:class RetrospectiveSnapshot(BaseModel):
+src/specify_cli/tool_surface/profiles/capability_matrix.py:33:class HarnessCapabilityRecord:
+src/specify_cli/tool_surface/profiles/projection.py:411:class PreparedProjection:
+src/specify_cli/tool_surface/providers/session_presence.py:136:class PreparedSessionBatch:
+src/specify_cli/tool_surface/providers/session_presence.py:187:class SessionPresenceProvider:
+src/specify_cli/tracker/gateway.py:363:class _CommandRunnerLike(Protocol):
+src/specify_cli/tracker/gateway.py:382:class GatewayCommandRunner:
+src/specify_cli/upgrade/ledger.py:97:class MigrationLedgerLockTimeoutError(RuntimeError):
+src/specify_cli/upgrade/ledger.py:144:class LedgerRecord:
+src/specify_cli/upgrade/ledger.py:287:class LedgerReportRow:
+src/specify_cli/upgrade/ledger.py:299:class MigrationLedger:
+src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_all_harnesses.py:45:class SessionPresenceAllHarnessesMigration(BaseMigration):
+src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_claude_code.py:20:class SessionPresenceClaudeCodeMigration(BaseMigration):
+src/specify_cli/upgrade/migrations/m_4_0_0rc8_activation_ledger.py:57:class ActivationLedgerMigration(BaseMigration):
+src/specify_cli/upgrade/migrations/m_4_0_0rc8_backfill_migration_ledger.py:70:class BackfillMigrationLedgerMigration(BaseMigration):
+src/specify_cli/upgrade/runner.py:252:class MigrationRunner:
+
+# spec-kitty-events 646e330b src+service identifiers
+== session
+session:130  SessionWork:19  session_started_at:15  session_ended_at:14  session_duration_s:14  Session:13  SessionIdentity:9  session_id:8  
+== projection
+projection:68  ProjectionError:34  ProjectionCache:22  projections:20  projection_refused:15  PROJECTION_REFUSED:15  WideningProjection:13  Projection:5  
+== attempt
+attempt:44  FactoryAttemptRef:7  mutationAttempted:5  action_attempted:4  factory_attempt:3  attempted:2  MOVE_ATTEMPTS:2  factory_attempt_ref:1  
+== harness
+AdapterServiceHarness:154  HttpHarness:141  harness:57  HarnessObservation:16  HarnessObservationPayload:11  HARNESS_OBSERVATION:11  harness_observation:9  HARNESS_OBSERVATION_CONTRACT_VERSION:5  
+== journal
+journal:37  _journal_row:15  journals:2  test_envelope_strict_journal_class:1  journal_envelope:1  envelope_strict_journal:1  
+== diary
+diary:63  DiaryError:15  parse_diary:14  diary_row:6  DIARY_TYPES:5  test_status_diary_reducer:3  status_diary_:2  status_diary:2  
+== op_
+lock_interop_peer:4  SPEC_KITTY_LOCK_INTEROP_PYTHON:3  pii_top_level:1  SPEC_KITTY_LOCK_INTEROP_PEER:1  OP_READ:1  
+
+# spec-kitty-charter 06cdfbe9 service identifiers
+== session
+session:488  PacksSession:117  ClosureViewSession:58  sessions:20  Session:18  ClosureViewSessionStepRefsTest:4  aRefusalOfTheSessionIsTheAnswerUnchanged:3  SSLSession:2  
+== projection
+GraphProjection:32  ContextiveProjection:27  TabooProjection:22  projection:13  projections:6  READ_MODEL_PROJECTIONS:2  aTensionEdgeOfTheProjectionKeepsItsWordsAndAStructuralEdgeHasNone:1  TabooProjectionTest:1  
+== harness
+Harness:64  harness:11  theMigrationHarnessIsGone:2  
+== routing
+routing:435  RoutingCatalogView:93  RoutingCatalog:79  ROUTING_CATALOG:67  routingPriority:55  RoutingObjective:54  RoutingCatalogDso:50  routing_catalog:41  
+
+# core src imports of events WorkObservation-family names (files)
+WorkObservation files_in_core_src=0
+FactoryAttemptRef files_in_core_src=0
+SessionIdentity files_in_core_src=0
+HarnessObservation files_in_core_src=0
+OpsInvocation files_in_core_src=0
+zeitgeist_attrs files_in_core_src=1

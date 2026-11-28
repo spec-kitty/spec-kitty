@@ -1,0 +1,63 @@
+import csv,os,sys,json,collections,datetime,re,bisect
+S=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,S)
+from parse import parse; import build
+final=json.load(open(S+'/lineage.json'))
+meta={r['sha']:r for r in csv.DictReader(open(S+'/commits.csv'))}
+cs=[c for c in parse(S+'/raw_numstat.txt') if meta[c['sha']]['category']=='code' and meta[c['sha']]['bulk']=='0' and '2026-01'<=meta[c['sha']]['month']<='2026-11']
+bodies={}
+for blk in open(S+'/bodies.txt',errors='replace').read().split('@@@')[1:]:
+    h,_,b=blk.partition('\n'); bodies[h.strip()]=b
+def srcfiles(c): return {final.get(n,n) if final.get(n,n).startswith('src/') else n for a,d,o,n in c['files'] if n.startswith('src/') or o.startswith('src/')}
+# 1 recurrence
+fm=collections.defaultdict(set); cm=collections.defaultdict(set); fcount=collections.Counter()
+for c in cs:
+    m=meta[c['sha']]
+    if m['cls']!='corrective-maintenance': continue
+    for f in srcfiles(c): fm[f].add(m['month']); fcount[f]+=1
+    for k in m['components'].split(';'):
+        if k: cm[k].add(m['month'])
+alive=set(l.strip() for l in os.popen("git -C /home/user/spec-kitty ls-tree -r --name-only 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 -- src/"))
+rec=[dict(file=f,distinct_months=len(v),corrective_commits=fcount[f],exists_at_head=int(f in alive),component=build.component(f,final)) for f,v in fm.items()]
+rec.sort(key=lambda r:(-r['distinct_months'],-r['corrective_commits']))
+with open(S+'/out/recurrence-files.csv','w',newline='') as f:
+    w=csv.DictWriter(f,fieldnames=list(rec[0].keys()));w.writeheader();w.writerows([r for r in rec if r['distinct_months']>=3])
+allcomp={k for c in cs for k in meta[c['sha']]['components'].split(';') if k}
+with open(S+'/out/recurrence-components.csv','w',newline='') as f:
+    w=csv.writer(f);w.writerow(['component','distinct_months_with_corrective_commit','months'])
+    for k,v in sorted(cm.items(),key=lambda x:-len(x[1])): w.writerow([k,len(v),' '.join(sorted(v))])
+nf=len(rec); n3=sum(1 for r in rec if r['distinct_months']>=3); allfiles={f for c in cs for f in srcfiles(c)}
+print('files with >=1 corrective commit',nf,'of files touched by any code commit',len(allfiles),'; >=3 months:',n3,'; >=5:',sum(1 for r in rec if r['distinct_months']>=5), 'py only >=3:',sum(1 for r in rec if r['distinct_months']>=3 and r['file'].endswith('.py')),'of',sum(1 for r in rec if r['file'].endswith('.py')))
+print('at head: files>=3 months existing',sum(1 for r in rec if r['distinct_months']>=3 and r['exists_at_head']))
+print('components with corrective',len(cm),'of',len(allcomp),'>=3 months:',sum(1 for v in cm.values() if len(v)>=3))
+for r in rec[:15]: print(r)
+# 2 fix-of-fix chains
+fx=[c for c in cs if meta[c['sha']]['fix']=='1']
+def ts(c): return datetime.datetime.fromisoformat(c['cdate']).timestamp()
+fx.sort(key=ts); T=[ts(c) for c in fx]; F=[srcfiles(c) for c in fx]
+def compat(l1,l2): return l1==l2 or l1=='pre-fork' or l2=='converged'
+PRS=re.compile(r'\(#(\d+)\)\s*$')
+res=collections.defaultdict(lambda:collections.Counter()); pairs=[]
+for i,c in enumerate(fx):
+    m=meta[c['sha']]; per=m['period'] if m['period']!='T2' else 'T2-'+m['line']
+    key=per or 'outside periods'
+    res[key]['fix_code_commits']+=1; res['ALL 2026-01..11']['fix_code_commits']+=1
+    j=i+1; any_=strict=ref=False; hi=T[i]+14*86400
+    pm=PRS.search(c['subject']); prn=pm.group(1) if pm else None
+    while j<len(fx) and T[j]<=hi:
+        d=fx[j]; md=meta[d['sha']]
+        if compat(m['line'],md['line']):
+            inter=F[i]&F[j]
+            if inter:
+                if not any_: pairs.append((c['sha'],d['sha'],len(inter)))
+                any_=True
+                if len(inter)/len(F[i]|F[j])>=0.5: strict=True
+            if prn and re.search(r'#'+prn+r'\b',d['subject']+'\n'+bodies.get(d['sha'],'')) and not PRS.search(d['subject'] or '') or (prn and (pm2:=PRS.search(d['subject'])) and pm2.group(1)!=prn and re.search(r'#'+prn+r'\b',d['subject']+'\n'+bodies.get(d['sha'],''))): ref=True
+        j+=1
+    for k in(key,'ALL 2026-01..11'):
+        res[k]['followed_shared_file']+=any_; res[k]['followed_jaccard_ge_0.5']+=strict; res[k]['has_pr_suffix']+=bool(prn); res[k]['followed_fix_citing_its_pr_number']+=ref
+with open(S+'/out/fix-of-fix-chains.csv','w',newline='') as f:
+    w=csv.writer(f); w.writerow(['group','fix_class_code_commits','followed_within_14d_by_fix_sharing_a_src_file','share','followed_within_14d_by_fix_with_file_jaccard_ge_0.5','share','fix_commits_with_pr_suffix','of_those_followed_within_14d_by_a_fix_citing_that_pr_number','share'])
+    for k in('T1','T2-pre-fork','T2-public','T2-experimental','T3','outside periods','ALL 2026-01..11'):
+        r=res[k]; n=r['fix_code_commits']
+        row=[k,n,r['followed_shared_file'],round(r['followed_shared_file']/n,4),r['followed_jaccard_ge_0.5'],round(r['followed_jaccard_ge_0.5']/n,4),r['has_pr_suffix'],r['followed_fix_citing_its_pr_number'],round(r['followed_fix_citing_its_pr_number']/r['has_pr_suffix'],4) if r['has_pr_suffix'] else '']
+        w.writerow(row); print(row)

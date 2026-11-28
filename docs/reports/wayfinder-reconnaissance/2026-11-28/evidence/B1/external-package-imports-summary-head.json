@@ -1,0 +1,178 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "spec_kitty_events": {
+  "import_records": 106,
+  "importing_modules": 27,
+  "importing_components": [
+   "glossary",
+   "runtime",
+   "specify_cli",
+   "specify_cli.cli",
+   "specify_cli.core",
+   "specify_cli.decisions",
+   "specify_cli.dossier",
+   "specify_cli.events",
+   "specify_cli.retrospective",
+   "specify_cli.state",
+   "specify_cli.status"
+  ],
+  "components_count": 11,
+  "records_by_component": [
+   [
+    "runtime",
+    32
+   ],
+   [
+    "specify_cli.status",
+    30
+   ],
+   [
+    "specify_cli.decisions",
+    16
+   ],
+   [
+    "specify_cli.cli",
+    11
+   ],
+   [
+    "specify_cli.dossier",
+    8
+   ],
+   [
+    "specify_cli.events",
+    3
+   ],
+   [
+    "glossary",
+    2
+   ],
+   [
+    "specify_cli.core",
+    1
+   ],
+   [
+    "specify_cli.retrospective",
+    1
+   ],
+   [
+    "specify_cli.state",
+    1
+   ],
+   [
+    "specify_cli",
+    1
+   ]
+  ],
+  "records_by_classification": {
+   "public_in_submodule___all__": 21,
+   "public_in___all__": 38,
+   "submodule_without___all__:name_in_root___all__": 43,
+   "dynamic": 2,
+   "module_import": 1,
+   "submodule_without___all__:name_not_in_root___all__": 1
+  },
+  "records_by_imported_module": [
+   [
+    "spec_kitty_events",
+    40
+   ],
+   [
+    "spec_kitty_events.mission_next",
+    21
+   ],
+   [
+    "spec_kitty_events.decisionpoint",
+    14
+   ],
+   [
+    "spec_kitty_events.project_lifecycle",
+    9
+   ],
+   [
+    "spec_kitty_events.status",
+    6
+   ],
+   [
+    "spec_kitty_events.persistence",
+    4
+   ],
+   [
+    "spec_kitty_events.decision_moment",
+    4
+   ],
+   [
+    "spec_kitty_events.lifecycle",
+    3
+   ],
+   [
+    "spec_kitty_events.diary",
+    2
+   ],
+   [
+    "spec_kitty_events.conformance",
+    1
+   ],
+   [
+    "spec_kitty_events.retrospective",
+    1
+   ],
+   [
+    "spec_kitty_events.zeitgeist_attrs",
+    1
+   ]
+  ],
+  "distinct_names": 77,
+  "records_load_time": 86,
+  "by_layer": {
+   "glossary": 2,
+   "runtime": 32,
+   "specify_cli": 72
+  }
+ },
+ "spec_kitty_tracker": {
+  "import_records": 23,
+  "importing_modules": 4,
+  "importing_components": [
+   "specify_cli.tracker"
+  ],
+  "components_count": 1,
+  "records_by_component": [
+   [
+    "specify_cli.tracker",
+    23
+   ]
+  ],
+  "records_by_classification": {
+   "public_in___all__": 11,
+   "submodule_without___all__:name_in_root___all__": 11,
+   "submodule_without___all__:name_not_in_root___all__": 1
+  },
+  "records_by_imported_module": [
+   [
+    "spec_kitty_tracker",
+    11
+   ],
+   [
+    "spec_kitty_tracker.models",
+    8
+   ],
+   [
+    "spec_kitty_tracker.context",
+    2
+   ],
+   [
+    "spec_kitty_tracker.errors",
+    1
+   ],
+   [
+    "spec_kitty_tracker.connectors.cli_runner",
+    1
+   ]
+  ],
+  "distinct_names": 18,
+  "records_load_time": 0,
+  "by_layer": {
+   "specify_cli": 23
+  }
+ }
+}

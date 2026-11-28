@@ -1,0 +1,24 @@
+import csv,hashlib,os,sys
+E="/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2"; NOW=sys.argv[1]
+HEADS={"spec-kitty":"5c4fc5a79de1c1c299ab221ca26e5555c68ef533","spec-kitty-charter":"06cdfbe94856e8d24eca350c63d2a7b47bb9f13a","spec-kitty-events":"646e330b896b96d7a11f53b34aa3d0c0baa69a05","spec-kitty-open-packs":"f9a557510dc7ff04597a0b8aba87f736e25f785e"}
+repo={r["id"]:r["repository"] for r in csv.DictReader(open(E+"/mutations.csv"))}
+ALL="core 5c4fc5a7; charter 06cdfbe9; events 646e330b; open-packs f9a55751"
+META={"mutations.csv":("python3 script-write_mutations_csv.txt mutations.csv",ALL,"Python 3.13.18",0),
+"apply-check.txt":("bash script-verify_apply.txt",ALL,"git 2.43.0",0),
+"syntax-import-check.txt":("bash script-import_check.txt",ALL,"Python 3.11.15; Python 3.13.18; git 2.43.0",0),
+"events-java-syntax-check.txt":("javac -proc:none on the file patched by M-OB-5, error kinds counted; plus the failure lines of ./gradlew :mission-status-api:compileJava (exit 1)","events 646e330b","javac 25.0.5; Gradle wrapper",0),
+"charter-java-check.txt":("javac -proc:none on the three files patched by M-PI-4, M-PI-6, M-RD-6, error kinds counted; ./gradlew :activations:compileJava timed out (exit 124)","charter 06cdfbe9","javac 25.0.5; Gradle wrapper",0),
+"ambiguity-counts.txt":("bash script-ambiguity_counts.txt","core 5c4fc5a7","GNU grep 3.11; git 2.43.0",0)}
+rows=[]
+for f in sorted(os.listdir(E)):
+    if f=="MANIFEST.csv": continue
+    h=hashlib.sha256(open(E+"/"+f,"rb").read()).hexdigest()
+    if f.startswith("M-"):
+        mid=f.split(".")[0]; r=repo[mid].split("@")
+        rows.append((f,h,"edit in a --shared scratch clone, then `git diff` (script-mk.txt, script-ed.txt)",r[0]+"@"+r[1],"git 2.43.0",0,NOW))
+    elif f.startswith("script-"):
+        rows.append((f,h,"written by the analyst; stored as text",ALL,"bash 5; Python 3.13.18",0,NOW))
+    else:
+        c,rev,t,x=META[f]; rows.append((f,h,c,rev,t,x,NOW))
+w=csv.writer(open(E+"/MANIFEST.csv","w",newline=""),quoting=csv.QUOTE_ALL)
+w.writerow(["file","sha256","produced_by_command","revision","tool_versions","exit_code","observed_at_utc"]); w.writerows(rows); print(len(rows))

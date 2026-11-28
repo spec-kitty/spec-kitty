@@ -1,0 +1,78 @@
+$ .venv/bin/spec-kitty agent profile list
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/pack_paths.py", line 262, in _resolve_built_in
+    root = get_built_in_pack_root()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/kernel/paths.py", line 284, in get_built_in_pack_root
+    return resolve_installed_sibling(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/kernel/sibling_paths.py", line 194, in resolve_installed_sibling
+    raise SiblingPathNotFound(sibling_relative_path, anchor_file)
+kernel.sibling_paths.SiblingPathNotFound: Could not resolve 'packs/built-in' as a sibling of /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/kernel/paths.py: no env override or ancestor sibling directory matched.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/.venv/bin/spec-kitty", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/__init__.py", line 626, in main
+    app = _load_bytecode_heal_invoker()(_assemble_app, on_healed=_warn_bytecode_healed)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/bytecode_heal.py", line 188, in invoke_with_bytecode_heal
+    return operation()
+           ^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/__init__.py", line 494, in _assemble_app
+    app = _get_app()
+          ^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/__init__.py", line 343, in _get_app
+    _APP = _build_app()
+           ^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/__init__.py", line 260, in _build_app
+    from specify_cli.cli.commands.init import register_init_command
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/cli/commands/init.py", line 32, in <module>
+    from specify_cli.core.vcs import (
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/core/vcs/__init__.py", line 62, in <module>
+    from .detection import (
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/core/vcs/detection.py", line 20, in <module>
+    from specify_cli.mission_metadata import load_meta
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/specify_cli/mission_metadata.py", line 25, in <module>
+    from charter.activation.api import read_mission_type
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/api.py", line 45, in <module>
+    from charter.activation.scope import (
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/scope.py", line 47, in <module>
+    from charter.activation.pack_context import ActiveCharterConfigError
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/pack_context.py", line 50, in <module>
+    from charter.activation.org_pack_discovery import read_org_required_ids, read_org_required_tokens
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/org_pack_discovery.py", line 35, in <module>
+    from charter.activation.schemas import GovernanceCharterConfig
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/schemas.py", line 16, in <module>
+    from charter.activation.activations import ActivationEntry
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/activation/activations.py", line 89, in <module>
+    ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(builtin_mission_type_id_set() | {"any", "generic"})
+                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/missions/mission_type_repository.py", line 315, in builtin_mission_type_id_set
+    return frozenset(builtin_mission_type_ids())
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/missions/mission_type_repository.py", line 310, in builtin_mission_type_ids
+    return tuple(MissionTypeRepository.default().ids())
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/missions/mission_type_repository.py", line 116, in default
+    return cls(MissionTemplateRepository.default_missions_root() / "mission_types")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/missions/repository.py", line 189, in default_missions_root
+    root = built_in_missions_root()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/pack_paths.py", line 236, in built_in_missions_root
+    return built_in_root() / MISSION_ASSETS_SIBLING_PATTERN.name
+           ^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/pack_paths.py", line 184, in built_in_root
+    return resolve_pack_root("built-in")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/pack_paths.py", line 170, in resolve_pack_root
+    return _resolve_built_in()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone/src/charter/offering/pack_paths.py", line 265, in _resolve_built_in
+    raise BuiltInPackMissing() from exc
+charter.offering.pack_paths.BuiltInPackMissing: The built-in pack tree is missing: this checkout pins it in packs/built-in.source.yaml but it was never fetched. Run `make sync-packs` (network required once; later runs use the cache).
+exit_code=1

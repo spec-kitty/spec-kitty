@@ -1,0 +1,16 @@
+"""Exploratory: for a revision, list single module edges whose removal shrinks the largest SCC (all-imports variant) by >= 50 modules."""
+import sys, json
+from common import load, edges, scc
+sha=sys.argv[1]
+d=load(sha); all_e,load_e=edges(d); mods=list(d["modules"])
+comps=sorted((c for c in scc(mods, all_e.keys()) if len(c)>1), key=len, reverse=True)
+big=set(comps[0]); inner=[e for e in all_e if e[0] in big and e[1] in big]
+out={"revision":sha,"largest_scc":len(big),"edges_inside":len(inner),"cuts":[]}
+bl=list(big)
+for e in inner:
+    rest=[x for x in inner if x!=e]
+    m=max((len(c) for c in scc(bl, rest)), default=0)
+    if len(big)-m>=50:
+        r=[x for x in d["imports"] if x["src"]==e[0] and x.get("resolved")==e[1]]
+        out["cuts"].append({"edge":e,"largest_after_removal":m,"sites":[{"line":x["line"],"fn":x["fn"],"tc":x["tc"],"name":x["name"]} for x in r]})
+print(json.dumps(out,indent=1))

@@ -1,0 +1,20 @@
+import re,sys,collections
+def parse(path):
+    commits=[];cur=None
+    for line in open(path,encoding='utf-8',errors='replace'):
+        line=line.rstrip('\n')
+        if line.startswith('@@@'):
+            h,p,an,ad,cd,s=line[3:].split('|',5)
+            cur=dict(sha=h,parents=p.split(),author=an,adate=ad,cdate=cd,subject=s,files=[])
+            commits.append(cur)
+        elif line.strip():
+            a,d,p=line.split('\t',2)
+            a=0 if a=='-' else int(a); d=0 if d=='-' else int(d)
+            m=re.match(r'^(.*)\{(.*) => (.*)\}(.*)$',p)
+            if m:
+                old=(m.group(1)+m.group(2)+m.group(4)).replace('//','/'); new=(m.group(1)+m.group(3)+m.group(4)).replace('//','/')
+            elif ' => ' in p:
+                old,new=p.split(' => ',1)
+            else: old=new=p
+            cur['files'].append((a,d,old,new))
+    return commits

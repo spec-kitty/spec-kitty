@@ -1,0 +1,130 @@
+"""Shared helpers for B1 analysis scripts (component mapping, graph, SCC)."""
+from __future__ import annotations
+
+import csv
+import json
+from pathlib import Path
+
+S = Path(__file__).resolve().parent.parent
+SPLIT_TOPS = ("specify_cli", "charter")
+
+# Rename map: old raw component -> present-day component. Derived from
+# out/rename-detection.csv (git diff -M50% between consecutive measurement points)
+# plus the component-set differences; see evidence/B1/rename-map.csv for provenance.
+RENAME = {
+    "doctrine": "charter.offering",
+    "specify_cli.constitution": "charter",
+    "specify_cli.glossary": "glossary",
+    "specify_cli.next": "runtime",
+    "specify_cli.merge": "specify_cli.consolidation",
+    "specify_cli.doctrine_synthesizer": "specify_cli.charter_pack_synthesizer",
+    "specify_cli.doctrine": "specify_cli.charter_packs",
+    "specify_cli.charter_lint": "specify_cli.charter_runtime",
+    "charter.synthesizer": "charter.activation",
+    "charter.context_renderers": "charter.activation",
+    "charter.neutrality": "charter.activation",
+    "charter.corpus": "charter.activation",
+    "charter.packs": "charter.activation",
+    "charter.evidence": "charter.activation",
+}
+# Conditional entry: root-level charter modules moved to charter.activation in 2026-08;
+# applied only to revisions that have no charter.activation package yet.
+RENAME_IF_NO_ACTIVATION = {"charter": "charter.activation"}
+
+
+def raw_component(path: str) -> str:
+    p = path.split("/")
+    if p[0] in SPLIT_TOPS and len(p) > 2:
+        return f"{p[0]}.{p[1]}"
+    if len(p) == 1:
+        return p[0][:-3]
+    return p[0]
+
+
+def load(sha: str) -> dict:
+    return json.load(open(S / "out" / f"raw-{sha}.json"))
+
+
+def components(data: dict) -> tuple[dict[str, str], dict[str, str]]:
+    raw = {m: raw_component(e["path"]) for m, e in data["modules"].items()}
+    has_act = any(c == "charter.activation" for c in raw.values())
+    mapped = {}
+    for m, c in raw.items():
+        c2 = RENAME.get(c, c)
+        if not has_act and c in RENAME_IF_NO_ACTIVATION:
+            c2 = RENAME_IF_NO_ACTIVATION[c]
+        mapped[m] = c2
+    return raw, mapped
+
+
+def edges(data: dict):
+    """Return (all_edges, load_edges): dict[(src, dst)] -> number of import records."""
+    all_e: dict[tuple[str, str], int] = {}
+    load_e: dict[tuple[str, str], int] = {}
+    for r in data["imports"]:
+        if r["kind"] == "dynamic" or not r.get("resolved"):
+            continue
+        s, t = r["src"], r["resolved"]
+        if s == t:
+            continue
+        all_e[(s, t)] = all_e.get((s, t), 0) + 1
+        if not r["tc"] and not r["fn"]:
+            load_e[(s, t)] = load_e.get((s, t), 0) + 1
+    return all_e, load_e
+
+
+def scc(nodes, edge_keys):
+    """Iterative Tarjan. Returns list of components (lists of nodes)."""
+    adj: dict[str, list[str]] = {n: [] for n in nodes}
+    for s, t in edge_keys:
+        if s in adj and t in adj:
+            adj[s].append(t)
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    on: set[str] = set()
+    stack: list[str] = []
+    out: list[list[str]] = []
+    i = 0
+    for root in nodes:
+        if root in index:
+            continue
+        work = [(root, 0)]
+        while work:
+            v, pi = work[-1]
+            if pi == 0:
+                index[v] = low[v] = i
+                i += 1
+                stack.append(v)
+                on.add(v)
+            rec = False
+            nb = adj[v]
+            while pi < len(nb):
+                w = nb[pi]
+                pi += 1
+                if w not in index:
+                    work[-1] = (v, pi)
+                    work.append((w, 0))
+                    rec = True
+                    break
+                if w in on:
+                    low[v] = min(low[v], index[w])
+            if rec:
+                continue
+            work.pop()
+            if work:
+                u = work[-1][0]
+                low[u] = min(low[u], low[v])
+            if low[v] == index[v]:
+                comp = []
+                while True:
+                    w = stack.pop()
+                    on.discard(w)
+                    comp.append(w)
+                    if w == v:
+                        break
+                out.append(comp)
+    return out
+
+
+def points():
+    return list(csv.DictReader(open(S / "points.csv")))

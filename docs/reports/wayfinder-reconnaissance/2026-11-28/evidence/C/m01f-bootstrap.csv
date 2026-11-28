@@ -1,0 +1,10 @@
+period,measure,estimate,boot_p2_5,boot_p97_5,n
+T1,comp_edges_added_per_1000_changed_py_lines,2.142,1.165,3.863,150
+T1,comp_edges_new_in_repo_per_1000_changed_py_lines,1.383,0.625,2.744,150
+T1,file_edges_added_per_1000_changed_py_lines,4.311,2.417,7.365,150
+T2,comp_edges_added_per_1000_changed_py_lines,0.725,0.216,3.683,150
+T2,comp_edges_new_in_repo_per_1000_changed_py_lines,0.241,0.046,1.299,150
+T2,file_edges_added_per_1000_changed_py_lines,1.651,0.417,8.097,150
+T3,comp_edges_added_per_1000_changed_py_lines,1.03,0.53,1.661,150
+T3,comp_edges_new_in_repo_per_1000_changed_py_lines,0.275,0.066,0.541,150
+T3,file_edges_added_per_1000_changed_py_lines,3.616,1.95,5.571,150

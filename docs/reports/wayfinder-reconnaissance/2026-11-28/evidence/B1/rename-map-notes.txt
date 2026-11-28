@@ -1,0 +1,25 @@
+Rename map for workstream B1 (applied by scripts common.py: RENAME, RENAME_IF_NO_ACTIVATION).
+
+Provenance: rename-detection.csv lists every cross-component rename of a .py file that
+`git diff -M50% --name-status --diff-filter=R <a> <b> -- src` reports between consecutive
+measurement points on each line (public, experimental, merged). An entry is in the map when
+the majority of the renamed files of an old component went to one new component.
+
+Not mapped (no majority rename detected; they stay under their historical name):
+  specify_cli.orchestrator (removed 2026-02; 1 file to specify_cli.core)
+  specify_cli.spec_kitty_events (vendored copy present 2026-02..2026-03, removed by 2026-04)
+  specify_cli.charter_freshness, specify_cli.charter_preflight (removed between 2026-06-30 and v3.2.5)
+  specify_cli.scripts, specify_cli.dashboard, specify_cli.proof, specify_cli.auth, specify_cli.saas,
+  specify_cli.saas_client, specify_cli.sync, specify_cli.delivery, specify_cli.event_journal,
+  specify_cli.widen, specify_cli.live_work, specify_cli.zeitgeist_client, specify_cli.team_projection
+  (removed, no successor component detected)
+
+Component definition: each top-level package under src/ is one component, except specify_cli and
+charter, where each second-level subpackage (a directory) is one component and the modules that
+sit directly in the package root form the component named after the package ("specify_cli",
+"charter"). A top-level single-file module (src/doctrine.py, 2026-08..2026-09) is its own component
+and is mapped by the `doctrine` rule.
+
+Effect on the measures: the map changes only (a) the number of components and (b) which module
+edges count as cross-component (two old components mapped to one new component stop counting).
+series.csv carries both forms: xcomp_edges_all_raw and xcomp_edges_all_mapped.

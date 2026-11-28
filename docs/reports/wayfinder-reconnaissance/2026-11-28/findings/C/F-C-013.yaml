@@ -1,0 +1,66 @@
+finding_id: F-C-013
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: classification-agreement
+  deviation: null
+subject:
+  component: commit classification rule set
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'On a seeded sample of 50 code commits (frame 6,345, 2026-01..2026-11) the rule class equals the class assigned
+  by reading the diff for 38 of 50 (76%, Cohen kappa 0.66). Agreement by rule class: capability-growth 8 of 9, corrective-maintenance
+  20 of 23, restructuring 2 of 2, compatibility-work 3 of 5, convergence-activity 2 of 5, other 3 of 6.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/classification-confusion.csv
+  method: inline-steps.txt step 6
+  sha256: ab73f0de11910208b8aacecafcc8db1074546986c9238edcc4520f7d6ad51792
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/classification-sample-50.csv
+  method: inline-steps.txt step 6
+  sha256: 58f8faa849d90218dc661f499b3df2739072aa2b9bf5924ebba05ba87068e6c8
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E3
+  kind: history-derived
+  reference: evidence/C/classification-rules.txt
+  method: written by hand before classification
+  sha256: 8a30bf9739ea1234e07c21b23548fac956a81fde5c24e5a5d9e7b6fc28aa1e95
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Code commits, bulk excluded, 2026-01..2026-11.
+  not_covered: One reader; no second independent reading.
+  population: 6345
+  sample: 50
+  seed: 20261128
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked the three convergence-activity disagreements for a rule error.
+  result: All three carry a cherry-pick trailer below the body excerpt that was read and are dated outside the convergence
+    window (2026-07-12, 2026-09-30, 2026-09-30); if the trailer is taken as decisive, agreement is 41 of 50. The
+    trailer rule therefore also captures cherry-picks unrelated to the convergence (F-C-030).
+relations: []
+confidence: medium
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

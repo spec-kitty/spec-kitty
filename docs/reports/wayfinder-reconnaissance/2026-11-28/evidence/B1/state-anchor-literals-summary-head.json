@@ -1,0 +1,13 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "components": 74,
+ "modules": 1490,
+ "modules_with_.kittify_literal": 298,
+ "components_modules_with_.kittify_literal": 45,
+ "modules_with_kitty-specs_literal": 117,
+ "modules_with_.spec-kitty_literal": 19,
+ "user_dir_call_sites": 12,
+ "components_modules_with_kitty-specs_literal": 26,
+ "components_user_dir_call_sites": 6,
+ "components_modules_with_.spec-kitty_literal": 11
+}

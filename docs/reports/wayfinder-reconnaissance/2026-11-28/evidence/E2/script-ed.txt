@@ -1,0 +1,5 @@
+import sys
+# usage: ed.py file  (reads OLD\n=====\nNEW from stdin); exact single replacement
+p=sys.argv[1]; old,new=sys.stdin.read().split("\n=====\n",1)
+new=new[:-1] if new.endswith("\n") else new
+s=open(p).read(); assert s.count(old)==1,(p,s.count(old)); open(p,"w").write(s.replace(old,new))

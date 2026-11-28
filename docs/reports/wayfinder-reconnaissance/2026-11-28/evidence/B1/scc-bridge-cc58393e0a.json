@@ -1,0 +1,109 @@
+{
+ "revision": "cc58393e0a73447685be7d3f906c1bc77dbee6b4",
+ "largest_scc": 509,
+ "edges_inside": 2498,
+ "cuts": [
+  {
+   "edge": [
+    "runtime.next._internal_runtime.engine",
+    "runtime.next._internal_runtime.planner"
+   ],
+   "largest_after_removal": 168,
+   "sites": [
+    {
+     "line": 41,
+     "fn": false,
+     "tc": false,
+     "name": "plan_next"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "runtime.next._internal_runtime.planner",
+    "runtime.next.decision"
+   ],
+   "largest_after_removal": 167,
+   "sites": [
+    {
+     "line": 66,
+     "fn": false,
+     "tc": false,
+     "name": "DecisionKind"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "runtime.next._internal_runtime.schema",
+    "runtime.next._internal_runtime.engine"
+   ],
+   "largest_after_removal": 170,
+   "sites": [
+    {
+     "line": 194,
+     "fn": true,
+     "tc": false,
+     "name": "validate_binding"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "runtime.next._internal_runtime.significance",
+    "runtime.next._internal_runtime.schema"
+   ],
+   "largest_after_removal": 187,
+   "sites": [
+    {
+     "line": 27,
+     "fn": false,
+     "tc": false,
+     "name": "RACIRoleBinding"
+    },
+    {
+     "line": 30,
+     "fn": false,
+     "tc": true,
+     "name": "MissionPolicySnapshot"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "runtime.next.runtime_bridge_io",
+    "specify_cli"
+   ],
+   "largest_after_removal": 178,
+   "sites": [
+    {
+     "line": 457,
+     "fn": true,
+     "tc": false,
+     "name": null
+    },
+    {
+     "line": 533,
+     "fn": true,
+     "tc": false,
+     "name": null
+    }
+   ]
+  },
+  {
+   "edge": [
+    "specify_cli",
+    "specify_cli.cli.commands"
+   ],
+   "largest_after_removal": 249,
+   "sites": [
+    {
+     "line": 183,
+     "fn": true,
+     "tc": false,
+     "name": "register_commands"
+    }
+   ]
+  }
+ ]
+}

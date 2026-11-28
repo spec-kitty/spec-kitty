@@ -1,0 +1,62 @@
+finding_id: F-C-023
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: recurrence
+  deviation: null
+subject:
+  component: core files and components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Of 1,712 files under src/ that received at least one corrective-maintenance commit in 2026-01..2026-11 (3,700
+  files were touched by any code commit), 497 (29.0%) received such commits in three or more distinct months and
+  182 (10.6%) in five or more; 419 of the 497 exist at head. Three files have corrective commits in all 11 months:
+  cli/commands/agent/workflow.py (106 commits), cli/commands/agent/tasks.py (100), cli/commands/consolidate.py (92).
+  Of 98 components touched, 88 received a corrective commit and 69 did so in three or more months.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/recurrence-files.csv
+  method: python3 script-recur.txt
+  sha256: 1dd88e91561356e0ebdcc643539a6a47ac6924cd51a06e14599ec1562dc2bc1d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/recurrence-components.csv
+  method: python3 script-recur.txt
+  sha256: 786c0ed29a80cd312b1c8c8afeef71dc53025083024cf4d1efce1d1a9a670606
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28;
+    code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Class by rule (agreement 76%, F-C-013); file identity follows recorded renames only.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Checked whether the recurring files are concentrated in one component.
+  result: The 15 most recurrent files span specify_cli/cli (8), orchestrator_api, acceptance, git, status, core,
+    the specify_cli root and the retired dashboard.
+relations: []
+confidence: medium
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+- reliability
+candidate_invariants: []
+open_questions: []

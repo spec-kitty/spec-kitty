@@ -1,0 +1,209 @@
+"""G2 checks I1-I5 for the Java charter service (spec-kitty-charter), static source analysis.
+Usage: python3 -I g2_java.py <charter_root> <out_dir>
+Inputs: service/*/build.gradle.kts (project() deps), service/*/src/main/java/**.java (imports, FQN refs, API calls),
+        docs/architecture/hexagonal-service.md (documented module dependency table = recorded baseline for I1),
+        and, for I3, every tracked text file in the repo (cross-repository references to the core CLI).
+Scope: main source sets only (src/main/java); test source sets are reported separately where stated.
+"""
+import re, sys, json, csv, collections
+from pathlib import Path
+
+ROOT = Path(sys.argv[1]); OUT = Path(sys.argv[2]); OUT.mkdir(parents=True, exist_ok=True)
+BASE = "ai.speckitty.charter."
+res = {}
+
+# ---------- module graph from build files ----------
+PROJ = re.compile(r'^\s*(api|implementation|compileOnly|runtimeOnly|testImplementation|testFixturesApi|testFixturesImplementation)\((testFixtures\()?project\(":([\w-]+)"\)')
+mod_deps = collections.defaultdict(set); mod_test_deps = collections.defaultdict(set)
+for bf in sorted((ROOT / "service").glob("*/build.gradle.kts")):
+    m = bf.parent.name
+    for line in bf.read_text().splitlines():
+        if line.strip().startswith("//"): continue
+        g = PROJ.match(line)
+        if g:
+            (mod_test_deps if g.group(1).startswith("test") else mod_deps)[m].add(g.group(3))
+    mod_deps.setdefault(m, set())
+
+def cycles(graph):
+    idx = {}; low = {}; st = []; on = set(); out = []; c = [0]
+    sys.setrecursionlimit(100000)
+    def sc(v):
+        idx[v] = low[v] = c[0]; c[0] += 1; st.append(v); on.add(v)
+        for w in graph.get(v, ()):
+            if w not in idx: sc(w); low[v] = min(low[v], low[w])
+            elif w in on: low[v] = min(low[v], idx[w])
+        if low[v] == idx[v]:
+            comp = []
+            while True:
+                w = st.pop(); on.discard(w); comp.append(w)
+                if w == v: break
+            if len(comp) > 1 or v in graph.get(v, ()): out.append(sorted(comp))
+    for v in list(graph):
+        if v not in idx: sc(v)
+    return out
+
+# documented baseline table
+doc = (ROOT / "docs/architecture/hexagonal-service.md").read_text()
+doc_deps = {}
+for line in doc.splitlines():
+    mm = re.match(r"^\| `([\w-]+)` \| (.*?) \|", line)
+    if mm:
+        doc_deps[mm.group(1)] = set(re.findall(r"`([\w-]+)`", mm.group(2))) - {"snakeyaml-engine"}
+undocumented = []
+for m, ds in sorted(mod_deps.items()):
+    if m in ("charter-reports",): continue
+    if m not in doc_deps: undocumented.append((m, "<module not in documented table>")); continue
+    if m == "deployable": continue  # 'every slice'
+    for d in sorted(ds - doc_deps[m]):
+        undocumented.append((m, d))
+combined = {m: set(mod_deps[m]) | set(mod_test_deps.get(m, ())) for m in mod_deps}
+res["I1"] = {
+    "main_module_graph": {k: sorted(v) for k, v in sorted(mod_deps.items())},
+    "test_scope_module_deps": {k: sorted(v) for k, v in sorted(mod_test_deps.items())},
+    "main_scope_module_cycles": cycles({k: v for k, v in mod_deps.items()}),
+    "main_plus_test_scope_module_cycles": cycles(combined),
+    "edges_not_in_documented_baseline": undocumented,
+    "documented_modules_without_build_dir": sorted(set(doc_deps) - set(mod_deps)),
+}
+
+# ---------- source facts ----------
+IMP = re.compile(r"^import\s+(static\s+)?([\w.]+)(\.\*)?\s*;", re.M)
+PKG = re.compile(r"^package\s+([\w.]+)\s*;", re.M)
+FQN = re.compile(r"(?<![\w.])(ai\.speckitty\.charter\.[a-z][\w]*(?:\.[a-z][\w]*)*)\.[A-Z]\w*")
+classes = []  # (module, pkg, file, text)
+for f in sorted((ROOT / "service").glob("*/src/main/java/**/*.java")):
+    t = f.read_text(encoding="utf-8")
+    p = PKG.search(t)
+    classes.append((f.relative_to(ROOT / "service").parts[0], p.group(1) if p else "", str(f.relative_to(ROOT)), t))
+gen = []  # generated sources are not in the tree (charter-api is generated at build time)
+
+def strip_comments(t):
+    t = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
+    return re.sub(r"//[^\n]*", "", t)
+
+def slice_of(pkg):
+    if not pkg.startswith(BASE): return None
+    return pkg[len(BASE):].split(".")[0]
+def ring_of(pkg):
+    rest = pkg[len(BASE):].split(".")[1:] if pkg.startswith(BASE) else []
+    if not rest: return "<root>"
+    if rest[0] == "infra": return "infra." + (rest[1] if len(rest) > 1 else "")
+    return rest[0]
+
+edges = []  # (module, src_pkg, file, line, target_pkg_or_type, kind)
+for mod, pkg, f, t in classes:
+    tc = strip_comments(t)
+    for i, line in enumerate(tc.splitlines(), 1):
+        mi = re.match(r"^import\s+(static\s+)?([\w.]+?)(\.\*)?\s*;", line)
+        if mi:
+            name = mi.group(2)
+            if mi.group(1):  # static: drop member
+                name = name.rsplit(".", 1)[0]
+            parts = name.split(".")
+            # package part = segments until first Capitalised
+            pk = []
+            for s in parts:
+                if s[:1].isupper(): break
+                pk.append(s)
+            edges.append((mod, pkg, f, i, ".".join(pk), "import"))
+            continue
+        if line.lstrip().startswith("package "): continue
+        for m in FQN.finditer(line):
+            edges.append((mod, pkg, f, i, m.group(1), "fqn"))
+with open(OUT / "charter_java_edges.csv", "w", newline="") as fh:
+    w = csv.writer(fh); w.writerow(["module", "src_pkg", "file", "line", "target_pkg", "kind"]); w.writerows(edges)
+
+internal = [e for e in edges if e[4].startswith(BASE)]
+# ---------- I1 package/slice level cycles (informational: no recorded baseline) ----------
+slice_graph = collections.defaultdict(set); ring_graph = collections.defaultdict(set)
+for mod, sp, f, ln, tp, k in internal:
+    a, b = slice_of(sp), slice_of(tp)
+    if a and b and a != b: slice_graph[a].add(b)
+    ra, rb = f"{a}.{ring_of(sp)}", f"{b}.{ring_of(tp)}"
+    if ra != rb: ring_graph[ra].add(rb)
+pkg_graph = collections.defaultdict(set)
+for mod, sp, f, ln, tp, k in internal:
+    if sp != tp: pkg_graph[sp].add(tp)
+res["I1"]["slice_level_cycles"] = cycles(slice_graph)
+res["I1"]["slice_ring_level_cycles"] = cycles(ring_graph)
+pc = cycles(pkg_graph)
+res["I1"]["package_level_scc_count"] = len(pc)
+res["I1"]["package_level_sccs"] = pc
+res["I1"]["package_count"] = len({c[1] for c in classes})
+
+# ---------- I2 private cross-slice access ----------
+COMPOSITION_ROOTS = ("ai.speckitty.charter.deployable", "ai.speckitty.charter.packdoctor")
+SHARED = {"kernel", "web", "api"}  # api = generated charter-api package (documented shared contract types)
+# documented cross-slice exceptions (hexagonal-service.md module table + notes): packs.infra.storage stores the kinds of
+# profiles/missions/routing; pack-validation depends on kernel, profiles, missions, packs (reads packs domain PackReading port)
+DOC_EXCEPTIONS = [(BASE+"packs.infra.storage", ("missions","profiles","routing"), ("domain",)),
+                  (BASE+"packvalidation", ("packs","profiles","missions"), ("domain",))]
+def doc_exempt(sp, tp):
+    return any(sp.startswith(pre) and slice_of(tp) in sl and ring_of(tp) in rg for pre, sl, rg in DOC_EXCEPTIONS)
+i2_infra = []; i2_strict = []
+for mod, sp, f, ln, tp, k in internal:
+    a, b = slice_of(sp), slice_of(tp)
+    if not a or not b or a == b or b in SHARED: continue
+    if sp.startswith(COMPOSITION_ROOTS): continue
+    rb = ring_of(tp)
+    if rb.startswith("infra"):
+        i2_infra.append((f, ln, sp, tp))
+    # strict documented rule: only <a>.infra.<b> may name slice b, and only b.application / b.domain
+    allowed_pkg = sp.startswith(f"{BASE}{a}.infra.{b}") and rb in ("application", "domain")
+    if not allowed_pkg and not doc_exempt(sp, tp):
+        i2_strict.append((f, ln, sp, tp))
+res["I2"] = {
+    "rule_A_private_infra_of_other_slice": {"count": len(i2_infra), "sites": i2_infra},
+    "rule_B_strict_one_adapter_package_names_other_slice": {"count": len(i2_strict),
+        "distinct_src_pkg_to_target_pkg": sorted({(s, t) for _, _, s, t in i2_strict}),
+        "by_src_slice_ring_to_target_slice_ring": collections.Counter(f"{slice_of(s)}.{ring_of(s)} -> {slice_of(t)}.{ring_of(t)}" for _, _, s, t in i2_strict).most_common()},
+    "cross_slice_edges_total": sum(1 for e in internal if slice_of(e[1]) and slice_of(e[4]) and slice_of(e[1]) != slice_of(e[4]) and slice_of(e[4]) not in SHARED and not e[1].startswith(COMPOSITION_ROOTS)),
+}
+
+# ---------- I3 lower layers do not depend on higher (intra-repo) ----------
+i3_kernel = [(f, ln, sp, tp) for mod, sp, f, ln, tp, k in internal if slice_of(sp) == "kernel" and slice_of(tp) != "kernel"]
+i3_domain = [(f, ln, sp, tp) for mod, sp, f, ln, tp, k in internal
+             if ring_of(sp) == "domain" and (ring_of(tp).startswith("infra") or ring_of(tp) == "application" or slice_of(tp) in ("deployable", "web", "packdoctor"))]
+i3_domain_external = [(f, ln, sp, tp) for mod, sp, f, ln, tp, k in edges if ring_of(sp) == "domain" and tp.startswith(("org.springframework", "com.fasterxml", "org.snakeyaml", "org.yaml", "jakarta.", "io.swagger"))]
+res["I3_intra"] = {"kernel_imports_slice": i3_kernel, "domain_imports_outer_ring": i3_domain, "domain_imports_framework_lib": i3_domain_external}
+
+# ---------- I4 CLI concern in domain / application / kernel ----------
+CLI_PAT = [("System.out", r"\bSystem\.out\b"), ("System.err", r"\bSystem\.err\b"), ("System.exit", r"\bSystem\.exit\s*\("),
+           ("main(String[])", r"static\s+void\s+main\s*\(\s*(final\s+)?String"), ("java.io.Console", r"\bjava\.io\.Console\b|System\.console\s*\("),
+           ("cli-lib", r"\bimport\s+(picocli|com\.beust\.jcommander|org\.apache\.commons\.cli|net\.sourceforge\.argparse4j)\b")]
+i4 = []; i4_all = collections.Counter()
+for mod, pkg, f, t in classes:
+    tc = strip_comments(t)
+    r = ring_of(pkg); s = slice_of(pkg)
+    for label, pat in CLI_PAT:
+        for m in re.finditer(pat, tc):
+            ln = tc[:m.start()].count("\n") + 1
+            i4_all[(s, r, label)] += 1
+            if s == "kernel" or r in ("domain", "application"):
+                i4.append((f, ln, pkg, label))
+res["I4"] = {"domain_application_kernel_hits": i4, "all_hits_by_slice_ring": [[*k, v] for k, v in sorted(i4_all.items())]}
+
+# ---------- I5 file-system writes outside owner rings ----------
+W_PAT = [r"\bFiles\.(write|writeString|newOutputStream|newBufferedWriter|move|copy|delete|deleteIfExists|createDirectories|createDirectory|createFile|createTempFile|createTempDirectory|setLastModifiedTime|setPosixFilePermissions)\s*\(",
+         r"\bnew\s+(FileOutputStream|FileWriter|RandomAccessFile|PrintWriter\s*\(\s*new\s+File)\b", r"\bStandardOpenOption\.(WRITE|APPEND|CREATE|CREATE_NEW|TRUNCATE_EXISTING)\b",
+         r"\bFileChannel\.open\s*\("]
+OWNER_RINGS = ("infra.storage", "infra.archive", "infra.fetch")
+i5 = []; i5_owner = collections.Counter()
+for mod, pkg, f, t in classes:
+    tc = strip_comments(t); r = ring_of(pkg); s = slice_of(pkg)
+    for pat in W_PAT:
+        for m in re.finditer(pat, tc):
+            ln = tc[:m.start()].count("\n") + 1
+            if r in OWNER_RINGS: i5_owner[f"{s}.{r}"] += 1
+            else: i5.append((f, ln, pkg, m.group(0).strip()))
+res["I5"] = {"write_api_sites_outside_owner_rings": i5, "write_api_sites_in_owner_rings": dict(i5_owner),
+             "owner_rings_assumed": OWNER_RINGS}
+res["facts"] = {"main_java_files": len(classes), "edges": len(edges), "internal_edges": len(internal)}
+(OUT / "charter_java_checks.json").write_text(json.dumps(res, indent=1, default=list))
+print(json.dumps({k: (v if k == "facts" else None) for k, v in res.items()}, indent=0)[:300])
+print("I1 main cycles", res["I1"]["main_scope_module_cycles"], "main+test cycles", res["I1"]["main_plus_test_scope_module_cycles"])
+print("I1 undocumented edges", undocumented)
+print("I1 slice cycles", res["I1"]["slice_level_cycles"], "ring cycles", len(res["I1"]["slice_ring_level_cycles"]), "pkg sccs", len(pc), "of", res["I1"]["package_count"])
+print("I2 A", len(i2_infra), "B", len(i2_strict))
+print("I3 kernel", len(i3_kernel), "domain->outer", len(i3_domain), "domain->fw", len(i3_domain_external))
+print("I4", len(i4)); print("I5 nonowner", len(i5), dict(i5_owner))

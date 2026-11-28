@@ -1,0 +1,30 @@
+Bootstrap probe sequence (workstream B1), disposable clone of core at head
+5c4fc5a79de1c1c299ab221ca26e5555c68ef533 made with `git clone --shared` + `git checkout --detach`.
+HOME, XDG_CACHE_HOME, XDG_STATE_HOME, XDG_CONFIG_HOME pointed at empty scratch directories;
+UV_CACHE_DIR pointed at the host uv cache. uv 0.11.32; the clone's .venv is CPython 3.11.15
+(selected by uv from the project's constraints; downloaded during step 01).
+
+State of the clone before step 01: packs/ holds README.md, built-in.source.yaml,
+internal.source.yaml only (no packs/built-in, no packs/internal); pins/ holds README.md and
+read-service.source.yaml.
+
+01  uv sync --frozen --all-extras                       exit 0   packs/built-in created at 09:16:18 UTC
+                                                                 during the editable build (hatch_build.py
+                                                                 build hook); pack cache created under
+                                                                 XDG_CACHE_HOME/spec-kitty/open-packs/a79c3631...
+02  import of the six top-level packages                exit 0   all OK
+03  import of all 1490 modules (packs/built-in present) exit 0   0 failures
+04  spec-kitty --version                                exit 0
+06  spec-kitty agent profile list                       exit 0
+07  spec-kitty charter context --action review --json   exit 0
+--  mv packs/built-in <scratch>   (tree absent from here on)
+10  import of all 1490 modules (packs/built-in absent)  exit 0   811 failures, all BuiltInPackMissing
+11  spec-kitty --version                                exit 1   BuiltInPackMissing
+13  spec-kitty agent profile list                       exit 1   BuiltInPackMissing
+20  offline rebuild, empty pack cache                   exit 1   PACK_SYNC_UNAVAILABLE
+21  offline rebuild, pack cache from step 01            exit 0   packs/built-in placed again
+30  pytest tests/architectural/test_layer_rules.py      see boot-30 / boot-31 logs
+
+Side effect observed in step 04-08 (not a measure): the CLI wrote agent skill directories under the
+(scratch) HOME: .agents, .claude, .cursor, .kilocode, .qwen, .kittify, .spec-kitty-cold-install.
+packs/internal and the service binaries were never fetched in this sequence.

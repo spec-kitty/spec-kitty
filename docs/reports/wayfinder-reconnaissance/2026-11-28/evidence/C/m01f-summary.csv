@@ -1,0 +1,22 @@
+period,cls,stratum_size,sample_n,py_changed_lines,file_edges_added,file_edges_removed,comp_edges_added,comp_edges_removed,comp_edges_new_in_repo,commits_adding_comp_edge,file_edges_added_per_kloc,comp_edges_added_per_kloc,repo_new_edges_per_kloc,parse_errors
+T1,capability-growth,189,30,9387,21,5,18,5,10,7,2.237,1.918,1.065,0
+T1,corrective-maintenance,509,81,16297,118,7,66,5,43,16,7.241,4.05,2.639,0
+T1,restructuring,39,6,9798,52,13,0,0,0,0,5.307,0.0,0.0,0
+T1,compatibility-work,77,12,10380,37,2,25,2,19,5,3.565,2.408,1.83,0
+T1,convergence-activity,3,1,824,1,3,0,2,0,0,1.214,0.0,0.0,0
+T1,other,130,20,12583,26,2,18,2,10,6,2.066,1.431,0.795,0
+T1,ALL (stratum-weighted estimate),947,150,376101,1621,,806,95,520,34,4.311,2.142,1.383,0
+T2,capability-growth,279,23,11754,29,8,14,2,5,6,2.467,1.191,0.425,0
+T2,corrective-maintenance,845,70,5705,16,2,7,0,1,5,2.805,1.227,0.175,0
+T2,restructuring,110,9,47323,59,153,20,35,8,4,1.247,0.423,0.169,0
+T2,compatibility-work,141,12,1029,7,10,5,5,3,1,6.803,4.859,2.915,1
+T2,convergence-activity,247,20,3849,5,1,5,1,0,4,1.299,1.299,0.0,0
+T2,other,187,16,379,0,0,0,0,0,0,0.0,0.0,0.0,0
+T2,ALL (stratum-weighted estimate),1809,150,853896,1410,,619,523,206,20,1.651,0.725,0.241,1
+T3,capability-growth,228,11,5187,16,1,3,0,2,3,3.085,0.578,0.386,0
+T3,corrective-maintenance,1624,81,5297,12,1,6,1,1,5,2.265,1.133,0.189,0
+T3,restructuring,373,18,3685,21,2,4,0,0,1,5.699,1.085,0.0,0
+T3,compatibility-work,303,15,2227,11,2,3,0,2,3,4.939,1.347,0.898,0
+T3,convergence-activity,112,6,1547,6,1,3,1,0,2,3.878,1.939,0.0,0
+T3,other,386,19,347,0,0,0,0,0,0,0.0,0.0,0.0,0
+T3,ALL (stratum-weighted estimate),3026,150,370988,1342,,382,39,102,14,3.616,1.03,0.275,0

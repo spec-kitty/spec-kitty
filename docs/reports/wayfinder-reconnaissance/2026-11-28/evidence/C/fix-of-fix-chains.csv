@@ -1,0 +1,8 @@
+group,fix_class_code_commits,followed_within_14d_by_fix_sharing_a_src_file,share,followed_within_14d_by_fix_with_file_jaccard_ge_0.5,share,fix_commits_with_pr_suffix,of_those_followed_within_14d_by_a_fix_citing_that_pr_number,share
+T1,539,435,0.8071,160,0.2968,235,10,0.0426
+T2-pre-fork,345,242,0.7014,122,0.3536,59,8,0.1356
+T2-public,163,116,0.7117,65,0.3988,75,11,0.1467
+T2-experimental,429,345,0.8042,232,0.5408,74,15,0.2027
+T3,1917,1624,0.8472,1003,0.5232,893,235,0.2632
+outside periods,238,180,0.7563,92,0.3866,30,0,0.0
+ALL 2026-01..11,3631,2942,0.8102,1674,0.461,1366,279,0.2042

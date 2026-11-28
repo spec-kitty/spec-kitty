@@ -1,0 +1,186 @@
+path_key,components_constructing,components_with_write_cooccurrence,sites,modules,write_cooccurring_components
+.kittify/config.yaml,29,4,93,65,charter.activation;specify_cli.cli;specify_cli.identity;specify_cli.upgrade
+.kittify,23,8,126,86,specify_cli;specify_cli.cli;specify_cli.core;specify_cli.migration;specify_cli.retrospective;specify_cli.skills;specify_cli.template;specify_cli.upgrade
+kitty-specs,21,5,148,83,specify_cli.cli;specify_cli.coordination;specify_cli.migration;specify_cli.retrospective;specify_cli.upgrade
+kitty-specs/<mission>/meta.json,17,4,72,46,specify_cli;specify_cli.acceptance;specify_cli.core;specify_cli.mission_loader
+kitty-specs/<mission>/tasks,17,2,69,48,specify_cli.core;specify_cli.upgrade
+kitty-specs/<mission>/<var>,15,4,64,35,specify_cli.consolidation;specify_cli.coordination;specify_cli.status;specify_cli.upgrade
+kitty-specs/<mission>/status.events.jsonl,14,4,52,38,specify_cli.core;specify_cli.lanes;specify_cli.migration;specify_cli.retrospective
+.kittify/charter,11,2,76,44,charter.activation;specify_cli.cli
+kitty-specs/<var>,11,3,34,20,specify_cli.consolidation;specify_cli.coordination;specify_cli.core
+.kittify/runtime,10,1,23,16,specify_cli.consolidation
+.kittify/missions,7,3,43,21,specify_cli.cli;specify_cli.template;specify_cli.upgrade
+kitty-specs/<mission>/status.json,7,2,20,17,specify_cli.migration;specify_cli.status
+kitty-specs/<mission>/tasks.md,7,1,14,12,specify_cli.upgrade
+kitty-specs/<mission>/spec.md,7,1,12,12,specify_cli.core
+.kittify/derived,7,2,12,9,specify_cli.cli;specify_cli.migration
+.kittify/events,5,1,12,9,glossary
+<home>/<var>,5,0,10,7,
+kitty-specs/<mission>/analysis-report.md,5,1,7,5,specify_cli.git
+.kittify/metadata.yaml,5,1,7,7,specify_cli.migration
+kitty-specs/<mission>,5,0,5,5,
+.kittify/scripts,4,1,30,9,specify_cli.upgrade
+.kittify/overrides,4,1,11,7,specify_cli.upgrade
+.kittify/command-skills-manifest.json,4,0,9,6,
+kitty-specs/<mission>/mission-events.jsonl,4,1,8,5,specify_cli.mission_v1
+.kittify/workspaces,4,1,7,5,specify_cli.workspace
+.kittify/encoding-provenance,4,0,6,4,
+.kittify/merge-state.json,4,1,5,5,specify_cli.cli
+.kittify/dossiers,4,0,5,4,
+.kittify/skills-manifest.json,3,1,12,7,specify_cli.skills
+.kittify/migrations,3,0,9,6,
+.kittify/AGENTS.md,3,2,9,4,specify_cli.cli;specify_cli.upgrade
+.kittify/templates,3,2,9,6,specify_cli.cli;specify_cli.upgrade
+kitty-specs/<mission>/command-templates,3,0,7,4,
+kitty-specs/<mission>/research,3,1,7,4,specify_cli.core
+.kittify/glossaries,3,1,5,4,glossary
+.kittify/migration-ledger.jsonl,3,0,5,4,
+kitty-specs/<mission>/mission.yaml,3,0,4,4,
+.kittify/<var>,3,2,4,4,specify_cli;specify_cli.cli
+.kittify/.kitty.env,3,0,4,3,
+kitty-specs/**/tasks,3,0,4,4,
+<home>/.kittify,3,0,3,3,
+kitty-specs/<mission>/lanes.json,3,0,3,3,
+.kittify/lint-report.json,3,0,3,3,
+kitty-specs/<var>/meta.json,3,0,3,3,
+.kittify/.migration-backup,2,0,7,3,
+.kittify/config.yaml 'charter:' pointer names ,2,0,5,4,
+kitty-specs/<mission>/retrospective.yaml,2,0,5,3,
+<home>/.spec-kitty,2,0,4,2,
+kitty-specs/<mission>/issue-matrix.json,2,0,4,3,
+kitty-specs/**/research,2,0,4,2,
+.kittify/memory,2,2,4,3,specify_cli.template;specify_cli.upgrade
+kitty-specs/<mission>/decisions,2,0,3,3,
+kitty-specs/<var>/status.events.jsonl,2,0,3,2,
+kitty-specs/<mission>/plan.md,2,0,3,3,
+kitty-specs/**/acceptance-matrix.json,2,0,3,3,
+kitty-specs/**/issue-matrix.json,2,0,3,3,
+kitty-specs/<var>/tasks,2,0,3,2,
+.kittify/mission-state-audit,2,0,3,2,
+kitty-specs/<mission>/templates,2,0,2,2,
+.kittify/config.yaml root must be a mapping,2,1,2,2,specify_cli.upgrade
+<home>/AppData,2,0,2,2,
+kitty-specs/<mission>/checklists,2,1,2,2,specify_cli.core
+.kittify/skills-manifest.json:,2,0,2,2,
+kitty-specs/<mission>/wps.yaml,2,0,2,2,
+kitty-specs/**/status.json linguist-generated=true,2,0,2,2,
+kitty-specs/**/status.events.jsonl linguist-generated=true,2,0,2,2,
+kitty-specs/**/lanes.json linguist-generated=true,2,0,2,2,
+kitty-specs/**/mission-events.jsonl linguist-generated=true,2,0,2,2,
+kitty-specs/**/snapshot-latest.json linguist-generated=true,2,0,2,2,
+kitty-specs/**/acceptance-matrix.json linguist-generated=true,2,0,2,2,
+kitty-specs/**/test-transcripts,2,0,2,2,
+kitty-specs/**/baseline,2,0,2,2,
+kitty-specs/**/canary-evidence,2,0,2,2,
+.kittify/profiles,2,0,2,2,
+kitty-specs/<mission>/mission-review-report.md,2,0,2,2,
+kitty-specs/**/decisions.events.jsonl,2,0,2,2,
+kitty-specs/**/meta.json,2,0,2,2,
+kitty-specs/**/traces,2,0,2,2,
+kitty-specs/**/decisions,2,0,2,2,
+.kittify/sync-state.json,2,0,2,2,
+.kittify/logs,2,0,2,2,
+.kittify/agent_profiles_manifest.json,2,0,2,2,
+.kittify/ directory does not exist (not initialized),1,0,8,8,
+kitty-specs/ not found at %s,1,0,5,5,
+kitty-specs/<mission>/issue-matrix.md,1,0,5,2,
+.kittify/init-command-skills.pending.json,1,1,4,1,specify_cli.cli
+<home>/.local,1,0,4,2,
+kitty-specs/<mission>/acceptance-matrix.json,1,1,3,1,specify_cli.acceptance
+kitty-specs/[^/]+,1,0,3,1,
+.kittify/agent_profiles,1,0,3,2,
+.kittify/backups,1,0,3,1,
+<home>/.config,1,0,2,1,
+kitty-specs/<mission>/.kittify,1,1,2,1,specify_cli.dossier
+.kittify/evidence,1,0,2,2,
+kitty-specs/*/status.json,1,0,2,1,
+.kittify/mission-brief.md,1,0,2,1,
+kitty-specs/<mission>/policy-audit.jsonl,1,1,2,1,specify_cli.policy
+.kittify/cache,1,0,2,1,
+.kittify/surface_repair_wired,1,0,2,1,
+kitty-specs/<mission>/.encoding-provenance.jsonl,1,0,1,1,
+.kittify/config.yaml root must be a mapping.,1,0,1,1,
+.kittify/config.yaml key ',1,0,1,1,
+<user-cache-dir>/open-packs,1,0,1,1,
+kitty-specs/<var>/reasons-canvas.md,1,0,1,1,
+.kittify/charter-packs,1,0,1,1,
+.kittify/charter-packs``.,1,0,1,1,
+<user-cache-dir>/services,1,0,1,1,
+<user-state-dir>/.spec-kitty-runtime-cutover-notice-shown,1,0,1,1,
+kitty-specs/<mission>/docs,1,0,1,1,
+.kittify/command-skills-manifest.json:,1,0,1,1,
+kitty-specs/<mission>/handoff,1,0,1,1,
+kitty-specs/<mission>/occurrence_map.yaml,1,0,1,1,
+.kittify/glossary,1,0,1,1,
+.kittify/drg,1,0,1,1,
+".kittify/config.yaml does not state an agents.available list, so no agent surfaces were collected to verify",1,0,1,1,
+kitty-specs/<mission>/gap-analysis.md,1,0,1,1,
+kitty-specs/**,1,0,1,1,
+".kittify/metadata.yaml had uncommitted changes before init, so its new content was left uncommitted; commit it yourself.",1,0,1,1,
+kitty-specs/*/charter,1,0,1,1,
+kitty-specs/<mission>/charter,1,0,1,1,
+kitty-specs/<mission>/mission-exception.md,1,0,1,1,
+.kittify/mission-state-audit(?:,1,0,1,1,
+.kittify/meta,1,0,1,1,
+kitty-specs/<var>/<var>,1,0,1,1,
+<home>/Library,1,0,1,1,
+<home>/.claude,1,0,1,1,
+<user-cache-dir>/upgrade-check.json,1,0,1,1,
+kitty-specs/*/decisions,1,0,1,1,
+kitty-specs/<mission>/decisions.events.jsonl,1,0,1,1,
+kitty-specs/kitty-specs/<mission>,1,0,1,1,
+.kittify/auto-rebase-uv-lock.lock,1,1,1,1,specify_cli.lanes
+kitty-specs/**/status.events.jsonl,1,0,1,1,
+kitty-specs/<var>/status.,1,0,1,1,
+kitty-specs/<var>/issue-matrix.,1,0,1,1,
+kitty-specs/<var>/lanes.json,1,0,1,1,
+kitty-specs/<var>/acceptance-matrix.json,1,0,1,1,
+kitty-specs/<var>/analysis-report.md,1,0,1,1,
+kitty-specs/<var>/decisions,1,0,1,1,
+kitty-specs/<var>/decisions.events.jsonl,1,0,1,1,
+kitty-specs/<var>/traces,1,0,1,1,
+kitty-specs/ not found at %s — no mission IDs backfilled,1,0,1,1,
+kitty-specs/*/meta.json,1,0,1,1,
+kitty-specs/*/status.events.jsonl,1,0,1,1,
+kitty-specs/**/*.md,1,0,1,1,
+kitty-specs/<mission>/status.events.jsonl.tmp,1,1,1,1,specify_cli.migration
+.kittify/brief-source.yaml,1,0,1,1,
+.kittify/archive,1,0,1,1,
+kitty-specs/<mission>/research.md,1,0,1,1,
+kitty-specs/<mission>/data-model.md,1,0,1,1,
+kitty-specs/<mission>/workflow-failures-log.md,1,0,1,1,
+kitty-specs/<mission>/mission-review.md,1,0,1,1,
+.kittify/config.yaml 'retrospective:' value must be a mapping; got ,1,0,1,1,
+.kittify/config.yaml#retrospective,1,0,1,1,
+.kittify/ exists (1A-11).,1,0,1,1,
+kitty-specs/<var>/.kittify,1,0,1,1,
+kitty-specs/<var>/status.json,1,0,1,1,
+kitty-specs/<var>/tasks.md,1,0,1,1,
+.kittify/canonical-events.jsonl,1,0,1,1,
+kitty-specs/*/.kittify,1,0,1,1,
+.kittify/)scripts,1,0,1,1,
+.kittify/)memory,1,0,1,1,
+<home>/.aws,1,0,1,1,
+.kittify/agent_profiles_manifest.json schema 1,1,0,1,1,
+.kittify/skills-manifest.json:<var>,1,0,1,1,
+.kittify/metadata.yaml had uncommitted changes before the upgrade; its new schema stamp was left uncommitted — commit it yourself.,1,0,1,1,
+<user-state-dir>/<var>,1,0,1,1,
+.kittify/skills-manifest.json could not be updated (,1,0,1,1,
+.kittify/commands,1,0,1,1,
+kitty-specs/?$,1,0,1,1,
+kitty-specs/*/*,1,0,1,1,
+kitty-specs/.*/tasks,1,0,1,1,
+.kittify/meta.json,1,0,1,1,
+kitty-specs/.,1,0,1,1,
+.kittify/ already exists - manual merge required,1,0,1,1,
+kitty-specs/ exist - manual merge required,1,0,1,1,
+kitty-specs/: ,1,1,1,1,specify_cli.upgrade
+kitty-specs/**/.kittify,1,0,1,1,
+kitty-specs/<mission>/constitution,1,1,1,1,specify_cli.upgrade
+kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log,1,0,1,1,
+kitty-specs/**/occurrence_map.yaml linguist-generated=true,1,0,1,1,
+kitty-specs/**/issue-matrix.md,1,0,1,1,
+.kittify/.dashboard,1,0,1,1,
+.kittify/preflight-warning.json,1,0,1,1,
+kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix,1,0,1,1,
+.kittify/metadata.yaml restored to ,1,0,1,1,

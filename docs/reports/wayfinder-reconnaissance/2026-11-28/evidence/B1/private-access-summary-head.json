@@ -1,0 +1,233 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "cross_component_import_records": 10427,
+ "records_with_any_private_access": 734,
+ "rate_per_1000_cross_component_import_records": 70.39,
+ "by_kind": {
+  "not_in___all__": {
+   "count": 241,
+   "per_1000": 23.11
+  },
+  "private_name": {
+   "count": 186,
+   "per_1000": 17.84
+  },
+  "private_module": {
+   "count": 355,
+   "per_1000": 34.05
+  }
+ },
+ "modules_declaring___all__": 780,
+ "modules_total": 1490,
+ "cross_component_from_imports_into_modules_with_static___all__": 7741,
+ "not_in___all___rate_within_that_population_per_1000": 31.13,
+ "top_component_pairs": [
+  [
+   "specify_cli.cli",
+   "specify_cli.missions",
+   77
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.consolidation",
+   64
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.missions",
+   38
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.missions",
+   34
+  ],
+  [
+   "specify_cli.mission_loader",
+   "runtime",
+   21
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.coordination",
+   19
+  ],
+  [
+   "specify_cli.cli",
+   "charter.activation",
+   19
+  ],
+  [
+   "specify_cli.status",
+   "specify_cli.missions",
+   18
+  ],
+  [
+   "specify_cli.tasks",
+   "specify_cli.cli",
+   17
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.lanes",
+   11
+  ],
+  [
+   "runtime",
+   "specify_cli.missions",
+   10
+  ],
+  [
+   "specify_cli.events",
+   "runtime",
+   10
+  ],
+  [
+   "charter.activation",
+   "charter.offering",
+   9
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.tasks",
+   9
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.review",
+   9
+  ],
+  [
+   "specify_cli.cli",
+   "charter.offering",
+   8
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.decisions",
+   8
+  ],
+  [
+   "specify_cli.cli",
+   "kernel",
+   8
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.core",
+   8
+  ],
+  [
+   "specify_cli.cli",
+   "runtime",
+   8
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.migration",
+   7
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.missions",
+   7
+  ],
+  [
+   "specify_cli.orchestrator_api",
+   "specify_cli.cli",
+   7
+  ],
+  [
+   "specify_cli.status",
+   "specify_cli.coordination",
+   7
+  ],
+  [
+   "specify_cli.tool_surface",
+   "specify_cli.session_presence",
+   7
+  ]
+ ],
+ "by_target_component": [
+  [
+   "specify_cli.missions",
+   224
+  ],
+  [
+   "specify_cli.consolidation",
+   72
+  ],
+  [
+   "specify_cli.coordination",
+   47
+  ],
+  [
+   "runtime",
+   42
+  ],
+  [
+   "specify_cli.lanes",
+   40
+  ],
+  [
+   "specify_cli.cli",
+   37
+  ],
+  [
+   "charter.activation",
+   34
+  ],
+  [
+   "specify_cli.core",
+   32
+  ],
+  [
+   "kernel",
+   25
+  ],
+  [
+   "charter.offering",
+   23
+  ],
+  [
+   "charter",
+   21
+  ],
+  [
+   "specify_cli.status",
+   17
+  ],
+  [
+   "specify_cli",
+   13
+  ],
+  [
+   "specify_cli.session_presence",
+   12
+  ],
+  [
+   "specify_cli.tasks",
+   11
+  ],
+  [
+   "specify_cli.runtime",
+   10
+  ],
+  [
+   "specify_cli.compat",
+   10
+  ],
+  [
+   "specify_cli.review",
+   9
+  ],
+  [
+   "specify_cli.decisions",
+   8
+  ],
+  [
+   "specify_cli.migration",
+   8
+  ]
+ ]
+}

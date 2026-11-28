@@ -1,0 +1,368 @@
+{
+ "I1": {
+  "main_module_graph": {
+   "activations": [
+    "charter-api",
+    "kernel",
+    "packs",
+    "web-transport"
+   ],
+   "artifacts-edge": [
+    "activations",
+    "charter-api",
+    "kernel",
+    "packs",
+    "routing",
+    "web-transport"
+   ],
+   "charter-api": [],
+   "charter-reports": [],
+   "deployable": [
+    "activations",
+    "artifacts-edge",
+    "kernel",
+    "missions-edge",
+    "packs",
+    "profiles-edge",
+    "routing",
+    "routing-edge",
+    "web-transport"
+   ],
+   "kernel": [],
+   "missions": [
+    "kernel"
+   ],
+   "missions-edge": [
+    "activations",
+    "charter-api",
+    "missions",
+    "packs",
+    "web-transport"
+   ],
+   "pack-doctor": [
+    "pack-validation",
+    "packs"
+   ],
+   "pack-validation": [
+    "kernel",
+    "missions",
+    "packs",
+    "profiles"
+   ],
+   "packs": [
+    "charter-api",
+    "kernel",
+    "missions",
+    "profiles",
+    "routing",
+    "web-transport"
+   ],
+   "profiles": [
+    "kernel"
+   ],
+   "profiles-edge": [
+    "activations",
+    "charter-api",
+    "packs",
+    "profiles",
+    "web-transport"
+   ],
+   "routing": [
+    "kernel"
+   ],
+   "routing-edge": [
+    "activations",
+    "charter-api",
+    "routing",
+    "web-transport"
+   ],
+   "web-transport": [
+    "charter-api",
+    "kernel"
+   ]
+  },
+  "test_scope_module_deps": {
+   "activations": [
+    "packs"
+   ],
+   "artifacts-edge": [
+    "packs"
+   ],
+   "deployable": [
+    "pack-doctor",
+    "pack-validation",
+    "packs"
+   ],
+   "pack-doctor": [
+    "packs"
+   ],
+   "pack-validation": [
+    "packs"
+   ],
+   "packs": [
+    "pack-validation"
+   ],
+   "profiles-edge": [
+    "packs"
+   ]
+  },
+  "main_scope_module_cycles": [],
+  "main_plus_test_scope_module_cycles": [
+   [
+    "pack-validation",
+    "packs"
+   ]
+  ],
+  "edges_not_in_documented_baseline": [
+   [
+    "activations",
+    "charter-api"
+   ],
+   [
+    "packs",
+    "charter-api"
+   ],
+   [
+    "packs",
+    "missions"
+   ],
+   [
+    "packs",
+    "profiles"
+   ],
+   [
+    "packs",
+    "routing"
+   ]
+  ],
+  "documented_modules_without_build_dir": [
+   "artifacts",
+   "charter-conformance"
+  ],
+  "slice_level_cycles": [
+   [
+    "activations",
+    "missions",
+    "packs",
+    "profiles",
+    "routing"
+   ]
+  ],
+  "slice_ring_level_cycles": [],
+  "package_level_scc_count": 2,
+  "package_level_sccs": [
+   [
+    "ai.speckitty.charter.packs.domain",
+    "ai.speckitty.charter.packs.domain.graph",
+    "ai.speckitty.charter.packs.domain.rules"
+   ],
+   [
+    "ai.speckitty.charter.packs.infra.storage",
+    "ai.speckitty.charter.packs.infra.storage.markdown"
+   ]
+  ],
+  "package_count": 78
+ },
+ "I2": {
+  "rule_A_private_infra_of_other_slice": {
+   "count": 0,
+   "sites": []
+  },
+  "rule_B_strict_one_adapter_package_names_other_slice": {
+   "count": 6,
+   "distinct_src_pkg_to_target_pkg": [
+    [
+     "ai.speckitty.charter.artifacts.infra.packs",
+     "ai.speckitty.charter.routing.domain"
+    ]
+   ],
+   "by_src_slice_ring_to_target_slice_ring": [
+    [
+     "artifacts.infra.packs -> routing.domain",
+     6
+    ]
+   ]
+  },
+  "cross_slice_edges_total": 200
+ },
+ "I3_intra": {
+  "kernel_imports_slice": [],
+  "domain_imports_outer_ring": [],
+  "domain_imports_framework_lib": []
+ },
+ "I4": {
+  "domain_application_kernel_hits": [],
+  "all_hits_by_slice_ring": [
+   [
+    "deployable",
+    "<root>",
+    "System.err",
+    1
+   ],
+   [
+    "deployable",
+    "<root>",
+    "System.exit",
+    1
+   ],
+   [
+    "deployable",
+    "<root>",
+    "main(String[])",
+    1
+   ],
+   [
+    "packdoctor",
+    "<root>",
+    "System.err",
+    1
+   ],
+   [
+    "packdoctor",
+    "<root>",
+    "System.exit",
+    1
+   ],
+   [
+    "packdoctor",
+    "<root>",
+    "System.out",
+    1
+   ],
+   [
+    "packdoctor",
+    "<root>",
+    "main(String[])",
+    1
+   ]
+  ]
+ },
+ "I5": {
+  "write_api_sites_outside_owner_rings": [
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    390,
+    "ai.speckitty.charter.packdoctor",
+    "Files.writeString("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    405,
+    "ai.speckitty.charter.packdoctor",
+    "Files.move("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    411,
+    "ai.speckitty.charter.packdoctor",
+    "Files.move("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    424,
+    "ai.speckitty.charter.packdoctor",
+    "Files.deleteIfExists("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    438,
+    "ai.speckitty.charter.packdoctor",
+    "Files.createTempDirectory("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    475,
+    "ai.speckitty.charter.packdoctor",
+    "Files.delete("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    484,
+    "ai.speckitty.charter.packdoctor",
+    "Files.delete("
+   ],
+   [
+    "service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java",
+    390,
+    "ai.speckitty.charter.packdoctor",
+    "StandardOpenOption.CREATE_NEW"
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    128,
+    "ai.speckitty.charter.packs.application",
+    "Files.createDirectories("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    136,
+    "ai.speckitty.charter.packs.application",
+    "Files.createDirectory("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    157,
+    "ai.speckitty.charter.packs.application",
+    "Files.createDirectory("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    159,
+    "ai.speckitty.charter.packs.application",
+    "Files.createDirectory("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    174,
+    "ai.speckitty.charter.packs.application",
+    "Files.createTempDirectory("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    176,
+    "ai.speckitty.charter.packs.application",
+    "Files.createTempDirectory("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    208,
+    "ai.speckitty.charter.packs.application",
+    "Files.deleteIfExists("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    328,
+    "ai.speckitty.charter.packs.application",
+    "Files.deleteIfExists("
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    57,
+    "ai.speckitty.charter.packs.application",
+    "StandardOpenOption.CREATE_NEW"
+   ],
+   [
+    "service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java",
+    57,
+    "ai.speckitty.charter.packs.application",
+    "StandardOpenOption.WRITE"
+   ]
+  ],
+  "write_api_sites_in_owner_rings": {
+   "activations.infra.storage": 10,
+   "packs.infra.archive": 5,
+   "packs.infra.fetch": 5,
+   "packs.infra.storage": 57
+  },
+  "owner_rings_assumed": [
+   "infra.storage",
+   "infra.archive",
+   "infra.fetch"
+  ]
+ },
+ "facts": {
+  "main_java_files": 1003,
+  "edges": 8900,
+  "internal_edges": 4070
+ }
+}

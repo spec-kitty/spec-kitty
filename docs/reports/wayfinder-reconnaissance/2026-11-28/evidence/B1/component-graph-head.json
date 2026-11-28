@@ -1,0 +1,5741 @@
+{
+ "revision": "5c4fc5a79de1c1c299ab221ca26e5555c68ef533",
+ "nodes": [
+  {
+   "component": "charter",
+   "modules": 20,
+   "lines_physical": 2163,
+   "lines_code": 1722
+  },
+  {
+   "component": "charter.activation",
+   "modules": 113,
+   "lines_physical": 45426,
+   "lines_code": 34475
+  },
+  {
+   "component": "charter.offering",
+   "modules": 119,
+   "lines_physical": 30136,
+   "lines_code": 22644
+  },
+  {
+   "component": "glossary",
+   "modules": 22,
+   "lines_physical": 6383,
+   "lines_code": 4860
+  },
+  {
+   "component": "kernel",
+   "modules": 45,
+   "lines_physical": 9179,
+   "lines_code": 6952
+  },
+  {
+   "component": "mission_runtime",
+   "modules": 16,
+   "lines_physical": 6868,
+   "lines_code": 5069
+  },
+  {
+   "component": "runtime",
+   "modules": 36,
+   "lines_physical": 17627,
+   "lines_code": 13445
+  },
+  {
+   "component": "specify_cli",
+   "modules": 25,
+   "lines_physical": 9327,
+   "lines_code": 6725
+  },
+  {
+   "component": "specify_cli.acceptance",
+   "modules": 9,
+   "lines_physical": 6108,
+   "lines_code": 4707
+  },
+  {
+   "component": "specify_cli.agent_utils",
+   "modules": 5,
+   "lines_physical": 1095,
+   "lines_code": 805
+  },
+  {
+   "component": "specify_cli.asset_preservation",
+   "modules": 4,
+   "lines_physical": 702,
+   "lines_code": 574
+  },
+  {
+   "component": "specify_cli.ast_analysis",
+   "modules": 2,
+   "lines_physical": 192,
+   "lines_code": 146
+  },
+  {
+   "component": "specify_cli.audit",
+   "modules": 17,
+   "lines_physical": 2593,
+   "lines_code": 1888
+  },
+  {
+   "component": "specify_cli.bootstrap",
+   "modules": 2,
+   "lines_physical": 305,
+   "lines_code": 239
+  },
+  {
+   "component": "specify_cli.bulk_edit",
+   "modules": 5,
+   "lines_physical": 2346,
+   "lines_code": 1725
+  },
+  {
+   "component": "specify_cli.calibration",
+   "modules": 3,
+   "lines_physical": 637,
+   "lines_code": 505
+  },
+  {
+   "component": "specify_cli.charter_pack_synthesizer",
+   "modules": 4,
+   "lines_physical": 1320,
+   "lines_code": 963
+  },
+  {
+   "component": "specify_cli.charter_packs",
+   "modules": 13,
+   "lines_physical": 2859,
+   "lines_code": 2325
+  },
+  {
+   "component": "specify_cli.charter_runtime",
+   "modules": 22,
+   "lines_physical": 4654,
+   "lines_code": 3508
+  },
+  {
+   "component": "specify_cli.cli",
+   "modules": 194,
+   "lines_physical": 107407,
+   "lines_code": 82773
+  },
+  {
+   "component": "specify_cli.compat",
+   "modules": 17,
+   "lines_physical": 5161,
+   "lines_code": 3796
+  },
+  {
+   "component": "specify_cli.config",
+   "modules": 2,
+   "lines_physical": 277,
+   "lines_code": 205
+  },
+  {
+   "component": "specify_cli.consolidation",
+   "modules": 63,
+   "lines_physical": 36414,
+   "lines_code": 28609
+  },
+  {
+   "component": "specify_cli.context",
+   "modules": 7,
+   "lines_physical": 1895,
+   "lines_code": 1362
+  },
+  {
+   "component": "specify_cli.contracts",
+   "modules": 3,
+   "lines_physical": 869,
+   "lines_code": 659
+  },
+  {
+   "component": "specify_cli.coordination",
+   "modules": 24,
+   "lines_physical": 15036,
+   "lines_code": 11534
+  },
+  {
+   "component": "specify_cli.core",
+   "modules": 67,
+   "lines_physical": 16156,
+   "lines_code": 12162
+  },
+  {
+   "component": "specify_cli.decisions",
+   "modules": 9,
+   "lines_physical": 3654,
+   "lines_code": 2807
+  },
+  {
+   "component": "specify_cli.design",
+   "modules": 7,
+   "lines_physical": 1021,
+   "lines_code": 836
+  },
+  {
+   "component": "specify_cli.diagnostics",
+   "modules": 3,
+   "lines_physical": 256,
+   "lines_code": 201
+  },
+  {
+   "component": "specify_cli.distribution",
+   "modules": 6,
+   "lines_physical": 852,
+   "lines_code": 678
+  },
+  {
+   "component": "specify_cli.doc_analysis",
+   "modules": 4,
+   "lines_physical": 1352,
+   "lines_code": 952
+  },
+  {
+   "component": "specify_cli.docs",
+   "modules": 2,
+   "lines_physical": 401,
+   "lines_code": 306
+  },
+  {
+   "component": "specify_cli.doctor",
+   "modules": 2,
+   "lines_physical": 482,
+   "lines_code": 385
+  },
+  {
+   "component": "specify_cli.dossier",
+   "modules": 9,
+   "lines_physical": 3009,
+   "lines_code": 2320
+  },
+  {
+   "component": "specify_cli.drg_writers",
+   "modules": 2,
+   "lines_physical": 239,
+   "lines_code": 171
+  },
+  {
+   "component": "specify_cli.events",
+   "modules": 5,
+   "lines_physical": 633,
+   "lines_code": 462
+  },
+  {
+   "component": "specify_cli.git",
+   "modules": 17,
+   "lines_physical": 8595,
+   "lines_code": 6884
+  },
+  {
+   "component": "specify_cli.identity",
+   "modules": 3,
+   "lines_physical": 760,
+   "lines_code": 572
+  },
+  {
+   "component": "specify_cli.intake",
+   "modules": 6,
+   "lines_physical": 960,
+   "lines_code": 726
+  },
+  {
+   "component": "specify_cli.invocation",
+   "modules": 17,
+   "lines_physical": 5367,
+   "lines_code": 4010
+  },
+  {
+   "component": "specify_cli.lanes",
+   "modules": 29,
+   "lines_physical": 16574,
+   "lines_code": 12755
+  },
+  {
+   "component": "specify_cli.migration",
+   "modules": 23,
+   "lines_physical": 12003,
+   "lines_code": 9077
+  },
+  {
+   "component": "specify_cli.mission_loader",
+   "modules": 7,
+   "lines_physical": 1399,
+   "lines_code": 1129
+  },
+  {
+   "component": "specify_cli.mission_step_contracts",
+   "modules": 3,
+   "lines_physical": 886,
+   "lines_code": 727
+  },
+  {
+   "component": "specify_cli.mission_v1",
+   "modules": 2,
+   "lines_physical": 232,
+   "lines_code": 190
+  },
+  {
+   "component": "specify_cli.missions",
+   "modules": 11,
+   "lines_physical": 5195,
+   "lines_code": 3799
+  },
+  {
+   "component": "specify_cli.orchestrator_api",
+   "modules": 12,
+   "lines_physical": 5855,
+   "lines_code": 4238
+  },
+  {
+   "component": "specify_cli.ownership",
+   "modules": 10,
+   "lines_physical": 1370,
+   "lines_code": 1033
+  },
+  {
+   "component": "specify_cli.paths",
+   "modules": 3,
+   "lines_physical": 627,
+   "lines_code": 481
+  },
+  {
+   "component": "specify_cli.policy",
+   "modules": 9,
+   "lines_physical": 2023,
+   "lines_code": 1544
+  },
+  {
+   "component": "specify_cli.post_merge",
+   "modules": 4,
+   "lines_physical": 1674,
+   "lines_code": 1221
+  },
+  {
+   "component": "specify_cli.provisioning",
+   "modules": 2,
+   "lines_physical": 83,
+   "lines_code": 64
+  },
+  {
+   "component": "specify_cli.readiness",
+   "modules": 3,
+   "lines_physical": 540,
+   "lines_code": 389
+  },
+  {
+   "component": "specify_cli.release",
+   "modules": 4,
+   "lines_physical": 645,
+   "lines_code": 481
+  },
+  {
+   "component": "specify_cli.requirement_mapping",
+   "modules": 4,
+   "lines_physical": 1560,
+   "lines_code": 1124
+  },
+  {
+   "component": "specify_cli.retrospective",
+   "modules": 16,
+   "lines_physical": 8483,
+   "lines_code": 6294
+  },
+  {
+   "component": "specify_cli.review",
+   "modules": 24,
+   "lines_physical": 9326,
+   "lines_code": 7325
+  },
+  {
+   "component": "specify_cli.runtime",
+   "modules": 13,
+   "lines_physical": 5726,
+   "lines_code": 4337
+  },
+  {
+   "component": "specify_cli.services",
+   "modules": 9,
+   "lines_physical": 2111,
+   "lines_code": 1673
+  },
+  {
+   "component": "specify_cli.session_presence",
+   "modules": 18,
+   "lines_physical": 2030,
+   "lines_code": 1590
+  },
+  {
+   "component": "specify_cli.shims",
+   "modules": 3,
+   "lines_physical": 369,
+   "lines_code": 281
+  },
+  {
+   "component": "specify_cli.skills",
+   "modules": 23,
+   "lines_physical": 6486,
+   "lines_code": 5158
+  },
+  {
+   "component": "specify_cli.state",
+   "modules": 4,
+   "lines_physical": 2799,
+   "lines_code": 2318
+  },
+  {
+   "component": "specify_cli.status",
+   "modules": 52,
+   "lines_physical": 21397,
+   "lines_code": 16363
+  },
+  {
+   "component": "specify_cli.task_utils",
+   "modules": 2,
+   "lines_physical": 799,
+   "lines_code": 601
+  },
+  {
+   "component": "specify_cli.tasks",
+   "modules": 5,
+   "lines_physical": 2380,
+   "lines_code": 1708
+  },
+  {
+   "component": "specify_cli.tasks_authoring",
+   "modules": 2,
+   "lines_physical": 164,
+   "lines_code": 117
+  },
+  {
+   "component": "specify_cli.template",
+   "modules": 4,
+   "lines_physical": 950,
+   "lines_code": 691
+  },
+  {
+   "component": "specify_cli.tool_surface",
+   "modules": 41,
+   "lines_physical": 10743,
+   "lines_code": 8926
+  },
+  {
+   "component": "specify_cli.tracker",
+   "modules": 9,
+   "lines_physical": 2652,
+   "lines_code": 1991
+  },
+  {
+   "component": "specify_cli.upgrade",
+   "modules": 178,
+   "lines_physical": 33155,
+   "lines_code": 25499
+  },
+  {
+   "component": "specify_cli.validators",
+   "modules": 4,
+   "lines_physical": 1112,
+   "lines_code": 873
+  },
+  {
+   "component": "specify_cli.workspace",
+   "modules": 6,
+   "lines_physical": 2872,
+   "lines_code": 2277
+  }
+ ],
+ "edges": [
+  {
+   "from": "charter",
+   "to": "charter.activation",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 9
+  },
+  {
+   "from": "charter",
+   "to": "charter.offering",
+   "weight": 49,
+   "load_time_weight": 49,
+   "import_records": 169
+  },
+  {
+   "from": "charter",
+   "to": "kernel",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 9
+  },
+  {
+   "from": "charter.activation",
+   "to": "charter",
+   "weight": 23,
+   "load_time_weight": 19,
+   "import_records": 34
+  },
+  {
+   "from": "charter.activation",
+   "to": "charter.offering",
+   "weight": 193,
+   "load_time_weight": 130,
+   "import_records": 352
+  },
+  {
+   "from": "charter.activation",
+   "to": "kernel",
+   "weight": 71,
+   "load_time_weight": 69,
+   "import_records": 107
+  },
+  {
+   "from": "charter.offering",
+   "to": "kernel",
+   "weight": 48,
+   "load_time_weight": 48,
+   "import_records": 92
+  },
+  {
+   "from": "glossary",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 6
+  },
+  {
+   "from": "glossary",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "glossary",
+   "to": "kernel",
+   "weight": 9,
+   "load_time_weight": 9,
+   "import_records": 11
+  },
+  {
+   "from": "mission_runtime",
+   "to": "kernel",
+   "weight": 8,
+   "load_time_weight": 8,
+   "import_records": 13
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.coordination",
+   "weight": 5,
+   "load_time_weight": 0,
+   "import_records": 11
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.core",
+   "weight": 10,
+   "load_time_weight": 1,
+   "import_records": 42
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.missions",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 38
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.retrospective",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.status",
+   "weight": 5,
+   "load_time_weight": 0,
+   "import_records": 19
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.task_utils",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "mission_runtime",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "runtime",
+   "to": "charter",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "runtime",
+   "to": "charter.activation",
+   "weight": 14,
+   "load_time_weight": 9,
+   "import_records": 24
+  },
+  {
+   "from": "runtime",
+   "to": "charter.offering",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "runtime",
+   "to": "kernel",
+   "weight": 26,
+   "load_time_weight": 25,
+   "import_records": 31
+  },
+  {
+   "from": "runtime",
+   "to": "mission_runtime",
+   "weight": 13,
+   "load_time_weight": 11,
+   "import_records": 64
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli",
+   "weight": 14,
+   "load_time_weight": 10,
+   "import_records": 20
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.bulk_edit",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.coordination",
+   "weight": 10,
+   "load_time_weight": 1,
+   "import_records": 15
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.core",
+   "weight": 16,
+   "load_time_weight": 12,
+   "import_records": 19
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.events",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.invocation",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 7
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.lanes",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.mission_loader",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.mission_step_contracts",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.mission_v1",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.missions",
+   "weight": 7,
+   "load_time_weight": 2,
+   "import_records": 10
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.retrospective",
+   "weight": 10,
+   "load_time_weight": 5,
+   "import_records": 31
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.review",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 5
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.runtime",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.shims",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.status",
+   "weight": 13,
+   "load_time_weight": 9,
+   "import_records": 49
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.task_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "runtime",
+   "to": "specify_cli.workspace",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli",
+   "to": "charter",
+   "weight": 8,
+   "load_time_weight": 6,
+   "import_records": 16
+  },
+  {
+   "from": "specify_cli",
+   "to": "charter.activation",
+   "weight": 10,
+   "load_time_weight": 5,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli",
+   "to": "charter.offering",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "kernel",
+   "weight": 24,
+   "load_time_weight": 20,
+   "import_records": 33
+  },
+  {
+   "from": "specify_cli",
+   "to": "mission_runtime",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.agent_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.asset_preservation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.bootstrap",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.charter_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.cli",
+   "weight": 7,
+   "load_time_weight": 0,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.coordination",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.core",
+   "weight": 14,
+   "load_time_weight": 10,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.distribution",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.events",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.git",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.intake",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.lanes",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.migration",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.runtime",
+   "weight": 8,
+   "load_time_weight": 1,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.skills",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.state",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.status",
+   "weight": 5,
+   "load_time_weight": 1,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.task_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli",
+   "to": "specify_cli.template",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "charter",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "kernel",
+   "weight": 7,
+   "load_time_weight": 6,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "mission_runtime",
+   "weight": 7,
+   "load_time_weight": 3,
+   "import_records": 40
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli",
+   "weight": 9,
+   "load_time_weight": 9,
+   "import_records": 21
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.config",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.consolidation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.coordination",
+   "weight": 6,
+   "load_time_weight": 0,
+   "import_records": 12
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.core",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.decisions",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.git",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.lanes",
+   "weight": 6,
+   "load_time_weight": 1,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.ownership",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.runtime",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.status",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.task_utils",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.upgrade",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.validators",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.acceptance",
+   "to": "specify_cli.workspace",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.core",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.session_presence",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.skills",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.task_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.agent_utils",
+   "to": "specify_cli.tool_surface",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.asset_preservation",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.asset_preservation",
+   "to": "specify_cli.skills",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.asset_preservation",
+   "to": "specify_cli.template",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.asset_preservation",
+   "to": "specify_cli.tool_surface",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "specify_cli",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "specify_cli.core",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.audit",
+   "to": "specify_cli.status",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.bootstrap",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.bulk_edit",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.bulk_edit",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.bulk_edit",
+   "to": "specify_cli.core",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.bulk_edit",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.calibration",
+   "to": "charter",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.calibration",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.charter_pack_synthesizer",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_pack_synthesizer",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_pack_synthesizer",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_pack_synthesizer",
+   "to": "specify_cli.lanes",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.charter_pack_synthesizer",
+   "to": "specify_cli.retrospective",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 26
+  },
+  {
+   "from": "specify_cli.charter_packs",
+   "to": "charter",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.charter_packs",
+   "to": "kernel",
+   "weight": 7,
+   "load_time_weight": 7,
+   "import_records": 12
+  },
+  {
+   "from": "specify_cli.charter_packs",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_packs",
+   "to": "specify_cli.git",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "charter",
+   "weight": 8,
+   "load_time_weight": 2,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "charter.activation",
+   "weight": 10,
+   "load_time_weight": 3,
+   "import_records": 17
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "kernel",
+   "weight": 12,
+   "load_time_weight": 11,
+   "import_records": 18
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "specify_cli.mission_step_contracts",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.charter_runtime",
+   "to": "specify_cli.task_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "charter",
+   "weight": 60,
+   "load_time_weight": 30,
+   "import_records": 171
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "charter.activation",
+   "weight": 160,
+   "load_time_weight": 62,
+   "import_records": 355
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "charter.offering",
+   "weight": 11,
+   "load_time_weight": 0,
+   "import_records": 31
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "glossary",
+   "weight": 10,
+   "load_time_weight": 8,
+   "import_records": 24
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "kernel",
+   "weight": 111,
+   "load_time_weight": 96,
+   "import_records": 204
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "mission_runtime",
+   "weight": 65,
+   "load_time_weight": 52,
+   "import_records": 250
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "runtime",
+   "weight": 10,
+   "load_time_weight": 2,
+   "import_records": 27
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli",
+   "weight": 83,
+   "load_time_weight": 58,
+   "import_records": 149
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.acceptance",
+   "weight": 8,
+   "load_time_weight": 7,
+   "import_records": 30
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.agent_utils",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.asset_preservation",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.audit",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.bootstrap",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.bulk_edit",
+   "weight": 6,
+   "load_time_weight": 0,
+   "import_records": 22
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.charter_pack_synthesizer",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.charter_packs",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.charter_runtime",
+   "weight": 5,
+   "load_time_weight": 1,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.compat",
+   "weight": 12,
+   "load_time_weight": 3,
+   "import_records": 41
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.config",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.consolidation",
+   "weight": 42,
+   "load_time_weight": 28,
+   "import_records": 146
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.context",
+   "weight": 22,
+   "load_time_weight": 12,
+   "import_records": 66
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.contracts",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.coordination",
+   "weight": 86,
+   "load_time_weight": 39,
+   "import_records": 184
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.core",
+   "weight": 236,
+   "load_time_weight": 172,
+   "import_records": 401
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.decisions",
+   "weight": 20,
+   "load_time_weight": 14,
+   "import_records": 44
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.design",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.diagnostics",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.doc_analysis",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.docs",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.doctor",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.dossier",
+   "weight": 5,
+   "load_time_weight": 1,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.events",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.git",
+   "weight": 54,
+   "load_time_weight": 27,
+   "import_records": 109
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.identity",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.intake",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.invocation",
+   "weight": 23,
+   "load_time_weight": 16,
+   "import_records": 42
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.lanes",
+   "weight": 81,
+   "load_time_weight": 16,
+   "import_records": 194
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.migration",
+   "weight": 21,
+   "load_time_weight": 5,
+   "import_records": 52
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.mission_loader",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.mission_step_contracts",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.mission_v1",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.missions",
+   "weight": 41,
+   "load_time_weight": 18,
+   "import_records": 87
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.orchestrator_api",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.ownership",
+   "weight": 26,
+   "load_time_weight": 22,
+   "import_records": 38
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.paths",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.policy",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.post_merge",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.provisioning",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.readiness",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.release",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 10,
+   "load_time_weight": 8,
+   "import_records": 20
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.retrospective",
+   "weight": 14,
+   "load_time_weight": 12,
+   "import_records": 43
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.review",
+   "weight": 38,
+   "load_time_weight": 22,
+   "import_records": 91
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.runtime",
+   "weight": 19,
+   "load_time_weight": 11,
+   "import_records": 34
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.services",
+   "weight": 6,
+   "load_time_weight": 6,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.session_presence",
+   "weight": 5,
+   "load_time_weight": 1,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.shims",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.skills",
+   "weight": 28,
+   "load_time_weight": 11,
+   "import_records": 55
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.state",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.status",
+   "weight": 62,
+   "load_time_weight": 49,
+   "import_records": 400
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.task_utils",
+   "weight": 39,
+   "load_time_weight": 39,
+   "import_records": 61
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.tasks",
+   "weight": 10,
+   "load_time_weight": 6,
+   "import_records": 23
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.tasks_authoring",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.template",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.tool_surface",
+   "weight": 12,
+   "load_time_weight": 4,
+   "import_records": 23
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.tracker",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.upgrade",
+   "weight": 38,
+   "load_time_weight": 19,
+   "import_records": 99
+  },
+  {
+   "from": "specify_cli.cli",
+   "to": "specify_cli.workspace",
+   "weight": 14,
+   "load_time_weight": 9,
+   "import_records": 41
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "kernel",
+   "weight": 8,
+   "load_time_weight": 8,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "specify_cli",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "specify_cli.core",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "specify_cli.distribution",
+   "weight": 7,
+   "load_time_weight": 0,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.compat",
+   "to": "specify_cli.upgrade",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.config",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.config",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "kernel",
+   "weight": 35,
+   "load_time_weight": 33,
+   "import_records": 76
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "mission_runtime",
+   "weight": 20,
+   "load_time_weight": 12,
+   "import_records": 51
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli",
+   "weight": 26,
+   "load_time_weight": 20,
+   "import_records": 34
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.acceptance",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.cli",
+   "weight": 16,
+   "load_time_weight": 16,
+   "import_records": 17
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.coordination",
+   "weight": 35,
+   "load_time_weight": 20,
+   "import_records": 68
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.core",
+   "weight": 55,
+   "load_time_weight": 51,
+   "import_records": 85
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.decisions",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.git",
+   "weight": 34,
+   "load_time_weight": 26,
+   "import_records": 73
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.invocation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.lanes",
+   "weight": 81,
+   "load_time_weight": 44,
+   "import_records": 141
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.migration",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.missions",
+   "weight": 7,
+   "load_time_weight": 2,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.ownership",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.policy",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.post_merge",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.review",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.status",
+   "weight": 25,
+   "load_time_weight": 16,
+   "import_records": 135
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.tasks",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.consolidation",
+   "to": "specify_cli.workspace",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "mission_runtime",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli.core",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli.lanes",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli.missions",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.context",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "kernel",
+   "weight": 21,
+   "load_time_weight": 21,
+   "import_records": 31
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "mission_runtime",
+   "weight": 12,
+   "load_time_weight": 11,
+   "import_records": 89
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "runtime",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.core",
+   "weight": 31,
+   "load_time_weight": 20,
+   "import_records": 43
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.decisions",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.events",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.git",
+   "weight": 14,
+   "load_time_weight": 8,
+   "import_records": 22
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.invocation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.lanes",
+   "weight": 13,
+   "load_time_weight": 6,
+   "import_records": 22
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.migration",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.missions",
+   "weight": 8,
+   "load_time_weight": 4,
+   "import_records": 34
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.post_merge",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.retrospective",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.status",
+   "weight": 28,
+   "load_time_weight": 20,
+   "import_records": 80
+  },
+  {
+   "from": "specify_cli.coordination",
+   "to": "specify_cli.workspace",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "charter",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "charter.activation",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "kernel",
+   "weight": 34,
+   "load_time_weight": 34,
+   "import_records": 71
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "mission_runtime",
+   "weight": 15,
+   "load_time_weight": 13,
+   "import_records": 48
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli",
+   "weight": 17,
+   "load_time_weight": 11,
+   "import_records": 34
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.cli",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.compat",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.context",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.coordination",
+   "weight": 8,
+   "load_time_weight": 2,
+   "import_records": 18
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.distribution",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.git",
+   "weight": 15,
+   "load_time_weight": 12,
+   "import_records": 28
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.identity",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.lanes",
+   "weight": 12,
+   "load_time_weight": 4,
+   "import_records": 16
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.missions",
+   "weight": 5,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.status",
+   "weight": 8,
+   "load_time_weight": 3,
+   "import_records": 24
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.upgrade",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.core",
+   "to": "specify_cli.workspace",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "kernel",
+   "weight": 14,
+   "load_time_weight": 12,
+   "import_records": 23
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "mission_runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.core",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.lanes",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.decisions",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "charter",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "charter.activation",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "kernel",
+   "weight": 8,
+   "load_time_weight": 8,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "mission_runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.coordination",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.core",
+   "weight": 6,
+   "load_time_weight": 6,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.decisions",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.missions",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.design",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.diagnostics",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.diagnostics",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.diagnostics",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.distribution",
+   "to": "specify_cli.compat",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.doc_analysis",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.doc_analysis",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.doc_analysis",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.doc_analysis",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.doctor",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.doctor",
+   "to": "specify_cli.invocation",
+   "weight": 7,
+   "load_time_weight": 4,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "charter",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "charter.offering",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "kernel",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.dossier",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.drg_writers",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.drg_writers",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.drg_writers",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "runtime",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.events",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "charter",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "kernel",
+   "weight": 21,
+   "load_time_weight": 21,
+   "import_records": 60
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "mission_runtime",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 20
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.coordination",
+   "weight": 6,
+   "load_time_weight": 4,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.core",
+   "weight": 10,
+   "load_time_weight": 7,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.lanes",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 12
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.missions",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.git",
+   "to": "specify_cli.status",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.identity",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.intake",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.intake",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "charter",
+   "weight": 7,
+   "load_time_weight": 4,
+   "import_records": 15
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "charter.activation",
+   "weight": 6,
+   "load_time_weight": 4,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "glossary",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "kernel",
+   "weight": 13,
+   "load_time_weight": 13,
+   "import_records": 22
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "specify_cli.core",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.invocation",
+   "to": "specify_cli.git",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "kernel",
+   "weight": 28,
+   "load_time_weight": 27,
+   "import_records": 64
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "mission_runtime",
+   "weight": 19,
+   "load_time_weight": 12,
+   "import_records": 49
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli",
+   "weight": 9,
+   "load_time_weight": 4,
+   "import_records": 17
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.consolidation",
+   "weight": 17,
+   "load_time_weight": 9,
+   "import_records": 58
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.context",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.coordination",
+   "weight": 14,
+   "load_time_weight": 4,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.core",
+   "weight": 22,
+   "load_time_weight": 15,
+   "import_records": 27
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.git",
+   "weight": 15,
+   "load_time_weight": 12,
+   "import_records": 36
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.migration",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.missions",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.ownership",
+   "weight": 5,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.paths",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.policy",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.state",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.status",
+   "weight": 13,
+   "load_time_weight": 3,
+   "import_records": 59
+  },
+  {
+   "from": "specify_cli.lanes",
+   "to": "specify_cli.workspace",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "charter.activation",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "kernel",
+   "weight": 12,
+   "load_time_weight": 12,
+   "import_records": 28
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "mission_runtime",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli",
+   "weight": 20,
+   "load_time_weight": 13,
+   "import_records": 35
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.agent_utils",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.asset_preservation",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.cli",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.compat",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.consolidation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.context",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 15
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.coordination",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.core",
+   "weight": 23,
+   "load_time_weight": 17,
+   "import_records": 49
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.lanes",
+   "weight": 7,
+   "load_time_weight": 2,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.missions",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.ownership",
+   "weight": 5,
+   "load_time_weight": 2,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.review",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.shims",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.status",
+   "weight": 16,
+   "load_time_weight": 12,
+   "import_records": 71
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.template",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.upgrade",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.migration",
+   "to": "specify_cli.workspace",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "charter",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "runtime",
+   "weight": 10,
+   "load_time_weight": 10,
+   "import_records": 23
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.mission_loader",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.mission_step_contracts",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.mission_step_contracts",
+   "to": "charter.activation",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.mission_step_contracts",
+   "to": "charter.offering",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.mission_step_contracts",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.mission_step_contracts",
+   "to": "specify_cli.invocation",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.mission_v1",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.mission_v1",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.mission_v1",
+   "to": "runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.mission_v1",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.mission_v1",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "kernel",
+   "weight": 8,
+   "load_time_weight": 6,
+   "import_records": 17
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "mission_runtime",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 25
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli",
+   "weight": 5,
+   "load_time_weight": 4,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.acceptance",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.consolidation",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.coordination",
+   "weight": 5,
+   "load_time_weight": 2,
+   "import_records": 15
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.core",
+   "weight": 6,
+   "load_time_weight": 6,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.decisions",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.git",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.lanes",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.migration",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.missions",
+   "to": "specify_cli.status",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "kernel",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "mission_runtime",
+   "weight": 5,
+   "load_time_weight": 2,
+   "import_records": 18
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "runtime",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli",
+   "weight": 6,
+   "load_time_weight": 2,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.acceptance",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.cli",
+   "weight": 9,
+   "load_time_weight": 0,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.config",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.consolidation",
+   "weight": 13,
+   "load_time_weight": 3,
+   "import_records": 27
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.coordination",
+   "weight": 6,
+   "load_time_weight": 0,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.core",
+   "weight": 17,
+   "load_time_weight": 7,
+   "import_records": 33
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.decisions",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 24
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.design",
+   "weight": 13,
+   "load_time_weight": 7,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.events",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.git",
+   "weight": 5,
+   "load_time_weight": 3,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.lanes",
+   "weight": 14,
+   "load_time_weight": 0,
+   "import_records": 35
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.mission_v1",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.missions",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.policy",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.status",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 39
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.upgrade",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.orchestrator_api",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.ownership",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.ownership",
+   "to": "specify_cli.agent_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.ownership",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.ownership",
+   "to": "specify_cli.status",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.paths",
+   "to": "kernel",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "kernel",
+   "weight": 7,
+   "load_time_weight": 7,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.asset_preservation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.cli",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.core",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.lanes",
+   "weight": 5,
+   "load_time_weight": 4,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.tasks",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.policy",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.ast_analysis",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.retrospective",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.review",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.post_merge",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.provisioning",
+   "to": "charter.activation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.readiness",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.readiness",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.readiness",
+   "to": "specify_cli.compat",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.readiness",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.release",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.requirement_mapping",
+   "to": "kernel",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.requirement_mapping",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "charter",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "charter.activation",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "kernel",
+   "weight": 7,
+   "load_time_weight": 7,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "mission_runtime",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.cli",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.coordination",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.core",
+   "weight": 9,
+   "load_time_weight": 8,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.lanes",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.missions",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.review",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.status",
+   "weight": 7,
+   "load_time_weight": 1,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.retrospective",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "charter.activation",
+   "weight": 4,
+   "load_time_weight": 3,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "kernel",
+   "weight": 23,
+   "load_time_weight": 22,
+   "import_records": 35
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "mission_runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 12
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.consolidation",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.coordination",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.core",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.git",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.lanes",
+   "weight": 5,
+   "load_time_weight": 4,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.ownership",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.paths",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.status",
+   "weight": 6,
+   "load_time_weight": 4,
+   "import_records": 26
+  },
+  {
+   "from": "specify_cli.review",
+   "to": "specify_cli.workspace",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "charter",
+   "weight": 4,
+   "load_time_weight": 1,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "charter.activation",
+   "weight": 6,
+   "load_time_weight": 3,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "kernel",
+   "weight": 7,
+   "load_time_weight": 7,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli",
+   "weight": 4,
+   "load_time_weight": 0,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.agent_utils",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.asset_preservation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.core",
+   "weight": 7,
+   "load_time_weight": 4,
+   "import_records": 20
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.paths",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.shims",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 12
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.skills",
+   "weight": 9,
+   "load_time_weight": 6,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.template",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.runtime",
+   "to": "specify_cli.tool_surface",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 28
+  },
+  {
+   "from": "specify_cli.services",
+   "to": "kernel",
+   "weight": 14,
+   "load_time_weight": 14,
+   "import_records": 46
+  },
+  {
+   "from": "specify_cli.services",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.services",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.services",
+   "to": "specify_cli.status",
+   "weight": 4,
+   "load_time_weight": 4,
+   "import_records": 21
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "kernel",
+   "weight": 6,
+   "load_time_weight": 6,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.asset_preservation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.compat",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.core",
+   "weight": 6,
+   "load_time_weight": 4,
+   "import_records": 8
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.distribution",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.doctor",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.identity",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.skills",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.session_presence",
+   "to": "specify_cli.tool_surface",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.shims",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.shims",
+   "to": "specify_cli.agent_utils",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.shims",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "charter.activation",
+   "weight": 11,
+   "load_time_weight": 6,
+   "import_records": 23
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "kernel",
+   "weight": 16,
+   "load_time_weight": 15,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.asset_preservation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.core",
+   "weight": 12,
+   "load_time_weight": 11,
+   "import_records": 21
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.runtime",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.session_presence",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.shims",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.state",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.template",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.skills",
+   "to": "specify_cli.tool_surface",
+   "weight": 6,
+   "load_time_weight": 5,
+   "import_records": 32
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "glossary",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "kernel",
+   "weight": 9,
+   "load_time_weight": 9,
+   "import_records": 15
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "runtime",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.core",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.invocation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.paths",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.state",
+   "to": "specify_cli.status",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "kernel",
+   "weight": 23,
+   "load_time_weight": 23,
+   "import_records": 40
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "mission_runtime",
+   "weight": 8,
+   "load_time_weight": 1,
+   "import_records": 26
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "runtime",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli",
+   "weight": 19,
+   "load_time_weight": 17,
+   "import_records": 24
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.coordination",
+   "weight": 10,
+   "load_time_weight": 0,
+   "import_records": 34
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.core",
+   "weight": 27,
+   "load_time_weight": 15,
+   "import_records": 49
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.events",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.git",
+   "weight": 3,
+   "load_time_weight": 2,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.identity",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.lanes",
+   "weight": 8,
+   "load_time_weight": 3,
+   "import_records": 14
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.migration",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.missions",
+   "weight": 6,
+   "load_time_weight": 1,
+   "import_records": 18
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.paths",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.requirement_mapping",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.retrospective",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.review",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.tasks",
+   "weight": 3,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.status",
+   "to": "specify_cli.workspace",
+   "weight": 6,
+   "load_time_weight": 4,
+   "import_records": 11
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "specify_cli.coordination",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.task_utils",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "mission_runtime",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "specify_cli.cli",
+   "weight": 6,
+   "load_time_weight": 1,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "specify_cli.coordination",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tasks",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.template",
+   "to": "charter",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.template",
+   "to": "glossary",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.template",
+   "to": "kernel",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.template",
+   "to": "specify_cli",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.template",
+   "to": "specify_cli.core",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "charter",
+   "weight": 11,
+   "load_time_weight": 7,
+   "import_records": 13
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "charter.activation",
+   "weight": 4,
+   "load_time_weight": 2,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "charter.offering",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "kernel",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.core",
+   "weight": 11,
+   "load_time_weight": 8,
+   "import_records": 17
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.invocation",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.runtime",
+   "weight": 5,
+   "load_time_weight": 0,
+   "import_records": 18
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.session_presence",
+   "weight": 8,
+   "load_time_weight": 8,
+   "import_records": 22
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.shims",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.tool_surface",
+   "to": "specify_cli.skills",
+   "weight": 24,
+   "load_time_weight": 17,
+   "import_records": 40
+  },
+  {
+   "from": "specify_cli.tracker",
+   "to": "kernel",
+   "weight": 5,
+   "load_time_weight": 5,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.tracker",
+   "to": "specify_cli.core",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.tracker",
+   "to": "specify_cli.identity",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.tracker",
+   "to": "specify_cli.paths",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "charter",
+   "weight": 21,
+   "load_time_weight": 12,
+   "import_records": 41
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "charter.activation",
+   "weight": 21,
+   "load_time_weight": 7,
+   "import_records": 56
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "kernel",
+   "weight": 49,
+   "load_time_weight": 49,
+   "import_records": 82
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli",
+   "weight": 35,
+   "load_time_weight": 27,
+   "import_records": 75
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.agent_utils",
+   "weight": 11,
+   "load_time_weight": 6,
+   "import_records": 19
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.asset_preservation",
+   "weight": 20,
+   "load_time_weight": 16,
+   "import_records": 43
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.context",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 5
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.coordination",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.core",
+   "weight": 50,
+   "load_time_weight": 30,
+   "import_records": 74
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.git",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.invocation",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.lanes",
+   "weight": 3,
+   "load_time_weight": 1,
+   "import_records": 7
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.migration",
+   "weight": 14,
+   "load_time_weight": 6,
+   "import_records": 35
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.paths",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.policy",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.readiness",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.runtime",
+   "weight": 34,
+   "load_time_weight": 30,
+   "import_records": 37
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.session_presence",
+   "weight": 9,
+   "load_time_weight": 1,
+   "import_records": 15
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.shims",
+   "weight": 5,
+   "load_time_weight": 0,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.skills",
+   "weight": 40,
+   "load_time_weight": 13,
+   "import_records": 77
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.status",
+   "weight": 8,
+   "load_time_weight": 7,
+   "import_records": 24
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.template",
+   "weight": 2,
+   "load_time_weight": 0,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.tool_surface",
+   "weight": 22,
+   "load_time_weight": 14,
+   "import_records": 35
+  },
+  {
+   "from": "specify_cli.upgrade",
+   "to": "specify_cli.validators",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.validators",
+   "to": "kernel",
+   "weight": 2,
+   "load_time_weight": 2,
+   "import_records": 2
+  },
+  {
+   "from": "specify_cli.validators",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.validators",
+   "to": "specify_cli.config",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "kernel",
+   "weight": 5,
+   "load_time_weight": 4,
+   "import_records": 10
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "mission_runtime",
+   "weight": 1,
+   "load_time_weight": 1,
+   "import_records": 6
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.context",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.coordination",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 3
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.core",
+   "weight": 7,
+   "load_time_weight": 5,
+   "import_records": 9
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.git",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 21
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.lanes",
+   "weight": 6,
+   "load_time_weight": 3,
+   "import_records": 21
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.missions",
+   "weight": 1,
+   "load_time_weight": 0,
+   "import_records": 1
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.ownership",
+   "weight": 3,
+   "load_time_weight": 3,
+   "import_records": 4
+  },
+  {
+   "from": "specify_cli.workspace",
+   "to": "specify_cli.status",
+   "weight": 2,
+   "load_time_weight": 1,
+   "import_records": 4
+  }
+ ],
+ "component_sccs_all": [
+  [
+   "charter",
+   "charter.activation"
+  ],
+  [
+   "mission_runtime",
+   "runtime",
+   "specify_cli",
+   "specify_cli.acceptance",
+   "specify_cli.agent_utils",
+   "specify_cli.asset_preservation",
+   "specify_cli.audit",
+   "specify_cli.bulk_edit",
+   "specify_cli.charter_pack_synthesizer",
+   "specify_cli.charter_packs",
+   "specify_cli.charter_runtime",
+   "specify_cli.cli",
+   "specify_cli.compat",
+   "specify_cli.config",
+   "specify_cli.consolidation",
+   "specify_cli.context",
+   "specify_cli.coordination",
+   "specify_cli.core",
+   "specify_cli.decisions",
+   "specify_cli.design",
+   "specify_cli.diagnostics",
+   "specify_cli.distribution",
+   "specify_cli.doc_analysis",
+   "specify_cli.doctor",
+   "specify_cli.dossier",
+   "specify_cli.events",
+   "specify_cli.git",
+   "specify_cli.identity",
+   "specify_cli.intake",
+   "specify_cli.invocation",
+   "specify_cli.lanes",
+   "specify_cli.migration",
+   "specify_cli.mission_loader",
+   "specify_cli.mission_step_contracts",
+   "specify_cli.mission_v1",
+   "specify_cli.missions",
+   "specify_cli.orchestrator_api",
+   "specify_cli.ownership",
+   "specify_cli.policy",
+   "specify_cli.post_merge",
+   "specify_cli.readiness",
+   "specify_cli.release",
+   "specify_cli.requirement_mapping",
+   "specify_cli.retrospective",
+   "specify_cli.review",
+   "specify_cli.runtime",
+   "specify_cli.services",
+   "specify_cli.session_presence",
+   "specify_cli.shims",
+   "specify_cli.skills",
+   "specify_cli.state",
+   "specify_cli.status",
+   "specify_cli.task_utils",
+   "specify_cli.tasks",
+   "specify_cli.template",
+   "specify_cli.tool_surface",
+   "specify_cli.tracker",
+   "specify_cli.upgrade",
+   "specify_cli.validators",
+   "specify_cli.workspace"
+  ]
+ ],
+ "component_sccs_load_time": [
+  [
+   "charter",
+   "charter.activation"
+  ],
+  [
+   "mission_runtime",
+   "runtime",
+   "specify_cli",
+   "specify_cli.acceptance",
+   "specify_cli.agent_utils",
+   "specify_cli.asset_preservation",
+   "specify_cli.charter_pack_synthesizer",
+   "specify_cli.charter_runtime",
+   "specify_cli.cli",
+   "specify_cli.compat",
+   "specify_cli.config",
+   "specify_cli.consolidation",
+   "specify_cli.context",
+   "specify_cli.coordination",
+   "specify_cli.core",
+   "specify_cli.decisions",
+   "specify_cli.design",
+   "specify_cli.doc_analysis",
+   "specify_cli.dossier",
+   "specify_cli.events",
+   "specify_cli.git",
+   "specify_cli.identity",
+   "specify_cli.intake",
+   "specify_cli.invocation",
+   "specify_cli.lanes",
+   "specify_cli.migration",
+   "specify_cli.mission_step_contracts",
+   "specify_cli.missions",
+   "specify_cli.ownership",
+   "specify_cli.post_merge",
+   "specify_cli.release",
+   "specify_cli.retrospective",
+   "specify_cli.review",
+   "specify_cli.runtime",
+   "specify_cli.services",
+   "specify_cli.session_presence",
+   "specify_cli.shims",
+   "specify_cli.skills",
+   "specify_cli.state",
+   "specify_cli.status",
+   "specify_cli.task_utils",
+   "specify_cli.tasks",
+   "specify_cli.template",
+   "specify_cli.tool_surface",
+   "specify_cli.tracker",
+   "specify_cli.upgrade",
+   "specify_cli.validators",
+   "specify_cli.workspace"
+  ]
+ ],
+ "mutual_pairs_all": [
+  [
+   "charter",
+   "charter.activation"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.coordination"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.core"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.migration"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.missions"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.retrospective"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.status"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.task_utils"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.workspace"
+  ],
+  [
+   "runtime",
+   "specify_cli.coordination"
+  ],
+  [
+   "runtime",
+   "specify_cli.events"
+  ],
+  [
+   "runtime",
+   "specify_cli.mission_loader"
+  ],
+  [
+   "runtime",
+   "specify_cli.mission_v1"
+  ],
+  [
+   "runtime",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.agent_utils"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.cli"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.context"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.coordination"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.runtime"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.skills"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.state"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.task_utils"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.template"
+  ],
+  [
+   "specify_cli.acceptance",
+   "specify_cli.consolidation"
+  ],
+  [
+   "specify_cli.acceptance",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.agent_utils",
+   "specify_cli.cli"
+  ],
+  [
+   "specify_cli.asset_preservation",
+   "specify_cli.skills"
+  ],
+  [
+   "specify_cli.charter_runtime",
+   "specify_cli.cli"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.config"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.consolidation"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.identity"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.orchestrator_api"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.policy"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.readiness"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.retrospective"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.review"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.tasks"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.upgrade"
+  ],
+  [
+   "specify_cli.compat",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.compat",
+   "specify_cli.distribution"
+  ],
+  [
+   "specify_cli.compat",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.review"
+  ],
+  [
+   "specify_cli.context",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.context",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.context",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.context",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.context",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.decisions"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.events"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.retrospective"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.runtime"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.upgrade"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.decisions",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.events",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.migration"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.policy"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.migration",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.migration",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.migration",
+   "specify_cli.upgrade"
+  ],
+  [
+   "specify_cli.missions",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.retrospective",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.review",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.runtime",
+   "specify_cli.skills"
+  ],
+  [
+   "specify_cli.runtime",
+   "specify_cli.tool_surface"
+  ],
+  [
+   "specify_cli.session_presence",
+   "specify_cli.skills"
+  ],
+  [
+   "specify_cli.session_presence",
+   "specify_cli.tool_surface"
+  ],
+  [
+   "specify_cli.skills",
+   "specify_cli.tool_surface"
+  ],
+  [
+   "specify_cli.status",
+   "specify_cli.tasks"
+  ],
+  [
+   "specify_cli.status",
+   "specify_cli.workspace"
+  ]
+ ],
+ "mutual_pairs_load_time": [
+  [
+   "charter",
+   "charter.activation"
+  ],
+  [
+   "mission_runtime",
+   "specify_cli.core"
+  ],
+  [
+   "runtime",
+   "specify_cli.coordination"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.agent_utils"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.coordination"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.skills"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.state"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.task_utils"
+  ],
+  [
+   "specify_cli",
+   "specify_cli.template"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.consolidation"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.retrospective"
+  ],
+  [
+   "specify_cli.cli",
+   "specify_cli.tasks"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.consolidation",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.core"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.coordination",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.git"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.upgrade"
+  ],
+  [
+   "specify_cli.core",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.lanes"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.missions"
+  ],
+  [
+   "specify_cli.git",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.lanes",
+   "specify_cli.workspace"
+  ],
+  [
+   "specify_cli.missions",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.retrospective",
+   "specify_cli.status"
+  ],
+  [
+   "specify_cli.session_presence",
+   "specify_cli.tool_surface"
+  ],
+  [
+   "specify_cli.skills",
+   "specify_cli.tool_surface"
+  ],
+  [
+   "specify_cli.status",
+   "specify_cli.workspace"
+  ]
+ ],
+ "summary": {
+  "components": 74,
+  "component_edges_all": 656,
+  "component_edges_load_time": 466,
+  "possible_directed_pairs": 5402,
+  "components_in_cycle_all": 62,
+  "largest_component_scc_all": 60,
+  "components_in_cycle_load_time": 50,
+  "largest_component_scc_load_time": 48,
+  "mutual_pairs_all": 100,
+  "mutual_pairs_load_time": 39,
+  "module_edges_cross_component_all": 4855,
+  "module_edges_cross_component_load_time": 3112
+ }
+}

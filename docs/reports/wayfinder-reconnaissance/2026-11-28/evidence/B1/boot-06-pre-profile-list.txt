@@ -1,0 +1,33 @@
+$ .venv/bin/spec-kitty agent profile list
+                                 Agent Profiles                                 
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Profile ID                ┃ Friendly Name     ┃ Role              ┃ Source   ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩
+│ analyst-annie             │ Analyst Annie     │ analyst           │ built-in │
+│ architect-alphonso        │ Architect         │ architect         │ built-in │
+│                           │ Alphonso          │                   │          │
+│ comms-cleo                │ Comms Cleo        │ communicator      │ built-in │
+│ curator-carla             │ Curator Carla     │ curator           │ built-in │
+│ debugger-debbie           │ Debugger Debbie   │ investigator      │ built-in │
+│ designer-dagmar           │ Designer Dagmar   │ designer          │ built-in │
+│ diagram-daisy             │ Diagram Daisy     │ diagram-author    │ built-in │
+│ doctrine-daphne           │ Doctrine Daphne   │ curator           │ built-in │
+│ frontend-freddy           │ Frontend Freddy   │ implementer       │ built-in │
+│ generic-agent             │ Generic Agent     │ implementer       │ built-in │
+│ human-in-charge           │ Human in Charge   │ human-in-charge   │ built-in │
+│ implementer-ivan          │ Implementer Ivan  │ implementer       │ built-in │
+│ java-jenny                │ Java Jenny        │ implementer       │ built-in │
+│ lexical-larry             │ Lexical Larry     │ semantic-analyst  │ built-in │
+│ minutes-mahad             │ Minutes Mahad     │ documentarian     │ built-in │
+│ node-norris               │ Node Norris       │ implementer       │ built-in │
+│ paula-patterns            │ Paula Patterns    │ architecture-sco… │ built-in │
+│ planner-priti             │ Planner Priti     │ planner           │ built-in │
+│ python-pedro              │ Python Pedro      │ implementer       │ built-in │
+│ researcher-robbie         │ Researcher Robbie │ researcher        │ built-in │
+│ retrospective-facilitator │ Retrospective     │ facilitator       │ built-in │
+│                           │ Facilitator       │                   │          │
+│ reviewer-renata           │ Reviewer Renata   │ reviewer          │ built-in │
+│ scribe-sally              │ Scribe Sally      │ documentarian     │ built-in │
+│ synthesizer-sam           │ Synthesizer Sam   │ synthesizer       │ built-in │
+└───────────────────────────┴───────────────────┴───────────────────┴──────────┘
+exit_code=0

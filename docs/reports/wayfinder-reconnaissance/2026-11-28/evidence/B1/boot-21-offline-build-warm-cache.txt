@@ -1,0 +1,9 @@
+$ SPEC_KITTY_PACK_OFFLINE=1 XDG_CACHE_HOME=<cache populated by step 01> uv sync --frozen --all-extras --offline --reinstall-package spec-kitty-cli   (packs/built-in absent)
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+   Building spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone
+      Built spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone
+Prepared 1 package in 6.85s
+Uninstalled 1 package in 378ms
+Installed 1 package in 69ms
+ ~ spec-kitty-cli==4.0.0rc9 (from file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-B1/clone)
+exit_code=0

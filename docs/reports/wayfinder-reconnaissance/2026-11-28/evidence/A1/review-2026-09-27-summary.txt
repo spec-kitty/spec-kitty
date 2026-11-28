@@ -1,0 +1,86 @@
+Workstream A1, deliverable 7: what the 2026-09-27 architectural review found
+View: document-claim only. Nothing below is adopted by workstream A1. Both records are summarised as written.
+
+PART A. The review itself (core repository)
+Record: spec-kitty:docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md
+Revision read: core 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 (file unchanged as a point-in-time record)
+- Title: "Engine-side alignment review against the Kitty Shared Architecture - 2026-09-27" (L28). doc_status: draft (L4).
+- What it is (L30-36): a read-only review squad of four agent profiles (architect-alphonso consolidating, planner-priti,
+  paula-patterns, reviewer-renata) compared the spec-kitty engine with the Kitty Shared Architecture, "a proposed,
+  not-yet-ratified target architecture for the hosted Kitty products". The full analysis "is held in the private
+  planning repository"; this page is the engine-side version. Pinned to core main e2dcf69c (CLI 4.0.0rc5) and
+  spec-kitty-events 10.4.0. "a point-in-time record; it will not be updated" (L36).
+- Its own evidence status (L195-201): each lens read-only under one governed Op; squad read baef0af5, code citations
+  re-read at e2dcf69c; CLI behaviour checked by running the CLI; event-schema claims checked against installed
+  spec_kitty_events 10.4.0. One item stated as hypothesis (DA-9, hosted admission constraint not read). Out of scope:
+  soundness of the target architecture, hosted internals, any fix.
+- Its counts (L67): 29 findings: 1 BLOCKER, 10 HIGH, 15 MEDIUM, 3 LOW. Prefixes: EC engine contract (9),
+  CL target assumptions vs code (4), RM roadmap (1), DA docs/language/authority (9), SK spec-kitty staleness (6).
+- Its executive verdict (L54-65), quoted as a claim: "a sound core to build on, with real gaps that are not yet tracked":
+  no engine<->hosted decision round trip (EC-1, BLOCKER); schema additions are breaking (EC-2); no record
+  canonicalisation / signature verification / repo-level decisions (EC-3); no spec-kitty plan for this work (RM-1);
+  the charter fixes contract ownership and release rules any target must respect or amend through the HiC (EC-5,
+  EC-6); the living C4 context view still described the retired CLI->SaaS sync transport (SK-1).
+- Its authority claims relevant to A1 (section 4, L156-167, and DA rows): engine terms live in core docs/context;
+  engine-side decisions in core docs/adr/3.x and external decisions are proposals until ratified there; event,
+  envelope and moment schemas in spec-kitty-events; CLI<->SaaS route contract is the single charter-named contract;
+  DA-2 "Accepted spec-kitty ADRs are binding"; DA-7 the ADR index lists Accepted/Superseded/Deprecated while files also
+  use Proposed; DA-8 the glossary precedence rule ranks planning ADRs above the glossary.
+- Status of its basis at head (document state only, not a judgement of the review): several files it cites were later
+  removed from core (e.g. status/zeitgeist_bridge.py, zeitgeist_client/, decisions/ownership.py; its own rows already
+  note "removed by #6164" for some); it cites ADR folder 3.x as the home of engine decisions while 4.x opened on
+  2026-09-29 (core docs/adr/README.md).
+- Relation to A1 findings (overlap, not adoption): DA-7 and DA-2 concern ADR status semantics (see F-A1-019);
+  SK-1/SK-4 concern stale living docs (see F-A1-010, F-A1-009); EC-5/EC-6 concern the charter's contract-package rules.
+
+PART B. The reviewed target architecture (planning repository)
+1. What the record is (its own words)
+- Hub page architecture/docs/README.md:1-30: "The target architecture for the Spec Kitty product family:
+  spec-kitty, Team Kitty with its Zeitgeist presence layer, Kitty Studio and CartaStudio." doc_status: review;
+  "Status: Proposed · for review" (README.md:19). Items marked PROPOSED become binding only once ratified into
+  the planning repository's type:decision queue (README.md:27).
+- Code basis it declares: "Code read: saas a377f49 · train f86fa8a · zeitgeist 1f2633e" (README.md:21).
+  No spec-kitty core, charter, events, open-packs or doc-kitty revision is named as read.
+- Planning's own status of it: "proposals for review, not decision records of this repo: none of them is binding
+  until it is ratified" (decisions/README.md:9; README.md:25).
+- Decision records: 56 (D1-D56). Status field as indexed: 52 Proposed, 3 Accepted inside the docsite
+  (D1 spec-kitty is the only engine; D2 Kitty Studio is a parallel track; D4 render from git on demand),
+  1 Superseded (D47). Source: evidence/A1/decision-timeline.csv rows repo=spec-kitty-planning:architecture-v0.11.
+
+2. What its review history says it found (claims about its own reviews; not verified by A1)
+- changelog/README.md:22-25 (v0.11): a final review of v0.10 found one blocker (an agent could answer a
+  security question inside a plan interview and have it accepted as routine) and that the design-partner release
+  promised more than it delivers; ruling D56 slims the design-partner release.
+- changelog/README.md:29 (v0.10): v0.9 went through three independent reviews (facts against the code, security
+  design, fit with the five needs) that found four blockers and about seventeen major issues; "this version fixes
+  all of them".
+- changelog/README.md:85 (v0.8), :101 (v0.6), :151 (v0.2): earlier rounds (one blocker + ten issues; six blockers +
+  about thirty major findings; three reviewers on v0.1).
+- "Corrections of fact" about the engine recorded in v0.10 (changelog/README.md:43-48): the engine emits interview
+  decisions only; the ADR surface exists in the schema but not in the CLI (upstream path proposed, D48); the engine
+  has deferred and canceled terminal outcomes (CLI decision defer/cancel); interview resolutions carry no
+  actor_type; Team Kitty already has tracker code (D55).
+
+3. Architectural decisions it proposes that touch the five primary repositories
+- D1 (adr/0001:32, Accepted inside v0.11): spec-kitty is the only engine; Studio integrates it as a managed
+  dependency and replaces the CLI as the interface.
+- D25 (adr/0025:32): Team Kitty decisions and lanes conform to spec-kitty-events lifecycles.
+- D48 (adr/0048:32): an ADR-surface path for `spec-kitty agent decision open` in the engine.
+- D7/D11 (adr/0007, adr/0011): Postgres outbox event backbone; no Kafka (Team Kitty runtime).
+- D15/D16 (adr/0015, adr/0016): bounded contexts with hexagons; API-first contracts (Team Kitty).
+- Risk table (plans/risks-and-open-questions.md): includes "Charter inheritance across peer repos -> doctrine
+  drifts between repos; pack pins and digests in Studio" (owner CTO).
+
+4. Evidence status, as the record itself states it
+- Self-declared status: review/proposed; budgets, targets and capacity model are "proposals to confirm by
+  measurement" (README.md:52); DPIA and erasure scope are drafts for counsel.
+- Imported from an external artifact "(original import source, historical; may be unreachable)"; its version
+  history predates the repository (changelog/README.md:18).
+
+5. Position relative to head records of the primary repositories (document state only)
+- Core ADR 2026-10-06-1 (Accepted, amended 2026-10-12 and 2026-10-14) records Team Kitty as no longer actively
+  supported and hosted surfaces removed from open-core; v0.11 describes Team Kitty as the target product.
+- In the five primary repositories, the only head record found that discusses the Kitty Shared Architecture is the
+  core engine-side alignment review (Part A, doc_status draft); no record ratifying any of the 56 v0.11 records was
+  found (search: grep -i 'shared architecture' over the five repos' docs/ and charters; other 'v0.11' hits are
+  spec-kitty version strings).

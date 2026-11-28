@@ -1,0 +1,83 @@
+"""M01a / M01b at every measurement point. Output: out/series.csv"""
+from __future__ import annotations
+
+import csv
+import sys
+
+from common import S, components, edges, load, points, scc
+
+FIELDS = [
+    "label", "series", "line", "revision", "date",
+    "modules", "lines_physical", "lines_code",
+    "components_raw", "components_mapped",
+    "internal_import_records", "module_edges_all", "module_edges_load",
+    "xcomp_edges_all_raw", "xcomp_edges_all_mapped", "xcomp_edges_load_mapped",
+    "xcomp_import_records_mapped", "component_pair_edges_mapped",
+    "m01a_xcomp_edges_per_kloc_physical_mapped", "m01a_xcomp_edges_per_kloc_code_mapped",
+    "m01a_xcomp_edges_per_kloc_physical_raw",
+    "m01b_all_modules_in_cycle", "m01b_all_share_in_cycle", "m01b_all_largest_scc", "m01b_all_largest_scc_share", "m01b_all_scc_count",
+    "m01b_load_modules_in_cycle", "m01b_load_share_in_cycle", "m01b_load_largest_scc", "m01b_load_largest_scc_share", "m01b_load_scc_count",
+    "expl_loadpkg_modules_in_cycle", "expl_loadpkg_largest_scc",
+    "unresolved_internal_records", "dynamic_literal_records",
+]
+
+
+def measure(p):
+    d = load(p["revision"])
+    mods = d["modules"]
+    raw, mapped = components(d)
+    all_e, load_e = edges(d)
+    n = len(mods)
+    lp = sum(e["lines_physical"] for e in mods.values())
+    lc = sum(e["lines_code"] for e in mods.values())
+    x_raw = [k for k in all_e if raw[k[0]] != raw[k[1]]]
+    x_map = [k for k in all_e if mapped[k[0]] != mapped[k[1]]]
+    x_load = [k for k in load_e if mapped[k[0]] != mapped[k[1]]]
+    recs = sum(v for k, v in all_e.items() if mapped[k[0]] != mapped[k[1]])
+    pairs = {(mapped[s], mapped[t]) for s, t in x_map}
+    row = dict(p)
+    row.update(
+        modules=n, lines_physical=lp, lines_code=lc,
+        components_raw=len(set(raw.values())), components_mapped=len(set(mapped.values())),
+        internal_import_records=sum(all_e.values()), module_edges_all=len(all_e), module_edges_load=len(load_e),
+        xcomp_edges_all_raw=len(x_raw), xcomp_edges_all_mapped=len(x_map), xcomp_edges_load_mapped=len(x_load),
+        xcomp_import_records_mapped=recs, component_pair_edges_mapped=len(pairs),
+        m01a_xcomp_edges_per_kloc_physical_mapped=round(1000 * len(x_map) / lp, 3),
+        m01a_xcomp_edges_per_kloc_code_mapped=round(1000 * len(x_map) / lc, 3),
+        m01a_xcomp_edges_per_kloc_physical_raw=round(1000 * len(x_raw) / lp, 3),
+    )
+    for tag, e in (("all", all_e), ("load", load_e)):
+        comps = [c for c in scc(list(mods), e.keys()) if len(c) > 1]
+        inc = sum(len(c) for c in comps)
+        big = max((len(c) for c in comps), default=0)
+        row[f"m01b_{tag}_modules_in_cycle"] = inc
+        row[f"m01b_{tag}_share_in_cycle"] = round(inc / n, 4)
+        row[f"m01b_{tag}_largest_scc"] = big
+        row[f"m01b_{tag}_largest_scc_share"] = round(big / n, 4)
+        row[f"m01b_{tag}_scc_count"] = len(comps)
+    # exploratory: load-time edges plus implicit execution of the target's parent packages
+    ext = set(load_e)
+    for s, t in load_e:
+        parts = t.split(".")
+        for i in range(1, len(parts)):
+            anc = ".".join(parts[:i])
+            if anc in mods and not (s == anc or s.startswith(anc + ".")):
+                ext.add((s, anc))
+    comps = [c for c in scc(list(mods), ext) if len(c) > 1]
+    row["expl_loadpkg_modules_in_cycle"] = sum(len(c) for c in comps)
+    row["expl_loadpkg_largest_scc"] = max((len(c) for c in comps), default=0)
+    row["unresolved_internal_records"] = sum(1 for r in d["imports"] if r["kind"] != "dynamic" and r.get("internal") and (not r.get("resolved") or (not r.get("name_is_module") and not r.get("exact", True))))
+    row["dynamic_literal_records"] = sum(1 for r in d["imports"] if r["kind"] == "dynamic")
+    return row
+
+
+def main():
+    w = csv.DictWriter(open(S / "out" / "series.csv", "w", newline=""), fieldnames=FIELDS)
+    w.writeheader()
+    for p in points():
+        w.writerow(measure(p))
+        print(p["label"], file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

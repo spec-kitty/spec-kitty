@@ -1,0 +1,299 @@
+# Core docs/context glossary entry headings (### under a '## Context:' page), core 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+# command: grep -n '^### ' docs/context/*.md on git archive of 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+charter.md:29:### charter
+charter.md:42:### Charter offering
+charter.md:56:### Charter Pack
+charter.md:70:### Contract Scenario
+charter.md:84:### Activation preset
+charter.md:98:### Active charter
+charter.md:112:### Activation ledger
+charter.md:126:### Exclusion
+charter.md:140:### Effective deny
+charter.md:154:### Required floor
+charter.md:168:### Project layer
+charter.md:182:### Charter Bundle
+charter.md:196:### Doctrine Domain
+charter.md:209:### Guideline
+charter.md:222:### Paradigm
+charter.md:235:### Directive
+charter.md:248:### Tactic
+charter.md:261:### Procedure
+charter.md:274:### Template Set
+charter.md:287:### Styleguide
+charter.md:300:### Toolguide
+charter.md:313:### Schema (Doctrine Artifact)
+charter.md:326:### Import Candidate
+charter.md:339:### Specification by Example (Paradigm)
+charter.md:352:### Living Documentation Sync (Directive)
+charter.md:365:### Usage Examples Sync (Tactic)
+charter.md:378:### Example Mapping Workshop (Procedure)
+charter.md:391:### Charter-Mediated Selection
+charter.md:403:### Global Selection
+charter.md:415:### Context-Scoped Selection
+charter.md:427:### Activation Registry
+charter.md:440:### Activation Context
+charter.md:452:### Trigger Registry
+charter.md:464:### Charter Facade
+charter.md:476:### Mission-Type Profile
+charter.md:488:### `selected_<kind>` / `required_<kind>`
+charter.md:500:### `activated_<kind>`
+charter.md:517:### Three-layer DRG
+charter.md:529:### Tension — `in_tension_with` (DRG Relation)
+charter.md:541:### Reconciliation — `reconciles_tension` (DRG Relation)
+charter.md:553:### Rejection — `rejects` (DRG Relation)
+charter.md:579:### Hard Dependency — `requires` (DRG Relation)
+charter.md:591:### Soft Recommendation — `suggests` (DRG Relation)
+charter.md:603:### Workflow Application — `applies` (DRG Relation)
+charter.md:615:### Governance Scope — `scope` (DRG Relation)
+charter.md:627:### Glossary Vocabulary — `vocabulary` (DRG Relation)
+charter.md:639:### Template Instantiation — `instantiates` (DRG Relation)
+charter.md:651:### Supersession — `replaces` (DRG Relation)
+charter.md:663:### Delegation — `delegates_to` (DRG Relation)
+charter.md:675:### Lineage — `specializes_from` (DRG Relation)
+charter.md:687:### Overlay Enhancement — `enhances` (DRG Relation)
+charter.md:699:### Overlay Override — `overrides` (DRG Relation)
+charter.md:711:### Refinement — `refines` (DRG Relation)
+charter.md:725:### Organization Tier
+charter.md:738:### CharterScope
+charter.md:750:### Workflow Sequence
+charter.md:762:### Workflow ID
+charter.md:774:### Ratchet Baseline
+charter.md:786:### Cat-7 Grandfathered Orphan
+charter.md:798:### Symbol-level Dead Code
+charter.md:810:### Catalog Miss
+charter.md:822:### `__all__` Declaration Convention
+configuration-project-structure.md:24:### `.kittify/`
+configuration-project-structure.md:37:### `kitty-specs/`
+configuration-project-structure.md:49:### `.worktrees/`
+configuration-project-structure.md:61:### `glossary/`
+configuration-project-structure.md:73:### Bootstrap (Candidate)
+configuration-project-structure.md:85:### Project Charter
+configuration-project-structure.md:97:### Charter Library
+dossier.md:19:### Artifact
+dossier.md:31:### Mission Dossier
+dossier.md:43:### ArtifactRef
+dossier.md:55:### Artifact Class
+dossier.md:66:### Artifact Key
+dossier.md:78:### Content Hash
+dossier.md:90:### Expected Artifact Manifest
+dossier.md:102:### Completeness Status
+dossier.md:114:### Parity Hash
+dossier.md:126:### Parity Baseline
+dossier.md:139:### Baseline Key
+dossier.md:152:### Parity Drift
+dossier.md:165:### Dossier Snapshot
+dossier.md:177:### Artifact Indexing
+dossier.md:189:### Missing Detection
+execution.md:22:### Tool
+execution.md:34:### Tool Surface
+execution.md:49:### Tool-surface drift
+execution.md:64:### Pack skill
+execution.md:78:### Slash Command
+execution.md:89:### Semantic Check
+execution.md:101:### Glossary Strictness
+execution.md:113:### Clarification Prompt
+execution.md:125:### Generation Boundary
+execution.md:137:### Middleware Pipeline
+execution.md:149:### Checkpoint/Resume
+execution.md:161:### Seed File
+execution.md:173:### Collaboration Mode
+execution.md:185:### Interactive Mode
+execution.md:197:### Hands-off with Review Mode
+execution.md:209:### Fully Delegated Mode
+execution.md:222:### GovernanceContext
+execution.md:235:### MissionExecutionContext
+execution.md:249:### InfraContext
+execution.md:262:### Effector
+execution.md:279:### communication artifact
+execution.md:293:### repository root checkout
+execution.md:307:### integrating worktree
+execution.md:321:### owned checkout
+execution.md:335:### Shadow Clone (Isolated Dev Environment)
+governance-files.md:102:### Editing `charter.yaml`
+governance.md:21:### Charter
+governance.md:33:### ADR (Architectural Decision Record)
+governance.md:45:### Glossary Strictness Policy
+governance.md:57:### Clarification Burst Policy
+governance.md:69:### Precedence Rule
+governance.md:81:### Pack Level
+governance.md:93:### Charter Interview
+governance.md:105:### Charter Compiler
+governance.md:117:### Governance Resolution
+governance.md:129:### Activation Chokepoint
+governance.md:141:### Activated vs Available Profile
+governance.md:153:### Effective Set
+governance.md:166:### Abstract Base Profile
+identity-fields.md:25:### repository_uuid
+identity-fields.md:40:### repository_label
+identity-fields.md:55:### project_uuid
+identity-fields.md:70:### repo_slug
+identity-fields.md:84:### build_id
+identity-fields.md:98:### node_id
+identity.md:22:### Agent
+identity.md:34:### Role
+identity.md:46:### Agent Profile
+identity.md:61:### Authored Intent
+identity.md:76:### Resolved Binding
+identity.md:93:### Audience Persona
+identity.md:106:### Internal Audience Persona
+identity.md:119:### External Audience Persona
+identity.md:132:### Mission Participant
+identity.md:143:### Mission Owner
+identity.md:155:### Human-in-Charge (HiC)
+identity.md:167:### engagement
+lexical.md:21:### Term Surface
+lexical.md:33:### Term Sense
+lexical.md:45:### Provenance
+lexical.md:57:### Confidence Score
+orchestration.md:25:### Repository
+orchestration.md:38:### Project
+orchestration.md:49:### Mission Type
+orchestration.md:60:### Build
+orchestration.md:73:### Mission
+orchestration.md:86:### Mission Run
+orchestration.md:99:### Feature
+orchestration.md:111:### work package
+orchestration.md:122:### Mission Action
+orchestration.md:134:### step contract
+orchestration.md:146:### Workflow
+orchestration.md:158:### WorkPackage (Alias)
+orchestration.md:170:### Lane
+orchestration.md:183:### Mission-Runtime YAML
+orchestration.md:195:### Step Dependency
+orchestration.md:207:### Step Sequence
+orchestration.md:219:### Command Template
+orchestration.md:231:### Template Resolution
+orchestration.md:243:### Mission Discovery
+orchestration.md:255:### Command Envelope
+orchestration.md:267:### Contract Version
+orchestration.md:279:### Orchestrator API
+orchestration.md:291:### Decision
+orchestration.md:306:### Decision Kind
+orchestration.md:318:### Decision Input Request
+orchestration.md:332:### Decision Input Answer
+orchestration.md:346:### Runtime Bridge
+orchestration.md:358:### Mission State Derivation
+orchestration.md:370:### base branch
+orchestration.md:382:### branch strategy gate
+orchestration.md:394:### current branch
+orchestration.md:406:### topic branch
+orchestration.md:419:### feature branch
+orchestration.md:432:### gate binding
+orchestration.md:444:### gate handler
+orchestration.md:456:### Merge target branch
+orchestration.md:468:### Planning base branch
+orchestration.md:480:### primary branch
+orchestration.md:493:### pr-bound mission
+orchestration.md:505:### start branch
+orchestration.md:517:### target branch
+orchestration.md:529:### transition gate
+orchestration.md:541:### Tracker Connector
+orchestration.md:553:### Tracker Connector Boundary (Alias)
+orchestration.md:565:### PRIMARY partition
+orchestration.md:578:### Target Ref / Commit Target
+orchestration.md:591:### Lane Consolidation
+orchestration.md:605:### Branch Integration / Git Merge
+orchestration.md:618:### Publish to origin/main
+orchestration.md:631:### Branch-relative provenance
+orchestration.md:644:### Work-package window
+orchestration.md:657:### Window-open SHA
+orchestration.md:670:### Window opener
+orchestration.md:683:### Window gap
+orchestration.md:696:### Gap report
+orchestration.md:709:### Exemption anchor
+orchestration.md:722:### Claim inputs
+orchestration.md:735:### Named window variant
+orchestration.md:748:### Evidence gate
+orchestration.md:761:### Origin freshness check
+orchestration.md:774:### Status evidence branch
+orchestration.md:787:### COORD partition
+orchestration.md:800:### Target-owned bookkeeping
+orchestration.md:814:### Topology Surface
+orchestration.md:830:### Routing
+orchestration.md:846:### The drain
+orchestration.md:863:### Residue
+planning-and-tracking.md:25:### functional epic
+planning-and-tracking.md:37:### meta-tracker
+planning-and-tracking.md:49:### issue type
+planning-and-tracking.md:61:### priority scheme
+planning-and-tracking.md:73:### triage status
+planning-and-tracking.md:85:### usability (label)
+planning-and-tracking.md:96:### op
+practices-principles.md:19:### Mostly Invisible Process
+practices-principles.md:30:### Highly Visible Outcomes
+practices-principles.md:41:### Append-Only Semantic History
+practices-principles.md:52:### Deterministic Gate, Human Clarification
+practices-principles.md:63:### High-Severity Block Rule
+practices-principles.md:74:### Human-in-Charge (Cross-Reference)
+product-lines.md:25:### Build Kitty
+product-lines.md:38:### Brain Kitty
+product-lines.md:51:### Team Kitty
+system-events.md:22:### Event Envelope
+system-events.md:34:### Glossary Evolution Log
+system-events.md:46:### Glossary Scope
+system-events.md:58:### Semantic Check Evaluation
+system-events.md:70:### Replay
+system-events.md:82:### Telemetry (Out of Scope for This Slice)
+system-events.md:94:### Dossier Event
+system-events.md:107:### Anomaly Event
+system-events.md:120:### WPStatusChanged
+system-events.md:132:### Lamport Clock
+system-events.md:145:### Tail cursor
+system-events.md:158:### resume token
+system-events.md:171:### `log_truncated`
+system-events.md:184:### Tail envelope
+technology-foundations.md:17:### API
+technology-foundations.md:28:### CLI
+technology-foundations.md:40:### UI
+technology-foundations.md:52:### Markdown
+technology-foundations.md:63:### YAML
+technology-foundations.md:75:### JSON
+technology-foundations.md:87:### SHA256
+testing-taxonomy.md:29:### Unit
+testing-taxonomy.md:44:### Integration
+testing-taxonomy.md:59:### Contract
+testing-taxonomy.md:74:### Architectural
+testing-taxonomy.md:89:### E2E
+testing-taxonomy.md:104:### Adversarial
+testing-taxonomy.md:119:### Doctrine
+testing-taxonomy.md:134:### Fast
+testing-taxonomy.md:149:### Slow
+testing-taxonomy.md:164:### Git Repo
+testing-taxonomy.md:179:### Distribution
+testing-taxonomy.md:194:### Platform Darwin / Platform Linux
+testing-taxonomy.md:209:### Windows CI
+testing-taxonomy.md:224:### Requires Symlinks
+testing-taxonomy.md:239:### Live Adapter
+testing-taxonomy.md:254:### Asyncio
+testing-taxonomy.md:269:### Timeout
+testing-taxonomy.md:284:### No Readiness Stub
+testing-taxonomy.md:299:### Non Sandbox
+testing-taxonomy.md:314:### Flaky
+testing-taxonomy.md:329:### Orchestrator Smoke / Availability / Fixtures / Happy Path / Review Cycles / Parallel
+testing-taxonomy.md:344:### Core Agent / Extended Agent
+testing-taxonomy.md:359:### Exploratory
+topology.md:21:### Topology
+topology.md:34:### Size default
+topology.md:47:### Topic branch
+topology.md:60:### Write checkout
+topology.md:73:### Repo-root lane
+topology.md:86:### Code lane
+topology.md:99:### Protected target
+topology.md:112:### Mission branch
+topology.md:125:### Lane work tip
+topology.md:138:### Absorbed lane
+topology.md:151:### Execution-mode stamp
+topology.md:164:### Started work package
+topology.md:177:### LANE_MEMBERSHIP_FROZEN
+
+# Applicable-to tally over core docs/context entries
+entries_with_applicable_row 287 naming_4x 39
+122 `1.x`, `2.x`
+71 `3.x`
+36 `4.x`
+34 `2.x`
+16 `2.x`, `3.x`
+4 `1.x`, `2.x`, `3.x`
+2 `3.x`, `4.x`
+1 `2.x`, `4.x`
+1 `1.x`, `2.x` (historical)

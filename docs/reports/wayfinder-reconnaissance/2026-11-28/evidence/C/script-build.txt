@@ -1,0 +1,127 @@
+import sys,re,csv,json,collections,datetime,os
+S=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,S)
+from parse import parse
+HEAD_DIRS_SC=set(d for d in os.listdir('/home/user/spec-kitty/src/specify_cli') if os.path.isdir('/home/user/spec-kitty/src/specify_cli/'+d) and d!='__pycache__')
+HEAD_DIRS_CH=set(d for d in os.listdir('/home/user/spec-kitty/src/charter') if os.path.isdir('/home/user/spec-kitty/src/charter/'+d) and d!='__pycache__')
+DIRMAP=[  # historical prefix -> today's prefix (longest first)
+ ('src/doctrine/','src/charter/offering/'),
+ ('src/constitution/','src/charter/'),
+ ('src/charter/synthesizer/','src/charter/activation/synthesizer/'),
+ ('src/charter/context_renderers/','src/charter/activation/context_renderers/'),
+ ('src/charter/corpus/','src/charter/activation/corpus/'),
+ ('src/charter/evidence/','src/charter/activation/evidence/'),
+ ('src/charter/neutrality/','src/charter/activation/neutrality/'),
+ ('src/charter/packs/','src/charter/activation/packs/'),
+ ('src/specify_cli/glossary/','src/glossary/'),
+ ('src/specify_cli/next/','src/runtime/next/'),
+ ('src/specify_cli/merge/','src/specify_cli/consolidation/'),
+ ('src/specify_cli/doctrine_synthesizer/','src/specify_cli/charter_pack_synthesizer/'),
+ ('src/specify_cli/doctrine/','src/specify_cli/charter_packs/'),
+ ('src/specify_cli/charter_lint/','src/specify_cli/charter_runtime/'),
+ ('src/specify_cli/constitution/','src/specify_cli/charter/'),
+ ('src/specify_cli/static/','src/specify_cli/dashboard/'),
+]
+def comp_of_today(p):
+    parts=p.split('/')
+    if len(parts)<3: return '(src root)'
+    top=parts[1]
+    if top in('specify_cli','charter'):
+        if len(parts)>=4: return top+'/'+parts[2]
+        return top+'/(root)'
+    return top
+def load():
+    cs=parse(S+'/raw_numstat.txt')
+    # lineage: newest -> oldest
+    final={}
+    for c in cs:
+        for a,d,o,n in c['files']:
+            if o!=n and os.path.basename(o) not in('__init__.py','py.typed'):
+                final[o]=final.get(n,n)
+    return cs,final
+def component(p,final):
+    if not p.startswith('src/'): return None
+    f=final.get(p,p)
+    if not f.startswith('src/'): f=p
+    for old,new in DIRMAP:
+        if f.startswith(old): f=new+f[len(old):]; break
+    return comp_of_today(f)
+def retired(comp):
+    if '/' not in comp: return comp not in('kernel','glossary','runtime','mission_runtime')
+    top,sub=comp.split('/',1)
+    if sub=='(root)': return False
+    return sub not in (HEAD_DIRS_SC if top=='specify_cli' else HEAD_DIRS_CH)
+PRE=re.compile(r'^([a-z_+-]+)(\(.*?\))?!?:')
+def norm(s):
+    s=s.strip()
+    while s.startswith('['):
+        i=s.find(']')
+        if i<0: break
+        s=s[i+1:].strip()
+    return s.lower()
+def prefix_first(s):
+    n=norm(s); m=PRE.match(n)
+    pre=m.group(1) if m else None
+    fw=re.split(r'[\s:]+',n)[0] if n else ''
+    return n,pre,fw
+COMPAT_RE=re.compile(r'\b(migrat\w*|shim\w*|legacy|backfill\w*|deprecat\w*|backward\w*|back-compat\w*|compat\w*|upgrade path)\b',re.I)
+COMPAT_PATHS=('src/specify_cli/upgrade/','src/specify_cli/migration/','src/specify_cli/shims/','src/specify_cli/compat/')
+def is_fix(s):
+    n,pre,fw=prefix_first(s)
+    return (pre in('fix','hotfix','bugfix','revert','fix+refactor')) or (pre is None and fw in('fix','fixes','fixed','revert'))
+def classify(c,cherry):
+    s=c['subject']; n,pre,fw=prefix_first(s)
+    if c['sha'] in cherry or 'converge' in s.lower() or pre in('port','integ') or n.startswith('merge latest main into convergence'): return 'convergence-activity'
+    srcp=[x for a,d,o,nn in c['files'] for x in {o,nn} if x.startswith('src/')]
+    if COMPAT_RE.search(s) or (srcp and sum(1 for x in srcp if x.startswith(COMPAT_PATHS))*2>=len(srcp)): return 'compatibility-work'
+    if pre in('fix','hotfix','bugfix','revert','harden','fold','landing','fix+refactor') or (pre is None and fw in('fix','fixes','fixed','revert','harden','prevent','reject','suppress','landing','fold')): return 'corrective-maintenance'
+    if pre in('refactor','perf','style','rename','cleanup') or (pre is None and fw in('remove','drop','delete','retire','rename','extract','split','move','reduce','consolidate')): return 'restructuring'
+    if pre in('feat','feature') or (pre is None and fw in('add','implement','introduce','enable','support')): return 'capability-growth'
+    return 'other'
+def utc(iso):
+    return datetime.datetime.fromisoformat(iso).astimezone(datetime.timezone.utc)
+def main():
+    cs,final=load()
+    cherry=set(open(S+'/cherry.txt').read().split())
+    pub=set(open(S+'/pub.txt').read().split()); exp=set(open(S+'/exp.txt').read().split()); pre=set(open(S+'/prefork.txt').read().split())
+    out=[]
+    for c in cs:
+        sha=c['sha']; line='pre-fork' if sha in pre else 'public' if sha in pub else 'experimental' if sha in exp else 'converged'
+        d=utc(c['cdate']); ds=d.strftime('%Y-%m-%d'); month=ds[:7]
+        period=''
+        if line=='converged' and '2026-09-05'<=ds<='2026-11-28': period='T3'
+        elif line!='converged' and '2026-07-01'<=ds<='2026-09-05': period='T2'
+        elif line!='converged' and '2026-04-01'<=ds<='2026-06-30': period='T1'
+        files=c['files']; nf=len(files)
+        allp=[x for a,dd,o,n in files for x in {o,n}]
+        srcfiles=[(a,dd,o,n) for a,dd,o,n in files if o.startswith('src/') or n.startswith('src/')]
+        comps=sorted({component(x,final) for a,dd,o,n in srcfiles for x in {o,n} if x.startswith('src/')})
+        tops=sorted({(x.split('/')[0] if x!='(src root)' else x) for x in comps})
+        is_code=bool(srcfiles)
+        if is_code: cat='code'
+        elif allp and all(x.startswith(('docs/','kitty-specs/','.kittify/','tests/')) for x in allp): cat='docs-specs-tests-only'
+        else: cat='other-non-src'
+        out.append(dict(sha=sha,line=line,date=ds,month=month,period=period,author=c['author'],subject=c['subject'],n_files=nf,n_src_files=len(srcfiles),
+            added=sum(f[0] for f in files),deleted=sum(f[1] for f in files),src_added=sum(f[0] for f in srcfiles),src_deleted=sum(f[1] for f in srcfiles),
+            category=cat,bulk=int(nf>500),n_components=len(comps),components=';'.join(comps),n_top=len(tops),tops=';'.join(tops),
+            cls=classify(c,cherry) if is_code else '',fix=int(is_fix(c['subject'])),cherry=int(sha in cherry),pr_suffix=int(bool(re.search(r'\(#\d+\)\s*$',c['subject'])))))
+    with open(S+'/commits.csv','w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=list(out[0].keys())); w.writeheader(); w.writerows(out)
+    json.dump(final,open(S+'/lineage.json','w'))
+    # rename map evidence
+    allcomp=collections.Counter()
+    for r in out:
+        for k in r['components'].split(';'):
+            if k: allcomp[k]+=1
+    with open(S+'/components.csv','w',newline='') as f:
+        w=csv.writer(f); w.writerow(['component','retired_at_head','code_commits_touching_all_time'])
+        for k,v in sorted(allcomp.items()): w.writerow([k,int(retired(k)),v])
+    with open(S+'/rename-map.csv','w',newline='') as f:
+        w=csv.writer(f); w.writerow(['kind','historical','today','note'])
+        for o,n in DIRMAP: w.writerow(['directory',o,n,'applied when file lineage does not end under src/ or ends in the historical directory'])
+        agg=collections.Counter()
+        for o,n in final.items():
+            if o.startswith('src/'):
+                a=comp_of_today(o); b=component(o,final)
+                if a!=b: agg[(a,b)]+=1
+        for (a,b),v in sorted(agg.items()): w.writerow(['file-lineage-aggregate',a,b,f'{v} historical file paths'])
+if __name__=='__main__': main()

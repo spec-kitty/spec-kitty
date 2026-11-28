@@ -1,0 +1,16 @@
+old_component,new_component,condition,basis,renamed_py_files_detected,first_revision_with_new_name
+doctrine,charter.offering,always,git diff -M50% public bb2020fea9..eff6353260 (83 files) and experimental 38090b6493..ab2c3ea89e (88 files),83/88,2026-08
+specify_cli.constitution,charter,always,git diff -M50% public 515745f1fb..f8d0994183 (6 files),6,2026-04
+specify_cli.glossary,glossary,always,git diff -M50% public 48aea2bc97..40e5209a57 (21 files),21,2026-06
+specify_cli.next,runtime,always,git diff -M50% public 48aea2bc97..40e5209a57 (21 files),21,2026-06
+specify_cli.merge,specify_cli.consolidation,always,git diff -M50% merged d4c5af7d8f..f4dc26694c (14 files),14,2026-09
+specify_cli.doctrine_synthesizer,specify_cli.charter_pack_synthesizer,always,git diff -M50% merged cc58393e0a..d58e78335b (4 files),4,2026-10
+specify_cli.doctrine,specify_cli.charter_packs,always,git diff -M50% merged cc58393e0a..d58e78335b (12 of 19 renamed files; 5 went to charter.offering and 2 to charter.activation),12,2026-10
+specify_cli.charter_lint,specify_cli.charter_runtime,always,git diff -M50% public f8d0994183..48aea2bc97 (7 files),7,2026-05
+charter.synthesizer,charter.activation,always,git diff -M50% public bb2020fea9..eff6353260 (22) / experimental (24),22/24,2026-08
+charter.context_renderers,charter.activation,always,same ranges (14/15 files),14/15,2026-08
+charter.neutrality,charter.activation,always,same ranges (2 files),2,2026-08
+charter.corpus,charter.activation,always,same ranges (1 file),1,2026-08
+charter.packs,charter.activation,always,same ranges (1 file),1,2026-08
+charter.evidence,charter.activation,always,same ranges (4 files),4,2026-08
+charter,charter.activation,only for revisions with no charter.activation package,same ranges: 37/47 root-level charter modules moved to charter/activation/; root charter kept 19-20 modules afterwards,37/47,2026-08

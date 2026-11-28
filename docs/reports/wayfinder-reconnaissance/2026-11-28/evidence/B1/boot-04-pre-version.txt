@@ -1,0 +1,3 @@
+$ .venv/bin/spec-kitty --version
+spec-kitty-cli version 4.0.0rc9
+exit_code=0

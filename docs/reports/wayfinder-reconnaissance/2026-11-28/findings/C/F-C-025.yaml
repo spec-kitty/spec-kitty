@@ -1,0 +1,59 @@
+finding_id: F-C-025
+workstream: C - Evolution and change coupling
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: narrative-chains
+  deviation: null
+subject:
+  component: T1 change chains (purposive)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Three chains chosen by hand in T1 (tag: purposive). #626 (Kiro agent registration, 2026-04-14): 8 code commits
+  cite it up to 2026-08-30, 4 of them fix-subject, 13 components. #2090 (kind-aware write-surface placement, 2026-06-24):
+  4 citing code commits to 2026-07-23, 3 fix-subject, 9 components. #2070 (single-authority topology cleanup, 2026-06-23):
+  5 citing code commits from 2026-06-22 to 2026-07-23, 3 fix-subject, 20 components.'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/narrative-chains-summary.csv
+  method: same
+  sha256: 98005cc29a8468f6e7470cc317ba08f623db2a14617cb25a2fcd35f23bbbb2be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+- id: E2
+  kind: history-derived
+  reference: evidence/C/narrative-chains.csv
+  method: inline selection by reference number over commits.csv and commit bodies (purposive)
+  sha256: 8e86839b7bcb378cf70720abfc919174ba15abe155a6bfadde655cadd5c740fb
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+  observed_at: 2026-11-28T09:30Z
+scope:
+  covered: Code commits whose subject or body cites the reference number.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything
+    before 2026-01.
+  population: null
+  sample: purposive, 3 chains
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: Looked in each chain for commits that cite the number without correcting the first change.
+  result: 'Present in all three: later commits cite the number as context (for example migration hardening in 2026-08
+    citing #626). A citation is not a correction; no cause is asserted.'
+relations: []
+confidence: low
+analyst:
+  profile: researcher-robbie
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

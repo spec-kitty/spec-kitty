@@ -1,0 +1,22 @@
+#!/bin/bash
+# Applies each core Python patch alone in the scratch clone, imports the touched module, resets. Syntax/import sanity only; no test or gate is run.
+S=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E2
+E=/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/E2
+PY=/home/user/spec-kitty/.venv/bin/python
+cd $S/spec-kitty; echo "python $($PY --version 2>&1); HEAD=$(git rev-parse HEAD); packs/built-in copied untracked from /home/user/spec-kitty/packs/built-in for import only"
+rc=0
+t(){ git apply $E/M-$1.patch.txt && (cd $S && PYTHONPATH=$S/spec-kitty/src PYTHONDONTWRITEBYTECODE=1 $PY -c "import $2, specify_cli, kernel, charter; assert $2.__file__.startswith('$S'); print('M-$1 import_ok $2')" 2>&1 | tail -1 | cut -c1-200) || rc=1; git checkout -q -- .; }
+t PI-1 specify_cli.status.reducer; t PI-2 specify_cli.charter_activate; t PI-3 specify_cli.events.decision_log; t PI-5 specify_cli.drg_writers.registry
+t RD-1 kernel.site_urls; t RD-2 charter.hasher; t RD-3 runtime.next.prompt_builder; t RD-5 kernel.glossary_runner
+t OB-1 specify_cli.mission_brief; t OB-2 specify_cli.charter_activate; t OB-3 specify_cli.upgrade.finalize; t OB-4 specify_cli.services.resolution; t OB-6 specify_cli.policy.audit
+t IC-4 specify_cli.orchestrator_api.envelope; t IC-6 specify_cli.status.wp_window
+cd $S/spec-kitty-events; echo "events HEAD=$(git rev-parse HEAD); python3 $(python3 --version 2>&1)"
+for p in RD-4 IC-1; do git apply $E/M-$p.patch.txt; done
+PYTHONDONTWRITEBYTECODE=1 python3 -c "
+import ast,json
+for f in ('src/spec_kitty_events/status_log.py','src/spec_kitty_events/gates.py'): ast.parse(open(f).read()); print('M-RD-4/IC-1 ast_ok',f)
+for k in ('passed','failed'): json.load(open('src/spec_kitty_events/schemas/gate_%s_payload.schema.json'%k)); print('M-IC-1 json_ok',k)
+" || rc=1
+git checkout -q -- .
+for pair in "spec-kitty-charter:IC-2:contracts/charter/schemas/ExclusionRequest.yaml" "spec-kitty-events:IC-3:contracts/mission-status/schemas/ReviewVerdict.yaml" "spec-kitty-open-packs:IC-5:packs/built-in/pack.yaml"; do IFS=: read r id f <<< "$pair"; cd $S/$r; git apply $E/M-$id.patch.txt; $PY -c "import yaml,sys; yaml.safe_load(open('$f')); print('M-$id yaml_ok $f')" || rc=1; git checkout -q -- .; done
+exit $rc

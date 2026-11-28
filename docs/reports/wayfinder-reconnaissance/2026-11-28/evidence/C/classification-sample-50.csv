@@ -1,0 +1,51 @@
+idx,sha,date,line,rule_class,read_class,agree,reader_note,subject
+1,9803132cccfd6602b0c5e16c535bb105439b00ce,2026-02-04,pre-fork,capability-growth,capability-growth,1,,feat(WP01): align ULID and payload validation
+2,2638c4ad7e85dd7420b797279e1e5ae019f6f724,2026-10-07,converged,corrective-maintenance,corrective-maintenance,1,,fix(status): treat a negative status_phase as malformed (#5835)
+3,f1da4c2f2f228d65bd1ff699838f5f7bf5d7bb4b,2026-08-30,public,capability-growth,capability-growth,1,,feat(charter): deliver tension arbiter annotations on the doctrine bundle (WP02)
+4,1fb0f75cd67db755e5eee4c79542c85cc527e844,2026-05-31,pre-fork,corrective-maintenance,corrective-maintenance,1,,Fix mark-status HistoryAdded WP attribution (#1513)
+5,04701de1f88b454fd8c7cb4d7805f47b971af13b,2026-09-15,converged,corrective-maintenance,corrective-maintenance,1,,"fix(landing): _mark_mission_discarded tolerates corrupt meta, not a dead ValueError"
+6,d1d7e5e1411f5390ea44e6e1a94150b4c9ac855a,2026-09-30,converged,convergence-activity,corrective-maintenance,0,,fix(acceptance): skip the repo-root planning lane when collecting approved lane roots (#5100)
+7,82325b7cbcb202cc1ed406d4325cfa493cf9e0c3,2026-10-28,converged,corrective-maintenance,corrective-maintenance,1,,fix(charter): close the diagnostic code set by construction; doctor fails on dropped selections (#6460)
+8,80ca66da0b55952e1f5ad6d80e1b7ea446fcecad,2026-09-30,converged,convergence-activity,corrective-maintenance,0,,fix(lanes): route the lane-tip hook glob through the naming seam; stop composing <rev>^{tree} (#5115)
+9,76db6d02d785ac6dececcbea83de00645682d0d7,2026-06-05,pre-fork,other,capability-growth,0,arch prefix; adds persistence of completed Op records,arch(ops): persist completed op records
+10,b3f0afbe85dd7a607f325c8a23f17df2d59277d2,2026-10-19,converged,corrective-maintenance,corrective-maintenance,1,,fix(landing): fail an explicit --narrow-activation that cannot be applied (#6408)
+11,e5681c321545b9fa716dea44334eac644f608be5,2026-01-25,pre-fork,other,corrective-maintenance,0,chore subject; diff adds config-load error handling and tests,chore: Commit remaining changes before merge
+12,118a69db6020ef86f570343a42800a1015791f73,2026-11-10,converged,corrective-maintenance,corrective-maintenance,1,,fix(analysis): bind --report-only to the owned charter in an owned checkout (#7434)
+13,4d2cbddf1752e40451f5256c0736c448c132b870,2026-07-01,pre-fork,capability-growth,capability-growth,1,,feat(doctrine): catfood 8 standing-order sections into doctrine + regenerate DRG (#2196)
+14,f4b13d73a806a8bcfec7d3d37f5983762a3fb39d,2026-08-27,experimental,corrective-maintenance,corrective-maintenance,1,,fix(#249): raise ManifestSchemaError instead of leaking pydantic.ValidationError
+15,768e38debee98c4e63bd89c4fe58d81eebe0ebef,2026-10-08,converged,restructuring,restructuring,1,,refactor(kernel): lift the committed-blob read into kernel.git.blob_at (#5819)
+16,1fe51a47e353dd23d3066723941a572947e60aa6,2026-09-05,experimental,convergence-activity,convergence-activity,1,cherry-pick trailer; content adds owned checkout lifecycle,feat: support explicit owned checkout lifecycle
+17,d3e07a6b5e393e7f37726051e423f7c1b0378074,2026-07-12,pre-fork,convergence-activity,restructuring,0,feat prefix; diff replaces a duplicate probe with the canonical helper,feat(WP05): fold review-lock is_stale onto canonical is_process_alive (#2568)
+18,a3537717f81fc3f4247593a049f823ffc816192a,2026-04-17,pre-fork,corrective-maintenance,restructuring,0,"fix prefix; diff is maintainability-only (constants, min())",fix: reduce SonarCloud charter maintainability findings (#663)
+19,3e8767010e797afa28bef7a6ebd187c10c57ab76,2026-10-05,converged,restructuring,restructuring,1,,refactor(implement): planning commit consumes the seam-owned PlanningPlacement (#5232)
+20,9f70d3f0b2dc4d28d10e05ff2462c2e93f7bd80d,2026-09-01,experimental,corrective-maintenance,corrective-maintenance,1,,fix: ignore empty git directory markers
+21,58ec78369c43aa12c3beb183e3185969131ad579,2026-02-16,pre-fork,capability-growth,capability-growth,1,,feat(WP01): implement glossary foundation and data models
+22,76e9bed795c7b52e15aa31bc8cfec2ef2406e19b,2026-09-30,converged,corrective-maintenance,corrective-maintenance,1,,fix(cli): unify owned in-body refusal format across three commands
+23,eb750a32422394f5bc7b8fbbed1aced6fd25092f,2026-09-20,converged,capability-growth,capability-growth,1,,feat(merge-safety): refuse-before-destroy guard primitive + guarded_worktree_remove
+24,c438da78a89913375f3afa08be9b307b0a85c19a,2026-09-01,experimental,convergence-activity,convergence-activity,1,cherry-pick trailer; content is a fix,fix(runtime): let custom mission families gate on their own expected-artifacts manifest (#3704)
+25,0e708a308c1c18b82a2ff622783812394501d8f0,2026-09-18,converged,corrective-maintenance,corrective-maintenance,1,,fix(doctor): route the sweep idempotency guard through the per-sweep snapshot (#4424)
+26,ad2e189b4b093aa7bb43221e04397521ff1e305a,2026-09-26,converged,corrective-maintenance,corrective-maintenance,1,,fix(landing): fail closed on an unreadable coord status surface in the destroyed-lane guard (#4889)
+27,2903461ec88a8780b85f5b5c2ea54ada782fe015,2026-08-26,experimental,other,other,1,,docs(cli): regenerate the zeitgeist help boxes for the optional host/owner/repo key
+28,4b320fd9d86ae8ea11c982b1b3f3fedf90476506,2026-11-22,converged,corrective-maintenance,corrective-maintenance,1,,fix(coordination): materialize a teammate's coordination branch from its tracking ref (#5936)
+29,d7a53750403c7962b7ff119dbec7b17ab394e5f0,2026-01-12,pre-fork,compatibility-work,compatibility-work,1,fix inside two migrations,fix: Remove lane directories even with system files (Fixes #70)
+30,87787219d07a86f234d32124e26d07d580bf0bb4,2026-07-14,pre-fork,corrective-maintenance,restructuring,0,landing fold removing inert entries,landing fold: drop functionally-inert doctrine-tree expected-artifacts entries (#2628)
+31,8ad6bb400837170502ec80180e60c5f51c135ed5,2026-06-01,pre-fork,corrective-maintenance,corrective-maintenance,1,,fix: sync lane state after coordination commits
+32,8af0703af0a47798c58dada6a8c93474a29b77f0,2026-11-06,converged,capability-growth,corrective-maintenance,0,squash merge of a Mission that corrects a wrongly refused target (#6768),feat(kitty/mission-charter-resynth-project-directive-layer-split-01M690W8): squash merge of mission
+33,c8bcb237551b3fcddf31444c7f04c9aac851347d,2026-10-15,converged,corrective-maintenance,corrective-maintenance,1,,fix(status): honour a rejection recorded after a clock-ahead approval (#4941)
+34,6fc84a01f1ab289ef13a8f043f3c9ec162234195,2026-09-09,converged,corrective-maintenance,corrective-maintenance,1,,fix(orchestrator-api): map unsafe --mission ValueError to INVALID_MISSION JSON envelope (#2879) (#4025)
+35,371bc7b83adefeb7f22240a2e82b819c149dd841,2026-09-06,converged,corrective-maintenance,corrective-maintenance,1,,fix: preserve canonical org profile load diagnostics (#3918)
+36,1bf003fc97c68ed13038a6056656bcf47227ea68,2026-07-04,pre-fork,corrective-maintenance,compatibility-work,0,folds after shim deletion,fix(unshim): aggregate-squad folds — glossary reintroduction lock + cross-slice residue scrubs
+37,d9a59007c457b8e91277222a23ae8bf0e1682af1,2026-02-21,pre-fork,capability-growth,capability-growth,1,,feat(WP08): Local parity-drift detector with offline detection
+38,6d58796bfe4333d60fb32e0758c0ca6f554ced80,2026-10-13,converged,compatibility-work,compatibility-work,1,fix inside the upgrade backfill,fix(landing): report a non-UTF-8 status.json instead of aborting the upgrade
+39,cbdd3b582f1d46474b4e21eabfc5cf00794c256e,2026-11-12,converged,other,other,1,,docs(landing): state the no-status-write-in-a-decision invariant on status_read
+40,49fcffbbb81975c2095f7b59d04e4909989111ee,2026-07-04,pre-fork,compatibility-work,other,0,fix prefix; only doc-path string references change,"fix(#2313) phase 2: repoint docs/migration references (guards, src notices, agent docs) to docs/migrations"
+41,3fa3dad6b36e1fc3d8596eca7305d038e1076416,2026-02-15,pre-fork,other,restructuring,0,unprefixed; removes duplicated resolution,dashboard: unify active-feature resolution with tasks status
+42,8c3b77d68be0bd9263d3520498c263fdfb9a51d2,2026-11-13,converged,corrective-maintenance,corrective-maintenance,1,,"fix(implement,move-task): judge the branch of the checkout the commit runs in (#7601)"
+43,092811003d12c9df4a5eb5724c2e2720460324c2,2026-01-19,pre-fork,capability-growth,capability-growth,1,,feat(021): Implement test path selection (WP02)
+44,3021cb2dba386adc228683e3eeb496f2a9e12ea8,2026-08-04,pre-fork,corrective-maintenance,corrective-maintenance,1,,"fix(decisions): a dangling mission symlink is absent, not unreadable"
+45,3c53e46af876fa61f944648b2d1039bafda2a63e,2026-10-10,converged,compatibility-work,corrective-maintenance,0,subject contains the word legacy; diff edits two templates,fix(landing): drop the Activity Log from the legacy research and documentation task-prompt templates (#5986)
+46,7bfa58d30abbffb5abf49c78b1be66377baf4456,2026-07-30,pre-fork,corrective-maintenance,corrective-maintenance,1,,landing fold: case-insensitive same-repo issue-URL match (#1738 completeness)
+47,7c7dc87d29157e8dd71d83c2f08127a3c56be2ce,2026-11-01,converged,compatibility-work,compatibility-work,1,fix inside the upgrade registry and runner,fix(landing): the runner skip gate asks the selection view by migration object
+48,557c76ad5d46e1cb8d00ae65d3f81a32aede651a,2026-09-24,converged,corrective-maintenance,corrective-maintenance,1,,fix(landing): anchor reconciliation bookkeeping classification to the mission surface (#5001)
+49,663dcb0530ca4e9d6e0b818942258163a5bc5774,2026-07-18,pre-fork,capability-growth,capability-growth,1,,feat(coord): pending_coord_reconcile marker + single coherence owner + git-revert repair (WP02)
+50,cdcf090761bb03700f6f1181c62603e4c41670fd,2026-08-20,public,other,other,1,,docs(charter): correct builder-param + pointer-only-reason provenance comments (M4 review)

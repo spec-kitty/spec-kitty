@@ -1,0 +1,13 @@
+javac javac 25.0.5 -proc:none on each patched file alone, in a scratch copy of spec-kitty-charter at 06cdfbe9 with M-PI-4, M-PI-6 and M-RD-6 applied; project classes absent, so only symbol-resolution errors are expected. Counts of error kinds per file:
+== ActivationIdMint.java
+      5 cannot find symbol
+      4 package does not exist
+   error kinds other than 'cannot find symbol' / 'package does not exist': 0
+== IfMatchTags.java
+     12 cannot find symbol
+      7 package does not exist
+   error kinds other than 'cannot find symbol' / 'package does not exist': 0
+== Revision.java
+      1 package does not exist
+   error kinds other than 'cannot find symbol' / 'package does not exist': 0
+gradle: 'timeout 900 ./gradlew --no-daemon -q :activations:compileJava' printed nothing and was killed by the timeout (exit 124). No compile result. Coverage limit.

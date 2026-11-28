@@ -1,0 +1,84 @@
+"""G2 check I5 for core Python: writes to owned state outside the owning module.
+Usage: python3 -I g2_core_i5.py <core_src_dir> <out_json>
+Heuristic, function-level co-location: a function (or module top level) that BOTH references a ledger
+(a string constant containing a ledger token, a name bound to such a constant anywhere in the same module, or an
+imported owner constant/accessor) AND performs a write-capable call is a candidate write site. Candidates outside
+the owner set are listed for manual adjudication. Reads are not flagged. Second, recall-oriented tier: a MODULE that references the ledger and contains any write-capable call anywhere
+(module_level_*), because a path passed as a parameter defeats function-level co-location (observed for both owners).
+Ledgers, tokens and owners (owners from the CLAUDE.md / module docstrings, verified by reading the modules):
+"""
+import ast, json, sys, collections
+from pathlib import Path
+SRC = Path(sys.argv[1]); OUT = Path(sys.argv[2])
+LEDGERS = {
+  "status_event_log": {"tokens": ["status.events.jsonl"], "owner_names": ["EVENTS_FILENAME", "events_path", "event_log_path", "mission_event_log_path", "project_event_log_path"],
+                       "owners": ["specify_cli/status/store.py"]},
+  "activation_record": {"tokens": ["activation.yaml"], "owner_names": ["ACTIVATION_LEDGER", "activation_ledger_path"],
+                        "owners": ["charter/activation/activation_ledger.py"]},
+  "migration_ledger": {"tokens": ["migration-ledger.jsonl", "clone-local.jsonl"], "owner_names": ["TRACKED_LEDGER_RELPATH", "CLONE_LOCAL_LEDGER_RELPATH", "ledger_path", "tracked_ledger_path", "clone_local_ledger_path"],
+                       "owners": ["specify_cli/upgrade/ledger.py"]},
+  "pins": {"tokens": ["built-in.source.yaml", "internal.source.yaml", "read-service.source.yaml", ".source.yaml"], "owner_names": ["PIN_SUFFIX", "_PIN_SUFFIX", "pin_filename", "pin_path", "service_pin_path"],
+           "owners": ["charter/offering/packs/pack_pin.py", "specify_cli/cli/commands/charter/pack_vendor.py", "specify_cli/services/vendor.py"]},
+}
+WRITE_ATTRS = {"write_text", "write_bytes", "replace", "rename", "move", "atomic_write", "unlink", "rmtree", "safe_dump", "dump", "touch", "append_event", "write"}
+OPEN_WRITE = set("wax+")
+def write_calls(node):
+    out = []
+    for n in ast.walk(node):
+        if not isinstance(n, ast.Call): continue
+        f = n.func; name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", None)
+        if name == "open" or name == "fdopen":
+            mode = None
+            if len(n.args) >= 2 and isinstance(n.args[1], ast.Constant): mode = n.args[1].value
+            if isinstance(f, ast.Attribute) and n.args and isinstance(n.args[0], ast.Constant): mode = n.args[0].value
+            for kw in n.keywords:
+                if kw.arg == "mode" and isinstance(kw.value, ast.Constant): mode = kw.value.value
+            if isinstance(mode, str) and OPEN_WRITE & set(mode): out.append((n.lineno, f"open({mode})"))
+        elif name in ("replace", "rename") and not ((isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id in ("os", "shutil")) or (len(n.args) == 1 and not n.keywords)):
+            continue  # str.replace(a, b) is not a file operation; os.replace/os.rename and Path.replace(target) are
+        elif name in WRITE_ATTRS:
+            if name in ("dump", "safe_dump") and len(n.args) < 2 and not any(k.arg == "stream" for k in n.keywords): continue
+            if name == "write" and not isinstance(f, ast.Attribute): continue
+            out.append((n.lineno, name))
+    return out
+res = {k: {"candidates_outside_owner": [], "candidates_in_owner": [], "modules_referencing": 0, "modules_referencing_outside_owner": 0} for k in LEDGERS}
+for path in sorted(SRC.rglob("*.py")):
+    if "__pycache__" in path.parts: continue
+    rel = str(path.relative_to(SRC)); tree = ast.parse(path.read_text(encoding="utf-8"))
+    consts = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and isinstance(n.value, (ast.Constant, ast.JoinedStr)):
+            txt = n.value.value if isinstance(n.value, ast.Constant) else "".join(v.value for v in n.value.values if isinstance(v, ast.Constant))
+            if isinstance(txt, str):
+                for t in n.targets:
+                    if isinstance(t, ast.Name): consts[t.id] = txt
+    for lk, spec in LEDGERS.items():
+        names = set(spec["owner_names"]) | {k for k, v in consts.items() if any(tok in v for tok in spec["tokens"])}
+        def refs(node):
+            for n in ast.walk(node):
+                if isinstance(n, ast.Constant) and isinstance(n.value, str) and any(tok in n.value for tok in spec["tokens"]): return True
+                if isinstance(n, ast.Name) and n.id in names: return True
+                if isinstance(n, ast.Attribute) and n.attr in names: return True
+                if isinstance(n, ast.alias) and (n.asname or n.name) in names: return True
+            return False
+        if not refs(tree): continue
+        owner = rel in spec["owners"]
+        res[lk]["modules_referencing"] += 1
+        if not owner: res[lk]["modules_referencing_outside_owner"] += 1
+        mw = write_calls(tree)
+        if mw:
+            res[lk].setdefault("module_level_in_owner" if owner else "module_level_outside_owner", []).append([rel, sorted({w[1] for w in mw})])
+        scopes = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        for fn in scopes:
+            # skip docstring-only references
+            body = fn.body[1:] if fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(getattr(fn.body[0], "value", None), ast.Constant) else fn.body
+            mod = ast.Module(body=body, type_ignores=[])
+            if refs(mod):
+                wc = write_calls(mod)
+                if wc:
+                    rec = [rel, fn.name, fn.lineno, sorted({w[1] for w in wc})]
+                    res[lk]["candidates_in_owner" if owner else "candidates_outside_owner"].append(rec)
+OUT.write_text(json.dumps(res, indent=1))
+for k, v in res.items():
+    print(k, "refmods", v["modules_referencing"], "refmods_outside_owner", v["modules_referencing_outside_owner"], "cand_owner", len(v["candidates_in_owner"]), "cand_outside", len(v["candidates_outside_owner"]),
+          "distinct_modules_outside", len({c[0] for c in v["candidates_outside_owner"]}), "module_level_owner", len(v.get("module_level_in_owner", [])), "module_level_outside", len(v.get("module_level_outside_owner", [])))

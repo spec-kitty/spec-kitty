@@ -1,0 +1,149 @@
+{
+ "revision": "40e5209a57a51ed12abbcfe0833e4a6b7fdc9c7d",
+ "grimp": "3.20",
+ "tops": [
+  "charter",
+  "doctrine",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ],
+ "all": {
+  "grimp_modules": 996,
+  "grimp_edges": 3420,
+  "extractor_modules": 1000,
+  "extractor_edges": 3431,
+  "only_grimp_modules": [],
+  "only_extractor_modules": [
+   "doctrine.toolguides.built-in.system_tools",
+   "specify_cli.scripts.tasks.acceptance_support",
+   "specify_cli.scripts.tasks.task_helpers",
+   "specify_cli.scripts.tasks.tasks_cli"
+  ],
+  "only_grimp_edges_n": 0,
+  "only_extractor_edges_n": 11,
+  "only_grimp_edges_sample": [],
+  "only_extractor_edges_sample": [
+   [
+    "specify_cli.cli.commands.agent.workflow",
+    "specify_cli.next"
+   ],
+   [
+    "specify_cli.cli.commands.implement",
+    "specify_cli.next"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.core.constants"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.core.paths"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.missions.feature_dir_resolver"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.status"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.core.constants"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.core.git_ops"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.mission_metadata"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.missions.feature_dir_resolver"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.status"
+   ]
+  ],
+  "grimp_nx_modules_in_cycle": 237,
+  "grimp_nx_largest_scc": 173,
+  "extractor_modules_in_cycle": 237,
+  "extractor_largest_scc": 173,
+  "extractor_edges_nx_modules_in_cycle": 237,
+  "extractor_edges_nx_largest_scc": 173
+ },
+ "exclude_type_checking": {
+  "grimp_modules": 996,
+  "grimp_edges": 3363,
+  "extractor_modules": 1000,
+  "extractor_edges": 3374,
+  "only_grimp_modules": [],
+  "only_extractor_modules": [
+   "doctrine.toolguides.built-in.system_tools",
+   "specify_cli.scripts.tasks.acceptance_support",
+   "specify_cli.scripts.tasks.task_helpers",
+   "specify_cli.scripts.tasks.tasks_cli"
+  ],
+  "only_grimp_edges_n": 0,
+  "only_extractor_edges_n": 11,
+  "only_grimp_edges_sample": [],
+  "only_extractor_edges_sample": [
+   [
+    "specify_cli.cli.commands.agent.workflow",
+    "specify_cli.next"
+   ],
+   [
+    "specify_cli.cli.commands.implement",
+    "specify_cli.next"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.core.constants"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.core.paths"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.missions.feature_dir_resolver"
+   ],
+   [
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.status"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.core.constants"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.core.git_ops"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.mission_metadata"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.missions.feature_dir_resolver"
+   ],
+   [
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.status"
+   ]
+  ],
+  "grimp_nx_modules_in_cycle": 231,
+  "grimp_nx_largest_scc": 168,
+  "extractor_modules_in_cycle": 231,
+  "extractor_largest_scc": 168,
+  "extractor_edges_nx_modules_in_cycle": 231,
+  "extractor_edges_nx_largest_scc": 168
+ }
+}

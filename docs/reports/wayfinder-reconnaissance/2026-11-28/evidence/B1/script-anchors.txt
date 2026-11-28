@@ -1,0 +1,40 @@
+"""Supplement to shared_state.py: per component, modules whose source contains the literal anchors
+and call sites of the per-user directory helpers. Usage: anchors.py <extract_dir> <sha> <outdir>"""
+import ast, csv, json, sys
+from collections import Counter, defaultdict
+from pathlib import Path
+from common import components, load
+root, sha, outdir = Path(sys.argv[1]) / "src", sys.argv[2], Path(sys.argv[3])
+d = load(sha); mods = d["modules"]; raw, comp = components(d)
+USER = {"user_state_dir", "user_cache_dir", "user_config_dir"}
+rows = defaultdict(Counter); calls = []
+for m, e in mods.items():
+    tree = ast.parse((root / e["path"]).read_text(encoding="utf-8", errors="replace"))
+    lits = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    doc = set()
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            ds = ast.get_docstring(n, clean=False)
+            if ds: doc.add(ds)
+    lits -= doc
+    c = comp[m]; rows[c]["modules"] += 1
+    if any(".kittify" in s for s in lits): rows[c]["modules_with_.kittify_literal"] += 1
+    if any("kitty-specs" in s for s in lits): rows[c]["modules_with_kitty-specs_literal"] += 1
+    if any(".spec-kitty" in s for s in lits): rows[c]["modules_with_.spec-kitty_literal"] += 1
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call):
+            nm = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None)
+            if nm in USER:
+                rows[c]["user_dir_call_sites"] += 1; calls.append([c, m, n.lineno, nm])
+cols = ["modules", "modules_with_.kittify_literal", "modules_with_kitty-specs_literal", "modules_with_.spec-kitty_literal", "user_dir_call_sites"]
+with open(outdir / "state-anchor-literals-by-component-head.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["component", *cols])
+    for c in sorted(rows): w.writerow([c, *[rows[c][k] for k in cols]])
+with open(outdir / "user-dir-call-sites-head.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["component", "module", "line", "helper"]); w.writerows(sorted(calls))
+tot = Counter()
+for c in rows:
+    for k in cols:
+        tot[k] += rows[c][k]
+        if rows[c][k] and k != "modules": tot["components_" + k] += 1
+print(json.dumps({"revision": sha, "components": len(rows), **tot}, indent=1))

@@ -1,0 +1,145 @@
+{
+ "revision": "bb2020fea924d6e5b157974f27a7cab1a77ad259",
+ "largest_scc": 501,
+ "edges_inside": 2105,
+ "cuts": [
+  {
+   "edge": [
+    "charter.bundle",
+    "charter.synthesizer.manifest"
+   ],
+   "largest_after_removal": 169,
+   "sites": [
+    {
+     "line": 330,
+     "fn": true,
+     "tc": false,
+     "name": "load_yaml"
+    },
+    {
+     "line": 416,
+     "fn": true,
+     "tc": false,
+     "name": "load_yaml"
+    },
+    {
+     "line": 416,
+     "fn": true,
+     "tc": false,
+     "name": "verify"
+    },
+    {
+     "line": 416,
+     "fn": true,
+     "tc": false,
+     "name": "verify_manifest_hash"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "charter.mission_type_profiles",
+    "charter.bundle"
+   ],
+   "largest_after_removal": 230,
+   "sites": [
+    {
+     "line": 65,
+     "fn": false,
+     "tc": false,
+     "name": "CHARTER_YAML"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "charter.synthesizer.manifest",
+    "charter.synthesizer.synthesize_pipeline"
+   ],
+   "largest_after_removal": 162,
+   "sites": [
+    {
+     "line": 30,
+     "fn": false,
+     "tc": false,
+     "name": "canonical_yaml"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "charter.synthesizer.synthesize_pipeline",
+    "specify_cli"
+   ],
+   "largest_after_removal": 138,
+   "sites": [
+    {
+     "line": 68,
+     "fn": true,
+     "tc": false,
+     "name": null
+    }
+   ]
+  },
+  {
+   "edge": [
+    "mission_runtime.resolution",
+    "specify_cli.mission"
+   ],
+   "largest_after_removal": 264,
+   "sites": [
+    {
+     "line": 980,
+     "fn": true,
+     "tc": false,
+     "name": "get_mission_type"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "specify_cli",
+    "specify_cli.cli.commands"
+   ],
+   "largest_after_removal": 173,
+   "sites": [
+    {
+     "line": 144,
+     "fn": true,
+     "tc": false,
+     "name": "register_commands"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "specify_cli.mission",
+    "specify_cli.runtime.resolver"
+   ],
+   "largest_after_removal": 239,
+   "sites": [
+    {
+     "line": 338,
+     "fn": true,
+     "tc": false,
+     "name": "resolve_command"
+    }
+   ]
+  },
+  {
+   "edge": [
+    "specify_cli.runtime.resolver",
+    "charter.mission_type_profiles"
+   ],
+   "largest_after_removal": 238,
+   "sites": [
+    {
+     "line": 35,
+     "fn": false,
+     "tc": false,
+     "name": "ResolvedMissionType"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+$ .venv/bin/spec-kitty charter context --action review --json
+{
+  "result": "success",
+[... truncated; full file 102170 bytes, sha256 3c049620ee564ea7890ec5bb777684eb8afd51ef5f13d7d64050f0736e4d65e5 ...]
+}
+exit_code=0
