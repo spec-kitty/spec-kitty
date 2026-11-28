@@ -178,6 +178,7 @@ spec-kitty orchestrator-api start-implementation \
 | `POLICY_METADATA_REQUIRED` | `--policy` missing or incomplete |
 | `WP_ALREADY_CLAIMED` | Another actor has already claimed this WP |
 | `TRANSITION_REJECTED` | Guard failure (dependency not met, invalid state) |
+| `LANE_ALLOCATION_FAILED` | Workspace allocation or resolution failed; for a planning-lane WP (>= 1.32.0) a refusal whose own code the contract does not register carries it in `data.workspace_error_code` (`PLANNING_CHECKOUT_MISSING`, `WRITE_CHECKOUT_*`), and a failure with no code is named in `data.error_type` |
 
 ---
 
@@ -216,7 +217,7 @@ spec-kitty orchestrator-api start-review \
 | Code | Cause |
 |------|-------|
 | `POLICY_METADATA_REQUIRED` | `--policy` missing or incomplete |
-| `TRANSITION_REJECTED` | WP is not in `for_review` lane or guard checks failed |
+| `TRANSITION_REJECTED` | WP is not in `for_review` lane or guard checks failed; on the planning-lane stamp path (>= 1.32.0) a workspace-resolution failure is also reported here, with `data.workspace_error_code` or `data.error_type` |
 
 ---
 
@@ -271,7 +272,7 @@ spec-kitty orchestrator-api transition \
 
 | Code | Cause |
 |------|-------|
-| `TRANSITION_REJECTED` | Guard failure or invalid lane transition |
+| `TRANSITION_REJECTED` | Guard failure or invalid lane transition; on the planning-lane stamp path (>= 1.32.0) a workspace-resolution failure is also reported here, with `data.workspace_error_code` or `data.error_type` |
 | `POLICY_METADATA_REQUIRED` | Run-affecting lane without `--policy` |
 
 **Usage notes:**
@@ -462,8 +463,19 @@ No `--policy` is required: the command mutates nothing.
 | `workspace_path` | The WP's lane worktree path (not guaranteed to exist for a never-started WP) |
 | `prompt_path` | WP markdown prompt file |
 | `lane_id` / `lane_branch` / `lane_base_ref` | Present when the WP is lane-assigned |
+| `workspace_error_code` | Failure only (>= 1.32.0): the refusal's own code when it is not a registered contract code, e.g. `PLANNING_CHECKOUT_MISSING` or `WRITE_CHECKOUT_*` |
+| `error_type` | Failure only (>= 1.32.0): names a workspace-resolution failure that has no code (an unreadable `meta.json`, a WP that cannot be resolved) |
 
-**Failure codes:** `MISSION_NOT_FOUND`, `WP_NOT_FOUND`.
+For a planning-lane WP (contract >= 1.32.0) the workspace is resolved: a default
+Mission's planning WP resolves to the Mission-branch checkout (the coordination
+worktree) and the Mission branch before the Mission lands. A Mission branch no
+checkout holds refuses with `PLANNING_CHECKOUT_MISSING` in
+`data.workspace_error_code`; the remedy is
+`spec-kitty doctor coordination --mission <slug> --fix`.
+
+**Failure codes:** `MISSION_NOT_FOUND`, `WP_NOT_FOUND`, `LANE_ALLOCATION_FAILED`
+(>= 1.32.0, planning-lane WP; the real code is in `data.workspace_error_code`,
+else `data.error_type`).
 
 ---
 
@@ -936,7 +948,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_NOT_A_WORKTREE` | append-history | Safe commit target is not a git worktree |
 | `SAFE_COMMIT_PROTECTED_BRANCH` | append-history | Safe commit refused a protected branch |
 | `SAFE_COMMIT_RECOVERY_FAILED` | append-history | Safe commit created or attempted a commit but could not restore caller staging |
-| `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
+| `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition; on the planning-lane stamp path of `start-review` / `transition` (>= 1.32.0) a workspace-resolution failure, with `data.workspace_error_code` or `data.error_type` |
 | `BOOKKEEPING_FAILED` | start-implementation, start-review, transition | The transactional status write refused; `data.bookkeeping_error_code` carries the refusal's own code (`BOOKKEEPING_LOCK_TIMEOUT` is retryable, `BOOKKEEPING_POLICY_REFUSED` / `COORD_STATUS_SURFACE_DIVERGED` need an operator) |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
 | `MISSION_ALREADY_EXISTS` | specify | Delegate mission-creation call refused a duplicate (typed `MissionAlreadyExistsError` signal, #3861) |
@@ -985,7 +997,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
 | `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step); an approval-bound or (contract >= 1.21.0) implementation-evidence refusal carries its codes in `data.preflight_error_code` / `data.preflight_error_codes` |
 | `UNSUPPORTED_STRATEGY` | consolidate-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
-| `LANE_ALLOCATION_FAILED` | start-implementation, transition | Lane worktree allocation failed (dirty reuse, a dependency-lane consolidation conflict, or an unhonorable base) |
+| `LANE_ALLOCATION_FAILED` | start-implementation, resolve-workspace, transition | Lane worktree allocation failed (dirty reuse, a dependency-lane consolidation conflict, or an unhonorable base); since 1.32.0 also a planning-lane workspace-resolution failure on `start-implementation` / `resolve-workspace`, with the refusal's own unregistered code in `data.workspace_error_code` (`PLANNING_CHECKOUT_MISSING`, `WRITE_CHECKOUT_*`) or, with no code, `data.error_type` |
 | `ANCESTRY_NOT_ESTABLISHED` | start-implementation, transition | The recorded planning commit or an approved dependency lane's tip is not (yet) a git ancestor of the claimed workspace's HEAD, even after self-heal re-ran the reuse-path merges |
 | `STATUS_LOCK_HELD` | start-implementation | The single_branch write-checkout claim lock stayed held by another claimant past its bound (contract 1.13.0); retry |
 | `SAFE_COMMIT_PATH_POLICY` | append-history | Safe commit refused to stage a path under `.worktrees/` from the primary repo root before mutating the index |
