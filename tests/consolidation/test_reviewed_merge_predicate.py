@@ -477,12 +477,17 @@ def test_replace_keeps_the_unreviewed_merges(tmp_path: Path) -> None:
     assert dataclasses.replace(claim, verify_reachability=False).unreviewed_merges == claim.unreviewed_merges
 
 
-#: The number of ``ApprovedWpCommitSet`` fields before this work package (all but ``unreviewed_merges``).
+#: The number of ``ApprovedWpCommitSet`` fields before this work package (all but ``unreviewed_merges``
+#: and the fields added after it, :data:`_LATER_FIELDS`).
 _PRE_WP_FIELD_COUNT = 33
+
+#: Fields added to the claim after this work package, outside this ratchet: #7860's advisory
+#: ``planning_lane_notes`` (declared before ``unreviewed_merges``, which stays last).
+_LATER_FIELDS = frozenset({"unreviewed_merges", "planning_lane_notes"})
 
 
 def test_positional_construction_with_the_pre_wp_arity_still_works() -> None:
-    names = [f.name for f in dataclasses.fields(ApprovedWpCommitSet) if f.name != "unreviewed_merges"]
+    names = [f.name for f in dataclasses.fields(ApprovedWpCommitSet) if f.name not in _LATER_FIELDS]
     assert len(names) == _PRE_WP_FIELD_COUNT
     defaults = ApprovedWpCommitSet()
     claim = ApprovedWpCommitSet(*(getattr(defaults, name) for name in names))
@@ -509,7 +514,7 @@ def _canonical(value: Any) -> str:
 def _field_digests(claim: ApprovedWpCommitSet, repo: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     for f in dataclasses.fields(claim):
-        if f.name == "unreviewed_merges":
+        if f.name in _LATER_FIELDS:
             continue
         text = _canonical(getattr(claim, f.name)).replace(str(repo), "<REPO>")
         out[f.name] = hash_content(text)
