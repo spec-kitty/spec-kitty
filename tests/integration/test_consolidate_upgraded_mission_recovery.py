@@ -325,5 +325,5 @@ def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(
     assert _GITATTRIBUTES_STALE_REFUSAL in _normalised(output), output
     assert _GITATTRIBUTES_STALE_REMEDY in _normalised(output), output
     assert "git merge" not in _normalised(output), output
-    # The only in-run auto-rebase text is the no-lane-checkout halt reason; no auto-rebase stop is reported.
-    assert _normalised(output).count("in-run auto-rebase") == 1, output
+    # The halt reason is pinned in the refusal above; no in-run auto-rebase stop is reported.
+    assert "auto-rebase of lane lane-b" not in _normalised(output) and "stopped:" not in _normalised(output), output
