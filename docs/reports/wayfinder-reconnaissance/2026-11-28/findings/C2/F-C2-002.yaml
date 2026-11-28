@@ -1,0 +1,54 @@
+finding_id: F-C2-002
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "volume-denominators"
+  deviation: "Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05."
+subject:
+  component: "core (all src components)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Per period (non-merge, non-bulk): T1 2,800 commits / 947 code commits / 438,385 changed src lines; T2 4,416 / 1,809 / 439,951 (public 3,019 / 1,106 / 261,929; EXPERIMENTAL 1,397 / 703 / 178,022); T3 10,046 / 3,026 / 476,670. Changed src lines per code commit: T1 463, T2 243, T3 158. By class, corrective-maintenance contributes 82,893 (T1), 95,719 (T2) and 147,726 (T3) changed src lines; capability-growth 155,364, 152,422 and 143,667."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/volume-denominators.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "adac8f9dbc79edb6bfa20c63430d9e8e493166dfc1b82c838cff05ad044e78a2"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: history-derived
+    reference: "evidence/C2/classification-rules.txt"
+    method: "written before classification"
+    sha256: "0f17f30d893e06d005abb30be1c89187f9bd821b60fac6f12fe702f729360bb1"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Line counts are git numstat added+deleted with rename detection (-M); binary files count 0."
+  not_covered: "Merge commits (their content is carried by the non-merge commits they introduce); bulk commits listed separately."
+  population: "All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345."
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether bulk exclusion changes the period totals materially: 22 bulk commits, 10 of them code commits, listed in bulk-commits.csv."
+  result: "Bulk commits would add >4.8M lines to T2/T3 changed-line totals if included; they are excluded as the brief requires and listed."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

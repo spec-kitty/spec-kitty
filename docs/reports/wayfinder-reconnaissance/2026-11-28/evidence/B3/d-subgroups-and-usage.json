@@ -1,0 +1,55 @@
+{
+ "d_subgroups_full": {
+  "inside charter": {
+   "edges": 4,
+   "weight": 268,
+   "load_time_edges": 4,
+   "load_time_weight": 199
+  },
+  "layer-2 peers": {
+   "edges": 1,
+   "weight": 13,
+   "load_time_edges": 1,
+   "load_time_weight": 11
+  },
+  "specify_cli root <-> subpackage": {
+   "edges": 60,
+   "weight": 348,
+   "load_time_edges": 45,
+   "load_time_weight": 233
+  },
+  "specify_cli subpackage <-> subpackage": {
+   "edges": 400,
+   "weight": 2634,
+   "load_time_edges": 265,
+   "load_time_weight": 1507
+  }
+ },
+ "D9_specify_cli_components_importing": [
+  {
+   "target": "kernel",
+   "importing_components": 55,
+   "of": 67
+  },
+  {
+   "target": "charter",
+   "importing_components": 27,
+   "of": 67
+  },
+  {
+   "target": "glossary",
+   "importing_components": 4,
+   "of": 67
+  },
+  {
+   "target": "runtime",
+   "importing_components": 12,
+   "of": 67
+  },
+  {
+   "target": "mission_runtime",
+   "importing_components": 31,
+   "of": 67
+  }
+ ]
+}

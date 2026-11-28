@@ -1,0 +1,54 @@
+finding_id: F-C2-001
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "volume-denominators"
+  deviation: "Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05."
+subject:
+  component: "core (all src components)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Of 20,963 commits reachable from head with committer date 2026-01-01..2026-11-28, 1,156 are merge commits, 22 are bulk commits (>500 files), and 6,345 of the remaining 19,785 are code commits (touch at least one file under src/): 2,616 on the public line, 703 on the EXPERIMENTAL line (2026-08-19..2026-09-05 only), 3,026 on the post-convergence line; the convergence merge is counted apart. 7,092 non-code commits touch only docs/, kitty-specs/ or .kittify/, 3,224 only tests/, 244 only those four trees together, 2,880 other non-src paths."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/summary.json"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "e069718f54718de4335b6db7feba5eb717cbb4e8ed9cd0871e1d19f14ec8a3a8"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: history-derived
+    reference: "evidence/C2/volume-denominators.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "adac8f9dbc79edb6bfa20c63430d9e8e493166dfc1b82c838cff05ad044e78a2"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Commits reachable from core head since 2025-12-31; line tagging by reachability (EXPERIMENTAL = 38090b64..f57b06dd, public = rest before the merge, post = 2554bd13..head)."
+  not_covered: "Commits on branches never merged into head; commits whose committer date is before 2025-12-31 even if authored later."
+  population: "All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345."
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Re-counted lines with git rev-list --count per range (800 public-only, 1,996 EXPERIMENTAL-only, 10,141 post-convergence commits incl. merges) and compared with the extractor's totals."
+  result: "Counts reconcile: extractor line tags sum to the rev-list totals; 0 commits fell outside the four tags."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

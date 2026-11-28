@@ -1,0 +1,55 @@
+finding_id: F-C2-019
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M02a"
+  deviation: null
+subject:
+  component: "core (fix commits)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M02a Mission membership of the 20 traced or weakly traced introducers: 15 came from a pull request carrying Mission artefacts under kitty-specs/ (11 of those Missions record acceptance at head with accepted_at before (7) or on the same day as (4) the introducing commit; 4 record no acceptance at head); 5 had no identifiable Mission (one pull request touched only unrelated legacy Mission directories and is counted as none)."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M02-tracing.csv"
+    method: "as F-C2-018"
+    sha256: "083d8c998e5a20e564ecca7b54787ec71643f9668287c6935063141257b05981"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/C2/M02-enriched-traces.json"
+    method: "gh api pulls/<n>/files; git show head:kitty-specs/<slug>/meta.json"
+    sha256: "38e52d905f284e538001d504c290dadff2e3106a6cfa0f3250fa805208f4ca32"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18; gh 2.89.0 (read-only GET)"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Mission = kitty-specs/<slug>/ paths in the introducing pull request; acceptance = accepted_at (or acceptance_history) in meta.json at head."
+  not_covered: "Whether acceptance covered the specific introducing commit; Missions whose meta.json was moved or deleted before head."
+  population: "698"
+  sample: "30 (20 traced)"
+  seed: "20261128"
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether 'accepted before introducer' cases are landing-phase commits."
+  result: "Of the 7 accepted-before cases, 4 introducing commits are commits inside the Mission's own landing pull request made after its acceptance (A04, A05, A09, A12); 3 came in later pull requests (A08, A16, A23)."
+relations:
+  - {type: refines, target: F-C2-018}
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,16 @@
+Workstream CX - Comparison of two independent runs of the same measures
+Id: CX. Profile: analyst-annie. Action for charter context: review.
+
+Goal: two workstreams, C and C2, independently computed the same measures of change coupling from the same brief (dispatch/C.txt - you may read it), on different models, without sight of each other. Compare their numbers. You judge agreement, not which is right, and you draw no conclusion about the architecture.
+
+Inputs you may read: dispatch/C.txt; evidence/C/ and evidence/C2/ (all files); workstream-reports/C.md and workstream-reports/C2.md for their stated deviations only; findings/C and findings/C2 for the measure values they carry.
+
+For each measure in the brief (M01c, M01d, the co-change matrix top pairs, volume denominators, M01f, M01g, M02a, M02b, the events sibling series, recurrence and refix chains, the convergence merge effect) and each period (T1, T2 per line and pooled, T3) and month where both report it:
+- tabulate both values with their denominators in evidence/CX/comparison.csv (measure, slice, C value, C2 value, absolute difference, relative difference, same direction of change between periods yes/no);
+- classify: replicated (relative difference at most 10%), not replicated, or not comparable (the two runs measured different things; say what differs);
+- for every "not replicated" or "not comparable", trace the cause to a concrete definitional or procedural difference (component set, rename map, exclusion rules, period boundary, sampling frame, classification rules), citing both runs' scripts or deviation notes. Where the cause is a different sample from the same frame, say so and compare the frames instead.
+- for the commit classification: compare the two rule sets and, on the commits both classified, the agreement rate (confusion table).
+- for the sampled measures (M01f, M01g, M02): compare frame sizes and sample overlap, then the rates.
+
+Report: counts of replicated / not replicated / not comparable, by measure; which between-period directions both runs agree on and which they do not; and the list of definitional choices that moved a result by more than 10%.
+Findings: one observation per measure family, one listing the definitional sensitivities. Cap 15. Do not recompute from the repositories unless needed to explain a difference; if you do, say so.

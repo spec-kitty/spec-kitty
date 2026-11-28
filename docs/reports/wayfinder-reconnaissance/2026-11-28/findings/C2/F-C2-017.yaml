@@ -1,0 +1,46 @@
+finding_id: F-C2-017
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M02a"
+  deviation: "'Contract file' was given no path list in the brief; the path rule above was fixed before sampling."
+subject:
+  component: "core (fix commits)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Frame for M02a: of 2,553 non-merge commits on the post-convergence line with committer date 2026-09-07..2026-11-28 whose subject marks a fix, 698 touch two or more components or a pin/lock file or a contract file (639 by components, 13 by pin/lock incl. pyproject dependency lines, 74 by contract paths); the M02b frame (exactly one component, no pin/lock/contract) has 1,264; 591 touch no src component and no pin/lock/contract file."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M02-frames-and-samples.json"
+    method: "python3 script-m02.txt <core clone> commits.jsonl out dossier.txt"
+    sha256: "5c567bb52beff11373e171a477d5aead0a8d131147c71ccb4d3b2dd83eba390d"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Fix = conventional fix/hotfix/bugfix/revert/fixup/fold prefix, 'landing fold', or fix keywords; contract = contracts/**, docs/contracts/**, */contracts/** (incl. kitty-specs Mission contract docs), upstream_contract.json."
+  not_covered: "Fixes committed as merges."
+  population: "2,553 fix-subject commits"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked how many frame-A members enter only through Mission contract documents under kitty-specs."
+  result: "Some of the 74 contract hits are kitty-specs/<mission>/contracts/*.md (e.g. sampled A00, A07, A20); they stay in the frame as the definition is path-based."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

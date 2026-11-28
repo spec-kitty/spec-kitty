@@ -1,0 +1,46 @@
+finding_id: F-C2-009
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M01d"
+  deviation: "Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05."
+subject:
+  component: "core (fine components)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Share of code commits touching two or more components: T1 514/947 = 0.543; T2 0.370 (public 0.406, EXPERIMENTAL 0.314); T3 0.344; overall 0.379. By class (T1/T2/T3): capability-growth 0.667/0.525/0.603; corrective 0.492/0.303/0.329; restructuring 0.512/0.540/0.346; compatibility 0.673/0.615/0.478; convergence-activity -/0.417/0.366; other 0.525/0.170/0.202."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M01c-M01d-components-per-code-commit.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "d85422382ca9e6c723e64365526d5a8952ccdb7e43ca2c6814e286206c0912fa"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Fine taxonomy, per period and class."
+  not_covered: "Granularity effect of merge practice (F-C2-011)."
+  population: "All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345."
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Split T2 public into pre-fork (2026-07-01..08-18) and fork window to look for a step at the fork."
+  result: "Public pre-fork 0.403 (n=821), public fork window 0.414 (n=285): no step at the fork on the public line."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

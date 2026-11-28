@@ -1,0 +1,5 @@
+# spec-kitty-orchestrator 8be32b1 unit + conformance tests (disposable clone, uv venv, Python Python 3.11.15, pytest 9.2.0)
+# command: .venv/bin/python -m pytest tests/conformance/test_contract.py tests/test_agent_invokers.py tests/test_resume_orphaned.py -q -p no:cacheprovider ; exit 0
+........................................................................ [ 80%]
+..................                                                       [100%]
+90 passed in 1.92s

@@ -1,0 +1,38 @@
+finding_id: F-C2-032
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Per-commit measures compared across the public and EXPERIMENTAL lines are confounded by merge practice: the EXPERIMENTAL line recorded pull requests as merge commits (596 merges) while the public and post-convergence lines mostly did not, and the line difference in M01d disappears at the level of first-parent change units."
+evidence: []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "Line comparisons of per-commit spread should use change units, not commits; cross-period comparisons are less affected because T1 and T3 have few merges (68 and 3 first-parent merge units)."
+derived_from: ["F-C2-009", "F-C2-011", "F-C2-024"]
+counterevidence: []
+disconfirmation:
+  search: "Checked T1, which also contains merges."
+  result: "T1 unit-level M01d is 0.589 against 0.543 per commit: merges raise unit spread there too, by a smaller margin."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

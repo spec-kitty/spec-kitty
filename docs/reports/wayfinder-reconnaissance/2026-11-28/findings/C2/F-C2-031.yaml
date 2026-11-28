@@ -1,0 +1,38 @@
+finding_id: F-C2-031
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Per-commit cross-component spread (M01c, M01d at both taxonomies) is lower in T2 and T3 than in T1 while the corrective-maintenance share of code commits is higher in T3 than in T1. The two move together over the periods; this record does not attribute one to the other."
+evidence: []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "The fall in multi-component commits co-occurs with a larger share of fix-prefixed commits, which have the lowest spread of any class in every period (F-C2-008); a class-mix effect alone would lower the overall mean. Within corrective-maintenance, M01d also falls (0.49 -> 0.30 -> 0.33), so the fall is not only class mix."
+derived_from: ["F-C2-006", "F-C2-007", "F-C2-008", "F-C2-009", "F-C2-012"]
+counterevidence: []
+disconfirmation:
+  search: "Checked whether class mix explains the whole fall by looking within classes."
+  result: "Within-class M01d falls between T1 and T3 for corrective (0.492 -> 0.329), restructuring (0.512 -> 0.346), compatibility (0.673 -> 0.478) and capability-growth (0.667 -> 0.603). Class mix is at most a partial account."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,13 @@
+rule,documented_from,documented_to,target_component,pair_weight_all,weight_into_target_component,status
+D2,charter,kernel,kernel,124,124,used
+D5,glossary,charter,charter,3,2,used
+D5,glossary,charter,charter.activation,3,1,used
+D5,glossary,charter,charter.offering,3,0,unused
+D5,glossary,kernel,kernel,9,9,used
+D9,specify_cli,kernel,kernel,595,595,used
+D9,specify_cli,charter,charter,424,153,used
+D9,specify_cli,charter,charter.activation,424,256,used
+D9,specify_cli,charter,charter.offering,424,15,used
+D9,specify_cli,glossary,glossary,15,15,used
+D9,specify_cli,runtime,runtime,40,40,used
+D9,specify_cli,mission_runtime,mission_runtime,200,200,used

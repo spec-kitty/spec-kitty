@@ -70,21 +70,20 @@ def resolve_target(modparts, dirs):
         return None
     return component(best + "/__x__.py") if best.count("/") >= 1 else None
 
-imp_cache = {}
-def imports_of(oid, path, dirs_key, dirs):
-    key = (oid, dirs_key)
-    if key in imp_cache: return imp_cache[key]
+raw_cache = {}
+def raw_imports(oid, path):
+    """Parse once per (blob, path); return candidate dotted module part-lists (resolution is per revision)."""
+    key = (oid, path)
+    if key in raw_cache: return raw_cache[key]
     try:
         tree = ast.parse(blob_text(oid))
     except Exception:
-        imp_cache[key] = None; return None
+        raw_cache[key] = None; return None
     pkg = path[len("src/"):].split("/")[:-1]
-    targets = set()
+    cands = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            for a in node.names:
-                t = resolve_target(a.name.split("."), dirs)
-                if t: targets.add(t)
+            for a in node.names: cands.append(tuple(a.name.split(".")))
         elif isinstance(node, ast.ImportFrom):
             if node.level:
                 base = pkg[: len(pkg) - (node.level - 1)] if node.level - 1 <= len(pkg) else []
@@ -92,10 +91,17 @@ def imports_of(oid, path, dirs_key, dirs):
             else:
                 mod = node.module.split(".") if node.module else []
             if not mod: continue
-            for a in node.names:
-                t = resolve_target(mod + [a.name], dirs)
-                if t: targets.add(t)
-    imp_cache[key] = targets
+            for a in node.names: cands.append(tuple(mod + [a.name]))
+    raw_cache[key] = cands
+    return cands
+
+def imports_of(oid, path, dirs_key, dirs):
+    cands = raw_imports(oid, path)
+    if cands is None: return None
+    targets = set()
+    for c in cands:
+        t = resolve_target(list(c), dirs)
+        if t: targets.add(t)
     return targets
 
 full_cache = {}

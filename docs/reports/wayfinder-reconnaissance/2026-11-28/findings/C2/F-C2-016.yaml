@@ -1,0 +1,46 @@
+finding_id: F-C2-016
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M01g"
+  deviation: "The GitHub MCP tools expose no commit-to-pull-request lookup, so read-only 'gh api' GET calls were used for the same data. Merged-by and issue-comment columns were added as context; they are not part of the measure as written."
+subject:
+  component: "core (pull-request review)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Seeded sample of 40 code commits per period: the commit belongs to a pull request in 39/40 (T1), 39/40 (T2: 25 public in spec-kitty/spec-kitty, 14 EXPERIMENTAL in spec-kitty/EXPERIMENTAL-spec-kitty) and 40/40 (T3). Pull requests carrying a GitHub review by an account other than the author: T1 5/39 (4 with an approval), T2 0/39, T3 0/40. Pull requests merged by an account other than the author: 9/39, 3/39, 13/40. Pull requests with at least one issue comment by another non-bot account: 3/39, 9/39, 15/40."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/C2/M01g-review-intensity-sample.csv"
+    method: "python3 script-m01g.txt commits.jsonl out (gh api repos/<repo>/commits/<sha>/pulls, pulls/<n>/reviews, pulls/<n>, issues/<n>/comments)"
+    sha256: "6b79d1dc65a0ab2a3de0e095a0cd238a6feca270d9e9c81c54a6da3e7f920de0"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18; gh 2.89.0 (read-only GET)"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Formal GitHub reviews, merger identity and issue comments on the associated pull request; tracker qualified by line (public and post-convergence: spec-kitty/spec-kitty, EXPERIMENTAL: spec-kitty/EXPERIMENTAL-spec-kitty)."
+  not_covered: "Review that happens outside GitHub reviews (in-repo review-cycle files, agent squads, issue comments by agent accounts are counted only as comments); 1 commit per T1/T2 had no associated pull request."
+  population: "code commits per period (T1 947, T2 1,809, T3 3,026)"
+  sample: "40 per period"
+  seed: "20261128"
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Spot-checked three T3 pull requests by hand for reviews the API might miss."
+  result: "PRs 7316, 6546, 7009: 0 reviews each, merged by the author, 4/3/0 issue comments. No pull request was unreadable (not-assessable = 0)."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: ["Author category is a name heuristic (agent/bot/human-or-unknown) and is recorded only as a column: T1 40/40 human-or-unknown; T2 10/40 agent; T3 15/40 agent, 2/40 bot."]

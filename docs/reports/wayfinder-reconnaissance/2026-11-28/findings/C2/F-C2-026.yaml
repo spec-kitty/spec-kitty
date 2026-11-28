@@ -1,0 +1,46 @@
+finding_id: F-C2-026
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "sibling series (spec-kitty-events)"
+  deviation: "Component for events = first-level module or subpackage of the Python package (the brief allows 'top-level package or module'); months with <=12 code commits are reported but not interpretable."
+subject:
+  component: "spec-kitty-events (src/spec_kitty_events modules)"
+  repository: spec-kitty/spec-kitty-events
+  revision: "646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "spec-kitty-events, components = first-level module or subpackage of src/spec_kitty_events: 256 code commits among 1,475 non-merge commits in 2026-01..11 (2 bulk excluded); median 1, p90 4, mean 2.10, share >=2 components 0.438. Monthly code commits and M01d: 01 12 (0.17), 02 68 (0.34), 03 5 (0.60), 04 10 (1.00), 05 11 (0.55), 06 2 (1.00), 07 0, 08 83 (0.46), 09 10 (0.50), 10 48 (0.42), 11 7 (0.43). 0 of 1,669 events commits share a SHA with core history."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/events-sibling-series.csv"
+    method: "python3 script-events_series.txt (events clone at 646e330b)"
+    sha256: "44f1b485a5ed9e4492663b3d43b6e7b3cdc86b256b215813d2b6bbf46d8a9bfb"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Python package modules; a variant with Java modules (service/*, contracts/*, java/*) is in the CSV."
+  not_covered: "Events components are module files, finer than core's subpackages, so absolute values are not comparable with core."
+  population: "1,475 non-merge commits of spec-kitty-events since 2025-12-31"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked for core history imported into events that would be double counted."
+  result: "No shared commit SHAs (0/1,669); imported content, if any, arrived as new commits and is counted once in events."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

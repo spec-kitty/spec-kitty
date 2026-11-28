@@ -1,0 +1,54 @@
+finding_id: F-C2-014
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M01f"
+  deviation: "Edge set taken per changed file (file, target component) rather than a whole-repository graph diff; a second count of component pairs new to the whole src graph at the parent is added. Method limits stated in scope."
+subject:
+  component: "core (cross-component import edges)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Seeded, class-stratified samples of 150 code commits per period (0 parse failures): file-level cross-component import edges added per thousand changed .py src lines: T1 5.36 (527 added, 128 removed, 98,354 lines), T2 5.95 (184/56, 30,910 lines), T3 3.33 (95/51, 28,526 lines); net added per kloc 4.06, 4.14, 1.54. Component pairs new to the whole src import graph at the parent: T1 149 (1.52 per kloc, in 29 of 150 commits), T2 28 (0.91, 13 commits), T3 14 (0.49, 7 commits)."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/C2/M01f-import-edges-aggregate.csv"
+    method: "python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt"
+    sha256: "3de4c097cc4ea85efd5bfaca52d187761470337b2b1aaa8dca3874c7bf86adf9"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/C2/M01f-import-edges-sample.csv"
+    method: "python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt"
+    sha256: "711273e2a48441f46479ab09326ae7824981c1e87ad5242c856dff6124a4761e"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "AST walk (Python ast) of changed files at parent and commit; Edges are read only from changed .py files under src/ (before vs after); import targets resolved to the longest src/ directory prefix; relative imports resolved; imports inside functions and TYPE_CHECKING blocks count like top-level imports; dynamic imports (importlib) are not seen; an edge removed in one file but kept elsewhere still counts as removed at file level; 'new to tree' compares component pairs against the full src import graph at the parent."
+  not_covered: "Non-Python dependencies (YAML references, entry points), edges in unchanged files."
+  population: "code commits per period (947 / 1,809 / 3,026)"
+  sample: "150 per period, stratified by class (min(10, stratum) then proportional)"
+  seed: "20261128"
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether a few large commits dominate the per-kloc rates."
+  result: "T1 restructuring alone contributes 214 of 527 added edges and 32,456 of 98,354 lines; per-kloc rates by class are in the aggregate CSV and vary from 0.36 to 34.7 per kloc, so period rates are sensitive to stratum composition."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

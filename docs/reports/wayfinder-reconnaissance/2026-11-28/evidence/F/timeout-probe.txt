@@ -1,0 +1,21 @@
+# Probe written by workstream F (not a project test). Repo: spec-kitty-orchestrator 8be32b1, disposable clone, uv venv Python 3.11
+# command: <clone>/.venv/bin/python -I timeout_probe.py ; exit 0
+## script
+# Workstream F probe: does spec-kitty-orchestrator's execute_with_timeout stop a process that overruns?
+import asyncio, time
+
+import spec_kitty_orchestrator.executor as ex
+async def main():
+    p = await asyncio.create_subprocess_exec("sleep", "30", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    t0 = time.monotonic()
+    try:
+        out = await ex.execute_with_timeout(p, timeout_seconds=1)
+        print("returned", out[2] if isinstance(out, tuple) else out)
+    except Exception as e:
+        print("raised", type(e).__name__, str(e)[:120])
+    print("elapsed_s", round(time.monotonic()-t0, 2), "returncode", p.returncode)
+asyncio.run(main())
+## output
+Process 8953 timed out after 1s
+returned 124
+elapsed_s 1.01 returncode -15

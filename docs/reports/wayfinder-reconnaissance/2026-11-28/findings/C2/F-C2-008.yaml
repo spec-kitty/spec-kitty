@@ -1,0 +1,47 @@
+finding_id: F-C2-008
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M01c"
+  deviation: "Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05."
+subject:
+  component: "core (fine components)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M01c by class, mean (median, p90): T1 capability-growth 3.59 (2, 7), corrective 2.23 (1, 4), restructuring 2.63 (2, 6), compatibility 5.51 (3, 14); T2 capability 2.66 (2, 5), corrective 1.55 (1, 3), restructuring 2.72 (2, 5), compatibility 2.85 (2, 6), convergence-activity 1.77 (1, 3); T3 capability 2.91 (2, 7), corrective 1.54 (1, 3), restructuring 1.72 (1, 3), compatibility 3.06 (1, 6.2), convergence-activity 1.66 (1, 3), other 1.33 (1, 2)."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M01c-M01d-components-per-code-commit.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "d85422382ca9e6c723e64365526d5a8952ccdb7e43ca2c6814e286206c0912fa"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Per class and period; monthly rows per line are in the same CSV."
+  not_covered: "Classes with few commits (T1 convergence-activity n=1) are not interpretable."
+  population: "All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345."
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the class ordering holds in each period."
+  result: "Corrective-maintenance has the lowest or second-lowest mean in every period; capability-growth and compatibility-work are above the overall mean in every period."
+relations:
+  - {type: refines, target: F-C2-007}
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

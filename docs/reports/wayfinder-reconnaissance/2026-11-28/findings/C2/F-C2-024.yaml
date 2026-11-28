@@ -1,0 +1,54 @@
+finding_id: F-C2-024
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "volume-denominators (bulk and merges)"
+  deviation: null
+subject:
+  component: "core"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "22 commits touch more than 500 files and are excluded from per-commit measures (10 of them code commits; largest 7,344 files on 2026-07-28). Merge commits: public line 469 (2026-01 142, 02 161, 03 2, 05 20, 06 140, 08 4), EXPERIMENTAL line 596 (2026-08 470, 09 126), post-convergence 90; plus the convergence merge."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/bulk-commits.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "2bbfa07a2213486f489fa8c4108765ac0dd3a3d6964f1c8def65164812a335f6"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: history-derived
+    reference: "evidence/C2/merge-commits-by-month-line.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "0cf3b34a3d682912e2f025c356055db2c9373ef050b8e7af753f7b8a3ddf1f5a"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "All commits in the window."
+  not_covered: "Bulk commits' component spread (excluded by rule)."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether bulk commits cluster in one line."
+  result: "Bulk commits occur on all three lines (public 14, EXPERIMENTAL 3, post-convergence 5)."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

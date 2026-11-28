@@ -1,0 +1,48 @@
+finding_id: F-C2-021
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M02a vs M02b"
+  deviation: null
+subject:
+  component: "core (fix commits)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Between the two samples, the share of sampled defect fixes that corrected a commit of the same pull request (defect never on main) is 13/29 (45%; one sampled commit is not a defect fix) for multi-component/pin/contract fixes (M02a) and 21/30 (70%) for single-component fixes (M02b); the share detected through an issue report is 11/30 vs 6/30; the share of untraceable introducers is 10/30 vs 1/30. These are differences between two samples of 30, reported as correlations."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M02-tracing.csv"
+    method: "as F-C2-018"
+    sha256: "083d8c998e5a20e564ecca7b54787ec71643f9668287c6935063141257b05981"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "The two seeded samples."
+  not_covered: "Statistical significance; with n=30 each, a 95% interval on 45% or 70% is roughly +/-17 points."
+  population: "698 and 1,264"
+  sample: "30 + 30"
+  seed: "20261128"
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the difference comes from the untraceable cases."
+  result: "Among traced introducers only, the reached-main share is 7/20 (A) vs 8/29 (B): most of the A-B gap comes from A's untraceable cases, all post-main."
+relations:
+  - {type: refines, target: F-C2-018}
+  - {type: refines, target: F-C2-020}
+confidence: low
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

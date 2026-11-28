@@ -1,0 +1,15 @@
+from,to,weight,load_time_weight,category,rule
+charter,kernel,124,122,a,D2
+glossary,charter,3,1,a,D5
+glossary,kernel,9,9,a,D5
+mission_runtime,kernel,8,8,b,G
+mission_runtime,specify_cli,30,1,c-ledgered,D8
+runtime,charter,20,11,b,G
+runtime,kernel,26,25,b,G
+runtime,mission_runtime,13,11,d,
+runtime,specify_cli,98,50,c-ledgered,D7
+specify_cli,charter,424,200,a,D9
+specify_cli,glossary,15,9,a,D9
+specify_cli,kernel,595,563,a,D9
+specify_cli,mission_runtime,200,140,a,D9
+specify_cli,runtime,40,23,a,D9

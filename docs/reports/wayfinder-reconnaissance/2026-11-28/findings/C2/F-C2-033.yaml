@@ -1,0 +1,38 @@
+finding_id: F-C2-033
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "A large part of fix-class history records corrections made before the introducing change reached main: in the two M02 samples 13/30 and 21/30 sampled fixes corrected a commit of the same pull request, and the tight 14-day refix rate falls from 66-79% to 15-31% when the same file set is required."
+evidence: []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "Counts of fix-class commits overstate defects that reached main; 'fix' subjects include in-pull-request folds and landing corrections. Measures of escaped defects need the pull-request boundary, not the subject prefix."
+derived_from: ["F-C2-018", "F-C2-020", "F-C2-023", "F-C2-006"]
+counterevidence: []
+disconfirmation:
+  search: "Looked for fixes of defects that had reached main in the samples."
+  result: "16/29 (A, incl. 9 untraceable post-main fixes) and 9/30 (B) sampled defect fixes were made in a later pull request than the change they corrected, so escaped defects are a substantial share, not absent."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

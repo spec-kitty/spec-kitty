@@ -1,0 +1,46 @@
+finding_id: F-C2-003
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "volume-denominators"
+  deviation: null
+subject:
+  component: "core (src/**/*.py)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: historical
+claim: "Python source lines under src/ at period boundaries: 91,274 at 2026-03-31 (360 files), 287,790 at T1 end 2026-06-30 (1,061 files), 395,118 at the fork base 2026-08-19, 423,962 at P3a (public line end) and 379,818 at P3b (EXPERIMENTAL line end), 379,818 at the convergence merge result, 442,769 at 2026-09-30, 475,407 at 2026-10-31 and 524,936 at head (1,490 files). Growth: T1 +196,516; T2 public line +136,172 from T1 end; T3 +145,118 from the merge result."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/source-lines-at-revisions.csv"
+    method: "python3 script-sloc.txt <core clone> out script-extract.txt source-lines-revisions.txt"
+    sha256: "eb66053244ac2f85f71dac89c4abf6afbd12ff07a75b71ce17f29442308cc174"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Newline count of every .py blob under src/ at each listed revision (first-parent month-end commit by committer date), split by component in the CSV."
+  not_covered: "Non-Python files under src/ (YAML doctrine, templates, JSON); blank/comment lines are not excluded."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Compared the convergence merge result with each parent to see whether the merge itself added code."
+  result: "The merge result's src tree is byte-identical to P3b (tree 1063b7eb equals parent 2's tree), so 379,818 = P3b."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

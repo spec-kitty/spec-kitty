@@ -1,0 +1,38 @@
+finding_id: F-C2-034
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Formal GitHub review by a second account is rare in the sampled pull requests after June 2026 (0 of 79 sampled pull requests in T2 and T3) while merges by another account and issue comments by other accounts do occur; review in this ecosystem, where it happens, is recorded mostly outside GitHub's review object."
+evidence: []
+scope:
+  covered: ""
+  not_covered: ""
+  population: null
+  sample: null
+  seed: null
+interpretation: "M01g as defined (a GitHub review or approval by another account) measures one review channel. The M02 samples show reviewer-detected defects before main (4 in A, 2 in B), so review activity exists that M01g's channel does not record."
+derived_from: ["F-C2-016", "F-C2-018", "F-C2-020"]
+counterevidence: []
+disconfirmation:
+  search: "Checked whether issue comments by other accounts could stand in for review."
+  result: "15/40 T3 pull requests carry such comments; their content (review vs bot-like status) was not read, so they are not counted as review."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,62 @@
+finding_id: F-C2-018
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M02a"
+  deviation: "Detection categories (a)/(b)/(c) kept as written; a 'not determinable' bucket was added for fixes whose message and linked issue name no detection mechanism. Untraceable introducers stay in the denominator."
+subject:
+  component: "core (fix commits)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M02a seeded sample of 30 (frame 698): the introducing change was traced by blame plus corroboration in 11, traced weakly (top-blamed commit holds <50% of blamed lines, no corroboration) in 9, untraceable in 10 (blame points to a move/split refactor in 4, no blamed lines in 2, environmental or no clear origin in 4). Of the 20 traced introducers, 13 were in the same pull request as the fix (the defect never reached main) and 7 had reached main; the 10 untraceable cases are fixes in later pull requests (8 with a top-blamed commit from an earlier pull request, 2 with no blamed line). Detection: (a) automated check before main 2; (b) automated run after main 0; (c) a person 16 (11 by issue report, 4 by a reviewer before main, 1 reviewer-deferred finding); not determinable 11 (7 pre-main without a named mechanism, 4 post-main without a named mechanism); 1 sampled commit is not a defect fix (test rename)."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M02-tracing.csv"
+    method: "python3 script-m02_enrich.txt ...; coding in M02-coding-decisions.txt"
+    sha256: "083d8c998e5a20e564ecca7b54787ec71643f9668287c6935063141257b05981"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/C2/M02-enriched-traces.json"
+    method: "gh api read-only + git blame --porcelain at the fix parent"
+    sha256: "38e52d905f284e538001d504c290dadff2e3106a6cfa0f3250fa805208f4ca32"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18; gh 2.89.0 (read-only GET)"
+    observed_at: "2026-11-28T10:30:00Z"
+  - id: E3
+    kind: history-derived
+    reference: "evidence/C2/M02-coding-decisions.txt"
+    method: "analyst coding"
+    sha256: "fe7a98c2756e291a0ff46b223cd905614b7421bc0f8d59a80f32557bd2325e0b"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Introducer = most-blamed commit over the fix's modified/removed src lines at its parent; pull request via gh; issue text qualified to spec-kitty/spec-kitty by creation date before the fix."
+  not_covered: "Introducers outside src/; defects whose introducing change was a missing guard (blame cannot see absence)."
+  population: "698"
+  sample: "30"
+  seed: "20261128"
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "For every same-PR case, checked that the introducing commit is an ancestor of the fix's parent and belongs to the same pull request number."
+  result: "All 13 same-PR introducers are ancestors of the fix parent and share the PR number; none had reached main."
+relations: []
+confidence: medium
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

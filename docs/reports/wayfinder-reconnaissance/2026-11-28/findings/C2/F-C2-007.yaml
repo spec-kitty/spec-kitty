@@ -1,0 +1,46 @@
+finding_id: F-C2-007
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "M01c"
+  deviation: "Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05. Retired subpackages (sync, auth, dashboard, zeitgeist_client, vendored spec_kitty_events, ...) have no head component and are kept as their own '[retired]' components."
+subject:
+  component: "core (fine components)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Components touched per code commit (fine taxonomy: 6 top-level packages plus second-level subpackages of specify_cli and charter): T1 median 2, 90th percentile 6, mean 2.81 (n=947); T2 median 1, p90 3, mean 1.86 (n=1,809; public 2.02, EXPERIMENTAL 1.62); T3 median 1, p90 3, mean 1.68 (n=3,026); 2026-01..11 overall median 1, p90 3, mean 1.91 (n=6,345)."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/M01c-M01d-components-per-code-commit.csv"
+    method: "python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out"
+    sha256: "d85422382ca9e6c723e64365526d5a8952ccdb7e43ca2c6814e286206c0912fa"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Per-commit component count; rename map applied (doctrine -> charter/offering, constitution -> charter, merge -> specify_cli/consolidation, specify_cli/next -> runtime, specify_cli/glossary -> glossary, and others in script-extract.txt); subpackages absent at head are kept as '[retired]' components."
+  not_covered: "Change units larger than a commit (see F-C2-011)."
+  population: "All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345."
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Recomputed with top-level packages only (6 components) to see whether the fall depends on the fine taxonomy."
+  result: "Top-level means also fall: 1.32 (T1), 1.14 (T2), 1.13 (T3) (F-C2-012)."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

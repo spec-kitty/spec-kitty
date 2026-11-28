@@ -1,0 +1,451 @@
+period,class,sha,line,date,py_lines_changed_src,py_files_changed_src,file_edges_added,file_edges_removed,component_pairs_new_within_changed_files,component_pairs_new_to_src_tree,new_pairs,parse_failures,subject
+T1,capability-growth,a5b04672df567b03e794fc25d4538703726d7c55,public,2026-06-22,41,1,0,0,0,0,,0,feat(WP06): map-requirements and finalize-tasks share one WP-frontmatter read surface (#20
+T1,capability-growth,28b18d724625a6265c8ebd947ff38309c6f31ffb,public,2026-06-06,0,0,0,0,0,0,,0,feat(WP01): replace Parallel Work Analysis with Implementation Concern Map vocabulary
+T1,capability-growth,1ccdec7cd6a356c86fd8a12e91e9e83efcaf85ef,public,2026-06-15,313,11,0,0,0,0,,0,feat(#1797): retire internal --feature CLI alias + lock #1622 dead-symbol state
+T1,capability-growth,02df434f67b6dc0dc2c8d41a23d1f3477b241755,public,2026-05-31,346,1,1,0,1,0,,0,"feat(WP07): consistency-check module and tests (FR-011, FR-012, NFR-003)"
+T1,capability-growth,dcdaa5339f5afaf86489f6d30405c80a42f033d8,public,2026-06-23,233,9,0,0,0,0,,0,feat(doctrine): consume org-pack git sources from a subdirectory (#2083)
+T1,capability-growth,91a09552398b067fdf9f9edac04c25c890916677,public,2026-06-05,52,1,0,0,0,0,,0,feat(WP05): activation gate for charter context --include agent-profile (#1636)
+T1,capability-growth,9038c596702adde0a492e4570bf48f58e28d2d97,public,2026-06-02,285,1,0,0,0,0,,0,feat(WP18): doctrine template discovery + DRG addressing (#1333)
+T1,capability-growth,7f97a7861754e4445832d040f45510c5ed9f100f,public,2026-06-26,221,30,0,0,0,0,,0,"feat(2158): harden dead-symbol gate — parser fix + 4 caller detectors, flat ratchet"
+T1,capability-growth,c181cd8c00d723b18a8fa504538bd75989297d7e,public,2026-05-31,3222,33,14,0,6,3,charter/offering->charter/(root);specify_cli/(root)->charter/(root);specify_cli/upgrade->charter/offering,0,feat: charter doctrine mission-type configuration (charter-doctrine-mission-type-configura
+T1,capability-growth,ee20054871afe7feac6269cf821a0aa2e033fbf8,public,2026-06-02,290,6,0,0,0,0,,0,feat(WP06): retire relationship fields (FR-028 hard cutover)
+T1,capability-growth,101c36b125d2aea2c08e611d6f8c5770b38a1828,public,2026-06-05,113,2,0,1,0,0,,0,feat(WP01): route agent status emit through MissionStatus aggregate + slug guard (#1667)
+T1,capability-growth,5367fa179900b3793499e7766321719b370cc7af,public,2026-06-14,388,7,0,0,0,0,,0,feat(01KV0S99 WP01+WP06): MissionReopened/FollowUpRecorded events + reopen-aware lifecycle
+T1,capability-growth,7e736be2662cf76d2179a3e1d8143cc73c9b0725,public,2026-04-04,409,5,0,0,0,0,,0,feat(057): kernel shared utilities package
+T1,capability-growth,fcfcdcb02f3c486f0fad3d240e1f6981e7824e39,public,2026-06-27,464,9,4,1,3,2,specify_cli/invocation->specify_cli/(root);specify_cli/tool_surface->specify_cli/invocation,0,"feat(doctrine): charter-activation-gated org-pack agents in dispatch, context & projection"
+T1,capability-growth,dd1e8e92c91e89ad29eaba880e521761a694f76c,public,2026-06-13,200,1,0,0,0,0,,0,feat(specify): recommend PR-bound start branches
+T1,capability-growth,aea26f98e1512b3d1dbcb8f66a28f5d40f760f05,public,2026-06-13,34,2,0,0,0,0,,0,feat(#1911): restore actionable next_step on query-mode MissionNotFoundError
+T1,capability-growth,43fee0bda452575d029d4545e42002026bd346ee,public,2026-06-02,342,2,1,0,1,0,,0,feat(WP01): canonical kind & artifact-ID vocabulary resolver
+T1,capability-growth,a8ed021b6eec2ab965fe4b035c39a54697f355ea,public,2026-04-01,0,0,0,0,0,0,,0,feat: add agent-agnostic implement-review orchestration skill (#359)
+T1,capability-growth,5dd201543e206a8d2f850c03b96e7b4f1b5867e5,public,2026-06-27,501,12,5,0,4,3,specify_cli/acceptance->specify_cli/upgrade;specify_cli/dashboard[retired]->specify_cli/upgrade;specify_cli/scripts[retired]->specify_cli/upgrade,0,feat(1057): retire pre-3.0 status/task readers from active runtime
+T1,capability-growth,efae5170f8df03a41e8038776adb8d2497a4f67f,public,2026-04-22,855,6,2,0,1,1,runtime->specify_cli/sync[retired],0,feat: emit mission analytics scorecard events (#761)
+T1,capability-growth,d1dafbaf453ea20aea7a833dc40bcc9763c0d005,public,2026-04-01,1309,7,6,0,5,3,specify_cli/core->specify_cli/git;specify_cli/core->specify_cli/sync[retired];specify_cli/tracker->specify_cli/(root),0,feat(061): Ticket-first mission origin binding (#360)
+T1,capability-growth,0b6e2d7d995a43f7a16ea14d14d2c29f40965500,public,2026-06-03,538,12,2,0,2,1,specify_cli/status->specify_cli/missions,0,feat(kitty/mission-execution-state-domain-remediation-01KT6HVH): squash merge of mission
+T1,capability-growth,b8f43118bb49751c90a0ad4ed0988443aabdb283,public,2026-06-02,624,2,1,0,0,0,,0,feat(WP08): single-source doctrine health report for doctor doctrine
+T1,capability-growth,299822c1c4a29c851a77f77078c6cba61ad1c966,public,2026-04-18,0,0,0,0,0,0,,0,feat(doctrine): add specification-by-example governance (#678)
+T1,capability-growth,5116e21f94b75a17ed97708973b1919f5af5703b,public,2026-06-02,143,2,0,0,0,0,,0,feat(WP17): route charter context --include through canonical kind resolver + template sel
+T1,capability-growth,98c590c3666161e4c6c2b376a6da075bdb0ec95e,public,2026-04-14,1270,12,4,0,3,2,specify_cli/dashboard[retired]->charter/(root);specify_cli/upgrade->charter/(root),0,feat(kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G): squash merge of mission
+T1,capability-growth,9a7346100b34fd96812a8bfcde2deff2e71881aa,public,2026-06-02,617,2,0,0,0,0,,0,feat(WP04): augmentation auto-emit single-source + parity (FR-028..FR-032)
+T1,capability-growth,dc5165c8a1e610bbb79ae9c2792d4b61c2bd0958,public,2026-04-04,1213,6,1,0,1,0,,0,feat(062): Tracker Binding Context Discovery (#387)
+T1,capability-growth,d6d19fdec6ff01aaac74eaa98796f28f9d91b1d0,public,2026-05-22,118,1,1,0,1,0,,0,feat(tracker): align hosted-readiness output with central coordinator (#1285)
+T1,capability-growth,7c5f6812522f40f814f3be2c13697a73f92136e0,public,2026-06-23,1945,39,7,3,5,5,specify_cli/acceptance->mission_runtime;specify_cli/lanes->mission_runtime;specify_cli/missions->specify_cli/migration;specify_cli/retrospective->specify_cli/(root);specify_cli/scripts[retired]->specify_cli/task_utils,0,feat(coordination): single-authority topology cleanup & dedup (#2070)
+T1,corrective-maintenance,51529d69f112ea81ae95612446d6bdb0bd8eeec5,public,2026-06-15,9,1,0,0,0,0,,0,fix: remove redundant template include catch
+T1,corrective-maintenance,2d98c8275dc9948600716caebaff0afef2b831bb,public,2026-06-23,143,4,0,0,0,0,,0,fix(doctrine): reject any/all language tokens + scope-filtered catalog-miss diagnostic (#2
+T1,corrective-maintenance,9e80b249bbbe664b679894fc217e1baa65625b9f,public,2026-05-29,84,6,0,0,0,0,,0,Fix charter JSON error envelopes
+T1,corrective-maintenance,6c0b0274fac8a2cb837523dfc2481e2936d72ea5,public,2026-06-02,234,6,1,0,1,0,,0,fix: align status reads and kittify git hygiene
+T1,corrective-maintenance,5f26dcfd021ad78ef391c22401dea3ab406646ab,public,2026-04-04,372,9,5,0,2,0,,0,fix: finish lane execution workspace migration (#382)
+T1,corrective-maintenance,c5f7aff8122c067f3eb9625b9903e2ae98b4d2ff,public,2026-04-24,28,1,0,0,0,0,,0,fix(charter): record Decision Moments in --defaults interview path
+T1,corrective-maintenance,11b07902a26e76dd7715b339e600dd66c2cde512,public,2026-04-07,4,1,0,0,0,0,,0,fix(tests): resolve 8 pre-existing CI failures blocking release
+T1,corrective-maintenance,48f21f234960560a88fab6c347c202dd8d093bc5,public,2026-05-12,8,3,0,0,0,0,,0,fix: remediate urllib3 alert and charter sonar findings (#1033)
+T1,corrective-maintenance,58e541eb90cd5c32d86e2bcf4a2bcd77f033b692,public,2026-05-20,5,1,0,0,0,0,,0,fix(acceptance): match canonical clarification markers (#1204)
+T1,corrective-maintenance,b007a9edb65e7edb1284980456af007625d709af,public,2026-04-13,113,3,0,0,0,0,,0,fix: address actionable sonar issues (#606)
+T1,corrective-maintenance,b01defb783c73747c2a0fd7e5b9b54443a9690f9,public,2026-06-03,2,1,0,0,0,0,,0,fix(accept): check required artifacts in coordination worktree
+T1,corrective-maintenance,7a062fb3c776b9176b0f5d95c5e21533d2aca3f0,public,2026-05-31,16,3,0,0,0,0,,0,Fix charter token budget warning headroom (#1497)
+T1,corrective-maintenance,9551d452622960228377577d3b96cc4caab472d2,public,2026-04-12,116,3,0,0,0,0,,0,fix: CLI hangs 15-20 min when offline queue full and session expired (#598) (#602)
+T1,corrective-maintenance,6a9c9b5e271df76cd1dfe276bd05b09e7e3f3074,public,2026-04-11,747,12,7,1,5,5,specify_cli/cli->specify_cli/saas[retired];specify_cli/saas[retired]->specify_cli/auth[retired];specify_cli/saas[retired]->specify_cli/tracker;specify_cli/sync[retired]->specify_cli/saas[retired];specify_cli/tracker->specify_cli/saas[retired],0,fix(tracker): provider-aware readiness + pre-binding discover + static providers (#597)
+T1,corrective-maintenance,6cf370557829057273196561e6c59eb4c91e0630,public,2026-04-07,199,4,1,0,1,0,,0,fix(review): address PR 529 review findings
+T1,corrective-maintenance,f50393516ed423da0539dadd2acaf370728bb214,public,2026-05-31,172,1,0,0,0,0,,0,Fix status emit feature lock race (#1486)
+T1,corrective-maintenance,81c40d734b82bc360265a0d15514916d91601af4,public,2026-06-03,0,0,0,0,0,0,,0,fix: land harness install audit docs
+T1,corrective-maintenance,e0b888a6ba8beff1d40ebdf6244058e593f04a57,public,2026-06-15,8,1,0,0,0,0,,0,fix(runtime): ignore untracked coord task dirs
+T1,corrective-maintenance,ae576b5358368e197e3a5a8a38ed8c98908c237b,public,2026-06-13,70,2,0,0,0,0,,0,fix(upgrade): compare-before-write at the metadata boundary (#1871)
+T1,corrective-maintenance,6587f21058d31d5929b0ab43c540c6df9940af3c,public,2026-04-05,181,2,0,0,0,0,,0,Fix dashboard loading regressions (#400)
+T1,corrective-maintenance,20917c5f6202f87d782ecf576268b59632f4f8e7,public,2026-04-17,30,1,0,0,0,0,,0,fix: simplify WP section splitter and pin tmp override (#641)
+T1,corrective-maintenance,5d5c0ca14121ac98c2b20a69e9aa66a5b11ec2eb,public,2026-05-16,51,3,0,0,0,0,,0,fix: address sonar hotspot and emitter noise (#1081)
+T1,corrective-maintenance,6e536ba53e8e328c8a87fd661e7ffcd0a98bdb38,public,2026-06-02,37,2,2,0,2,1,specify_cli/orchestrator_api->specify_cli/missions,0,fix(WP02): use coord-aware resolver in implement dependency gate and orchestrator API (#16
+T1,corrective-maintenance,2d604dfb8f00fa08c5e35d6b3e6f35b3b003ad47,public,2026-04-06,18,1,0,0,0,0,,0,fix(orchestrator-api): expose review handoff evidence
+T1,corrective-maintenance,24c00f7e9d85f0501eddb88505eaf5a49e638ac3,public,2026-06-13,19,1,0,0,0,0,,0,fix(accept): render summary.warnings in human console so --lenient downgrades are visible 
+T1,corrective-maintenance,311c345df2d87dc2daca29b77dcba75998536738,public,2026-06-09,23,1,0,0,0,0,,0,fix: avoid path-based session hook temp writes (#1813)
+T1,corrective-maintenance,a9cc2e792db67d5eddecaa2d7b2809d6854dfe02,public,2026-05-31,86,1,0,0,0,0,,0,fix: fail review on issue-matrix violations
+T1,corrective-maintenance,3d85edb620cbb402358c085e12402bfe78723e28,public,2026-05-20,8,1,0,0,0,0,,0,fix(tasks): clarify rejected review override (#1207)
+T1,corrective-maintenance,05000c094d7ff39a2bd64980bad118c88ff97d40,public,2026-06-05,125,2,0,0,0,0,,0,fix(ops): move op commit policy into safe_commit
+T1,corrective-maintenance,ba4d575d6ad10841f3df3017c7c34d952e919e0b,public,2026-04-08,11,2,0,0,0,0,,0,fix: resolve SonarCloud security blockers (XSS + path injection annotations)
+T1,corrective-maintenance,8f71c232df3d87b918725f7baa0a82f917845f66,public,2026-06-12,50,1,0,0,0,0,,0,fix(dashboard): prefer coord worktrees for kanban scans
+T1,corrective-maintenance,bce473bbc6784298fcbbc900cb59fe8838718a8e,public,2026-04-19,276,4,0,0,0,0,,0,fix(charter): remove Anthropic SDK from spec-kitty — synthesis is the harness's job
+T1,corrective-maintenance,abc1f5c3be2bd56f6b2ab0a3fe239a94c0f1faa2,public,2026-04-22,42,1,0,0,0,0,,0,fix(upgrade): unblock legacy research migration
+T1,corrective-maintenance,9a92ed84734345581a714544e015564787fc6cd5,public,2026-06-13,12,1,0,0,0,0,,0,fix: normalize loopback URLs to localhost
+T1,corrective-maintenance,50e1cafb546c32d7aaea1b02fbc11ffbc78686e0,public,2026-04-29,65,2,0,0,0,0,,0,Fix post-merge E2E template-root resolution (#880)
+T1,corrective-maintenance,1812d6c131ee0b752783cc85e7b70679afa5116d,public,2026-06-06,0,0,0,0,0,0,,0,fix(WP02): remove plan_concern_refs from WP prompt frontmatter template (FR-009)
+T1,corrective-maintenance,6a553f0a7841a3e2c17652192160cd11af4bfcfa,public,2026-06-01,48,6,0,0,0,0,,0,Fix WebSocket auth header for sync (#1559)
+T1,corrective-maintenance,365f1bb255ac0faf32ffa592a520a74e7d27d4b3,public,2026-06-04,1221,97,75,0,35,28,specify_cli/(root)->specify_cli/missions;specify_cli/agent_utils->specify_cli/missions;specify_cli/audit->specify_cli/core;specify_cli/charter_pack_synthesizer->specify_cli/core;specify_cli/charter_pack_synthesizer->specify_cli/missions;specify_cli/context->specify_cli/missions;specify_cli/coordination->specify_cli/core;specify_cli/decisions->specify_cli/missions;specify_cli/dossier->specify_cli/missions;specify_cli/events->specify_cli/core;specify_cli/git->specify_cli/core;specify_cli/lanes->specify_cli/missions;specify_cli/migration->charter/offering;specify_cli/mission_loader->specify_cli/missions;specify_cli/missions->specify_cli/core;specify_cli/ownership->specify_cli/core;specify_cli/release->specify_cli/core;specify_cli/retrospective->specify_cli/core;specify_cli/retrospective->specify_cli/missions;specify_cli/review->specify_cli/missions;specify_cli/runtime->charter/offering;specify_cli/scripts[retired]->specify_cli/missions;specify_cli/sync[retired]->specify_cli/missions;specify_cli/task_utils->specify_cli/lanes;specify_cli/task_utils->specify_cli/missions;specify_cli/widen[retired]->specify_cli/core;specify_cli/widen[retired]->specify_cli/missions;specify_cli/workspace->specify_cli/missions,0,fix(execution-context): route raw mission spec paths (#1681)
+T1,corrective-maintenance,64d0eea4c8eed05ba6c5307ffa3a6a036cfefb42,public,2026-06-30,1136,4,0,7,0,0,,0,fix(#2167): retire the standalone pre-3.0 tasks CLI surface
+T1,corrective-maintenance,69dd1fa469fca3a4a67bf85362694e5e5c83a339,public,2026-06-23,156,2,0,0,0,0,,0,fix(finalize): align planning surface + make ownership overlap lane-aware (#2087/#2088)
+T1,corrective-maintenance,b0a7a76bdba72672928c6a1609771c51343a1a6c,public,2026-04-15,45,2,0,0,0,0,,0,fix: address sonar and dependency security findings (#640)
+T1,corrective-maintenance,c2ee6704340fb1f7312693bc97d3856ca2e27dca,public,2026-06-18,137,2,0,0,0,0,,0,fix(WP02): orchestrator adopts shared resolve_declared_mid8 cascade for coord-only topolog
+T1,corrective-maintenance,bbe416e59e584e0490d1cb8f9f6facf385582945,public,2026-06-20,9,1,0,0,0,0,,0,test(merge): repair stale final-bookkeeping rollback tests + drop dead branch
+T1,corrective-maintenance,e81c0e7d451a8781ab7b350228c970d762a4e699,public,2026-04-05,81,2,0,0,0,0,,0,fix(sync): quiet body queue saturation and restore 100k default (#402)
+T1,corrective-maintenance,18d8d7503ae39ec83628264cdd8198d06fa6696a,public,2026-06-01,13,1,0,0,0,0,,0,Fix doctrine PR coverage and token redaction
+T1,corrective-maintenance,bca179dd2f24a1433685d043388db0366a001f22,public,2026-05-30,25,4,0,0,0,0,,0,fix: harden Sonar security cleanup paths
+T1,corrective-maintenance,c7e85c10c1bfee98cfa760c0d5bfb95a72b5466e,public,2026-05-30,138,9,1,0,1,0,,0,fix: CI dependency resolver consistency and test surface hardening (#1395)
+T1,corrective-maintenance,d6bb6d07239fb3e5826dfd85d54e9250c4002be8,public,2026-06-18,25,1,0,0,0,0,,0,fix(WP03): JSON-safe charter status serialization + C2-a no-mutator pin (#2009)
+T1,corrective-maintenance,1f5cd5c3cf71b2797224a84b7dfb32288ad9019e,public,2026-05-20,68,3,0,0,0,0,,0,"fix(sync): MissionCreated required fields + batch error renderer key (#1199, #1202) (#1210"
+T1,corrective-maintenance,14a0da056df76472a3311bd79d10a71ec1a3ef00,public,2026-04-19,20,1,0,0,0,0,,0,fix(ticket_context): include labels and comments per ADR 2026-04-19-2 review
+T1,corrective-maintenance,e02dfa003d39cf8f7727a969a2d039082a0a3e26,public,2026-05-31,11,1,1,0,1,0,,0,Fix doctrine new suffixes for special kinds (#1501)
+T1,corrective-maintenance,5b8b5c1fbed6afa51560a19956c98aa10667622d,public,2026-06-02,14,2,0,0,0,0,,0,fix: stabilize charter closeout CI
+T1,corrective-maintenance,ed60df6d346dba1d8c2b93f4b763934c082224e9,public,2026-05-20,16,1,0,0,0,0,,0,fix(sync): drop envelope_fields duplication in WPStatusChanged (#1188) (#1189)
+T1,corrective-maintenance,1f1cc25a7ca02d1ad81b61c55419bcdfe4b0c8b1,public,2026-06-14,14,3,0,0,0,0,,0,fix(tests): green the architectural shard for PR #1926
+T1,corrective-maintenance,9341cca9f188cfb7cf51500066fda7439ce3eaf0,public,2026-06-01,122,10,0,0,0,0,,0,fix: preserve next runtime shim compatibility
+T1,corrective-maintenance,7dc5f3fd54e689c54eb2d36b70694c2d6c5c0e7b,public,2026-04-27,387,1,1,0,1,0,,0,Fix agent config handling for global command roots
+T1,corrective-maintenance,c22ac66555182233bd0430d86da4c469e2bb6759,public,2026-06-25,93,1,0,0,0,0,,0,"fix(mission): target discard worktrees by exact name, not a <slug>-* prefix"
+T1,corrective-maintenance,40b0c9c66050b99c3cd7c4dcf42d9629730a2fea,public,2026-05-07,39,1,0,0,0,0,,0,Fix Windows readonly skill reinstall (#1005)
+T1,corrective-maintenance,9af9dc86aee8918b81cda01a335fc31f3b2d55d2,public,2026-05-29,29,4,0,0,0,0,,0,"Fix docs, schema wording, and TOML command drift"
+T1,corrective-maintenance,ea471d960252f2b907f958564a63db353b0e3415,public,2026-04-18,318,1,0,0,0,0,,0,fix: address charter sonar maintenance findings (#680)
+T1,corrective-maintenance,15bebd4387e7373604c7c4193c69c94d7732940a,public,2026-06-06,8,1,0,0,0,0,,0,fix(merge): include planning-only mission_number meta.json in post-merge expected_paths
+T1,corrective-maintenance,1550a3857ccb8a6b03a207fc525e977334129909,public,2026-06-10,135,2,0,0,0,0,,0,fix: reduce nightly sonar complexity hotspots (#1822)
+T1,corrective-maintenance,2e1b75b6f6b82b06f3618d63d12c0d527fd8c772,public,2026-05-31,5,1,0,0,0,0,,0,Fix agent profile context source guide retention (#1503)
+T1,corrective-maintenance,499c17151e7a69f9914ea595b3b2000fea81c254,public,2026-06-21,87,5,1,0,1,1,specify_cli/skills->specify_cli/upgrade,0,fix: harden Sonar security write paths
+T1,corrective-maintenance,cb0ce9b61fd04f4f3cf28aab346a8279a36c8595,public,2026-05-29,17,1,0,0,0,0,,0,fix: fully close workflow path mirroring gap
+T1,corrective-maintenance,37869e8020f6f3170d33322b8c9ecef098bbae3f,public,2026-04-12,47,2,0,0,0,0,,0,fix: address Sonar readiness and parser findings (#599)
+T1,corrective-maintenance,2285c8434b3375480b5d9569b4ee962b32b4e1d2,public,2026-06-05,37,1,0,0,0,0,,0,fix(ops): require completed op content for protected commits
+T1,corrective-maintenance,a35eb86a08a4c9bb04932d4fce00f407f2dbb459,public,2026-06-17,19,1,0,0,0,0,,0,fix: guard merge bookkeeping mission slug paths (#2019)
+T1,corrective-maintenance,e88723feb4b463ad9229a139ff1c38f3cc19197b,public,2026-06-17,27,3,0,0,0,0,,0,fix(write-side-01KV9W0X): acceptance gate artifacts and adversarial review remediations
+T1,restructuring,9761d8d3187ae042c082e3ba3b0dbdef0f9c58fa,public,2026-06-27,79,2,0,0,0,0,,0,refactor(nits): lanes.json kind-truth (LANE_STATE) + collapse vestigial _find_first_for_re
+T1,restructuring,556c34e86e4f28aeaf3ecc366f361e4efc32aad8,public,2026-04-28,8322,64,66,29,33,32,runtime->specify_cli/workspace;specify_cli/(root)->specify_cli/acceptance;specify_cli/(root)->specify_cli/doc_analysis;specify_cli/(root)->specify_cli/state;specify_cli/(root)->specify_cli/task_utils;specify_cli/(root)->specify_cli/workspace;specify_cli/acceptance->specify_cli/(root);specify_cli/acceptance->specify_cli/core;specify_cli/acceptance->specify_cli/lanes;specify_cli/acceptance->specify_cli/status;specify_cli/acceptance->specify_cli/task_utils;specify_cli/acceptance->specify_cli/validators;specify_cli/agent_utils->specify_cli/task_utils;specify_cli/cli->specify_cli/acceptance;specify_cli/cli->specify_cli/doc_analysis;specify_cli/cli->specify_cli/task_utils;specify_cli/core->specify_cli/identity;specify_cli/core->specify_cli/task_utils;specify_cli/core->specify_cli/workspace;specify_cli/doc_analysis->specify_cli/(root);specify_cli/lanes->specify_cli/workspace;specify_cli/orchestrator_api->specify_cli/task_utils;specify_cli/policy->specify_cli/workspace;specify_cli/status->specify_cli/identity;specify_cli/sync[retired]->specify_cli/task_utils;specify_cli/task_utils->specify_cli/(root);specify_cli/task_utils->specify_cli/core;specify_cli/task_utils->specify_cli/status;specify_cli/workspace->specify_cli/core;specify_cli/workspace->specify_cli/lanes;specify_cli/workspace->specify_cli/ownership;specify_cli/workspace->specify_cli/status,0,refactor(quality): promote doc_analysis and acceptance orphan modules
+T1,restructuring,307993957f6d487cd00acf31ef53abe6f6fef6ff,public,2026-06-25,5964,10,23,14,0,0,,0,refactor(2059): decompose cli/commands/doctor.py god-module (#2135)
+T1,restructuring,ff282dd6b4832f4b7751684afc30f3427c0493c8,public,2026-06-18,107,1,0,0,0,0,,0,refactor(merge): delegate validator + collapse containment helpers to ensure_within_any (F
+T1,restructuring,9ea7640505300ef24da773ad4898a19309c4817f,public,2026-06-02,467,7,1,0,0,0,,0,Refactor coordination status event-log contracts (#1614)
+T1,restructuring,bc33763b398ae41d514d1bc35d001358167ce52e,public,2026-06-03,0,0,0,0,0,0,,0,Add split brain authority detection tactic
+T1,restructuring,6be974fe4624a5eba40d54fe497694fbd94d3209,public,2026-06-01,320,56,29,30,0,0,,0,Extract next runtime package boundary
+T1,restructuring,a8fad6ae93e2d078ab8127776b354722da50fabb,public,2026-06-15,48,4,0,0,0,0,,0,refactor(agent-config): registry-back SKILL_ONLY_AGENTS/VALID_AGENTS (#1941)
+T1,restructuring,e36547461711205d8d10fcab9bcebdeb2142f21c,public,2026-06-25,9575,13,51,12,0,0,,0,refactor(2056): decompose agent/mission.py god-module (#2134)
+T1,restructuring,0462e2b87203e1d9f7037765bb04316559dce17f,public,2026-06-07,0,0,0,0,0,0,,0,test(doctrine): update reviewer-renata tactic snapshot; drop styleguide self-ref
+T1,restructuring,25e1a6715b13e1dd0cefb8731617312508b198be,public,2026-06-25,7245,11,43,4,9,9,specify_cli/consolidation->mission_runtime;specify_cli/consolidation->specify_cli/cli;specify_cli/consolidation->specify_cli/coordination;specify_cli/consolidation->specify_cli/git;specify_cli/consolidation->specify_cli/missions;specify_cli/consolidation->specify_cli/policy;specify_cli/consolidation->specify_cli/post_merge;specify_cli/consolidation->specify_cli/status;specify_cli/consolidation->specify_cli/sync[retired],0,refactor(2057): decompose cli/commands/merge.py god-module into seams + CI-gate remediatio
+T1,restructuring,76629ad8b11d70216f71a7075b08fc6adce193da,public,2026-04-04,295,2,1,0,1,0,,0,refactor(#241): rename mission subcommand to mission-type
+T1,restructuring,6acab877bec46d63e402b01a85b3e0e229338c83,public,2026-06-18,34,4,0,0,0,0,,0,refactor(charter): single-source _GRAPH_FILENAME via charter.synthesizer._constants (paula
+T1,compatibility-work,2146506bdcb0f282e0ddb0cea8f5940235496b36,public,2026-06-15,795,19,4,4,2,0,,0,Remove standalone governance verbs
+T1,compatibility-work,7c2d3cd01fe92fce5a44817458e3dd055523da3c,public,2026-04-21,17,2,0,0,0,0,,0,test(711): kill mutation survivors in doctrine and compat modules (3.2.0a4)
+T1,compatibility-work,0e270b10ac9fa7a87820b4a387303bfb01067c8e,public,2026-06-22,475,4,2,0,2,1,specify_cli/migration->mission_runtime,0,"feat(WP02): mint+backfill MissionTopology in meta.json (migrate backfill-topology, doctor "
+T1,compatibility-work,c0ef5d284aaf2a191eedc03a33df552b22615ce9,public,2026-04-08,1261,39,10,1,5,1,specify_cli/context->specify_cli/(root),0,Mission 077: terminology cleanup and machine-facing alignment (#553)
+T1,compatibility-work,4e48e4e7167456d7b8906cdf58bee27f527c489f,public,2026-05-11,281,5,3,0,1,0,,0,Gate TeamSpace connect on mission-state migration
+T1,compatibility-work,82bdc60c04f0259621004938c7f4c500c4ee8675,public,2026-06-07,1061,17,7,0,5,4,specify_cli/cli->specify_cli/session_presence;specify_cli/session_presence->specify_cli/compat;specify_cli/session_presence->specify_cli/core;specify_cli/upgrade->specify_cli/session_presence,0,"feat(WP03): add SessionPresenceManager, session-start CLI, init integration, Phase 1 migra"
+T1,compatibility-work,daaee89596fafb9919d831e1c8c1fce284b2ba27,public,2026-04-28,304,12,4,0,3,3,specify_cli/auth[retired]->specify_cli/diagnostics;specify_cli/cli->specify_cli/diagnostics;specify_cli/sync[retired]->specify_cli/diagnostics,0,release: 3.2.0a5 tranche 1
+T1,compatibility-work,e2d826d9b6e7d862f37a1788a8bc06fb20bbb2af,public,2026-05-12,418,2,0,0,0,0,,0,[Mission 8] Mission-State Migration Determinism Cleanup (#1031)
+T1,compatibility-work,fd27501eb04d22cf2ba1df9e9351a5bcdcc2344e,public,2026-06-02,267,5,2,0,2,0,,0,feat: add agent upgrade prompts
+T1,compatibility-work,288b22fc7ce4ec457409fcedadfaed8dab471daa,public,2026-04-28,392,4,1,0,1,0,,0,Port #855 follow-up fixes after #864 (#865)
+T1,compatibility-work,ea12637d783a48843eeabb6745ff86de9012a843,public,2026-04-07,4844,57,19,2,10,10,charter/(root)->kernel;specify_cli/(root)->kernel;specify_cli/charter[retired]->kernel;specify_cli/context->specify_cli/status;specify_cli/dashboard[retired]->kernel;specify_cli/ownership->specify_cli/status;specify_cli/status->specify_cli/core;specify_cli/sync[retired]->kernel;specify_cli/upgrade->kernel;specify_cli/validators->kernel,0,"feat(065): metadata state type hardening — typed WPMetadata, Lane enum, RE2 shim (#529)"
+T1,compatibility-work,0ba35654ee4cba6b26603ab4e6f6323ac68a34f2,public,2026-05-28,485,5,4,0,3,1,specify_cli/missions->specify_cli/coordination,0,WP08: legacy mission fallback + CLI status mediation
+T1,compatibility-work,f6606ed0a44a9a4bb05109458f5e35a74de00e31,public,2026-06-07,5,1,0,0,0,0,,0,Limit agent upgrade check to once per session
+T1,compatibility-work,abcd730cfa288156ec95cc88087679e5ad863814,public,2026-04-27,3821,28,11,0,7,5,specify_cli/compat->specify_cli/(root);specify_cli/compat->specify_cli/core;specify_cli/compat->specify_cli/migration;specify_cli/compat->specify_cli/upgrade;specify_cli/migration->specify_cli/compat,0,CLI Upgrade Nag and Lazy Project Migration (mission #103) (#820)
+T1,compatibility-work,f494a3258800caa3f6d49a699ab4582cdc528806,public,2026-05-19,6,1,0,0,0,0,,0,Fix upgrade schema stamp when project semver is current (#1159)
+T1,convergence-activity,490f5a43d77a99b7faf838f8dae3a554e165f8be,public,2026-06-21,824,9,1,3,0,0,,0,feat(surface-resolver): finish the #2040 strangler — converge the 3 mission-surface resolu
+T1,other,76db6d02d785ac6dececcbea83de00645682d0d7,public,2026-06-05,76,2,1,0,1,1,specify_cli/invocation->specify_cli/git,0,arch(ops): persist completed op records
+T1,other,8be567f1045f6ee521f977671a85f86e2aa36856,public,2026-05-28,378,3,2,0,2,2,specify_cli/core->specify_cli/missions;specify_cli/missions->specify_cli/lanes,0,WP03: mint coordination branch in agent mission create
+T1,other,649781d68112f23fad95bf251dd9c6f75147c3ef,public,2026-06-12,1156,38,1,0,0,0,,0,Doctrine & glossary architecture consolidation (mission 01KTNWFC) + convention-enforcement
+T1,other,9733727df544d836ba5b479069b1f56990524f23,public,2026-04-27,5882,27,13,0,7,6,runtime->specify_cli/retrospective;specify_cli/calibration->charter/offering;specify_cli/charter_pack_synthesizer->specify_cli/retrospective;specify_cli/cli->specify_cli/charter_pack_synthesizer;specify_cli/cli->specify_cli/retrospective;specify_cli/status->specify_cli/retrospective,0,Retrospective lifecycle: post-merge hardening (gate wiring + path traversal + fail-closed)
+T1,other,892e682a8494f73d82d3a22893aae23d7ab8747e,public,2026-04-30,129,3,0,0,0,0,,0,Close Charter P7 bundle validation gaps
+T1,other,94f27cfae1079cbe406ab5a10754c1efee96085e,public,2026-05-31,179,1,0,0,0,0,,0,Harden bookkeeping artifact writes (#1530)
+T1,other,e056f39870343c31300959099d6955f1c8ed48e3,public,2026-04-25,1609,12,12,0,5,5,runtime->charter/offering;runtime->specify_cli/mission_loader;specify_cli/cli->specify_cli/mission_loader;specify_cli/mission_loader->charter/offering;specify_cli/mission_loader->runtime,0,Phase 6 / WP6.5: Local custom mission loader (#505) + #798 preflight (#799)
+T1,other,cd3dc46edb775ea87ec850ea9146d5ce226ebbe6,public,2026-04-15,15,2,0,0,0,0,,0,chore(release): prepare 3.1.3
+T1,other,717c75185cbb111e234c97439fa4b954387714bb,public,2026-05-15,163,3,0,0,0,0,,0,Thread StatusEvent.at through SaaS fan-out (#1064) (#1077)
+T1,other,832a394d6e8a48271a27cddaa53297d4b19d4f9d,public,2026-06-08,1265,30,1,1,1,0,,0,Canonicalize WP lane state machine (#1775)
+T1,other,d92d4292e5f5a5e53d61a170be1c8e8dc0921b7f,public,2026-04-28,1521,13,4,0,3,1,specify_cli/auth[retired]->specify_cli/sync[retired],0,"release: 3.2.0a6 Tranche 2 — fresh-project, JSON, and invocation blockers (#833 #839 #840 "
+T1,other,26c17d9a300689d9fa1481bde5d015071836801a,public,2026-04-07,1934,15,6,0,4,3,specify_cli/cli->specify_cli/post_merge;specify_cli/cli->specify_cli/release;specify_cli/lanes->specify_cli/consolidation,0,Release v3.1.0a8 — Post-merge reliability and release hardening (mission 068) (#528)
+T1,other,63153a69c666f6272bb1af10012e3547e1848a32,public,2026-06-22,0,0,0,0,0,0,,0,"test: adversarial-squad remediation (debbie gaps, neutrality, ADR status)"
+T1,other,2fc6f17e3993f2d8d4198b6a610f4f2dcbc54e47,public,2026-05-19,57,3,0,0,0,0,,0,Apply 5 accepted retrospective proposals + commit synthesized doctrine (#1167)
+T1,other,3bd6887582a1b2be508d52bc4edc64d580bea8f3,public,2026-05-26,11446,133,59,15,8,8,specify_cli/charter_freshness[retired]->specify_cli/charter_runtime;specify_cli/charter_preflight[retired]->specify_cli/charter_runtime;specify_cli/charter_runtime->charter/activation;specify_cli/charter_runtime->specify_cli/charter_freshness[retired];specify_cli/charter_runtime->specify_cli/task_utils;specify_cli/cli->specify_cli/charter_freshness[retired];specify_cli/cli->specify_cli/tasks;specify_cli/dashboard[retired]->specify_cli/charter_runtime,0,"Reroll #1311: charter UX, vocabulary, stabilization guardrails (#1312)"
+T1,other,2d2a8fa46b3c328d83571d1c84f5bdcbbc69b0ec,public,2026-06-28,205,5,0,0,0,0,,0,Coord-Authority Gate Hardening (#152) — close #2214/#2197/#2198/#2199 (#2226)
+T1,other,c8c5a34ee4c02121957040905153a151d154df5b,public,2026-05-21,214,8,2,0,2,2,specify_cli/acceptance->specify_cli/decisions;specify_cli/bulk_edit->specify_cli/status,0,Close autonomous runtime safety follow-ups (#1269)
+T1,other,413bfc381da2b183170f56445ab47d947be3b8d3,public,2026-06-03,11,1,0,0,0,0,,0,Suppress ingress warnings when SaaS sync disabled (#1679)
+T1,other,9713f9ea00cca20fc16312b4dcc6b1b70ca93898,public,2026-05-17,56,1,0,0,0,0,,0,"CLI Backward-Transition Emit Path (planning#16, Mission 2 of 4)"
+T1,other,6bc962c16b2542ceab6841aca225218d4029cc9e,public,2026-06-14,221,1,0,0,0,0,,0,chore(release): prepare 3.2.0rc44 (#1952)
+T1,other,3db333b15fbd032e39aec35ae972a38c85b0461b,public,2026-06-02,103,1,0,0,0,0,,0,Default top-level command groups to help
+T1,other,6d0538db02efc48cf36607ab36e7e6541ce54b1c,public,2026-06-22,25,1,0,0,0,0,,0,docs(doctrine): adversarial-squad procedure + skill; enable paradigm references; wire brow
+T2,capability-growth,334ff8f47b68514de2658c69ef1740875a33ed4a,experimental,2026-08-26,127,7,0,0,0,0,,0,feat(auth): print SaaS endpoint + provenance in auth status/whoami
+T2,capability-growth,9617d49d4446f57e4008dbe66c856e32b6f11cb0,public,2026-08-10,113,2,0,0,0,0,,0,"feat(tracker-egress): gate the local subprocess path, closing Gap B (#3108)"
+T2,capability-growth,8b6b977703aa69f27500e8c52305477fcfd8a740,public,2026-07-26,348,4,2,0,1,1,specify_cli/sync[retired]->specify_cli/delivery[retired],0,"feat(sync): PROVENANCE + PREFLIGHT + UPLOAD, wire --apply — WP-Y5 (#2262)"
+T2,capability-growth,5d2a748c2fd1f077c3fe4ca0ae7bb3777a423f27,public,2026-08-11,296,10,6,0,0,0,,0,"feat(doctrine): public API surface, charter facades & lazy-import ratchet (#3179)"
+T2,capability-growth,830e8aec19975378a0f024f875bb76c47fa6a0fe,public,2026-07-28,184,2,0,0,0,0,,0,feat(WP02): field-scoped do_not_change exceptions in occurrence maps
+T2,capability-growth,1eb035e20ad0440b4148d255331696937504c508,public,2026-07-17,0,0,0,0,0,0,,0,feat(charter): activate red-main-release-discipline procedure + 9th standing order
+T2,capability-growth,07279da043a8dfd4a7326650d0639fe00b50e26e,experimental,2026-09-01,2,1,0,0,0,0,,0,feat(kitty/mission-copyable-version-output-01KW6N9V): squash merge of mission
+T2,capability-growth,c17f5c9568a9a0209c6c6eef3d13a0bc6d67ae3d,experimental,2026-08-25,56,3,0,0,0,0,,0,feat(#7): populate MissionCreated/MissionClosed payload actor at the sync emit sites
+T2,capability-growth,ca8004cc6bcf0e59499089a2e3c7dd8b3fd8ad37,experimental,2026-09-05,7,1,0,0,0,0,,0,feat(orchestrator-api): bump CONTRACT_VERSION to 1.4.0 (WP07/T034-T035)
+T2,capability-growth,676069efbdbfbce927aa67e7bc395d341c842fd8,public,2026-07-12,526,12,3,1,1,1,specify_cli/status->mission_runtime,0,feat(#2160): close the coord-shadows-primary read/gate arm (6 WPs)
+T2,capability-growth,f4b781f1fddd41c802c2a83b3bad0a2f71e82b1d,public,2026-08-10,1058,4,2,1,0,0,,0,feat(charter-synthesize): WP01 library reconciliation seam (preserve-and-succeed)
+T2,capability-growth,7e854ba8de2744d7bbcd7f28becc9c0667210305,public,2026-08-03,334,3,1,0,1,1,specify_cli/retrospective->charter/(root),0,"feat(retrospective): resolve policy yaml-first, collapse _CHARTER_REL (WP06, FR-005c)"
+T2,capability-growth,8b69009e3a47bf6d56f259b1b23e83cb51a7e547,experimental,2026-09-01,240,5,0,0,0,0,,0,"feat(charter): bridge org drg/fragment.yaml edges into charter cascade (#3572, #3573)"
+T2,capability-growth,b9d8b0c81ecfdda99b1d9fc3389e85f1b99fa1ff,public,2026-07-15,31,2,0,0,0,0,,0,"feat(#2651): mission_type as a first-class DRG node (ADR S0, first step)"
+T2,capability-growth,903c98c656cb2d1f0430a321144d38d8be74f543,experimental,2026-08-21,175,3,0,0,0,0,,0,feat(F2-T1): unify lifecycle-event writer onto the locked crash-safe primitive
+T2,capability-growth,40a3e24dd689cfa90f574e5fc9869d0f7a5c4aa6,public,2026-09-02,149,1,0,0,0,0,,0,"feat(next): route the next control loop through committed authority (#3780, #2947)"
+T2,capability-growth,f732e10d65e8fa63938da39358f2e5db775db6f5,public,2026-07-28,184,4,0,0,0,0,,0,"feat(WP04): GREEN — forbid undeclared fields, derive the writers from the model"
+T2,capability-growth,7a43d6196ccffadd2e32eecd860c28dc91e4146c,public,2026-08-10,137,1,0,0,0,0,,0,"feat(charter-synthesize): WP02 merged-overlay conflict routing (report, not crash)"
+T2,capability-growth,9a72567b0cf944f85be73123b2d7a287409cd0ed,experimental,2026-08-21,181,2,1,0,1,1,specify_cli/team_projection[retired]->specify_cli/(root),0,feat(D1-T1): add exact-commit provenance envelope
+T2,capability-growth,2d5d96727490906a00ef6f82f5b7b4c2f16efb5c,public,2026-09-04,450,1,0,0,0,0,,0,feat(status): truncation-safe resumable tail-reader core (#3841)
+T2,capability-growth,53030b05130385d6f34d0570dd134dcbaf06ead4,public,2026-07-19,3142,30,2,0,1,0,,0,feat(charter): consolidate the compiled bundle into an authoritative charter.yaml (#2773)
+T2,capability-growth,bb1ef75db1ba011b5284cf4b3c7547d5ab24961a,public,2026-07-31,6618,24,21,1,2,0,,0,"feat(#3082 #3064 #2532): grammatical fetch-stanza guidance, empty-charter generic-agent di"
+T2,capability-growth,663dcb0530ca4e9d6e0b818942258163a5bc5774,public,2026-07-18,242,2,2,0,2,0,,0,feat(coord): pending_coord_reconcile marker + single coherence owner + git-revert repair (
+T2,capability-growth,f4fb359da05000fedc4a887ed1604ad1088927a3,experimental,2026-08-22,42,6,0,0,0,0,,0,feat(WIRE-M2-02): wire send_csp_header into all six dashboard handler files
+T2,corrective-maintenance,2527cf247290940f385f9b2f8a384858ee11f5c6,public,2026-07-05,9,4,0,0,0,0,,0,fix: resolve 4 pre-existing mypy --strict findings (unrelated to PR #2398)
+T2,corrective-maintenance,54f7ca7d55d1a55d62b2ba5425b139091554863f,experimental,2026-08-27,10,1,0,0,0,0,,0,fix(#290): env-token remedy for missing SaaS URL no longer names the file
+T2,corrective-maintenance,32721aa74b3916516f03baf5c9f046aa368fcb41,public,2026-07-31,2,1,0,0,0,0,,0,landing fold: mypy dict type-args in sync/config.py (#3030)
+T2,corrective-maintenance,ddcf3a5be293ad0bbc4145125184cc029623adf2,experimental,2026-08-31,55,3,0,0,0,0,,0,fix(next): honor canceled WP provenance
+T2,corrective-maintenance,8d67390d8c5bd2703097f874bb72f7dbf4040cea,experimental,2026-08-31,5,1,0,0,0,0,,0,Correct deleted drift detector references
+T2,corrective-maintenance,9248683b58e9d06da81072ef82fd2c6102bf4f06,public,2026-08-19,100,1,0,0,0,0,,0,"fix(WP10): doctor render consumes gathered tracker-egress verdicts, eliminating the double"
+T2,corrective-maintenance,cac299de372b302f614241c0940b69de9b269a1c,public,2026-07-17,10,1,0,0,0,0,,0,fix(sync): grow batch limit back after an oversized event is parked
+T2,corrective-maintenance,54aa25ab18a716651e2a8a85fa021ee974aa90b9,public,2026-08-22,164,3,1,0,0,0,,0,"fix(review): substitute {output_file}, shell, and refuse-not-store on declared-command cap"
+T2,corrective-maintenance,96dea1a4486c975cc3be79fc115c2f54dbcbbe0d,experimental,2026-08-23,2,1,0,0,0,0,,0,docs(WIRE-M2-04): correct upstream editor.py citation line range
+T2,corrective-maintenance,1ae644f18838b9f16df1787d9b6fcab271dc22f4,public,2026-07-06,2,1,0,0,0,0,,0,landing fold: pass repo_root to from_env() in cmd_widen — file-auth now reachable
+T2,corrective-maintenance,96132cc4966998008a96c47400ba1feb76e21d4e,public,2026-07-28,12,1,0,0,0,0,,0,landing fold: correct the read primitive's own never-raises docstring
+T2,corrective-maintenance,eb1afca1b48e60e3a4928b8486fdade8cc5c5edb,experimental,2026-08-31,4,1,0,0,0,0,,0,Fix sync-disable env docstring
+T2,corrective-maintenance,4d4463e8673c9d8bfad841b4a309202fd3f06342,public,2026-09-03,18,1,0,0,0,0,,0,fix(mission-type): surface fallback signal loudly on CLI (FR-005/#3831)
+T2,corrective-maintenance,3715750005594f02775d732205a1e7f916d56db7,public,2026-07-28,97,1,0,0,0,0,,0,fix(status): stop concurrent events rewinding terminal work packages
+T2,corrective-maintenance,7c527777465c5b2bcdab92254312a48b69e0bda1,public,2026-09-03,66,1,0,0,0,0,,0,fix(orchestrator-api): reject invalid --result on answer-decision (WP08-001)
+T2,corrective-maintenance,b4165c6376471dedf4665142844102a9cbd1c19b,experimental,2026-09-01,9,1,0,0,0,0,,0,fix: require kittify marker for moments repo scope
+T2,corrective-maintenance,d76aa3f5d73e6df053cf9114a1b897d3e830af32,public,2026-08-26,14,1,0,0,0,0,,0,fix(landing): preview pending provisioning on the up-to-date dry-run path
+T2,corrective-maintenance,185bdd0e58407eb58358e8e805935ec7d17159cb,experimental,2026-08-26,83,3,0,0,0,0,,0,fix(#222): restore mission bootstrap create semantics
+T2,corrective-maintenance,2c7f763a70933ea86456876a3229878d85cd4841,public,2026-07-10,63,1,0,0,0,0,,0,"fix(#2526): harden fan-out timeout — reject nan/inf, guard orphan overlap"
+T2,corrective-maintenance,5d70ff380a31bdffd9ad4dfa82db68b76450c4d6,public,2026-08-20,20,1,0,0,0,0,,0,"fix(charter): forward agent_profile_overlay_dir only when set, restoring the builder monke"
+T2,corrective-maintenance,00d4a4f5bc14d851622681efc9b6ace07e56d6ea,public,2026-07-11,473,3,0,0,0,0,,0,fix(#2464): pre-merge squad remediations + CI/gate reconciliation
+T2,corrective-maintenance,82184b39c91079eaea4deb04e6cf38b75e1f867c,public,2026-07-08,41,1,0,0,0,0,,0,landing fold: route mission_record_analysis through placement_seam.write_target(ANALYSIS_R
+T2,corrective-maintenance,d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a,public,2026-08-23,60,1,0,0,0,0,,0,"fix(landing): name the failing step on meta.json commit failure (NFR-001, #3681)"
+T2,corrective-maintenance,377bb34ed2d2f138178ba426204af622819f786f,public,2026-07-28,0,0,0,0,0,0,,0,fix(#2983): make doctrine and docs name commands the CLI actually exposes
+T2,corrective-maintenance,4bd507fe6ac1d876d63f936673887d7ae35cc27e,public,2026-09-03,76,1,0,0,0,0,,0,fix(runtime): restore canonical profile_hint resolution for custom mission composition dis
+T2,corrective-maintenance,e914751c296f63463e3efaf535bc2520b6dfe4c5,experimental,2026-08-30,88,3,0,0,0,0,,0,Fail closed on broken distribution profiles
+T2,corrective-maintenance,4e175e9cd7b43bade36c6eef2927a597eca85961,experimental,2026-08-26,3,2,0,0,0,0,,0,fix(runtime-dossier): clean local lint fallout
+T2,corrective-maintenance,1e5d450a1406326ad622cf82a58ec39dd9653322,public,2026-07-04,50,2,2,0,2,2,specify_cli/dashboard[retired]->mission_runtime;specify_cli/dashboard[retired]->specify_cli/missions,0,fix(#2331): resolve dashboard mission identity from the primary surface
+T2,corrective-maintenance,570d794760cab6d19b9b5bca0aa29f71da5a6c88,public,2026-07-07,107,1,0,0,0,0,,0,"fix(#2430): dashboard reads planning artifacts primary-first, live status from coord"
+T2,corrective-maintenance,24ce559690a830dc59bdd115d2f4bb4034115f89,experimental,2026-08-29,8,1,0,0,0,0,,0,fix(spec-kitty#417): correct false __all__ comment about cross-module consumers
+T2,corrective-maintenance,4a9e8211fd69f129fb98f582a400431f98e4ab4f,public,2026-08-15,14,6,3,2,3,1,specify_cli/workspace->kernel,0,"fix(landing): move git_topology primitive to kernel (fixes charter layer inversion, #3373)"
+T2,corrective-maintenance,a2f41b77bdd54cc1cd7c0253efc0ab5e6a867755,public,2026-07-28,0,0,0,0,0,0,,0,"landing fold: adversarial squad MAJORs — coverage topology, shipped-doctrine prose, contra"
+T2,corrective-maintenance,bee54aedd4cd608ada33b8241e9e5bc8727fde6c,public,2026-08-25,36,2,0,0,0,0,,0,fix(sync): a preflight is not a delivery (#3722)
+T2,corrective-maintenance,ed31356f936ecdbac37699b8ac998a1ee4922c0f,experimental,2026-08-22,45,1,0,0,0,0,,0,fix(Z6-C): count symlinked sibling checkouts and scrub GIT_DIR/GIT_WORK_TREE from the live
+T2,corrective-maintenance,56e4491a1ea865a049fffb432158b4c1ebc35b15,experimental,2026-08-26,28,1,0,0,0,0,,0,fix(tests): make outside-project session-start/stop nodes hermetic via a stop-bounded proj
+T2,corrective-maintenance,503667b37ff821363084e13a8132334fa362d476,experimental,2026-09-01,2,1,0,0,0,0,,0,fix: use shared no-follow opener
+T2,corrective-maintenance,b1aee16f16ea3a176933ac041e1c375ad76b19fa,public,2026-08-27,10,1,0,0,0,0,,0,test(sync): bounded-wait + pragma-ordering regression for project-store lock (#3625)
+T2,corrective-maintenance,ab79a7651f431f30b169fb5d133e93dee65a5c25,public,2026-08-28,53,1,0,0,0,0,,0,fix(cli): survive typer 0.27.2 dropping Abort/Exit from _click.exceptions
+T2,corrective-maintenance,f74b742df262c117442d81ec90535915c5d1a99f,public,2026-08-29,0,0,0,0,0,0,,0,fix(charter-authority-flip): re-point 4 doc surfaces still teaching governance.doctrine se
+T2,corrective-maintenance,adce7c26d458a5f03768f8f39967af11250910c3,experimental,2026-08-26,12,2,0,0,0,0,,0,Fix protected-branch refusal message to point at the real start-branch command
+T2,corrective-maintenance,a77456eb4c1a45bbe6b05cf1b77fa92f8f9d370c,experimental,2026-08-30,2,1,0,0,0,0,,0,fix(#497): call CMD probe safely
+T2,corrective-maintenance,3708ad4adf802d8e389821f57481795926a4c5df,public,2026-08-03,107,1,0,0,0,0,,0,landing fold: collapse 7 duplicated meta-guard blocks in doc_state.py into one helper
+T2,corrective-maintenance,c197baa9d9c77230532ac6f0534925af62d751c3,experimental,2026-08-31,40,1,0,0,0,0,,0,fix(#762): resolve auth doctor server target once
+T2,corrective-maintenance,952d66809bba0b31e8b937fbe2fe640e26dda927,public,2026-07-28,33,1,0,0,0,0,,0,fix(WP08): resolve bare endpoints against the built-in layer only
+T2,corrective-maintenance,89dc7f21e8e8f02e4d4af15364ae911e3256ad1f,public,2026-08-14,2,1,0,0,0,0,,0,fix(landing): re-thread owned_checkout after rebase onto #3346
+T2,corrective-maintenance,9818657a671c6d9053aa564b5b7ab0c733445b8c,public,2026-08-20,5,1,0,0,0,0,,0,fix(landing): route built-in agent_profiles dir through pack_paths authority
+T2,corrective-maintenance,da2d59acc8cf5006da2ebacbc4f7ae9593f0bfdd,public,2026-08-17,17,2,0,1,0,0,,0,fix(landing): satisfy the arch gates the org-pack chain fold tripped
+T2,corrective-maintenance,83f3649f302383366e42d2f2a542822375629c75,experimental,2026-08-26,5,1,0,0,0,0,,0,fix(architectural): reconcile mission-state guard inventory
+T2,corrective-maintenance,751dd4e887f54f5f231b95e425969887d245f11d,public,2026-08-23,222,2,0,0,0,0,,0,"fix(mission): scaffold, ownership and lane defects fail loudly instead of silently succeed"
+T2,corrective-maintenance,a23db63651b1e6a03da01ef4e942e7afb97eaf6f,public,2026-08-16,2,1,0,0,0,0,,0,fix(sync): correct stale `sync enable` consent guidance to `sync opt-in`
+T2,corrective-maintenance,4c6eef4240b8a52b65312eaed3d005020297bb4a,public,2026-08-21,15,1,0,0,0,0,,0,fix(landing): evaluate the admission handshake live so the origin cache can't stale-mask i
+T2,corrective-maintenance,e774ec14ae3aa1a8f35474546267166db6ed3026,public,2026-08-10,25,1,0,0,0,0,,0,fix(landing): carry an unreadable .kittify directory as a fault instead of raising (#3291)
+T2,corrective-maintenance,279bcef875efb2ac72c9c0a0f119b962f1a7eef6,public,2026-07-07,22,1,0,0,0,0,,0,fix(#2446): resolve authoritative_surface for filename-glob owned_files
+T2,corrective-maintenance,60ee3fc4bc1dbf005a7fd800a876e6dbf95a9000,experimental,2026-09-05,59,4,0,0,0,0,,0,fix(types): preserve effective-root call shapes
+T2,corrective-maintenance,87787219d07a86f234d32124e26d07d580bf0bb4,public,2026-07-14,0,0,0,0,0,0,,0,landing fold: drop functionally-inert doctrine-tree expected-artifacts entries (#2628)
+T2,corrective-maintenance,effbb6baae1575251fea825d6db881281da1b231,public,2026-08-27,438,6,3,0,2,0,,0,"fix(diagnostics): derive auth/sync status from evidence, never claim green while broken (#"
+T2,corrective-maintenance,cc770993530a0edf9f0ff40e0c21e0d5d7c22641,public,2026-07-07,2,1,0,0,0,0,,0,landing fold: close Guard 1 mutation gap and pin edge-case contracts
+T2,corrective-maintenance,22fa2123bc7cf521aee846a22c369422e388ae65,public,2026-08-22,15,1,0,0,0,0,,0,fix(landing): retire the stale legacy-`mission` advertisement in the plan-template resolve
+T2,corrective-maintenance,40b6205685a4f9d435e1050d46548ebea4e419f3,experimental,2026-08-26,53,2,0,0,0,0,,0,fix(sync): fix round for squad/controller MAJORs on issue #5
+T2,restructuring,209a9ffca8036102fc7e94a58088e7979391e11d,public,2026-08-12,130,5,1,2,1,0,,0,"refactor(landing): keep WPStatusChangeMetadata in CORE, exported via the status package AP"
+T2,restructuring,058945088876041cd1f4ce4f2a3471e95b4b6202,public,2026-09-03,76,2,0,0,0,0,,0,perf(runtime): dedup expected-artifacts read in the tri-state existence check; drop dead _
+T2,restructuring,d7815e3ee90d4cc6bd4142fda9f739bb1b1c65fd,experimental,2026-08-31,8,1,0,0,0,0,,0,Trim avatar identities and document dossier drops
+T2,restructuring,12330df72ce4bcba990aaafdb2fdd52af110875d,public,2026-07-03,397,6,1,3,0,0,,0,refactor(agent-tasks): collapse coord-router triplication via constructor DI
+T2,restructuring,e1d11d94c37a87d8b9af81231497605ea51bf510,public,2026-07-22,17,1,1,0,1,0,,0,refactor(charter): surface CharterPackConfigError body in synthesize (#2850 follow-up)
+T2,restructuring,4a06335964dc53214c0aa582a58922dee5fe51ea,experimental,2026-08-27,9,1,0,0,0,0,,0,Drop stale _auth_status._normalize_endpoint cross-reference in saas_client/auth.py
+T2,restructuring,7f8263ed239f16cc5bc661fe36f8c54c9edbe382,public,2026-08-10,255,38,24,1,2,1,specify_cli/decisions->kernel,0,refactor(kernel-clock-single-door): WP09-12 remediate specify_cli sync/status-merge/core/a
+T2,restructuring,944bf3581fa10305df3d55136b522632e8e2d586,public,2026-08-10,237,41,30,0,15,6,specify_cli/agent_utils->kernel;specify_cli/charter_packs->kernel;specify_cli/doc_analysis->kernel;specify_cli/doctor->kernel;specify_cli/proof[retired]->kernel;specify_cli/widen[retired]->kernel,0,refactor(kernel-clock-single-door): WP13c/WP14 remediate specify_cli misc + shared -- unio
+T2,restructuring,b49f6903b9d4914e27fda440789ace952a2447a7,public,2026-08-20,34,1,0,0,0,0,,0,refactor(missions): delegate builtin_missions_root to canonical pack_paths authority (#357
+T2,restructuring,589795235d4f784488c7833d5cb7d8822b4876b1,experimental,2026-08-30,73,4,0,0,0,0,,0,Rename IgnoreFilePathError to GitignorePathError; rebuild read_ignore_file_text on O_NOFOL
+T2,restructuring,893ed50bdb47e0c6ffd449fd09b02f376f876216,public,2026-08-11,239,37,17,32,7,3,specify_cli/dossier->charter/(root);specify_cli/skills->charter/(root);specify_cli/template->charter/(root),0,refactor(specify_cli): route runtime through charter facades; close doctrine laundering co
+T2,restructuring,90f552f6a1a9134cb00971d2c1d078a8b6758d17,public,2026-08-10,4,1,1,0,1,0,,0,refactor(landing): route acceptance_verdict verified_at onto now_utc_iso()
+T2,restructuring,4686a9222c9881012403301733bdf8c6283e7ffc,public,2026-07-15,43,2,0,0,0,0,,0,refactor: address the 4 LOW squad watch-items (PR #2662)
+T2,restructuring,d454692b021e21bdbdd820c98c18b53bbfee13ee,experimental,2026-09-05,38,1,0,0,0,0,,0,refactor(landing): extract spec-commit directory guard to keep complexity <=15
+T2,restructuring,cf2006f3c95b56477f4b339b455e072b90523fc6,public,2026-08-21,611,10,7,0,5,3,specify_cli/acceptance->specify_cli/runtime;specify_cli/dossier->charter/offering;specify_cli/runtime->charter/offering,0,refactor(doctrine): single artifact-filename authority via expected-artifacts path_pattern
+T2,restructuring,3a47c291b4cb61c093d0961951e62e26d9394363,experimental,2026-08-25,10,1,0,0,0,0,,0,docs(tracker): update local_service identifier-fragment note post Channel-1 retirement
+T2,restructuring,9ac7bce7ec2672e6dda9d3e9ef175ffd421a2b22,public,2026-07-05,213,4,1,0,1,0,,0,refactor(sync): one canonical MissionCreatedPayload builder (#2270)
+T2,compatibility-work,e9edea39274a2d06748a5bcaa13102ed1d2cf958,public,2026-08-12,57,11,0,0,0,0,,0,chore(release): cut 3.2.6rc1 internal release candidate
+T2,compatibility-work,1a15bcf6c1a6c16682dcc3850594642613ec8bcf,public,2026-07-26,13,1,0,0,0,0,,0,"fix(#2934) + doctrine canonical structure: P0 fix, layout gate, and three ADRs settling th"
+T2,compatibility-work,a069c8a046954476bb5b559de8731d8fca5a5d0f,public,2026-07-22,34,1,0,0,0,0,,0,landing fix: delete dead detect_mission_slug shim instead of re-pinning its stale allowlis
+T2,compatibility-work,6f226458e38a0320d67b018503bbd007de217a24,public,2026-07-15,51,3,3,0,2,0,,0,feat(#2669 WP03): derive migration/ALLOWED_MISSION_TYPES/_MISSION_IDENTIFIER_ANSWERS from 
+T2,compatibility-work,35dc0a91b858ed9d4f48dd3415f835cf8b4f6f9d,public,2026-08-22,133,12,8,0,3,1,specify_cli/context->charter/(root),0,feat(mission-type): one canonical read_mission_type seam; retire legacy `mission` resoluti
+T2,compatibility-work,b04da00e13da00bd4f5917db6f9597bae6507b02,public,2026-07-30,3239,31,34,1,15,6,specify_cli/policy->specify_cli/tasks;specify_cli/tasks->mission_runtime;specify_cli/tasks->specify_cli/cli;specify_cli/tasks->specify_cli/coordination;specify_cli/tasks->specify_cli/core;specify_cli/tasks->specify_cli/git,0,Write-side placement seam: deterministic matrix/tracer writers + row-aware merge driver (#
+T2,compatibility-work,49fcffbbb81975c2095f7b59d04e4909989111ee,public,2026-07-04,6,3,0,0,0,0,,0,"fix(#2313) phase 2: repoint docs/migration references (guards, src notices, agent docs) to"
+T2,compatibility-work,58fd3ae9b572802ae30b946c55f09a0346f7f73a,public,2026-07-17,36,4,0,0,0,0,,0,chore(mypy): remove 5 verified redundant casts
+T2,compatibility-work,01b48a565fca163eede7c6537f4646eceabefaba,public,2026-08-04,217,3,0,0,0,0,,0,feat(WP03): migrate raw DoctrineService construction sites onto the factory
+T2,compatibility-work,6816688e92f9d233d30208c90cf4ac6370639e65,public,2026-07-26,106,5,1,0,0,0,,0,refactor(migration): add envelope_seam — the deliberate migration↔import surface (#2262)
+T2,compatibility-work,3df500fe083531b130e2433513709f4c9bad13ea,experimental,2026-08-31,344,14,0,0,0,0,,0,restore public upgrade identity and sweep hardcodes
+T2,compatibility-work,c5884fd3173eec5858088772e8fc575680aa728f,public,2026-08-29,243,9,0,0,0,0,,0,feat(charter-authority-flip): CR-01 governance.charter cutover + answers migration (#3664)
+T2,convergence-activity,358d168084b1e4ac91e9055bf42cbd4f5b0645e3,experimental,2026-08-26,68,9,0,0,0,0,,0,refactor(ownership): rename ExecutionMode -> WorkProductKind + re-drift guard (M7 WP02)
+T2,convergence-activity,3dd223029d5ed544d9632f0ab0b62eac5e850edc,experimental,2026-09-05,220,1,0,0,0,0,,0,fix(WP04): commit_router fail-loud on all silent primary-fallback sites; align refuse to s
+T2,convergence-activity,807e46de5b3e6951c2b8c65d7f1a8069b413621b,experimental,2026-08-31,315,4,1,0,0,0,,0,feat(acceptance): single acceptable-ending authority + canceled_wps [WP02]
+T2,convergence-activity,75492ff29fd8c043d394e3e5892d9857d3983d75,experimental,2026-08-31,69,2,0,0,0,0,,0,fix(landing): surface a structured durability envelope on the revert-path busy failure (#3
+T2,convergence-activity,601e2d03e727adb0a86fa980b6ad77b67cbe3cbf,experimental,2026-09-01,24,2,0,0,0,0,,0,chore(convergence): satisfy architectural and format gates
+T2,convergence-activity,fb9f8d628ee145d6fde34562b440af1a83fc92db,experimental,2026-08-31,23,2,0,0,0,0,,0,fix: harden convergence carry isolation
+T2,convergence-activity,92389e50b8204a324c427ffa3a7ad1dec9377adc,public,2026-07-16,15,2,0,0,0,0,,0,landing fold: durable quarantine before source delete + swallow converge failure on opt-in
+T2,convergence-activity,718e5ed5efe49f3769593d088aea16e963cf9cb0,experimental,2026-08-30,30,1,0,0,0,0,,0,fix: stabilize canonical HTTPS URLs
+T2,convergence-activity,d710ce8a72acf42dfa5f44398e0f0c220f000085,experimental,2026-08-30,19,1,0,0,0,0,,0,fix(landing): fold worktree_failures into the upgrade --json errors channel
+T2,convergence-activity,487b8646c0696a406878cb19f3531c4e6286a3ea,experimental,2026-08-30,529,6,0,0,0,0,,0,fix(upgrade): commit root files the run wrote (drop depth-based root filter) + fix porcela
+T2,convergence-activity,03c7193d3cd12d519089cfcf05923d868a3f5433,experimental,2026-08-30,1012,1,0,0,0,0,,0,"feat(upgrade): single finalizer + entry decomposition, exit derived once (#3392)"
+T2,convergence-activity,6ad9fc6b3b86678826355c7a49997aaba46d32f6,experimental,2026-08-31,4,1,0,0,0,0,,0,fix(landing): resolve pre-existing SIM103 in relocated evidence/code_reader
+T2,convergence-activity,735c67fabca8cdd3ea0d20d06eff92ac60119bb7,experimental,2026-09-05,356,11,1,0,0,0,,0,fix(convergence): close full-suite regressions
+T2,convergence-activity,c9fe21e8bff91d8b1f208f9bf60493046ca710a2,public,2026-07-12,119,3,0,0,0,0,,0,fix(#2513): uncheck tasks.md subtask rows on WP rollback to planned
+T2,convergence-activity,2aa4c896d8ceb2d51755d7224646ddb01ea66b67,experimental,2026-09-01,39,1,0,0,0,0,,0,fix(landing): match org-tier ManifestSchemaError origin across both entry points (#3729)
+T2,convergence-activity,e10862229b003661e3e7ee433145a89eb56d4050,experimental,2026-08-31,15,1,0,0,0,0,,0,fix: complete rc3 convergence carry
+T2,convergence-activity,8aae6525efd4b86b5b0f466315c8a7ebdf087897,experimental,2026-08-31,156,3,3,0,3,0,,0,refactor(landing): extract the shared FileLock primitive and converge the git-common-dir r
+T2,convergence-activity,3f0ee15a5e678f9f07dbbe59a7535c7ed3e7297c,experimental,2026-08-31,1,1,0,0,0,0,,0,docs(cli): register check-terminability in the retrieval index & frozen CLI-surface contra
+T2,convergence-activity,632a4d218a42f2660e96a532246c1b3ef3034566,experimental,2026-08-30,19,1,0,0,0,0,,0,fix: capture HTTPS identity for each fetch
+T2,convergence-activity,cf92032a721905ad2a6a2806bbf359904a790903,experimental,2026-08-31,504,7,0,0,0,0,,0,fix: make pre-review gate observable and budget-aware (#3697)
+T2,convergence-activity,82fea5284e77dd2769fd1724085313ef79dde201,experimental,2026-08-26,60,3,0,0,0,0,,0,fix(landing): re-export read_dir_degrade through the mission_runtime root
+T2,convergence-activity,66cde9451243888aecdc770dda24ddccb3076cdf,experimental,2026-09-03,94,1,0,0,0,0,,0,fix(tool-surface): refresh stale orientation version on every upgrade (#2265)
+T2,other,6d38efea82153a69e5d42eff61e98ad52888817f,experimental,2026-08-31,6,1,0,0,0,0,,0,Pin silent bare import contract
+T2,other,5b66f7dbb22bcb7ea9972e621a8b183701bfa607,experimental,2026-08-29,2,1,0,0,0,0,,0,Avoid a new mypy no-any-return finding in _saas_source_name (#300)
+T2,other,1673a72f203b1fd7374ac8106e047bb1d81920f3,public,2026-07-23,0,0,0,0,0,0,,0,docs(templates): align checklist-template to the Mission terminology canon
+T2,other,02ff5a55f53dcf58e36c8ae6cf78af01c2bbba39,experimental,2026-08-25,1484,8,0,9,0,0,,0,[#3] Cut saas_client and tracker/saas_client free of the sync transport
+T2,other,b7d1f4ecba6d93c52214d75b9e08576b98542823,experimental,2026-08-27,314,4,0,1,0,0,,0,[#116] Prune the surviving symbols/modules and update the gate allowlists
+T2,other,22df77eff7d82e2875e5972d86d6814ea3a2517c,experimental,2026-08-31,788,1,0,1,0,0,,0,[#207] Import the shared status reducer
+T2,other,5a03fb0eb3221fef60735eb267a20de773478bf8,experimental,2026-08-22,16,1,0,0,0,0,,0,docs(Z4-C): record filtered_stream.py/live_frame.py landing; retarget WP01-remaining cross
+T2,other,51a08636d37e15416fd8be67963a2315593dbd34,public,2026-08-05,0,0,0,0,0,0,,0,docs(dev): document isolated dev environments (Shadow Clones)
+T2,other,3a6ee77ba2c8bcae70d360479645b0ac58ec0c97,public,2026-08-07,15,1,0,0,0,0,,0,"docs(auth): scope D-5 to the hosted-SaaS opt-in gate, not every domain literal"
+T2,other,35563bfb503a98f6e35a9eb5a2f1f83cc378f925,experimental,2026-08-27,82,3,1,0,1,1,specify_cli/decisions->specify_cli/status,0,[#324] Fan out decision and mission lifecycle beats through the shared event.publish path
+T2,other,7ea66f9da9816995ec715bce90e028b44f1bbd53,public,2026-08-07,20,1,0,0,0,0,,0,docs(landing): tighten get_package_asset_root PACKS_ROOT-precedence docstring
+T2,other,2bd38fca6e3dc9885eeebe94d21c6ba679723e52,public,2026-07-22,0,0,0,0,0,0,,0,"docs(doctrine): tasks template — /spec-kitty.analyze is a REQUIRED pre-implement gate, not"
+T2,other,eff63532607d2f292efc16e3f8bfd0e61e0544aa,public,2026-08-31,9,1,0,0,0,0,,0,docs(landing): clarify two seams flagged by the squad (comments only)
+T2,other,8a36a75f337f3a116e5cc5e8b2935835d9d6e454,experimental,2026-09-05,0,0,0,0,0,0,,0,docs(events): document events tail + system-events glossary + retrieval index (#3841)
+T2,other,fcfe3cf9871c5d33780302040ddb64d293abcc1d,experimental,2026-08-31,47,1,0,0,0,0,,0,[#902] Align canceled WP terminal reporting
+T2,other,db5014ab5b83bb72a0da5a2b68794592cdbb2147,public,2026-09-03,6,1,0,0,0,0,,0,docs(missions): document the plan-field-declaration.yaml pack-author seam + CHANGELOG (#38
+T3,capability-growth,855abfb06ee7f4eabac685aca6ff97af351f09f3,main-post,2026-11-03,200,3,5,0,5,3,specify_cli/release->mission_runtime;specify_cli/release->specify_cli/coordination;specify_cli/release->specify_cli/status,0,feat(kitty/mission-changelog-wp-lane-reducer-01M66FMR): squash merge of mission
+T3,capability-growth,ea4fba613fce74fda2eb6fd148aaeee9024e0b6e,main-post,2026-09-27,212,6,0,0,0,0,,0,feat(status): refresh derived execution-state projection behind ledger flag
+T3,capability-growth,6a9536df1e138745a0911e8a2f616c4f165100d1,main-post,2026-10-04,85,2,0,0,0,0,,0,"feat(coordination): shell-owned emit_runtime_annotation, adopted by mark-status (#5629)"
+T3,capability-growth,c206e7d2dfe484a301dc14293a87151c68e2425c,main-post,2026-09-18,2309,38,19,3,5,0,,0,"feat(runtime): unify cross-OS lock, safe-delete, and OS-detection primitives (#4714)"
+T3,capability-growth,37d2c6a568dcb204451cc36e06e9d61cb13347c2,main-post,2026-11-01,144,3,0,0,0,0,,0,feat(kitty/mission-stale-coord-lane-base-01M67HRA): squash merge of mission
+T3,capability-growth,6e6a0f79df574cb1f6c3894b83c6a1ef5c323fe8,main-post,2026-11-06,314,9,0,1,0,0,,0,feat(charter): one pack-path finding type for every containment surface (#7263)
+T3,capability-growth,1877d45912f239efc210b0ef84455489efe1c12b,main-post,2026-11-02,10,1,0,0,0,0,,0,feat(6990): charter context --profile renders the profile-cited doctrine
+T3,capability-growth,0e46d9898d1a7bbb23c5e0101832b8f0a247620e,main-post,2026-11-12,210,3,3,0,2,1,specify_cli/review->specify_cli/ownership,0,feat(implement): implement and prompts carry the lane test invocation
+T3,capability-growth,44ccd1311b4d9e6b04c1b2a272da4530fae60255,main-post,2026-10-31,1011,5,0,0,0,0,,0,"feat(kernel): service pin, host target and release-asset authorities (#6590)"
+T3,capability-growth,3d5c85d09c0417fad8b2a9ec9f6ba311e373b36f,main-post,2026-10-01,5798,49,5,34,5,3,specify_cli/diagnostics->charter/activation;specify_cli/diagnostics->specify_cli/(root);specify_cli/diagnostics->specify_cli/core,0,feat(dashboard): remove the bundled dashboard (#5530)
+T3,capability-growth,eae6f11d25a082a16b598f5cf5cbcee8b66665b0,main-post,2026-11-01,4,1,0,0,0,0,,0,"feat(ci): regenerate the generated docs surfaces on main, not in PRs"
+T3,capability-growth,124e39d101da4006fac8da2943ba08ab2d8c346a,main-post,2026-10-05,1005,18,4,0,2,0,,0,"feat(consolidation): land a bare-slug coordination Mission via a directory alias (#5651, #"
+T3,capability-growth,ee325eab51e77dcb16e98c71f3c42372e4ea30a0,main-post,2026-11-08,78,3,1,0,1,0,,0,"feat(intake): add --clear, the canonical brief-intake cleanup (#706)"
+T3,capability-growth,83e59e4a384e841d9af03d4fb2c0a05696d89244,main-post,2026-09-27,53,2,0,0,0,0,,0,feat(status): shared status.json re-materialization authority (WP03)
+T3,capability-growth,700a352c8a986dbadf3ec19085cf6f83e2debce0,main-post,2026-11-13,379,3,2,0,2,1,specify_cli/review->specify_cli/requirement_mapping,0,feat(review): one review-context renderer; the next review step renders the WP review rang
+T3,capability-growth,75e678bb1ef987d7c436ba5308467d52e701c85a,main-post,2026-09-30,6152,33,6,6,0,0,,0,"feat(cli): lifecycle commands resolve, adopt and refuse through the fact"
+T3,capability-growth,5e55922a9502e73c6b241815a898cfa3d145305d,main-post,2026-11-05,143,1,0,0,0,0,,0,feat(guard): remove a worktree without --force and delete a landed branch keeping its tip 
+T3,corrective-maintenance,650b869cac0bd3b1bd7167ff127b5626980b1804,main-post,2026-09-30,2,1,0,0,0,0,,0,fix(landing): annotate the scope-filtered placeholder source for mypy (#5257)
+T3,corrective-maintenance,7a29572f5aa0f988f961ed7b891fb61a3cb47c34,main-post,2026-11-06,52,2,0,0,0,0,,0,fix(landing): close the validator and read-time gaps containment still left
+T3,corrective-maintenance,8574e71b6ec38d6396fc3c581df13093b468d155,main-post,2026-10-19,11,1,0,0,0,0,,0,fix(glossary): stop writing placeholder values that spec-kitty-events 11.0.0 refuses (#639
+T3,corrective-maintenance,dc88030e147fcb4e0ad1bbacfa81fa38ceeee784,main-post,2026-09-30,11,1,0,0,0,0,,0,fix(landing): lead the topology-manifest mismatch remedy with the migrate command (#5100)
+T3,corrective-maintenance,3937c75f54363da355765e3447a7395a473fa8ba,main-post,2026-10-07,80,2,0,0,0,0,,0,fix(landing): refusal and remedy texts say what actually happened (#5780)
+T3,corrective-maintenance,428e5ebd033ab321b0c704f1c9f383dbc6ada210,main-post,2026-11-02,31,1,0,0,0,0,,0,fix(landing): record the seeded legacy agent list even when an add adds nothing
+T3,corrective-maintenance,b6525eb88bb173fa1459b5b1568c64477026cf90,main-post,2026-11-22,9,1,0,0,0,0,,0,fix(landing): never read URL userinfo as the repository name
+T3,corrective-maintenance,2a00722002cc981d5b59178f38ee87c08c4f2858,main-post,2026-11-07,8,1,1,0,1,0,,0,fix(#7276): settlement commit target comes from the placement seam
+T3,corrective-maintenance,5a06ceb15ad0e8c6232e3057f31bd0fe5382557e,main-post,2026-09-29,106,4,0,0,0,0,,0,fix(charter): generate --from-interview re-derives languages from the current answers (#46
+T3,corrective-maintenance,477f0123a4368cca4a46b5fd6c807258b1045a73,main-post,2026-11-19,25,1,0,0,0,0,,0,fix(cli): move-task help lists the nine lanes from the Lane enum (#7677)
+T3,corrective-maintenance,7fd99c00a036d7abbbec6e768f4d41d0472fdbe7,main-post,2026-09-28,4,1,0,0,0,0,,0,fix(landing): name real `charter pack consistency-check` in no-cascade hint (#5267)
+T3,corrective-maintenance,d85d49488f90c0b4534bef5e65c733445a19af91,main-post,2026-11-12,32,1,0,0,0,0,,0,fix(recovery): reduce the status log once per recovery scan
+T3,corrective-maintenance,f392775fecdb9a6eecc8413e061d4808a6b515bb,main-post,2026-10-04,14,1,1,0,1,0,,0,fix(landing): list changed paths through kernel.git in the finalize guard
+T3,corrective-maintenance,5936580554a7b62fce282130da83e2f24c948ae4,main-post,2026-09-29,20,2,0,0,0,0,,0,fix(charter): route rc5 provenance migration through shared catalog accessor
+T3,corrective-maintenance,ba2c32a375aae6f0f5190f6a768f28ac48a05b05,main-post,2026-11-05,29,1,0,0,0,0,,0,fix(landing): name the reserved lane directory in the create-claim refusal
+T3,corrective-maintenance,70f8f3c04a2b754e1b5db52f593218a91ac36ebf,main-post,2026-09-30,36,1,0,0,0,0,,0,fix(landing): never install the lane-tip recorder into a global/system core.hooksPath (#51
+T3,corrective-maintenance,24be0b280525cb1bccb68549c6e1ca6c6932c601,main-post,2026-11-01,21,1,0,0,0,0,,0,"fix(landing): the upgrade step reports an ambiguous interview selection as ambiguous, not "
+T3,corrective-maintenance,86fe7161da38b086620f79c3bb18196443c1ee15,main-post,2026-11-10,69,1,0,0,0,0,,0,fix(accept): stop suggesting mkdir for a remappable build-layout path (#7512)
+T3,corrective-maintenance,04b711fb6658ec652c967f3529b009b1b4a7e92d,main-post,2026-11-07,3,1,1,0,1,0,,0,fix(landing): derive the ready-for-review deny-list prefix from RUNTIME_STATE_DIR_NAME
+T3,corrective-maintenance,e8443651a5dcac15f4be8679d39ef0c02bbb1a79,main-post,2026-10-08,124,4,1,0,0,0,,0,fix(workflow): release the Mission lock before the claim's lane sync (#5819)
+T3,corrective-maintenance,3b34a2193024985b97f0cc91cde53617c4509ff6,main-post,2026-09-07,35,1,0,0,0,0,,0,fix(runtime): reject unbound legacy runs after an identity backfill
+T3,corrective-maintenance,a0616c4390a43d8b59b910555b716057546d9d1b,main-post,2026-11-08,226,10,0,0,0,0,,0,fix(git): harden git and kernel safety paths (QW5)
+T3,corrective-maintenance,252a07c7f8d9393c38e3cba890e3c5328da67f3a,main-post,2026-10-20,87,4,0,0,0,0,,0,fix(upgrade): declare and gate migrations that need a git repository (#6539)
+T3,corrective-maintenance,9d78799b94f3c4df0f2e68d4ca8dda4ef3661801,main-post,2026-09-07,14,2,0,0,0,0,,0,fix(WP08): consume configured plans and validate Claude catalog
+T3,corrective-maintenance,bd703d6471a5b4f99d3d07490878cd19019db879,main-post,2026-10-16,57,2,0,0,0,0,,0,fix(migrate): report files not moved to overrides honestly (#5450)
+T3,corrective-maintenance,9ed59d9c5c43d7fc5d85cac34d8365841b2d81ad,main-post,2026-10-07,147,3,0,0,0,0,,0,fix(accept): accept and orchestrator-api check origin freshness
+T3,corrective-maintenance,ec20cbec86844970d58d2a24319cddadc1e777c4,main-post,2026-09-27,194,8,0,0,0,0,,0,fix(landing): resolve the drain repo scope from the owning repo on every path
+T3,corrective-maintenance,3f386580c284ca33715d218977aa05f4ef2d594c,main-post,2026-11-06,88,1,0,0,0,0,,0,fix(accept): defer an uncomputable evidence check to the readiness report
+T3,corrective-maintenance,f760090977ab361c6908da60129286ea59bc4b57,main-post,2026-10-07,368,3,0,0,0,0,,0,fix(migration): schema-3 runner no longer commits and rolls back cleanly
+T3,corrective-maintenance,b822828c4c2230a855aa751ed4ef2a4d6c60a14e,main-post,2026-11-08,4,1,0,0,0,0,,0,fix(landing): name LANE_ID_EXHAUSTED in the finalize-tasks JSON envelope
+T3,corrective-maintenance,bb4f5555e0454a6f039860b43dc14d465ba327ee,main-post,2026-11-13,2,1,0,0,0,0,,0,fix(accept): import mission_has_landed from the mission_runtime root (#7599)
+T3,corrective-maintenance,f900cad87000ee622bb82d2c48a36964215ce0bf,main-post,2026-11-01,147,1,0,0,0,0,,0,fix(#6476): make the plugin wrapper's uvx fallback run the CLI
+T3,corrective-maintenance,8e7a4c7e9b45c1000a90faec7c043138baff074a,main-post,2026-10-12,75,1,0,0,0,0,,0,fix(landing): org pack level check fails closed through the descriptor loader
+T3,corrective-maintenance,02b0c1ba70b0c103527793c69968be06d161c4ff,main-post,2026-10-17,135,3,0,0,0,0,,0,fix(consolidation): content-level supersession of canceled content (#5932)
+T3,corrective-maintenance,541504eb5cc7cb4ea754a11ec7466c29152b6eeb,main-post,2026-10-13,61,2,0,0,0,0,,0,fix(mission): reject unresolved and cyclic step dependencies
+T3,corrective-maintenance,dba8ebcc26aa5f2cc0a6b14a6ebe156e340d1e42,main-post,2026-11-12,67,2,0,0,0,0,,0,fix(implement): fail-open lane test invocation in implement; workspace-neutral foreign adv
+T3,corrective-maintenance,a08eb7a54cb9b6025f7910d8b0c376130deac4a9,main-post,2026-10-29,17,1,0,0,0,0,,0,fix(doctor): give the corrupt meta.json remedy commands that work on a residue row (#5875)
+T3,corrective-maintenance,958176de642bf432144fd2d8771f7b251675966e,main-post,2026-10-26,25,1,0,0,0,0,,0,fix(landing): warn once per run when the tracked-path probe degrades to file presence
+T3,corrective-maintenance,b3f92bf51f0285343503f10f114ec5d767287794,main-post,2026-09-07,15,1,0,0,0,0,,0,fix(landing): fail closed when tasks anchoring is requested without a mission_slug (#3981)
+T3,corrective-maintenance,b6a8accbb42456821901cae698146c5439ef0021,main-post,2026-10-09,57,1,0,0,0,0,,0,"fix(landing): report qualified sibling endpoints as an advisory, not a dangling-edge error"
+T3,corrective-maintenance,7921496315dc1222051311d407b395d7ae323cbf,main-post,2026-10-04,10,1,0,0,0,0,,0,fix(landing): warn when a no-contracts declaration meets an existing contracts directory
+T3,corrective-maintenance,f7e0e882dde9415f5e0f61a05591f09b91187418,main-post,2026-09-27,109,2,1,0,0,0,,0,"fix(merge): re-materialize divergent status.json on the squash seam (WP05, #4955)"
+T3,corrective-maintenance,11672ea9fd08808576c19f0383f87187225f96ef,main-post,2026-10-13,53,1,0,0,0,0,,0,fix(#5882): thread the owned checkout through `spec-kitty research`
+T3,corrective-maintenance,3fc49e8a620266499f032a157c7b193feb519de4,main-post,2026-11-05,22,1,0,0,0,0,,0,fix(landing): count fast-forward merges and rebases as no own commits (#7173)
+T3,corrective-maintenance,8c777281efdd289d785c2e0877cc2954235f383a,main-post,2026-10-22,124,2,0,0,0,0,,0,fix(review): refuse a committed review lock before the claim (#6386)
+T3,corrective-maintenance,c6cf77a34a463053eede45b8c87b2b5e9eb2f1eb,main-post,2026-11-02,13,1,0,0,0,0,,0,fix(landing): say when a vendored release's provenance is not verified
+T3,corrective-maintenance,f183be1e4688283f666cad25c956ff0d8afdc0a8,main-post,2026-11-12,97,4,0,0,0,0,,0,fix(lanes): put the lane venv first on PATH and keep the recorded probe free of machine pa
+T3,corrective-maintenance,c875930e480334adf46680eaa3334924ffeb2766,main-post,2026-10-08,39,1,0,0,0,0,,0,fix(landing): report a landed repair commit as ok and give repair refusals stable codes
+T3,corrective-maintenance,6243eb7649989032c54afc815a0f22a960c00859,main-post,2026-10-06,10,1,0,0,0,0,,0,fix(landing): keep a FAILED upgrade outcome when the stamp restore fails
+T3,corrective-maintenance,042286ce9d15e9b09dfda38efb35beb961b16165,main-post,2026-10-29,62,2,0,0,0,0,,0,fix(charter): carry post-change notices and kind-filtered references in --json
+T3,corrective-maintenance,644a557b727b3fd4c61349c96f26100df343a2e4,main-post,2026-10-08,67,2,0,0,0,0,,0,fix(next): resolve composed action prompts or block with diagnostic
+T3,corrective-maintenance,bf27663685519d1d84157ba05030cb95ee09d565,main-post,2026-10-05,58,1,0,0,0,0,,0,fix(landing): refuse the presence axis when the mission-branch range is unreadable (#5788)
+T3,corrective-maintenance,1b5bae27420255b174ef239c6c64a5882600a189,main-post,2026-10-25,36,2,0,0,0,0,,0,fix(landing): preview what a pending ledger adoption will settle (#6629)
+T3,corrective-maintenance,b2c466d7d1c4299e6d5e218f0bd8a4cbcba92da4,main-post,2026-10-03,5,1,0,0,0,0,,0,"docs(landing): align changelog, residual counts and adr with the landing fixes"
+T3,corrective-maintenance,205d8ab1a627b8d48eb336d9e58f91bb7ffb41a5,main-post,2026-11-07,46,1,0,0,0,0,,0,fix(landing): stop unresolved walks at aliased ceilings
+T3,corrective-maintenance,c279c09791204de45d4b6a768d0e742be4e6eb88,main-post,2026-10-01,24,1,0,0,0,0,,0,fix(coordination): commit a coord-dirty status log routed by its primary path (#5513)
+T3,corrective-maintenance,22894d6522b9da609391dae3a358651cc8717c43,main-post,2026-09-27,16,1,0,0,0,0,,0,"fix(landing): match remote branches by exact ref, not ls-remote suffix pattern"
+T3,corrective-maintenance,4310b89b5dffc3396e76c2647cd6aea5274fbbd1,main-post,2026-11-02,184,4,0,0,0,0,,0,fix(consolidate): refuse a --target override onto a protected branch (#6464)
+T3,corrective-maintenance,07ebc1601ccb4818ef6ad0c89a83989809668d6b,main-post,2026-09-30,176,2,0,0,0,0,,0,fix(preflight): block the preflight when the auto-refresh charter generate fails (#5257)
+T3,corrective-maintenance,c387a0eacbbb207aef9eefb8515fe687e3b4a798,main-post,2026-11-02,49,1,0,0,0,0,,0,fix(6278): resolve a Mission by its human slug
+T3,corrective-maintenance,a8ada00f08e97db02146b9fbea989e2702e98ae0,main-post,2026-11-08,2,1,0,0,0,0,,0,fix(consolidate): fold review findings on the lane-cleanup fix
+T3,corrective-maintenance,18a854d0c2cf69e6c5ec7e349728f628a54f909c,main-post,2026-11-13,8,1,0,0,0,0,,0,fix(archive): reclaim tears down without persist; seam failures are RECLAIM_WORKTREE_KEPT 
+T3,corrective-maintenance,82812ea5109cac16e5c9bdc605e21d11a0946248,main-post,2026-11-12,90,3,1,0,1,0,,0,"fix(init): commit the files init writes inside a git repository (WP05, #7555)"
+T3,corrective-maintenance,79f19051abf5f1db6351ef450ca8073bc46f68d5,main-post,2026-11-08,23,1,0,0,0,0,,0,fix(tasks): raise when unknown-verdict issue-matrix rows would be dropped (#5453)
+T3,corrective-maintenance,912a393dbfd64b127e160fc556b89439b5e385cc,main-post,2026-11-06,20,2,0,0,0,0,,0,fix(landing): keep scanning lanes in the squash forecast
+T3,corrective-maintenance,f2a6e8db0f29ebb8eabda2f9067b2df317491eb1,main-post,2026-11-02,78,6,2,0,0,0,,0,fix: require project authority before global migrations
+T3,corrective-maintenance,43a43226070be0b3d9d9ed0315d5d0a72f520092,main-post,2026-10-16,12,2,0,0,0,0,,0,fix(landing): restore read-only mode on the atomic_write failure path (#6228)
+T3,restructuring,723e68abd774c6fcbc6c4db34f82ce0ab3a627dd,main-post,2026-09-28,10,2,0,0,0,0,,0,refactor(landing): make the WP task reader public for its bridge caller
+T3,restructuring,20b68d3c66096472607fe6023bc13e12444479ca,main-post,2026-09-06,18,1,0,0,0,0,,0,refactor(WP09): isolate charter section ownership validation
+T3,restructuring,bd75087e11883c3eefd9d98a1552b2e5c12be6e2,main-post,2026-11-10,2,1,0,0,0,0,,0,chore(landing): drop a stale comment and correct the family-helper docstring
+T3,restructuring,7df0dc96d75850620195fd88cda1f926ee8a26b0,main-post,2026-11-13,96,2,0,0,0,0,,0,refactor(landing): move the Mission-base git probes into git_probes (#7560)
+T3,restructuring,efb63477c16163ceb606a20e7fd30074f182762b,main-post,2026-10-17,41,3,0,0,0,0,,0,"refactor(consolidate): fold #6324 review nits — dedup single_branch meta read, document re"
+T3,restructuring,0a9d8d5ba57e2a77921795442ab8187a0c27a9f2,main-post,2026-10-08,2,1,0,0,0,0,,0,"test(landing): the commit-scope gate also sees shell strings, library calls and renamed ru"
+T3,restructuring,bca1d863f059e46b4d8d82c44e134c7e865f3eb9,main-post,2026-11-09,32,1,0,0,0,0,,0,refactor(move-task): name the owned checkout's supported lanes once
+T3,restructuring,cacdd431aecd937b78d35e78f81fd3553523df78,main-post,2026-10-26,15,2,0,0,0,0,,0,refactor(landing): make the unused EventBridge port names module-private
+T3,restructuring,16e21f3929a0758bc468001662a0c8a16407b380,main-post,2026-11-12,2,1,0,0,0,0,,0,"chore(docs): remove DocFX, its template and its DocFX-only scripts (#6943)"
+T3,restructuring,963ad13ebc3050b2252dd263b2ad2c7d869faba3,main-post,2026-09-23,36,3,0,0,0,0,,0,refactor(landing): share the target-content-conflict prose and make diagnostic_code live
+T3,restructuring,2222506cc59df8a88228e45ed4b082b381c7c767,main-post,2026-09-14,78,1,0,0,0,0,,0,refactor(charter): cut resolve_config_id cognitive complexity + cover new branches (#4239)
+T3,restructuring,f05b7a313bc47e592e1b86383cbabafaedb95a1e,main-post,2026-09-30,58,3,0,0,0,0,,0,"refactor(landing): one mission-scoped protection entry point, drop mission_write_bypass (#"
+T3,restructuring,88f93fda17bcdddba79dc9e1d4c8793d650ee39f,main-post,2026-11-03,98,6,0,0,0,0,,0,refactor(users-dirs): route every per-user caller through the authority (#6488)
+T3,restructuring,30af109b89c5381e6e3aeabeaf6c0a39efc88264,main-post,2026-10-05,20,1,0,0,0,0,,0,"refactor(auto-rebase): parametrise take-theirs rule id (tidy-first, #5457)"
+T3,restructuring,bb4e65161f9f8ea0dd892e5e49e0e458790967cc,main-post,2026-10-09,12,1,0,1,0,0,,0,"refactor(landing): import endpoint helpers from the offering modules, not the charter.drg "
+T3,restructuring,34519400a26e8a9d8a1eeee02b0384446d0c44ce,main-post,2026-09-30,203,2,0,0,0,0,,0,refactor(landing): trim review-log comments to the durable why (#5257)
+T3,restructuring,f0d75593338da2bad2e4165e9eeb8c95094a7e61,main-post,2026-10-06,934,7,7,2,0,0,,0,refactor(#2560): extract runtime_bridge_guards; no runtime_bridge_* seam imports the bridg
+T3,restructuring,a977142797fef0b58bb0f95599b4f55d7c1dc0d8,main-post,2026-10-08,6,1,0,0,0,0,,0,refactor(landing): route the retry-lock check onto the kernel VCS-lock comparator (NFR-002
+T3,restructuring,05ffa37d56da22f594b78fb3d870ec5c460b3aae,main-post,2026-09-16,0,0,0,0,0,0,,0,[#3961] Finish the mission-DSL v1 retirement in shipped copies and docs (#4583)
+T3,restructuring,67568691f15072fb801ed400b9ac8f671d01f1c3,main-post,2026-11-02,13,1,0,0,0,0,,0,refactor(landing): read the org source types off the SourceType literal
+T3,restructuring,65f1708b5470b0f474a194781e0cc5dc005605fd,main-post,2026-11-05,25,1,1,0,1,0,,0,refactor(landing): reuse is_git_repo for the doctor workspaces work-tree check (#7173)
+T3,restructuring,128db78933cb8e304debcebd2014005e78aa5ecb,main-post,2026-11-09,240,1,0,0,0,0,,0,refactor(finalize): share one undo between the finalize failure handlers
+T3,compatibility-work,99d85ef96d37f953d97e3595236ebe71e5baab9c,main-post,2026-11-07,2,1,0,0,0,0,,0,docs(landing): qualify migrated bootstrap root walks
+T3,compatibility-work,5043904b8cdaba6cfb3c84c66daafcfead1bb9df,main-post,2026-11-13,10,1,0,0,0,0,,0,docs(accept): name the acceptance commit helpers as compatibility wrappers (#7598 fold)
+T3,compatibility-work,77815b4dc84e3f3d4b2430cde05f3d932bd470ee,main-post,2026-10-05,117,2,0,1,0,0,,0,refactor(upgrade): remove the unreachable legacy surface-repair branch
+T3,compatibility-work,d6bf1df0564d7dfeca60e55057d0eb21d177e664,main-post,2026-10-22,3,1,0,0,0,0,,0,style(landing): sort the kernel import in upgrade_hint
+T3,compatibility-work,71d42825219ca7e24314f5c4c1735991203789b1,main-post,2026-09-14,507,7,1,0,0,0,,0,[#3277] Non-interactive machine authentication for hosted sync (#4306)
+T3,compatibility-work,e8f3d2227e9631245a1147efdf7f0b81da262bac,main-post,2026-09-27,207,2,0,0,0,0,,0,refactor(landing): one read-only session peek serves read() and the rc5 backfill
+T3,compatibility-work,0e09857bdbca3de9e833ddd42fb84fd33b76e338,main-post,2026-09-30,119,4,0,0,0,0,,0,docs(landing): trim review-log comments to the durable why (#5257)
+T3,compatibility-work,4a854484de946ead8349efac45bf8e08bcfb5165,main-post,2026-10-04,28,2,0,0,0,0,,0,docs(status): cross-reference the bootstrap and backfill-wp-status WP-id collectors (#5579
+T3,compatibility-work,9a01217bb8ae2cee5d279ed9c82bdcfea095b56a,main-post,2026-10-01,1286,35,21,0,4,0,,0,"refactor(git-paths): CLI, tasks, acceptance, policy and upgrade list paths through kernel."
+T3,compatibility-work,291ae638f087e3177de0b2ebdb8200b79b34dafe,main-post,2026-10-26,128,5,0,2,0,0,,0,refactor(landing): share the 0.9.x successor wrappers through a lane mixin
+T3,compatibility-work,c59cbf4db31de2c41dbf6b735b272d3bf88016ff,main-post,2026-11-01,0,0,0,0,0,0,,0,docs(upgrade): witness the predicted dry-run verdict on the CLI and document the declarati
+T3,compatibility-work,935034f56b62464e7346a962e0011a7e00f5a542,main-post,2026-09-16,82,2,0,0,0,0,,0,"[#4609] (draft, salvaged) issue-4609-migrate-all-command-files (#4628)"
+T3,convergence-activity,ff6a54994eccaa86432ffe452f5f889536c74e4e,main-post,2026-11-13,79,1,1,0,1,0,,0,fix(archive): reclaim preflights the marker commit and names the real keep-record (#4041)
+T3,convergence-activity,930d6611af6f4996374872ae0560de731302e73a,main-post,2026-10-29,210,4,2,0,2,1,specify_cli/status->specify_cli/context,0,feat(doctor): report non-Mission kitty-specs folders as residue with a remedy (#5875)
+T3,convergence-activity,6701cdbf9706f343f184f33e43fb0109e2ccd5f0,main-post,2026-11-02,118,3,0,0,0,0,,0,fix(charter): converge the malformed charter_packs refusal on ACTIVE_CHARTER_CONFIG_INVALI
+T3,convergence-activity,28788dbb568e71a41fd97ec1804b3f16338619eb,main-post,2026-11-07,78,2,0,1,0,0,,0,fix(decisions): doctor --repair refuses a busy decisions lock (#6763)
+T3,convergence-activity,63a3278284d2929fa606940aeb84a1ad62e25002,main-post,2026-10-20,30,1,0,0,0,0,,0,fix(charter): legacy rename always restamps the bundle hash so an interrupted run self-hea
+T3,convergence-activity,661e063fd2fe8e360b4f86b914c346c92cffe37e,main-post,2026-09-15,11,2,0,0,0,0,,0,feat(template-render): enhance built-in exclusions and refine SSH/HTTPS ref parsing
+T3,convergence-activity,92a200070eaf6513d0e38b44dde3ae65abd1f8e8,main-post,2026-09-20,116,4,0,0,0,0,,0,fix(tool-surface): repair every detected-stale surface and converge in one run (#4782 #477
+T3,convergence-activity,ef704c3303db5d2330ecedd72deb57bbe519c942,main-post,2026-10-20,134,7,0,0,0,0,,0,fix(charter): review cycle 1 for the project-intent rename (#6443)
+T3,convergence-activity,f3c9dfb691660476528b636bd142440c91c446d2,main-post,2026-11-13,51,3,0,0,0,0,,0,"fix(consolidation): address WP02 review cycle 1 (dead-symbol gate, refusal text, best-effo"
+T3,convergence-activity,de51f2259a555f6bea7b0e0ddc9c94a0dde5ade9,main-post,2026-10-08,243,4,5,0,3,2,specify_cli/decisions->specify_cli/(root);specify_cli/git->specify_cli/decisions,0,fix: keep owned decision runtime locks out of Git and repair tracked locks
+T3,convergence-activity,7cf15cab74487a4ad728f2e0a5654c4661ad89d7,main-post,2026-11-06,48,2,0,0,0,0,,0,feat(WP01): route pack-skill body_path reads through the shared containment primitive
+T3,convergence-activity,77db4fdb4f773aac6e4e40b2366942a473576e46,main-post,2026-09-15,94,2,0,0,0,0,,0,fix(doctrine): make template installation recoverable on promotion failures
+T3,convergence-activity,ef0c2388b2da5f0c0ed2238534f6e4c9a0f80ef1,main-post,2026-09-09,235,6,0,0,0,0,,0,fix(upgrade): recover missing authority and disclose supporting repairs (#4082)
+T3,other,3fbb6872019bc25ac09e8d50be4cb586fa2b3983,main-post,2026-09-16,25,1,0,0,0,0,,0,[#3279] Explain device-grant 401 rejection without exposing server text (#4550)
+T3,other,294f4c352d83cff74955977ac9da96d4e4c6c4e9,main-post,2026-09-30,9,1,0,0,0,0,,0,"docs(landing): record the #5353 contract supersession in the resolver docstring, not the f"
+T3,other,894f7cb9d75e214eda0a65454a8977df2e2a0464,main-post,2026-09-28,0,0,0,0,0,0,,0,chore(landing): regenerate completion manifest for the #4919 doctor decisions help change 
+T3,other,3eb620264ae7054f1db703c67ee3377acc0f8403,main-post,2026-10-15,2,1,0,0,0,0,,0,test(cli-commands): fold pre-PR review nitpicks (#6221)
+T3,other,cad1e87e68a6e2350df90b6421fe26ffe8ca9e43,main-post,2026-10-06,0,0,0,0,0,0,,0,chore(glossary): regenerate the stale execution and orchestration Contextive glossaries
+T3,other,02f547d63e3034c5af8218448507818356c197bd,main-post,2026-11-11,16,2,0,0,0,0,,0,"docs(lanes,next): state what the lane-mate advisory tolerates"
+T3,other,4875e202192dec6004f8ea10277b461fdae4d94e,main-post,2026-09-21,9,1,0,0,0,0,,0,docs(landing): document the offline-only constraint on `doctor decisions --repair`
+T3,other,e45786a1153d7a09bbd18508aeedb0ad2d916b18,main-post,2026-11-21,0,0,0,0,0,0,,0,docs(skills): name kitty-specs/<slug>/mission-review.md for the mission review report (#77
+T3,other,26cf22bac3918dccb45c46f6da5c4ba14bcc406e,main-post,2026-09-16,133,4,0,0,0,0,,0,[#3861] Replace substring heuristic in _classify_specify_create_error with a structured de
+T3,other,cbdd3b582f1d46474b4e21eabfc5cf00794c256e,main-post,2026-11-12,2,1,0,0,0,0,,0,docs(landing): state the no-status-write-in-a-decision invariant on status_read
+T3,other,25c03e354988cfde86f326a132817576cc4ea66c,main-post,2026-10-06,0,0,0,0,0,0,,0,docs(landing): name the real DoctrineService module in the Activation Chokepoint entry
+T3,other,414d7a77fa138b127130c25d68876636dfe01eb5,main-post,2026-09-30,7,1,0,0,0,0,,0,docs(landing): the allocator's fresh-tip comment reads as absorbed only while the recorder
+T3,other,64abb60f3b0057c0176e4b60c317e7981f97c1f2,main-post,2026-10-04,23,2,0,0,0,0,,0,test(migration): skip live-coordination Missions in the WP snapshot parity gate and list t
+T3,other,1c36fd2a7413d5f962f3fc81a244195ba3d8c906,main-post,2026-10-04,6,1,0,0,0,0,,0,docs(landing): call the verb order what it is
+T3,other,d321f616b9b54cb367446a548ccb0bc0286b09aa,main-post,2026-10-31,10,1,0,0,0,0,,0,"docs(charter): state what the neutrality gate judges, and record the companion scope rule "
+T3,other,7d2f7239c1b2ee647dc4e9ff9ba888e81789e152,main-post,2026-09-09,345,5,4,0,4,3,specify_cli/charter_runtime->specify_cli/mission_step_contracts;specify_cli/cli->specify_cli/mission_step_contracts;specify_cli/mission_step_contracts->charter/offering,0,[#4115] fall back by role when a built-in mission step default profile is deactivated (#41
+T3,other,13000ce7365fa2706b86b729820e1d891ebc1831,main-post,2026-11-14,4,1,0,0,0,0,,0,docs(landing): state that an owned run's checkout verdict fails closed on an unreadable me
+T3,other,96b65e15490f56d31954212e2a9b819ddc8a78c0,main-post,2026-10-08,5,1,0,0,0,0,,0,docs(landing): note that a resumed baseline predates a primary-tree mission-number bake
+T3,other,0e7e96c2e04e4aee28e575693a003c67a34b2c4e,main-post,2026-10-04,5,1,0,0,0,0,,0,docs(landing): name the finalize-commit-on-the-status-branch case in the atomicity comment

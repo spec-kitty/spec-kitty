@@ -1,0 +1,46 @@
+finding_id: F-C2-027
+workstream: "C2 - Evolution and change coupling"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "exploratory"
+  deviation: null
+subject:
+  component: "core (cherry-pick trailers)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Non-merge commits carrying a 'cherry picked from commit' trailer: 2026-02 public 7, 07 public 16, 08 public 22 / EXPERIMENTAL 166, 09 public 9 / EXPERIMENTAL 154 / post-convergence 63, 10 post-convergence 66, 11 post-convergence 73. 202 of them are after the convergence merge; rule R1 classes all of them as convergence-activity."
+evidence:
+  - id: E1
+    kind: history-derived
+    reference: "evidence/C2/cherry-pick-trailers-by-month-line.csv"
+    method: "count of trailer in commit body by month and line"
+    sha256: "580a386b47ad0f6246e76a91f64cb75b3b8fb19e9b0cdd6ec8f11af376188397"
+    exit_code: 0
+    environment: "git 2.43.0; Python 3.13.18"
+    observed_at: "2026-11-28T10:30:00Z"
+scope:
+  covered: "Trailer presence only."
+  not_covered: "Whether a post-convergence cherry-pick ports convergence material."
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked the one post-convergence cherry-pick in the validation sample (80ca66da, 2026-09-30)."
+  result: "Its source commit 9f17fb5e is not in core; the reading classed it corrective, not convergence (F-C2-005)."
+relations: []
+confidence: high
+analyst:
+  profile: analyst-annie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []
