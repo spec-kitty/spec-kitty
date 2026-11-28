@@ -1,0 +1,70 @@
+finding_id: F-D1-005
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: distribution-contents
+  deviation: null
+subject:
+  component: spec-kitty-cli distribution
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'The wheel built from core head (spec_kitty_cli-4.0.0rc9, 2239 files, 28.3 MB unpacked) ships 6 import packages
+  (specify_cli 1179 files, charter 427, kernel 46, runtime 36, glossary 24, mission_runtime 16), the built-in pack
+  tree as a top-level `packs/built-in` directory (505 files, open-packs a79c3631) and 2 pin files (specify_cli/_pins/README.md,
+  read-service.source.yaml). It ships 0 binaries, no packs/internal, no uv.lock, no tests. The sdist (2243 files)
+  adds hatch_build.py, pyproject.toml, packs/built-in.source.yaml and pins/. One console script: spec-kitty = specify_cli:main.
+  Extras: test, lint, services (spec-kitty-services==4.0.0rc9, which is not on PyPI; 4.0.0rc8 is).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/dist-contents.json
+  method: python tools_listdist (zipfile/tarfile listing) over dist-head/*.whl,*.tar.gz and the PyPI downloads;
+    grouped by top-level directory
+  sha256: 75a76f42b25f8bbb203b0173e3000b320dd8335f78d37157dcf63f9a058e14b4
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/core-build-head.txt
+  method: uv build --out-dir dist-head (scratch clone at 5c4fc5a7 after `uv sync --frozen --all-extras` and `python
+    scripts/sync_packs.py --pack all`)
+  sha256: f5ddfb978c85cc771e68692d97a41634f564488064d14034ba867732d36eeb5f
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:07:20Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/core-sync-packs.txt
+  method: uv run --frozen python scripts/sync_packs.py --pack all
+  sha256: 822da6dffad27c984b90bb73f7687b5415d502105bda03370c82dc0d1388b3f9
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:07:06Z'
+scope:
+  covered: file lists of wheel and sdist; METADATA Requires-Dist and entry points
+  not_covered: platform wheels of spec-kitty-services (built by scripts/build_services_wheel.py; not built here)
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched the archives for *.jar, *.exe, *.so, platform-named binaries and any path under packs/internal
+  result: 0 hits in head wheel, head sdist, rc8 wheel, rc8 sdist
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- deployability
+candidate_invariants: []
+open_questions: []

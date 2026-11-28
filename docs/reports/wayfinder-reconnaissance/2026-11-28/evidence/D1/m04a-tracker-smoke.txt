@@ -1,0 +1,5 @@
+2026-11-28T09:10:57Z
+$ python -c "import spec_kitty_tracker as t; ..."
+0.5.2 86
+imports ok
+exit=0

@@ -1,0 +1,75 @@
+finding_id: F-D1-031
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: independence-matrix
+  deviation: null
+subject:
+  component: Python-side capabilities
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Independence of Python-side capabilities on five dimensions (evidence/D1/independence-matrix.csv, 10 rows
+  x 5 dimensions = 50 cells): established 5 (tracker client: logical and distribution; events package: distribution;
+  charter activation: logical; doc-kitty: logical), partly 24, not established 15, not assessable 6. No Python-side
+  capability is established on the deployment dimension; the two capabilities established on distribution are the
+  two separately published wheels (events, tracker). Cells marked not assessable were not measured or have no runtime
+  unit; none results from a blocked test.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/independence-matrix.csv
+  method: assembled from the cited findings; one cell = observed state + finding ids
+  sha256: d6c7f41529078bbe63f6dc5ddc7bf14aed9054e689bbb4192c1520ddd7dce3eb
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:37:27Z'
+scope:
+  covered: 10 capabilities named in the brief
+  not_covered: Java services (another workstream); the 'declared' column
+  population: null
+  sample: null
+  seed: null
+interpretation: Each cell applies the brief's definition of the dimension to the cited observations; 'partly' is
+  used when a mechanism exists and a measured share of consumers or cases goes around it.
+derived_from:
+- F-D1-001
+- F-D1-003
+- F-D1-005
+- F-D1-008
+- F-D1-009
+- F-D1-010
+- F-D1-011
+- F-D1-012
+- F-D1-013
+- F-D1-015
+- F-D1-016
+- F-D1-017
+- F-D1-018
+- F-D1-020
+- F-D1-021
+- F-D1-022
+- F-D1-023
+- F-D1-024
+- F-D1-025
+- F-D1-027
+- F-D1-028
+counterevidence: []
+disconfirmation:
+  search: for every 'established' cell looked for one measured counter-case
+  result: 'tracker logical: 0 bypass files; events distribution: installs and builds alone; activation logical:
+    1 outside literal without I/O; doc-kitty logical: no core source reference. Counts of cell states were recomputed
+    from the CSV.'
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,37 @@
+2026-11-28T09:18:26Z
+# isolated clone, parent dir holds only this repository: spec-kitty-open-packs
+f9a557510dc7ff04597a0b8aba87f736e25f785e
+venv exit=0
+$ scripts/ci/check-pack-digests.sh
+ok: packs/refactoring/ digest matches 84c6e65412e84df06d25d08d80dc78c1411b2e0f2e77883f671dbb02ec5153b6
+ok: packs/rust/ digest matches d4fe080b37a6c5ec4009bbf248af8b0d9e7821146d2a95da3a10f7095a29d1ae
+ok: packs/spdd/ digest matches 0ef7afa434fb6b8cbac21b2c2815181d19352b3fd54e86ec410ace43a62b5fd6
+ok: packs/testing/ digest matches b71de662ede9af091582ee021230972b9853d311e47094dea101d08109093f48
+ok: packs/writing/ digest matches 9a50b3cc0947f9398141543b4f0793a95cd5282465a052cad9e1eb5ba8fcc7b0
+exit=0
+$ scripts/ci/validate-packs.sh   (fetches charter pack schemas at the commit in charter.lock.yaml)
+::error::cannot judge, failing closed: cannot fetch https://raw.githubusercontent.com/spec-kitty/spec-kitty-charter/cb9b15426d17c402b06204185a17ebfbc65f22ff/contracts/packs/file-kinds.yaml: <HTTPError 404: 'Not Found'>
+::error::cannot judge, failing closed: cannot fetch https://raw.githubusercontent.com/spec-kitty/spec-kitty-charter/cb9b15426d17c402b06204185a17ebfbc65f22ff/contracts/packs/file-kinds.yaml: <HTTPError 404: 'Not Found'>
+exit=2
+$ python3 scripts/ci/check_vocabulary.py
+vocabulary: 758 pack file(s) scanned, 0 finding(s)
+exit=0
+$ python3 -m unittest tests/ci/test_pack_digest.py tests/ci/test_work_package_lifecycle.py tests/ci/test_charter_pin.py
+........................................................
+----------------------------------------------------------------------
+Ran 56 tests in 25.125s
+
+OK
+exit=0
+2026-11-28T09:23:47Z
+# re-run: the first attempt (above) failed with HTTP 404 because this sandbox injects a placeholder GITHUB_TOKEN that the script forwards as a header; environment artefact, not a repository property
+$ env -u GITHUB_TOKEN -u GH_TOKEN scripts/ci/validate-packs.sh
+ok: tests/fixtures/valid/example-pack (6 files checked, 0 not judged: excluded, payload or not held, 0 violations)
+ok: cross-pack checks over 20 packs (0 violations)
+ok: tests/fixtures/invalid/case-variant-readme fails validation as expected (1 violations)
+ok: tests/fixtures/invalid/legacy-shapes fails validation as expected (7 violations)
+ok: tests/fixtures/invalid/retired-pack-document fails validation as expected (2 violations)
+charter contract: cb9b15426d17c402b06204185a17ebfbc65f22ff; 26 schemas loaded
+ok: tests/fixtures/invalid/malformed-pack-version (4 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+ok: tests/fixtures/invalid/unknown-dependency (2 files checked, 1 not judged: excluded, payload or not held, 0 violations)
+exit=0

@@ -1,0 +1,85 @@
+finding_id: F-D1-015
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04e
+  deviation: 'No stub was placed behind charter.offering.api: the seam re-exports concrete classes by object identity
+    and has no registration point, so a stand-in would mean replacing modules before import; this was judged not
+    feasible within the time box and is recorded as not assessed, not as a failed test.'
+subject:
+  component: charter.offering.api / charter.activation.api
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M04e (charter seams). 149 files outside src/charter import charter. The offering is reached through charter.*
+  facade modules (charter.drg 41 files, charter.bundle 24, charter.missions 18, charter.packs 15, charter.profiles
+  14, ...); 11 of the 149 files (9 specify_cli, 2 runtime) also import charter.offering.* directly, all function-level
+  and allow-listed by a ratchet (the boundary gate passes: 51 passed); 0 files outside charter import charter.offering.api,
+  by design of that module. charter.offering.api exports 12 symbols: 5 concrete classes, 3 exception classes, 3
+  functions, 1 tuple; no Protocol or abstract class. For activation, 101 files outside charter import charter.activation.*:
+  39 import charter.activation.api, 80 import modules behind it (18 do both); top bypassed modules: pack_context
+  25 files, layer_roots 16, mission_type_profiles 13, charter_yaml_io 12. charter.activation.api exports 80 symbols
+  (38 classes, 38 functions, 4 constants).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/m04e-seam-census.json
+  method: python evidence/D1/m04e_seam_census.txt <core>/src
+  sha256: f48a12654e768085a326bd20de7374f34588bd54c69f9aab1aa1e19338f6cc10
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04e-core-gates-head.txt
+  method: pytest tests/architectural/test_runtime_charter_doctrine_boundary.py test_pyproject_shape.py test_layer_rules.py
+    tests/cross_cutting/packaging/test_packaging_safety.py (one process each)
+  sha256: ecf996967bc8df7796b11ecab24990039141023bf67a86124b0c995b6e4a4152
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:28:58Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/D1/m04e-package-import-matrix.json
+  method: AST import matrix between core packages
+  sha256: fb237cbd4686ecd4b5dba42d4a1a8d4dce1fb4aeebeca4af6a8807fe784247a0
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/D1/m04e_seam_census.txt
+  method: script source
+  sha256: cf9afa41181f32c56e56a32b089357a4bbaaee6bdda7429562b0d4070068ca3a
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: absolute imports, module-level and function-level
+  not_covered: tests/; whether the 80 activation bypass files are covered by a separate gate allowlist (test_runtime_charter_activation_boundary.py
+    not run)
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for consumers that import the offering seam module itself, and for a Protocol/ABC in its export
+    list
+  result: 0 and 0
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions:
+- Is charter.activation.api the intended sole door for consumers, or one of several sanctioned modules?

@@ -1,0 +1,71 @@
+finding_id: F-D1-024
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: state-machines
+  deviation: null
+subject:
+  component: mission and work-package state machines
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'State machine definitions. Work-package lanes are code: src/specify_cli/status/wp_state.py (883 lines) defines
+  one class per lane (11 state classes) and transitions.py derives ALLOWED_TRANSITIONS from them; no pack file defines
+  lanes. spec-kitty-events holds a second code definition of the same edges (validate_transition), stated to mirror
+  core at commit 512567ee and tested by tests/unit/test_validate_transition_core_edges.py. Mission types are data:
+  4 YAML descriptors under packs/built-in/missions/mission_types/ plus per-type directories (mission.yaml, mission-runtime.yaml,
+  expected-artifacts.yaml, actions, templates) and mission-steps, authored in open-packs and shipped in the wheel;
+  the engine is code (src/runtime, src/charter/offering/missions), and 80 core source files contain the literal
+  ''software-dev'' (41 contain ''research'' or ''documentation'').'
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/D1/history-additions-raw.txt
+  method: git show --name-status 94114bf296 (mission YAML files added as data)
+  sha256: f8b278ab769dfef7752435602554dd614d275c82f3066edae2de921e0d680eca
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list
+    --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/m04b-events.txt
+  method: events test_validate_transition_core_edges.py among 314 passed
+  sha256: 55dd53be55cb1b8e35ca57fc55b73161cea06dd9ac3413c11c6e4c7ebd68fdd5
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: file locations and kinds at head; literal count by grep -l over src/*.py
+  not_covered: whether the 80 files branch on the mission type or only default to it
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched packs/built-in for YAML that defines lanes or lane transitions
+  result: 2 files mention lanes (an execution-lanes paradigm and a refactoring tactic); neither defines the machine
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

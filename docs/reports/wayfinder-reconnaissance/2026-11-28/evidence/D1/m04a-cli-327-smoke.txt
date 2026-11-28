@@ -1,0 +1,89 @@
+2026-11-28T09:15:07Z
+# venv cli-327; cwd empty directory; scratch HOME; output of each command truncated to 12 lines after capture
+$ spec-kitty --version
+spec-kitty-cli version 3.2.7
+[lines=1] exit=0
+$ spec-kitty --help
+Usage: spec-kitty [OPTIONS] COMMAND [ARGS]...
+
+Setup tool for Spec Kitty spec-driven development projects.
+
+Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice.
+
+Options:
+  -v, --version         Show version and exit
+  --install-completion  Install completion for the current shell.
+  --show-completion     Show completion for the current shell, to copy it or
+                        customize the installation.
+  -h, --help            Show this message and exit.
+[lines=62] exit=0
+$ spec-kitty doctor --help
+                                                                                
+ Usage: spec-kitty doctor [OPTIONS] COMMAND [ARGS]...                           
+                                                                                
+ Project health diagnostics                                                     
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h      <bool>  Show this message and exit.                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ channel                 Report the active release channel (stable vs.        │
+│                         prerelease-opt-in).                                  │
+│ env-file                Report ``.kitty.env`` operator env-file health       │
+[lines=55] exit=0
+$ spec-kitty agent --help
+                                                                                
+ Usage: spec-kitty agent [OPTIONS] COMMAND [ARGS]...                            
+                                                                                
+ Commands for AI agents to execute spec-kitty mission actions programmatically  
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h      <bool>  Show this message and exit.                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ tracer-append  Append a dated, attributed finding to the mission's tracer    │
+│                surface.                                                      │
+│ issue-verdict  Set an issue-matrix row's verdict, routed via                 │
+[lines=27] exit=0
+$ spec-kitty service --help
+Usage: spec-kitty [OPTIONS] COMMAND [ARGS]...
+Try 'spec-kitty --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such command 'service'. Did you mean 'review'?                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+[lines=5] exit=2
+$ spec-kitty service status
+Usage: spec-kitty [OPTIONS] COMMAND [ARGS]...
+Try 'spec-kitty --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such command 'service'. Did you mean 'review'?                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+[lines=5] exit=2
+$ spec-kitty charter --help
+                                                                                
+ Usage: spec-kitty charter [OPTIONS] COMMAND [ARGS]...                          
+                                                                                
+ Charter management commands                                                    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h      <bool>  Show this message and exit.                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ activate      Activate a doctrine artifact by kind and ID (FR-004), with     │
+│               optional cascade.                                              │
+│ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
+[lines=37] exit=0
+$ spec-kitty migrate --help
+                                                                                
+ Usage: spec-kitty migrate [OPTIONS] COMMAND [ARGS]...                          
+                                                                                
+ Migration commands: update .kittify/ layout and backfill identity fields in    
+ legacy missions.                                                               
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run          <bool>  Show what would change without modifying the      │
+│                            filesystem                                        │
+│ --verbose  -v      <bool>  Show file-by-file detail                          │
+│ --force            <bool>  Skip confirmation prompt                          │
+│ --help     -h      <bool>  Show this message and exit.                       │
+[lines=34] exit=0

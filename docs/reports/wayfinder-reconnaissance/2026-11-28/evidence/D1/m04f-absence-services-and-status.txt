@@ -1,0 +1,36 @@
+2026-11-28T09:56:02Z
+# installed wheel spec-kitty-cli 4.0.0rc9 (built from head 5c4fc5a7), no spec-kitty-services installed, project = disposable clone of core head; network namespace without interfaces
+$ pip list | grep -c spec-kitty-services
+spec-kitty-services not installed
+$ pgrep -fa 'mission-status-api|command-cli|spec-kitty-charter-service' (service processes of this workstream)
+0
+$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)
+exit=1
+{'ok': False, 'error': 'dict[2]'}
+$ unshare -n spec-kitty agent status validate --mission mission-base-window-bound-01M78XB4
+  - Materialization drift: WP05 state differs between status.json and reducer 
+output
+
+Result: FAIL
+exit=1
+$ git status --short | wc -l
+0
+$ (fresh project, rc8 wheel) unshare -n spec-kitty charter pack list
+┃ Pack     ┃ Tier     ┃ Presets          ┃
+┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ built-in │ built-in │ default, minimal │
+│ project  │ project  │ —                │
+└──────────┴──────────┴──────────────────┘
+
+exit=0
+$ (fresh project, rc8 wheel) unshare -n spec-kitty charter pack path built-in
+venvs/cli-rc8/lib/python3.11/site-packages/packs/built-in
+exit=0
+
+2026-11-28T11:25:21Z
+# re-run on a branch: the first attempt above exited 1 with 'Detached HEAD' because the disposable clone was on a detached HEAD (artefact of this probe)
+$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)
+exit=0
+{'mission_slug': 'mission-base-window-bound-01M78XB4', 'mission_number': 258, 'mission_type': 'software-dev', 'total_wps': 5, 'by_lane': 'dict[1]', 'work_packages': 'list[5]', 'progress_percentage': 100.0, 'progress_semantics': 'weighted_readiness', 'weighted_percentage': 100.0, 'done_count': 5, 'done_percentage': 100.0, 'stale_wps': 0, 'stale_verdicts': 'list[0]', 'stalled_wps': 'list[0]', 'auto_commit': False}
+$ git status --short | wc -l
+0

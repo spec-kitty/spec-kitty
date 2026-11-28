@@ -1,0 +1,324 @@
+{
+ "queried": "https://pypi.org/pypi/<name>/json on 2026-11-28",
+ "packages": {
+  "spec-kitty-events": {
+   "releases": 29,
+   "info_version": "11.3.0",
+   "last12": [
+    {
+     "version": "6.0.0",
+     "upload_time": "2026-06-07T16:51:28",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-6.0.0-py3-none-any.whl",
+      "spec_kitty_events-6.0.0.tar.gz"
+     ]
+    },
+    {
+     "version": "6.1.0",
+     "upload_time": "2026-06-14T08:43:19",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-6.1.0-py3-none-any.whl",
+      "spec_kitty_events-6.1.0.tar.gz"
+     ]
+    },
+    {
+     "version": "9.1.6",
+     "upload_time": "2026-09-01T10:01:19",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-9.1.6-py3-none-any.whl",
+      "spec_kitty_events-9.1.6.tar.gz"
+     ]
+    },
+    {
+     "version": "10.4.0",
+     "upload_time": "2026-09-25T14:40:09",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.4.0-py3-none-any.whl",
+      "spec_kitty_events-10.4.0.tar.gz"
+     ]
+    },
+    {
+     "version": "10.4.1",
+     "upload_time": "2026-10-11T08:49:30",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.4.1-py3-none-any.whl",
+      "spec_kitty_events-10.4.1.tar.gz"
+     ]
+    },
+    {
+     "version": "10.4.2",
+     "upload_time": "2026-10-11T12:13:58",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.4.2-py3-none-any.whl",
+      "spec_kitty_events-10.4.2.tar.gz"
+     ]
+    },
+    {
+     "version": "10.4.4",
+     "upload_time": "2026-10-12T12:32:51",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.4.4-py3-none-any.whl",
+      "spec_kitty_events-10.4.4.tar.gz"
+     ]
+    },
+    {
+     "version": "10.4.6",
+     "upload_time": "2026-10-13T18:19:31",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.4.6-py3-none-any.whl",
+      "spec_kitty_events-10.4.6.tar.gz"
+     ]
+    },
+    {
+     "version": "10.5.0",
+     "upload_time": "2026-10-14T15:48:00",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.5.0-py3-none-any.whl",
+      "spec_kitty_events-10.5.0.tar.gz"
+     ]
+    },
+    {
+     "version": "10.5.1",
+     "upload_time": "2026-10-15T10:43:59",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-10.5.1-py3-none-any.whl",
+      "spec_kitty_events-10.5.1.tar.gz"
+     ]
+    },
+    {
+     "version": "11.0.0",
+     "upload_time": "2026-10-18T18:29:55",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-11.0.0-py3-none-any.whl",
+      "spec_kitty_events-11.0.0.tar.gz"
+     ]
+    },
+    {
+     "version": "11.3.0",
+     "upload_time": "2026-10-27T21:27:26",
+     "yanked": false,
+     "files": [
+      "spec_kitty_events-11.3.0-py3-none-any.whl",
+      "spec_kitty_events-11.3.0.tar.gz"
+     ]
+    }
+   ],
+   "core_head_range": ">=11.3.0,<12",
+   "published_versions_admitted_by_range": [
+    "11.3.0"
+   ]
+  },
+  "spec-kitty-tracker": {
+   "releases": 7,
+   "info_version": "0.5.2",
+   "last12": [
+    {
+     "version": "0.1.0",
+     "upload_time": "2026-03-04T06:36:51",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.1.0-py3-none-any.whl",
+      "spec_kitty_tracker-0.1.0.tar.gz"
+     ]
+    },
+    {
+     "version": "0.2.0",
+     "upload_time": "2026-03-06T11:05:58",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.2.0-py3-none-any.whl",
+      "spec_kitty_tracker-0.2.0.tar.gz"
+     ]
+    },
+    {
+     "version": "0.3.0",
+     "upload_time": "2026-04-04T11:48:46",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.3.0-py3-none-any.whl",
+      "spec_kitty_tracker-0.3.0.tar.gz"
+     ]
+    },
+    {
+     "version": "0.4.1",
+     "upload_time": "2026-04-11T12:30:37",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.4.1-py3-none-any.whl",
+      "spec_kitty_tracker-0.4.1.tar.gz"
+     ]
+    },
+    {
+     "version": "0.4.2",
+     "upload_time": "2026-04-14T13:25:33",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.4.2-py3-none-any.whl",
+      "spec_kitty_tracker-0.4.2.tar.gz"
+     ]
+    },
+    {
+     "version": "0.4.3",
+     "upload_time": "2026-04-27T05:34:32",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.4.3-py3-none-any.whl",
+      "spec_kitty_tracker-0.4.3.tar.gz"
+     ]
+    },
+    {
+     "version": "0.5.2",
+     "upload_time": "2026-09-01T10:00:39",
+     "yanked": false,
+     "files": [
+      "spec_kitty_tracker-0.5.2-py3-none-any.whl",
+      "spec_kitty_tracker-0.5.2.tar.gz"
+     ]
+    }
+   ],
+   "core_head_range": ">=0.5.2,<0.6",
+   "published_versions_admitted_by_range": [
+    "0.5.2"
+   ]
+  },
+  "spec-kitty-cli": {
+   "releases": 177,
+   "info_version": "3.2.7",
+   "last12": [
+    {
+     "version": "3.2.6.2",
+     "upload_time": "2026-09-09T05:54:58",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-3.2.6.2-py3-none-any.whl",
+      "spec_kitty_cli-3.2.6.2.tar.gz"
+     ]
+    },
+    {
+     "version": "3.2.7",
+     "upload_time": "2026-09-09T23:11:25",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-3.2.7-py3-none-any.whl",
+      "spec_kitty_cli-3.2.7.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc1",
+     "upload_time": "2026-09-13T15:31:07",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc1-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc1.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc2",
+     "upload_time": "2026-09-14T08:24:47",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc2-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc2.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc3",
+     "upload_time": "2026-09-17T19:40:48",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc3-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc3.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc4",
+     "upload_time": "2026-09-21T18:48:39",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc4-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc4.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc5",
+     "upload_time": "2026-10-02T05:31:09",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc5-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc5.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc6",
+     "upload_time": "2026-10-08T13:12:44",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc6-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc6.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc7",
+     "upload_time": "2026-10-15T16:01:43",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc7-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc7.tar.gz"
+     ]
+    },
+    {
+     "version": "4.0.0rc8",
+     "upload_time": "2026-11-09T16:03:22",
+     "yanked": false,
+     "files": [
+      "spec_kitty_cli-4.0.0rc8-py3-none-any.whl",
+      "spec_kitty_cli-4.0.0rc8.tar.gz"
+     ]
+    },
+    {
+     "version": "4.1.5",
+     "upload_time": "2026-04-15T21:47:00",
+     "yanked": true,
+     "files": [
+      "spec_kitty_cli-4.1.5-py3-none-any.whl",
+      "spec_kitty_cli-4.1.5.tar.gz"
+     ]
+    },
+    {
+     "version": "4.2.0a1",
+     "upload_time": "2026-04-20T15:09:21",
+     "yanked": true,
+     "files": [
+      "spec_kitty_cli-4.2.0a1-py3-none-any.whl",
+      "spec_kitty_cli-4.2.0a1.tar.gz"
+     ]
+    }
+   ]
+  },
+  "spec-kitty-services": {
+   "releases": 1,
+   "info_version": "4.0.0rc8",
+   "last12": [
+    {
+     "version": "4.0.0rc8",
+     "upload_time": "2026-11-01T11:40:43",
+     "yanked": false,
+     "files": [
+      "spec_kitty_services-4.0.0rc8-py3-none-any.whl"
+     ]
+    }
+   ]
+  }
+ }
+}

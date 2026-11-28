@@ -1,0 +1,63 @@
+finding_id: F-D1-010
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: core consumption of events/tracker
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M04c (package surface). Core src at head imports 127 names from spec_kitty_events / spec_kitty_tracker in
+  29 files (of 1,490 source files). 0 are underscore-private and 0 come from a private module. 70 are listed in
+  the __all__ of the module they are imported from; 1 is a bare module import; 56 are imported from submodules that
+  declare no __all__ (mission_next 21, decisionpoint 14, tracker.models 8, status 6, lifecycle 3, tracker.context
+  2, tracker.errors 1, tracker.connectors.cli_runner 1), of which 54 are also in the package''s top-level __all__
+  and 2 are not: spec_kitty_events.status.reduce and spec_kitty_tracker.connectors.cli_runner.SubprocessCommandRunner.
+  Net: 125 of 127 imported names are in a declared export list.'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/m04c-import-census.json
+  method: core dev venv python evidence/D1/m04c_import_census.txt src  (AST walk; classifies each imported name
+    against the installed spec-kitty-events 11.3.0 / spec-kitty-tracker 0.5.2)
+  sha256: 010cb3c715504b6827f1498131da3e1b33386ba63932e077953fa4706f43479a
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/m04c_import_census.txt
+  method: script source
+  sha256: 22c662e9de0cc046b2a4fdb19423aec249f57c97f32ce0958c718bc4554d1448
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: absolute imports in src/ (all 6 packages), including function-level imports
+  not_covered: attribute access after `import spec_kitty_events` (1 bare import); dynamic imports; tests/
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: searched for names starting with '_' and modules with a '_'-prefixed segment; searched for vendored copies
+    via tests/contract/test_packaging_no_vendored_events.py
+  result: 0 private names; the no-vendored-copy test passes (3 passed)
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

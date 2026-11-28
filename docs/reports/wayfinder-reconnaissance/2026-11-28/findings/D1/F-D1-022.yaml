@@ -1,0 +1,67 @@
+finding_id: F-D1-022
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: packs
+  deviation: null
+subject:
+  component: pack consumption
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e and core-pin a79c36318b7a
+  revision_kind: head
+claim: 'Using a pack with only a released CLI: with the 4.0.0rc8 wheel in a fresh project, open-packs packs/qa at
+  core''s pin, configured as an org pack by local path, loads (doctor charter-packs exit 0, 0 org-DRG errors, pack
+  listed in tier org); the same pack at open-packs head fails to load (exit 1: ''invalid pack descriptor ... depends_on:
+  Extra inputs are not permitted'') and `charter pack list` then exits 1 for the whole project.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/packs-use-rc8-qa-pin.txt
+  method: rc8 wheel; copy packs/qa (a79c3631) into the project; add charter_packs.org.packs to .kittify/config.yaml;
+    doctor charter-packs --json; charter pack list
+  sha256: f60654edd432e23d81f2a730d89a6140c8872af266d5d1381a64562046d8ca5e
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:48:13Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/packs-use-rc8-qa-head.txt
+  method: same with packs/qa at f9a55751
+  sha256: 3868d78f8ab8dfb05a6e4c1493f916edb6899da93272511fe5f9471f086c2af5
+  exit_code: 1
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:48:40Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/packs-use-rc8-step1.txt
+  method: project initialisation
+  sha256: 443bda98adcc2f2c0104405510c3d0b4c40b91ae5c75b4b1a4f9c2b115be1f2d
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:46:51Z'
+scope:
+  covered: one pack (qa) at two revisions; purposive choice (present at both revisions, small)
+  not_covered: other packs; fetch through `charter fetch` from a remote source; activation of pack content
+  population: null
+  sample: 'purposive: 1 pack'
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: checked whether the failure is confined to the org pack
+  result: 'no: `charter pack list` exits 1 for the project while the head pack is configured'
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- compatibility
+candidate_invariants: []
+open_questions: []

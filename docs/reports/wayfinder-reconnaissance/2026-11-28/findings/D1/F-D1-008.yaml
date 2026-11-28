@@ -1,0 +1,104 @@
+finding_id: F-D1-008
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04a
+  deviation: null
+subject:
+  component: released Python artefacts
+  repository: spec-kitty/spec-kitty-events
+  revision: spec-kitty-events 11.3.0; spec-kitty-tracker 0.5.2; spec-kitty-cli 4.0.0rc8, 3.2.7 (PyPI)
+  revision_kind: released
+claim: 'M04a. Each released Python artefact installs alone in a clean Python 3.11.15 venv (exit 0): spec-kitty-events
+  11.3.0 with 6 dependencies (pydantic, pydantic-core, annotated-types, typing-extensions, typing-inspection, python-ulid);
+  spec-kitty-tracker 0.5.2 with 7 (httpx and its closure); spec-kitty-cli 4.0.0rc8 with 52; spec-kitty-cli 3.2.7
+  with 48. Neither events nor tracker depends on the other or on spec-kitty-cli. Packaged checks: `pytest --pyargs
+  spec_kitty_events.conformance` on the 11.3.0 wheel: 1200 passed, exit 0. spec-kitty-tracker ships no packaged
+  check (import smoke of 5 submodules: exit 0, 86 names in __all__). spec-kitty-cli ships no packaged test; 8 basic
+  commands exit 0 on rc8 and head wheels; on 3.2.7 6 of 8 exit 0 and the 2 `service` commands exit 2 (command absent
+  in that version).'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04a-events-alone-install.txt
+  method: uv venv --python 3.11; uv pip install spec-kitty-events==11.3.0; uv pip freeze
+  sha256: c86a473c7411b809576d6f5528d97a4222adf2161ba2973621c1df3742cac4c9
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:19Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04a-tracker-alone-install.txt
+  method: uv pip install spec-kitty-tracker==0.5.2; uv pip freeze
+  sha256: 927e3ecb070ef9eb9f7e9ad5f058e578249074f3c90952095530f7516708b5d4
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:20Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/m04a-events-conformance-11.3.0.txt
+  method: 'uv pip install ''spec-kitty-events[conformance]==11.3.0'' pytest; python -m pytest --pyargs spec_kitty_events.conformance
+    -q (cwd: empty dir)'
+  sha256: 720ab87eba2ec2309d1f870f592200535852b0d27cb4699aac5a870d6486edf6
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:40Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/m04a-tracker-smoke.txt
+  method: python -c 'import spec_kitty_tracker ...'
+  sha256: cca2402b4c23aca6c4d728a86532488b3c89ca92bc230f9b1b6e939fe78e4d11
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:10:57Z'
+- id: E5
+  kind: executed
+  reference: evidence/D1/m04a-cli-rc8-smoke.txt
+  method: spec-kitty --version|--help|doctor --help|agent --help|service --help|service status|charter --help|migrate
+    --help
+  sha256: 0eacb38d7b1f46a6398575e7b17824a95493f0cd0839545dd14a9c7442ce41fe
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:13:59Z'
+- id: E6
+  kind: executed
+  reference: evidence/D1/m04a-cli-327-smoke.txt
+  method: same 8 commands, 3.2.7 wheel
+  sha256: d37c0aa6d04de6abfb48b17e3f798b780ce699a86b06d004767a445f2ae2d7d3
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:15:07Z'
+- id: E7
+  kind: executed
+  reference: evidence/D1/m04a-cli-head-smoke.txt
+  method: same 8 commands, head wheel
+  sha256: 4d0256440dcc52a16c5939685105fc8cb9ebc8c2376460c4cab0eda4847275fa
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:16:05Z'
+scope:
+  covered: install, closure, packaged checks, help-level commands
+  not_covered: Python 3.12/3.13/3.10 interpreters; Windows/macOS
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked in the tracker and cli wheels for any packaged test or conformance module
+  result: 'tracker: none (one module patch_contract.py, not a test); cli: none'
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- deployability
+candidate_invariants: []
+open_questions: []

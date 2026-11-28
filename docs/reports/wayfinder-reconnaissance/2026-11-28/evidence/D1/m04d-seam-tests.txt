@@ -1,0 +1,13 @@
+tests/contract/spec_kitty_events_consumer/test_consumer_contract.py
+tests/contract/spec_kitty_tracker_consumer/test_consumer_contract.py
+tests/contract/test_packaging_no_vendored_events.py
+tests/contract/test_events_envelope_matches_resolved_version.py
+tests/architectural/test_shared_package_boundary.py
+tests/architectural/test_verdict_vocab_single_source.py
+tests/specify_cli/status/test_model_built_payloads_6438.py
+tests/specify_cli/status/test_resolved_binding_reducer.py
+tests/retrospective/test_events_shapes.py
+tests/status/test_reducer.py
+tests/status/test_adapters_contract.py
+tests/tracker/test_service.py
+tests/tracker/test_store.py

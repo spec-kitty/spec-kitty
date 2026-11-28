@@ -1,0 +1,59 @@
+2026-11-28T09:45:44Z
+# core head 5c4fc5a7 from source (scratch clone, uv sync --frozen --all-extras, packs synced). One pytest process per file (the host was shared; a first single-process attempt was killed with exit 137).
+python 3.11.15 spec-kitty-events 11.3.0 spec-kitty-tracker 0.5.2 pytest 9.0.3
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/spec_kitty_events_consumer/test_consumer_contract.py
+.........................                                                [100%]
+25 passed in 2.38s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/spec_kitty_tracker_consumer/test_consumer_contract.py
+..........                                                               [100%]
+10 passed in 1.61s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/test_packaging_no_vendored_events.py
+...                                                                      [100%]
+3 passed in 21.97s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/test_events_envelope_matches_resolved_version.py
+....                                                                     [100%]
+4 passed in 3.74s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_shared_package_boundary.py
+...                                                                      [100%]
+3 passed in 26.06s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_verdict_vocab_single_source.py
+........................                                                 [100%]
+24 passed in 53.26s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/specify_cli/status/test_model_built_payloads_6438.py
+.........                                                                [100%]
+9 passed in 4.53s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/specify_cli/status/test_resolved_binding_reducer.py
+...................                                                      [100%]
+19 passed in 3.82s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/retrospective/test_events_shapes.py
+..........................                                               [100%]
+26 passed in 3.01s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/status/test_reducer.py
+................................................                         [100%]
+48 passed in 2.68s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/status/test_adapters_contract.py
+........                                                                 [100%]
+8 passed in 3.74s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/tracker/test_service.py
+.........................                                                [100%]
+25 passed in 1.40s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/tracker/test_store.py
+...                                                                      [100%]
+3 passed in 1.67s
+exit=0
+$ (cwd empty) .venv/bin/python -m pytest -q --pyargs spec_kitty_events.conformance
+................................................                         [100%]
+1200 passed in 8.34s
+exit=0

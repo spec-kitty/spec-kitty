@@ -1,0 +1,17 @@
+2026-11-28T09:18:26Z
+# isolated clone, parent dir holds only this repository: spec-kitty-tracker
+658abee7b33ed2d14003c08fdbec4ffea2f45223
+$ uv venv --python 3.11 .venv && uv pip install -e ".[dev]"
+exit=0
+$ .venv/bin/python -m pytest -q tests/test_capabilities_contract.py tests/test_discovery_contract.py tests/test_in_memory_connector.py tests/test_conflicts.py tests/test_bidirectional_sync_core.py
+<scratch>/m04b/iso-spec-kitty-tracker/spec-kitty-tracker/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [100%]
+exit=0
+$ .venv/bin/python -m build --outdir $S/m04b/tracker-dist
+
+!!
+Successfully built spec_kitty_tracker-0.5.2.tar.gz and spec_kitty_tracker-0.5.2-py3-none-any.whl
+exit=0

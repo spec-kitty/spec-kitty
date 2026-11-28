@@ -1,0 +1,60 @@
+2026-11-28T09:54:43Z
+# core v4.0.0rc8 (1d1a0c04) source export (git archive; packs/built-in placed from open-packs a79c3631) in a venv built from 'spec-kitty-cli[test]==4.0.0rc8' + spec-kitty-events 11.3.0 + spec-kitty-tracker 0.5.2 from PyPI
+# DEVIATION: core's tests refuse an installed wheel (tests/_support/import_origin.py: 'specify_cli imported from outside this checkout', no opt-out; see attempt1-wheel-import_*.txt). The named core checks therefore run against the SOURCE tree of the same revision with pytest.ini's pythonpath=src, inside the venv whose spec-kitty-events / spec-kitty-tracker are the stated versions.
+python 3.11.15 spec-kitty-events 11.3.0 spec-kitty-tracker 0.5.2 pytest 9.0.3
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/spec_kitty_events_consumer/test_consumer_contract.py
+.........................                                                [100%]
+25 passed in 263.36s (0:04:23)
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/spec_kitty_tracker_consumer/test_consumer_contract.py
+..........                                                               [100%]
+10 passed in 1.42s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/test_packaging_no_vendored_events.py
+...                                                                      [100%]
+3 passed in 13.57s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/contract/test_events_envelope_matches_resolved_version.py
+....                                                                     [100%]
+4 passed in 1.14s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_shared_package_boundary.py
+...                                                                      [100%]
+3 passed in 11.87s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_verdict_vocab_single_source.py
+........................                                                 [100%]
+24 passed in 7.69s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/specify_cli/status/test_model_built_payloads_6438.py
+.........                                                                [100%]
+9 passed in 2.39s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/specify_cli/status/test_resolved_binding_reducer.py
+...................                                                      [100%]
+19 passed in 1.66s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/retrospective/test_events_shapes.py
+..........................                                               [100%]
+26 passed in 1.38s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/status/test_reducer.py
+................................................                         [100%]
+48 passed in 1.78s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/status/test_adapters_contract.py
+........                                                                 [100%]
+8 passed in 2.87s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/tracker/test_service.py
+.........................                                                [100%]
+25 passed in 1.06s
+exit=0
+$ python -m pytest -q -p no:cacheprovider -o addopts= tests/tracker/test_store.py
+...                                                                      [100%]
+3 passed in 0.80s
+exit=0
+$ (cwd empty) python -m pytest -q --pyargs spec_kitty_events.conformance
+................................................                         [100%]
+1200 passed in 4.08s
+exit=0

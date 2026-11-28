@@ -1,0 +1,53 @@
+2026-11-28T09:46:51Z
+# released wheel spec-kitty-cli 4.0.0rc8 in a clean venv; no core source tree on this path; project = fresh git repository
+$ spec-kitty init --ai claude --non-interactive
+exit=0
+Saved agent configuration
+Wrote orientation for claude
+Created 26 tool surface(s)
+Repaired 13 stale tool surface(s)
+  2 surface(s) not applicable, skipped.
+$ spec-kitty charter pack list
+              Charter packs               
+┏━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ Pack     ┃ Tier     ┃ Presets          ┃
+┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ built-in │ built-in │ default, minimal │
+│ project  │ project  │ —                │
+└──────────┴──────────┴──────────────────┘
+
+Apply a preset with `spec-kitty charter activate [--pack <pack>] --preset 
+<preset>`.
+exit=0
+$ spec-kitty doctor charter-packs --json | head
+{
+  "org_configured": false,
+  "packs": [],
+  "selections": {
+    "directives": [],
+    "tactics": [],
+    "paradigms": [],
+    "styleguides": [],
+    "toolguides": [],
+    "procedures": [],
+    "mission_step_contracts": [],
+    "agent_profiles": []
+  },
+  "org_drg": {
+    "configured_packs": [],
+    "collision_warnings": [],
+    "dangling_endpoints": [],
+    "body_path_escapes": [],
+    "asset_path_escapes": [],
+    "errors": [],
+    "operating_procedures_unresolved": [],
+    "activation_ledger": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "profile_health": {
+    "healthy": true,
+    "packs": [
+      {
+exit=0

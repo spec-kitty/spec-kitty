@@ -1,0 +1,23 @@
+2026-11-28T09:55:44Z
+# fresh clone of core head 5c4fc5a7 (packs/built-in and packs/internal absent: README.md built-in.source.yaml internal.source.yaml ); network namespace without interfaces (unshare -n); interpreter = scratch dev venv python 3.11.15
+$ unshare -n python scripts/sync_packs.py --pack all --offline   (cache populated: a79c36318b7a506ca2ab26d74705c5e3e406004f ecda7b00c789006bedcec4e2a8aadf75aa5b03f8 )
+built-in: synced a79c36318b7a
+internal: synced ecda7b00c789
+exit=0
+README.md built-in built-in.source.yaml internal internal.source.yaml 
+$ unshare -n python scripts/sync_packs.py --pack all --check
+built-in: ok
+internal: ok
+exit=0
+$ XDG_CACHE_HOME=<empty dir> unshare -n python scripts/sync_packs.py --pack all --offline   (empty cache)
+PACK_SYNC_UNAVAILABLE: offline and no valid cache for a79c36318b7a506ca2ab26d74705c5e3e406004f; run `make sync-packs` with network access
+PACK_SYNC_UNAVAILABLE: offline and no valid cache for ecda7b00c789006bedcec4e2a8aadf75aa5b03f8; run `make sync-packs` with network access
+exit=1
+$ XDG_CACHE_HOME=<empty dir> unshare -n python scripts/sync_packs.py --pack all   (empty cache, no network, online mode)
+PACK_SYNC_UNAVAILABLE: cannot reach https://github.com/spec-kitty/spec-kitty-open-packs.git and no valid cache exists (remote https://github.com/spec-kitty/spec-kitty-open-packs.git unreachable: fatal: unable to access 'https://github.com/spec-kitty/spec-kitty-open-packs.git/': Failed to connect to 127.0.0.1 port 36855 after 0 ms: Couldn't connect to server); run `make sync-packs` with network access
+PACK_SYNC_UNAVAILABLE: cannot reach https://github.com/spec-kitty/spec-kitty-open-packs.git and no valid cache exists (remote https://github.com/spec-kitty/spec-kitty-open-packs.git unreachable: fatal: unable to access 'https://github.com/spec-kitty/spec-kitty-open-packs.git/': Failed to connect to 127.0.0.1 port 36855 after 0 ms: Couldn't connect to server); run `make sync-packs` with network access
+exit=1
+$ (source checkout without packs) python -c "from charter.offering.pack_paths import built_in_root; built_in_root()"
+m04f/core2/src/charter/offering/pack_paths.py
+BuiltInPackMissing The built-in pack tree is missing: this checkout pins it in packs/built-in.source.yaml but it was never fetched. Run `make sync-packs` (network required once; later runs use the cache).
+exit=0

@@ -1,0 +1,60 @@
+finding_id: F-D1-029
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: release numbering and tool stamps
+  repository: spec-kitty/spec-kitty
+  revision: PyPI index on 2026-11-28
+  revision_kind: released
+claim: 'Exploratory. PyPI lists two yanked spec-kitty-cli versions numerically above the current line: 4.1.5 (uploaded
+  2026-04-15) and 4.2.0a1 (2026-04-20), while the current pre-release is 4.0.0rc8 and core head is 4.0.0rc9. The
+  .kittify/metadata.yaml stamp of each repository records a different CLI version (open-packs 3.2.5, tracker 3.2.0a6,
+  charter 4.0.0rc8, events 4.0.0rc8, doc-kitty 4.0.0rc9, core 4.0.0rc9); events'' required cross-repo harness installs
+  spec-kitty-cli==3.2.0rc22.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/pypi-versions.json
+  method: PyPI JSON API
+  sha256: 50e662c1f6c9858edb4f307e7524ebca7681ace201c3849e45e819c51f1f6d37
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list
+    --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: PyPI release list; stamp files at head
+  not_covered: why the two versions were yanked
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: checked whether the yanked versions resolve for a plain `pip install spec-kitty-cli`
+  result: uv resolved 3.2.7 without --prerelease and 4.0.0rc8 with it; the yanked versions were not selected
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- operability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,140 @@
+Sat Nov 28 11:24:34 UTC 2026
+cmd: PYTHONPATH=src:. /home/user/spec-kitty/.venv/bin/python -m pytest -p no:cacheprovider -q -n0 -rA tests/architectural/test_status_events_writes_gate.py tests/architectural/test_layer_rules.py tests/architectural/test_status_module_boundary.py tests/architectural/test_runtime_charter_activation_boundary.py tests/architectural/test_mission_runtime_surface.py (dev venv CPython 3.11.15, pytest 9.0.3; scratch git-archive copy at 5c4fc5a)
+  Preparing editable metadata (pyproject.toml): finished with status 'error'
+  error: subprocess-exited-with-error
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: metadata-generation-failed
+× Encountered error while generating package metadata.
+WARNING: pinned test-venv install failed (exit 1; constraints from uv.lock: ['annotated-doc==0.0.4', 'annotated-types==0.7.0', 'anyio==4.15.1', 'arrow==1.4.0', 'attrs==26.1.0', 'bandit==1.9.4', 'boolean-py==5.0', 'build==1.4.4', 'cachecontrol==0.14.4', 'certifi==2026.10.19', 'cffi==2.0.0', 'chardet==5.2.0', 'charset-normalizer==3.4.7', 'click==8.3.3', 'codespell==2.4.3', 'colorama==0.4.6', 'coverage==7.13.5', 'cryptography==50.0.0', 'cyclonedx-bom==7.3.0', 'cyclonedx-python-lib==11.7.0', 'defusedxml==0.7.1', 'diff-cover==10.2.0', 'execnet==2.1.2', 'filelock==4.2.10', 'fqdn==1.5.1', 'google-re2==1.1.20251105', 'h11==0.16.0', 'hatchling==1.31.0', 'httpcore==1.0.9', 'httpx==0.28.1', 'idna==3.15', 'iniconfig==2.3.0', 'isoduration==20.11.0', 'jinja2==3.1.6', 'jsonpointer==3.1.1', 'jsonschema-specifications==2025.9.1', 'jsonschema==4.26.0', 'lark==1.3.1', 'libcst==1.8.6', 'librt==0.9.0', 'license-expression==30.4.4', 'linkify-it-py==2.1.0', 'lxml==6.1.0', 'markdown-it-py==4.0.0', 'markupsafe==3.0.3', 'mdit-py-plugins==0.5.0', 'mdurl==0.1.2', 'msgpack==1.2.4', 'mutmut==3.5.0', 'mypy-extensions==1.1.0', 'mypy==1.20.2', 'networkx==3.6.1', 'packageurl-python==0.17.6', 'packaging==26.2', 'pathspec==1.1.0', 'pip-api==0.0.34', 'pip-audit==2.10.0', 'pip-requirements-parser==32.0.1', 'pip==26.2.1', 'platformdirs==4.9.6', 'pluggy==1.6.0', 'psutil==7.2.2', 'py-cpuinfo2==10.1.1', 'py-serializable==2.1.0', 'pycparser==3.0', 'pydantic-core==2.46.3', 'pydantic==2.13.3', 'pygments==2.20.0', 'pyparsing==3.3.2', 'pyproject-hooks==1.2.0', 'pytest-asyncio==1.3.0', 'pytest-benchmark==5.3.0', 'pytest-cov==7.1.0', 'pytest-timeout==2.4.0', 'pytest-xdist==3.8.0', 'pytest==9.0.3', 'pytestarch==4.0.1', 'python-dateutil==2.9.0.post0', 'python-ulid==3.1.0', 'pyyaml-ft==8.0.0', 'pyyaml==6.0.3', 'readchar==4.2.2', 'referencing==0.37.0', 'requests==2.33.1', 'respx==0.23.1', 'rfc3339-validator==0.1.4', 'rfc3986-validator==0.1.1', 'rfc3987-syntax==1.1.0', 'rich==15.0.0', 'rpds-py==0.30.0', 'ruamel-yaml==0.19.1', 'ruff==0.15.12', 'setproctitle==1.3.7', 'shellingham==1.5.4', 'six==1.17.0', 'socksio==1.0.0', 'sortedcontainers==2.4.0', 'spec-kitty-events==11.3.0', 'spec-kitty-tracker==0.5.2', 'stevedore==5.7.0', 'textual==8.2.4', 'toml==0.10.2', 'tomli-w==1.2.0', 'tomli==2.4.1', 'trove-classifiers==2026.6.1.19', 'typer==0.27.3', 'types-jsonschema==4.26.0.20260408', 'types-psutil==7.2.2.20260408', 'types-pyyaml==6.0.12.20260408', 'types-requests==2.33.0.20260408', 'types-toml==0.10.8.20260408', 'typing-inspection==0.4.2', 'tzdata==2026.2', 'uc-micro-py==2.0.0', 'uri-template==1.3.0', 'urllib3==2.8.0', 'webcolors==25.10.0']); falling back to the offline seeded venv, whose dependency versions may diverge from uv.lock.
+PASSED tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+PASSED tests/architectural/test_status_events_writes_gate.py::test_store_writes_are_found
+PASSED tests/architectural/test_status_events_writes_gate.py::test_allowed_out_of_store_sites_are_live
+PASSED tests/architectural/test_status_events_writes_gate.py::test_unresolved_write_paths_are_pinned
+PASSED tests/architectural/test_status_events_writes_gate.py::test_lock_composition_census
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[open-append-local-name]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[path-open-ab]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[write-text]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[write-bytes-fstring]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[os-open-flags]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[os-replace-destination]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[shutil-move-keyword]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[events-filename-alias]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[module-constant]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[self-attribute]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[same-module-function-return]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[parameter-via-call-site]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[keyword-only-parameter-via-call-site]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[constructor-parameter-via-self]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[unknown-mode-is-fail-closed]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_counts_ledgered_sites[open-exclusive-checkout-materialization]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_counts_ledgered_sites[os-replace-rewrite]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_ignores_reads_and_other_files
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_reports_unresolved_paths_instead_of_passing
+PASSED tests/architectural/test_status_events_writes_gate.py::test_lock_census_scanner_sees_both_call_shapes
+PASSED tests/architectural/test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer
+PASSED tests/architectural/test_status_events_writes_gate.py::test_index_census_is_not_vacuous
+PASSED tests/architectural/test_status_events_writes_gate.py::test_index_census_floor_finds_the_live_writer
+PASSED tests/architectural/test_layer_rules.py::TestLayerCoverage::test_no_unregistered_src_packages
+PASSED tests/architectural/test_layer_rules.py::TestLayerCoverage::test_layer_exclusions_name_existing_packages
+PASSED tests/architectural/test_layer_rules.py::TestLayerCoverage::test_all_defined_layers_match_at_least_one_module
+PASSED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_charter
+PASSED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_specify_cli
+PASSED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_higher_layers[glossary]
+PASSED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_higher_layers[runtime]
+PASSED tests/architectural/test_layer_rules.py::TestKernelIsolation::test_kernel_does_not_import_higher_layers[mission_runtime]
+PASSED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_specify_cli
+PASSED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_its_dependents[glossary]
+PASSED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_its_dependents[runtime]
+PASSED tests/architectural/test_layer_rules.py::TestCharterBoundary::test_charter_does_not_import_its_dependents[mission_runtime]
+PASSED tests/architectural/test_layer_rules.py::TestGlossaryBoundary::test_glossary_does_not_import_specify_cli
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeBoundary::test_runtime_does_not_import_cli_commands
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_merge_does_not_import_cli_command_layer
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_importers_within_ledger
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_console_ledger_has_no_stale_entries
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[import-dotted-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[import-dotted-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[from-commands-import-merge-driver-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[from-commands-import-merge-driver-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[from-cli-import-commands-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[from-cli-import-commands-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[relative-from-cli-commands-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[relative-from-cli-commands-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[import-module-literal-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[import-module-literal-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[dunder-import-literal-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_catches_every_import_form[dunder-import-literal-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_ignores_negative_controls[console-import-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_ignores_negative_controls[console-import-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_ignores_negative_controls[logger-name-string-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestMergeCliBoundary::test_boundary_ignores_negative_controls[logger-name-string-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRefAdvancePlumbingBoundary::test_ref_advance_imports_zero_specify_cli
+PASSED tests/architectural/test_layer_rules.py::TestUnifiedMissionStepBoundary::test_legacy_subpackage_is_gone
+PASSED tests/architectural/test_layer_rules.py::TestUnifiedMissionStepBoundary::test_plant_and_catch_wrong_mission_step_wiring
+PASSED tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_mission_runtime_specify_cli_imports_within_ledger
+PASSED tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import
+PASSED tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_ledger_has_no_stale_entries
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-cli-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-cli-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-next-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-next-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-saas_client-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage}-saas_client-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-cli-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-cli-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-next-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-next-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-saas_client-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[import specify_cli.{subpackage} as imported-saas_client-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-cli-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-cli-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-next-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-next-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-saas_client-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage}-saas_client-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-cli-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-cli-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-next-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-next-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-saas_client-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli import {subpackage} as imported-saas_client-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-cli-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-cli-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-next-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-next-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-saas_client-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_source_import_forms_cannot_bypass_guards[from specify_cli.{subpackage} import member as imported-saas_client-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[import specify_cli-expected_modules0-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[import specify_cli-expected_modules0-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[import specify_cli as package-expected_modules1-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[import specify_cli as package-expected_modules1-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[from specify_cli import main as run, __file__, __version__, app, core as c-expected_modules2-top-level]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_root_members_are_not_invented_subpackages[from specify_cli import main as run, __file__, __version__, app, core as c-expected_modules2-lazy]
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_specify_cli_imports_within_ledger
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_rule_rejects_out_of_ledger_import
+PASSED tests/architectural/test_layer_rules.py::TestRuntimeSpecifyCliLedger::test_runtime_ledger_has_no_stale_entries
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_no_direct_status_imports_repo_wide
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_catches_injected_violation
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_catches_submodule_object_import
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_does_not_flag_facade_symbol_import
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_does_not_flag_the_sanctioned_unsafe_door
+PASSED tests/architectural/test_status_module_boundary.py::test_ast_scan_ignores_type_checking_imports
+PASSED tests/architectural/test_status_module_boundary.py::test_the_lenient_event_reader_is_advisory_only
+PASSED tests/architectural/test_status_module_boundary.py::test_the_lenient_reader_scan_has_teeth[import]
+PASSED tests/architectural/test_status_module_boundary.py::test_the_lenient_reader_scan_has_teeth[bare-call]
+PASSED tests/architectural/test_status_module_boundary.py::test_the_lenient_reader_scan_has_teeth[attribute-call]
+PASSED tests/architectural/test_status_module_boundary.py::test_the_lenient_reader_scan_has_teeth[strict-reader-is-not-flagged]
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_boundary_predicate_has_prohibited_and_compliant_controls
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_baseline_entries_are_wellformed_and_sorted
+PASSED tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_package_root_cold_imports
+PASSED tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_public_surface_is_exactly_all
+PASSED tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_no_external_submodule_imports
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_no_external_internal_imports
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_catches_injected_violation
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_allows_package_root_import
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_ignores_type_checking_imports
+FAILED tests/architectural/test_layer_rules.py::TestUnifiedMissionStepBoundary::test_unified_model_resolves_at_new_location
+FAILED tests/architectural/test_layer_rules.py::TestUnifiedMissionStepBoundary::test_legacy_contract_types_resolve_at_new_location
+2 failed, 127 passed in 397.18s (0:06:37)
+exit=1
+Sat Nov 28 11:32:20 UTC 2026

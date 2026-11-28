@@ -1,0 +1,809 @@
+{
+ "charter.offering.api (consumers outside src/charter)": {
+  "seam": "charter.offering.api",
+  "behind_prefix": "charter.offering",
+  "consumers_excluded_prefixes": [
+   "charter/"
+  ],
+  "files_importing_seam": 0,
+  "files_importing_behind_seam": 11,
+  "files_importing_both": 0,
+  "bypass_files_by_top_package": {
+   "runtime": 2,
+   "specify_cli": 9
+  },
+  "behind_modules_top15": [
+   [
+    "charter.offering.missions.step_contracts",
+    2
+   ],
+   [
+    "charter.offering.service",
+    2
+   ],
+   [
+    "charter.offering.missions.models",
+    2
+   ],
+   [
+    "charter.offering.missions.step_projection",
+    1
+   ],
+   [
+    "charter.offering.drg.org_pack_loader",
+    1
+   ],
+   [
+    "charter.offering.drg.loader",
+    1
+   ],
+   [
+    "charter.offering.agent_profiles.operating_procedures",
+    1
+   ],
+   [
+    "charter.offering.artifact_kinds",
+    1
+   ],
+   [
+    "charter.offering.drg.override_policy",
+    1
+   ],
+   [
+    "charter.offering.pack_paths",
+    1
+   ],
+   [
+    "charter.offering.drg.migration.hand_authored_overlay",
+    1
+   ],
+   [
+    "charter.offering.missions",
+    1
+   ],
+   [
+    "charter.offering.agent_profiles.profile",
+    1
+   ],
+   [
+    "charter.offering",
+    1
+   ]
+  ],
+  "bypass_files": [
+   "runtime/next/runtime_bridge_composition.py",
+   "runtime/next/runtime_bridge_io.py",
+   "specify_cli/cli/commands/_charter_pack_collect.py",
+   "specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+   "specify_cli/cli/commands/charter/mission_type.py",
+   "specify_cli/cli/commands/charter/pack_asset.py",
+   "specify_cli/cli/commands/charter/pack_tooling.py",
+   "specify_cli/dossier/manifest.py",
+   "specify_cli/mission.py",
+   "specify_cli/mission_step_contracts/executor.py",
+   "specify_cli/tool_surface/bundles/codex.py"
+  ]
+ },
+ "charter.activation.api (consumers outside src/charter)": {
+  "seam": "charter.activation.api",
+  "behind_prefix": "charter.activation",
+  "consumers_excluded_prefixes": [
+   "charter/"
+  ],
+  "files_importing_seam": 39,
+  "files_importing_behind_seam": 80,
+  "files_importing_both": 18,
+  "bypass_files_by_top_package": {
+   "glossary": 1,
+   "runtime": 4,
+   "specify_cli": 75
+  },
+  "behind_modules_top15": [
+   [
+    "charter.activation.pack_context",
+    25
+   ],
+   [
+    "charter.activation.layer_roots",
+    16
+   ],
+   [
+    "charter.activation.mission_type_profiles",
+    13
+   ],
+   [
+    "charter.activation.charter_yaml_io",
+    12
+   ],
+   [
+    "charter.activation.active_charter_service_builder",
+    10
+   ],
+   [
+    "charter.activation.compiler",
+    10
+   ],
+   [
+    "charter.activation.invocation_context",
+    9
+   ],
+   [
+    "charter.activation.resolver",
+    8
+   ],
+   [
+    "charter.activation.drg_activation",
+    8
+   ],
+   [
+    "charter.activation.kind_vocabulary",
+    8
+   ],
+   [
+    "charter.activation.pack_manager",
+    8
+   ],
+   [
+    "charter.activation._drg_helpers",
+    6
+   ],
+   [
+    "charter.activation.sync",
+    6
+   ],
+   [
+    "charter.activation.synthesizer.manifest",
+    5
+   ],
+   [
+    "charter.activation.catalog",
+    5
+   ]
+  ],
+  "bypass_files": [
+   "glossary/drg_builder.py",
+   "runtime/next/decision.py",
+   "runtime/next/prompt_builder.py",
+   "runtime/next/runtime_bridge_composition.py",
+   "runtime/next/runtime_bridge_io.py",
+   "specify_cli/analysis_inputs.py",
+   "specify_cli/charter_runtime/freshness/computer.py",
+   "specify_cli/charter_runtime/lint/checks/org_layer.py",
+   "specify_cli/charter_runtime/preflight/references_refresh.py",
+   "specify_cli/charter_runtime/preflight/runner.py",
+   "specify_cli/cli/commands/_charter_pack_collect.py",
+   "specify_cli/cli/commands/_mission_type_audit.py",
+   "specify_cli/cli/commands/_profile_health_render.py",
+   "specify_cli/cli/commands/agent/mission_create.py",
+   "specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+   "specify_cli/cli/commands/agent/mission_setup_plan.py",
+   "specify_cli/cli/commands/agent/tasks_status_cmd.py",
+   "specify_cli/cli/commands/agent/workflow.py",
+   "specify_cli/cli/commands/agent/workflow_executor.py",
+   "specify_cli/cli/commands/charter/__init__.py",
+   "specify_cli/cli/commands/charter/_cascade_shared.py",
+   "specify_cli/cli/commands/charter/_common.py",
+   "specify_cli/cli/commands/charter/_fresh_project_layer.py",
+   "specify_cli/cli/commands/charter/_resynthesis_preflight.py",
+   "specify_cli/cli/commands/charter/_status_collectors.py",
+   "specify_cli/cli/commands/charter/_synthesis.py",
+   "specify_cli/cli/commands/charter/activate.py",
+   "specify_cli/cli/commands/charter/authoring.py",
+   "specify_cli/cli/commands/charter/consistency_check.py",
+   "specify_cli/cli/commands/charter/context.py",
+   "specify_cli/cli/commands/charter/deactivate.py",
+   "specify_cli/cli/commands/charter/generate.py",
+   "specify_cli/cli/commands/charter/interview.py",
+   "specify_cli/cli/commands/charter/lint.py",
+   "specify_cli/cli/commands/charter/list_cmd.py",
+   "specify_cli/cli/commands/charter/mission_type.py",
+   "specify_cli/cli/commands/charter/pack.py",
+   "specify_cli/cli/commands/charter/pack_asset.py",
+   "specify_cli/cli/commands/charter/resynthesize.py",
+   "specify_cli/cli/commands/charter/status.py",
+   "specify_cli/cli/commands/charter/synthesize.py",
+   "specify_cli/cli/commands/charter_bundle.py",
+   "specify_cli/cli/commands/init.py",
+   "specify_cli/cli/commands/migrate/charter_encoding.py",
+   "specify_cli/cli/commands/mission_type.py",
+   "specify_cli/cli/commands/profiles_cmd.py",
+   "specify_cli/cli/commands/upgrade.py",
+   "specify_cli/core/mission_creation_scaffold.py",
+   "specify_cli/design/context.py",
+   "specify_cli/dossier/manifest.py",
+   "specify_cli/drg_writers/registry.py",
+   "specify_cli/invocation/empty_charter.py",
+   "specify_cli/invocation/executor.py",
+   "specify_cli/invocation/org_profiles.py",
+   "specify_cli/invocation/registry.py",
+   "specify_cli/migration/backfill_mission_type.py",
+   "specify_cli/mission.py",
+   "specify_cli/mission_step_contracts/executor.py",
+   "specify_cli/provisioning/default_charter.py",
+   "specify_cli/retrospective/policy.py",
+   "specify_cli/review/gate_bindings.py",
+   "specify_cli/runtime/doctor.py",
+   "specify_cli/runtime/resolver.py",
+   "specify_cli/skills/catalog.py",
+   "specify_cli/skills/command_installer.py",
+   "specify_cli/skills/command_renderer.py",
+   "specify_cli/skills/installer.py",
+   "specify_cli/skills/pack_skill_renderer.py",
+   "specify_cli/tool_surface/bundles/claude.py",
+   "specify_cli/tool_surface/profiles/projection.py",
+   "specify_cli/tool_surface/providers/agent_profiles.py",
+   "specify_cli/upgrade/assessment.py",
+   "specify_cli/upgrade/migrations/_charter_pack_cutover_resets.py",
+   "specify_cli/upgrade/migrations/_retired_activation.py",
+   "specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py",
+   "specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py",
+   "specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py",
+   "specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py",
+   "specify_cli/upgrade/migrations/m_unify_charter_activation.py",
+   "specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py"
+  ]
+ },
+ "charter.offering.api (consumers = everything outside charter/offering, incl. rest of charter)": {
+  "seam": "charter.offering.api",
+  "behind_prefix": "charter.offering",
+  "consumers_excluded_prefixes": [
+   "charter/offering/"
+  ],
+  "files_importing_seam": 5,
+  "files_importing_behind_seam": 93,
+  "files_importing_both": 2,
+  "bypass_files_by_top_package": {
+   "charter": 82,
+   "runtime": 2,
+   "specify_cli": 9
+  },
+  "behind_modules_top15": [
+   [
+    "charter.offering.artifact_kinds",
+    35
+   ],
+   [
+    "charter.offering.drg.models",
+    20
+   ],
+   [
+    "charter.offering.drg.loader",
+    13
+   ],
+   [
+    "charter.offering.pack_paths",
+    11
+   ],
+   [
+    "charter.offering.drg.validator",
+    9
+   ],
+   [
+    "charter.offering.service",
+    9
+   ],
+   [
+    "charter.offering.packs.retired_fields",
+    8
+   ],
+   [
+    "charter.offering.missions.repository",
+    8
+   ],
+   [
+    "charter.offering.drg.org_pack_config",
+    7
+   ],
+   [
+    "charter.offering.missions.step_contracts",
+    7
+   ],
+   [
+    "charter.offering.drg.query",
+    6
+   ],
+   [
+    "charter.offering.missions.mission_type_repository",
+    6
+   ],
+   [
+    "charter.offering.missions",
+    6
+   ],
+   [
+    "charter.offering.shared.scoping",
+    5
+   ],
+   [
+    "charter.offering.agent_profiles",
+    5
+   ]
+  ],
+  "bypass_files": [
+   "charter/activation/_activation_render.py",
+   "charter/activation/_diagnostics.py",
+   "charter/activation/_drg_helpers.py",
+   "charter/activation/action_governance_bundle.py",
+   "charter/activation/action_grain.py",
+   "charter/activation/activation_engine.py",
+   "charter/activation/activation_ledger.py",
+   "charter/activation/activations.py",
+   "charter/activation/active_charter_service_builder.py",
+   "charter/activation/cascade.py",
+   "charter/activation/catalog.py",
+   "charter/activation/compact.py",
+   "charter/activation/compiler.py",
+   "charter/activation/consistency_check.py",
+   "charter/activation/context.py",
+   "charter/activation/context_json.py",
+   "charter/activation/context_renderers/activation_block.py",
+   "charter/activation/context_renderers/bootstrap_text.py",
+   "charter/activation/context_renderers/compact_governance.py",
+   "charter/activation/context_renderers/delivery_table.py",
+   "charter/activation/context_renderers/fetch_stanza.py",
+   "charter/activation/context_renderers/profile_sections.py",
+   "charter/activation/context_renderers/reference_pointers.py",
+   "charter/activation/context_renderers/selection_block.py",
+   "charter/activation/context_renderers/template_include.py",
+   "charter/activation/context_result_builders.py",
+   "charter/activation/drg_activation.py",
+   "charter/activation/effective_set.py",
+   "charter/activation/identity_index.py",
+   "charter/activation/interview.py",
+   "charter/activation/kind_vocabulary.py",
+   "charter/activation/language_authority.py",
+   "charter/activation/language_scope.py",
+   "charter/activation/language_settlement.py",
+   "charter/activation/language_vocabulary.py",
+   "charter/activation/layer_roots.py",
+   "charter/activation/manifest_loader.py",
+   "charter/activation/mission_type_profile_repository.py",
+   "charter/activation/mission_type_profiles.py",
+   "charter/activation/org_charter.py",
+   "charter/activation/org_charter_loader.py",
+   "charter/activation/org_expected_artifacts.py",
+   "charter/activation/org_pack_discovery.py",
+   "charter/activation/org_requirement_kinds.py",
+   "charter/activation/pack_context.py",
+   "charter/activation/pack_manager.py",
+   "charter/activation/preset_application.py",
+   "charter/activation/profile_resolution.py",
+   "charter/activation/progressive_disclosure.py",
+   "charter/activation/project_registration.py",
+   "charter/activation/reference_resolver.py",
+   "charter/activation/resolver.py",
+   "charter/activation/selection.py",
+   "charter/activation/skill_preparation.py",
+   "charter/activation/sync.py",
+   "charter/activation/synthesizer/generated_artifact_adapter.py",
+   "charter/activation/synthesizer/interview_mapping.py",
+   "charter/activation/synthesizer/legacy_rename.py",
+   "charter/activation/synthesizer/manifest.py",
+   "charter/activation/synthesizer/orchestrator.py",
+   "charter/activation/synthesizer/project_drg.py",
+   "charter/activation/synthesizer/reach_only.py",
+   "charter/activation/synthesizer/reconcile.py",
+   "charter/activation/synthesizer/resynthesize_pipeline.py",
+   "charter/activation/synthesizer/synthesize_pipeline.py",
+   "charter/activation/synthesizer/targets.py",
+   "charter/activation/synthesizer/topic_resolver.py",
+   "charter/activation/synthesizer/validation_gate.py",
+   "charter/bundle.py",
+   "charter/drg.py",
+   "charter/glossary_packs.py",
+   "charter/mission_steps.py",
+   "charter/missions.py",
+   "charter/pack_paths.py",
+   "charter/packs.py",
+   "charter/primitives.py",
+   "charter/profiles.py",
+   "charter/provenance.py",
+   "charter/resolution.py",
+   "charter/spdd_reasons.py",
+   "charter/template_catalog.py",
+   "charter/versioning.py",
+   "runtime/next/runtime_bridge_composition.py",
+   "runtime/next/runtime_bridge_io.py",
+   "specify_cli/cli/commands/_charter_pack_collect.py",
+   "specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+   "specify_cli/cli/commands/charter/mission_type.py",
+   "specify_cli/cli/commands/charter/pack_asset.py",
+   "specify_cli/cli/commands/charter/pack_tooling.py",
+   "specify_cli/dossier/manifest.py",
+   "specify_cli/mission.py",
+   "specify_cli/mission_step_contracts/executor.py",
+   "specify_cli/tool_surface/bundles/codex.py"
+  ]
+ },
+ "specify_cli.status.adapters (consumers outside specify_cli/status)": {
+  "seam": "specify_cli.status.adapters",
+  "behind_prefix": "specify_cli.status",
+  "consumers_excluded_prefixes": [
+   "specify_cli/status/"
+  ],
+  "files_importing_seam": 0,
+  "files_importing_behind_seam": 206,
+  "files_importing_both": 0,
+  "bypass_files_by_top_package": {
+   "mission_runtime": 4,
+   "runtime": 11,
+   "specify_cli": 191
+  },
+  "behind_modules_top15": [
+   [
+    "specify_cli.status",
+    203
+   ],
+   [
+    "specify_cli.status.models",
+    7
+   ],
+   [
+    "specify_cli.status._unsafe",
+    6
+   ],
+   [
+    "specify_cli.status.wp_metadata",
+    5
+   ],
+   [
+    "specify_cli.status.reducer",
+    2
+   ],
+   [
+    "specify_cli.status.store",
+    2
+   ],
+   [
+    "specify_cli.status.read_surface",
+    2
+   ],
+   [
+    "specify_cli.status.locking",
+    2
+   ],
+   [
+    "specify_cli.status.mission_write",
+    2
+   ],
+   [
+    "specify_cli.status.uninitialized_hint",
+    1
+   ],
+   [
+    "specify_cli.status.resolved_binding",
+    1
+   ],
+   [
+    "specify_cli.status.wp_state",
+    1
+   ],
+   [
+    "specify_cli.status.transition_pipeline",
+    1
+   ],
+   [
+    "specify_cli.status.lane_reader",
+    1
+   ],
+   [
+    "specify_cli.status.views",
+    1
+   ]
+  ],
+  "bypass_files": [
+   "mission_runtime/claim_commit.py",
+   "mission_runtime/landing.py",
+   "mission_runtime/lifecycle_phase.py",
+   "mission_runtime/resolution.py",
+   "runtime/next/board_status.py",
+   "runtime/next/committed_authority.py",
+   "runtime/next/decision.py",
+   "runtime/next/discovery.py",
+   "runtime/next/next_invocation_lifecycle.py",
+   "runtime/next/prompt_builder.py",
+   "runtime/next/runtime_bridge.py",
+   "runtime/next/runtime_bridge_decision_mapping.py",
+   "runtime/next/runtime_bridge_guards.py",
+   "runtime/next/runtime_bridge_io.py",
+   "runtime/next/runtime_bridge_query.py",
+   "specify_cli/acceptance/__init__.py",
+   "specify_cli/acceptance/gates_core.py",
+   "specify_cli/acceptance/matrix.py",
+   "specify_cli/agent_tasks_ports.py",
+   "specify_cli/agent_utils/status.py",
+   "specify_cli/audit/classifiers/status_events.py",
+   "specify_cli/audit/classifiers/status_json.py",
+   "specify_cli/audit/classifiers/wp_files.py",
+   "specify_cli/audit/engine.py",
+   "specify_cli/audit/identity_adapter.py",
+   "specify_cli/audit/shape_registry.py",
+   "specify_cli/bulk_edit/inference.py",
+   "specify_cli/charter_activate.py",
+   "specify_cli/cli/commands/_events_tail_logs.py",
+   "specify_cli/cli/commands/_identity_audit.py",
+   "specify_cli/cli/commands/_mission_state_doctor.py",
+   "specify_cli/cli/commands/_workspace_husk_doctor.py",
+   "specify_cli/cli/commands/accept.py",
+   "specify_cli/cli/commands/agent/acceptance_verdict.py",
+   "specify_cli/cli/commands/agent/finalization_eligibility.py",
+   "specify_cli/cli/commands/agent/finalize_status_surface.py",
+   "specify_cli/cli/commands/agent/issue_verdict.py",
+   "specify_cli/cli/commands/agent/mission.py",
+   "specify_cli/cli/commands/agent/mission_feature_resolution.py",
+   "specify_cli/cli/commands/agent/mission_finalize.py",
+   "specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+   "specify_cli/cli/commands/agent/mission_finalize_commit.py",
+   "specify_cli/cli/commands/agent/mission_finalize_lanes.py",
+   "specify_cli/cli/commands/agent/mission_finalize_pin_window.py",
+   "specify_cli/cli/commands/agent/mission_finalize_planning_pin.py",
+   "specify_cli/cli/commands/agent/mission_finalize_seams.py",
+   "specify_cli/cli/commands/agent/mission_finalize_validation.py",
+   "specify_cli/cli/commands/agent/mission_parsing.py",
+   "specify_cli/cli/commands/agent/mission_setup_plan.py",
+   "specify_cli/cli/commands/agent/release.py",
+   "specify_cli/cli/commands/agent/status.py",
+   "specify_cli/cli/commands/agent/tasks.py",
+   "specify_cli/cli/commands/agent/tasks_command_adapters.py",
+   "specify_cli/cli/commands/agent/tasks_dependency_graph.py",
+   "specify_cli/cli/commands/agent/tasks_finalize.py",
+   "specify_cli/cli/commands/agent/tasks_finalize_validation.py",
+   "specify_cli/cli/commands/agent/tasks_map_requirements.py",
+   "specify_cli/cli/commands/agent/tasks_mark_status.py",
+   "specify_cli/cli/commands/agent/tasks_materialization.py",
+   "specify_cli/cli/commands/agent/tasks_move_task.py",
+   "specify_cli/cli/commands/agent/tasks_move_task_executor.py",
+   "specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+   "specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+   "specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+   "specify_cli/cli/commands/agent/tasks_shared.py",
+   "specify_cli/cli/commands/agent/tasks_status_cmd.py",
+   "specify_cli/cli/commands/agent/tasks_status_view.py",
+   "specify_cli/cli/commands/agent/tasks_transition_core.py",
+   "specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+   "specify_cli/cli/commands/agent/workflow.py",
+   "specify_cli/cli/commands/agent/workflow_cores.py",
+   "specify_cli/cli/commands/agent/workflow_executor.py",
+   "specify_cli/cli/commands/agent_retrospect.py",
+   "specify_cli/cli/commands/cutover_guard.py",
+   "specify_cli/cli/commands/decision.py",
+   "specify_cli/cli/commands/events.py",
+   "specify_cli/cli/commands/implement.py",
+   "specify_cli/cli/commands/implement_claim.py",
+   "specify_cli/cli/commands/implement_cores.py",
+   "specify_cli/cli/commands/implement_phases.py",
+   "specify_cli/cli/commands/init.py",
+   "specify_cli/cli/commands/materialize.py",
+   "specify_cli/cli/commands/mission_type.py",
+   "specify_cli/cli/commands/retrospect.py",
+   "specify_cli/cli/commands/review/_lane_gate.py",
+   "specify_cli/cli/commands/service.py",
+   "specify_cli/consolidation/approved_attestation.py",
+   "specify_cli/consolidation/approved_bound.py",
+   "specify_cli/consolidation/bookkeeping_projection.py",
+   "specify_cli/consolidation/canceled_attestation.py",
+   "specify_cli/consolidation/commit_to_target_stamps.py",
+   "specify_cli/consolidation/done_bookkeeping.py",
+   "specify_cli/consolidation/drivers.py",
+   "specify_cli/consolidation/entry_preflight.py",
+   "specify_cli/consolidation/executor.py",
+   "specify_cli/consolidation/forecast.py",
+   "specify_cli/consolidation/no_implementation_attestation.py",
+   "specify_cli/consolidation/phase_advance.py",
+   "specify_cli/consolidation/phase_claim.py",
+   "specify_cli/consolidation/phase_teardown.py",
+   "specify_cli/consolidation/preflight.py",
+   "specify_cli/consolidation/reconciliation_bound.py",
+   "specify_cli/consolidation/reconciliation_claim.py",
+   "specify_cli/consolidation/reconciliation_closed_world.py",
+   "specify_cli/consolidation/reconciliation_kernel.py",
+   "specify_cli/consolidation/window_gap_report.py",
+   "specify_cli/consolidation/wp_attribution.py",
+   "specify_cli/consolidation/wp_evidence.py",
+   "specify_cli/consolidation/write_branch_bound.py",
+   "specify_cli/context/resolver.py",
+   "specify_cli/coordination/coherence.py",
+   "specify_cli/coordination/commit_router.py",
+   "specify_cli/coordination/coord_seed.py",
+   "specify_cli/coordination/legacy_resolution.py",
+   "specify_cli/coordination/outbound.py",
+   "specify_cli/coordination/status_service.py",
+   "specify_cli/coordination/status_surface_guard.py",
+   "specify_cli/coordination/status_transition.py",
+   "specify_cli/coordination/surface_resolver.py",
+   "specify_cli/coordination/transaction.py",
+   "specify_cli/coordination/transaction_errors.py",
+   "specify_cli/core/dependency_graph.py",
+   "specify_cli/core/mission_creation_commit.py",
+   "specify_cli/core/mission_creation_duplicates.py",
+   "specify_cli/core/mission_creation_events.py",
+   "specify_cli/core/mission_creation_meta.py",
+   "specify_cli/core/stale_detection.py",
+   "specify_cli/core/subtask_rows.py",
+   "specify_cli/core/worktree_topology.py",
+   "specify_cli/decisions/emit.py",
+   "specify_cli/design/validation.py",
+   "specify_cli/doc_analysis/doc_state.py",
+   "specify_cli/dossier/hasher.py",
+   "specify_cli/dossier/indexer.py",
+   "specify_cli/events/event_bridge.py",
+   "specify_cli/frontmatter.py",
+   "specify_cli/git/commit_helpers.py",
+   "specify_cli/git/origin_freshness.py",
+   "specify_cli/git/report_transaction.py",
+   "specify_cli/lanes/auto_rebase.py",
+   "specify_cli/lanes/checkout_occupancy.py",
+   "specify_cli/lanes/claim_base.py",
+   "specify_cli/lanes/compute_and_persist.py",
+   "specify_cli/lanes/consolidation.py",
+   "specify_cli/lanes/frozen_membership.py",
+   "specify_cli/lanes/implement_support.py",
+   "specify_cli/lanes/incorporate.py",
+   "specify_cli/lanes/lane_tip.py",
+   "specify_cli/lanes/persistence.py",
+   "specify_cli/lanes/recovery.py",
+   "specify_cli/lanes/topology_settlement.py",
+   "specify_cli/lanes/worktree_allocator.py",
+   "specify_cli/migration/backfill_identity.py",
+   "specify_cli/migration/backfill_merged_at.py",
+   "specify_cli/migration/backfill_runtime_state.py",
+   "specify_cli/migration/backfill_topology.py",
+   "specify_cli/migration/mission_state.py",
+   "specify_cli/migration/normalize_mission_lifecycle.py",
+   "specify_cli/migration/rebuild_state.py",
+   "specify_cli/migration/runtime_state_cutover.py",
+   "specify_cli/migration/snapshot_refresh.py",
+   "specify_cli/migration/verdict_provenance_backfill.py",
+   "specify_cli/migration/wp_status_backfill.py",
+   "specify_cli/mission_loader/command.py",
+   "specify_cli/mission_metadata.py",
+   "specify_cli/missions/_archive.py",
+   "specify_cli/missions/_read_path_resolver.py",
+   "specify_cli/missions/archive_reclaim.py",
+   "specify_cli/orchestrator_api/commands.py",
+   "specify_cli/orchestrator_api/consolidation.py",
+   "specify_cli/orchestrator_api/design_status.py",
+   "specify_cli/orchestrator_api/wp_lifecycle.py",
+   "specify_cli/ownership/frontmatter_source.py",
+   "specify_cli/ownership/models.py",
+   "specify_cli/ownership/validation.py",
+   "specify_cli/policy/merge_gates.py",
+   "specify_cli/post_merge/retrospective_terminus.py",
+   "specify_cli/post_merge/review_artifact_consistency.py",
+   "specify_cli/release/changelog.py",
+   "specify_cli/retrospective/events.py",
+   "specify_cli/retrospective/gate.py",
+   "specify_cli/retrospective/generator.py",
+   "specify_cli/retrospective/lifecycle_events.py",
+   "specify_cli/retrospective/tracer_writer.py",
+   "specify_cli/review/arbiter.py",
+   "specify_cli/review/cycle.py",
+   "specify_cli/review/gate_registry.py",
+   "specify_cli/review/rejection_signal.py",
+   "specify_cli/review/wp_range.py",
+   "specify_cli/services/client.py",
+   "specify_cli/services/errors.py",
+   "specify_cli/services/launcher.py",
+   "specify_cli/services/resolution.py",
+   "specify_cli/state/retention.py",
+   "specify_cli/task_metadata_validation.py",
+   "specify_cli/task_utils/support.py",
+   "specify_cli/tasks/issue_matrix.py",
+   "specify_cli/tasks/issue_matrix_approval.py",
+   "specify_cli/upgrade/feature_meta.py",
+   "specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
+   "specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
+   "specify_cli/upgrade/migrations/m_3_1_1_normalize_status_json.py",
+   "specify_cli/upgrade/migrations/m_3_1_1_residue_safe_normalize_status_json.py",
+   "specify_cli/upgrade/migrations/m_3_2_9_migrate_lifecycle_envelope.py",
+   "specify_cli/upgrade/migrations/m_4_0_0rc8_lane_checkout_status_exclusion.py",
+   "specify_cli/workspace/context.py"
+  ]
+ },
+ "specify_cli.tracker (consumers outside specify_cli/tracker) vs spec_kitty_tracker": {
+  "seam": "specify_cli.tracker",
+  "behind_prefix": "spec_kitty_tracker",
+  "consumers_excluded_prefixes": [
+   "specify_cli/tracker/"
+  ],
+  "files_importing_seam": 2,
+  "files_importing_behind_seam": 0,
+  "files_importing_both": 0,
+  "bypass_files_by_top_package": {},
+  "behind_modules_top15": [],
+  "bypass_files": []
+ },
+ "charter.offering.pack_paths (consumers outside charter/offering) vs charter.offering.packs": {
+  "seam": "charter.offering.pack_paths",
+  "behind_prefix": "charter.offering.packs",
+  "consumers_excluded_prefixes": [
+   "charter/offering/"
+  ],
+  "files_importing_seam": 11,
+  "files_importing_behind_seam": 12,
+  "files_importing_both": 2,
+  "bypass_files_by_top_package": {
+   "charter": 12
+  },
+  "behind_modules_top15": [
+   [
+    "charter.offering.packs.retired_fields",
+    8
+   ],
+   [
+    "charter.offering.packs.presets",
+    3
+   ],
+   [
+    "charter.offering.packs.extends",
+    2
+   ],
+   [
+    "charter.offering.packs.pack_assembler",
+    2
+   ],
+   [
+    "charter.offering.packs.pack_validator",
+    2
+   ],
+   [
+    "charter.offering.packs.hashing",
+    2
+   ],
+   [
+    "charter.offering.packs.pack_manifest",
+    2
+   ],
+   [
+    "charter.offering.packs.pack_fetch",
+    1
+   ],
+   [
+    "charter.offering.packs.built_in_pin",
+    1
+   ],
+   [
+    "charter.offering.packs.pack_pin",
+    1
+   ],
+   [
+    "charter.offering.packs.pack_clean_digest",
+    1
+   ],
+   [
+    "charter.offering.packs.builtin_manifest",
+    1
+   ],
+   [
+    "charter.offering.packs.core_compat",
+    1
+   ],
+   [
+    "charter.offering.packs.pack_descriptor",
+    1
+   ]
+  ],
+  "bypass_files": [
+   "charter/activation/activations.py",
+   "charter/activation/compact.py",
+   "charter/activation/compiler.py",
+   "charter/activation/context_renderers/activation_block.py",
+   "charter/activation/org_charter.py",
+   "charter/activation/org_charter_loader.py",
+   "charter/activation/org_pack_discovery.py",
+   "charter/activation/preset_application.py",
+   "charter/activation/project_registration.py",
+   "charter/activation/sync.py",
+   "charter/activation/synthesizer/manifest.py",
+   "charter/packs.py"
+  ]
+ },
+ "_files_by_top_package": {
+  "charter": 247,
+  "glossary": 22,
+  "kernel": 45,
+  "mission_runtime": 16,
+  "runtime": 36,
+  "specify_cli": 1102
+ }
+}

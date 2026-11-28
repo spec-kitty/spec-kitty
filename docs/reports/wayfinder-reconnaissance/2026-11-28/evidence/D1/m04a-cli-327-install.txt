@@ -1,0 +1,113 @@
+2026-11-28T09:10:25Z
+$ uv pip install --python venvs/cli-327 spec-kitty-cli==3.2.7
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/cli-327
+Resolved 49 packages in 516ms
+Downloading spec-kitty-cli (8.0MiB)
+ Downloaded spec-kitty-cli
+Prepared 9 packages in 1.54s
+Installed 49 packages in 111ms
+ + annotated-doc==0.0.7
+ + annotated-types==0.8.0
+ + anyio==4.16.0
+ + attrs==26.1.0
+ + certifi==2026.11.20
+ + cffi==2.1.1
+ + charset-normalizer==3.5.3
+ + click==8.5.1
+ + cryptography==50.0.2
+ + filelock==4.3.2
+ + google-re2==1.1.20251105
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.29.0
+ + idna==3.20
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown-it-py==4.3.0
+ + mdurl==0.1.2
+ + packaging==26.4
+ + platformdirs==4.14.9
+ + psutil==7.2.2
+ + pycparser==3.12
+ + pydantic==2.14.4
+ + pydantic-core==2.50.5
+ + pygments==2.21.0
+ + python-ulid==4.2.0
+ + pyyaml==6.0.4
+ + readchar==4.2.2
+ + referencing==0.37.0
+ + requests==2.34.2
+ + rich==15.0.0
+ + rpds-py==2026.9.1
+ + ruamel-yaml==0.19.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + socksio==1.0.0
+ + spec-kitty-cli==3.2.7
+ + spec-kitty-events==6.1.0
+ + spec-kitty-tracker==0.4.3
+ + toml==0.10.2
+ + tomli-w==1.2.0
+ + transitions==0.9.3
+ + truststore==0.10.5
+ + typer==0.29.3
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.5
+ + urllib3==2.8.0
+ + websockets==17.4
+exit=0
+--- pip freeze
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/cli-327
+annotated-doc==0.0.7
+annotated-types==0.8.0
+anyio==4.16.0
+attrs==26.1.0
+certifi==2026.11.20
+cffi==2.1.1
+charset-normalizer==3.5.3
+click==8.5.1
+cryptography==50.0.2
+filelock==4.3.2
+google-re2==1.1.20251105
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.29.0
+idna==3.20
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+markdown-it-py==4.3.0
+mdurl==0.1.2
+packaging==26.4
+platformdirs==4.14.9
+psutil==7.2.2
+pycparser==3.12
+pydantic==2.14.4
+pydantic-core==2.50.5
+pygments==2.21.0
+python-ulid==4.2.0
+pyyaml==6.0.4
+readchar==4.2.2
+referencing==0.37.0
+requests==2.34.2
+rich==15.0.0
+rpds-py==2026.9.1
+ruamel-yaml==0.19.1
+shellingham==1.5.4
+six==1.17.0
+socksio==1.0.0
+spec-kitty-cli==3.2.7
+spec-kitty-events==6.1.0
+spec-kitty-tracker==0.4.3
+toml==0.10.2
+tomli-w==1.2.0
+transitions==0.9.3
+truststore==0.10.5
+typer==0.29.3
+typing-extensions==4.16.0
+typing-inspection==0.4.5
+urllib3==2.8.0
+websockets==17.4
+--- python
+Python 3.11.15

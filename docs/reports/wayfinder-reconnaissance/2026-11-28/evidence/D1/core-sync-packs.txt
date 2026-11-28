@@ -1,0 +1,6 @@
+2026-11-28T09:07:06Z
+$ uv run --frozen python scripts/sync_packs.py --pack all
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+built-in: synced a79c36318b7a
+internal: synced ecda7b00c789
+exit=0

@@ -1,0 +1,29 @@
+2026-11-28T09:10:19Z
+$ uv pip install --python venvs/events-alone spec-kitty-events==11.3.0
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/events-alone
+Resolved 7 packages in 327ms
+Downloading pydantic-core (2.2MiB)
+ Downloaded pydantic-core
+Prepared 3 packages in 64ms
+Installed 7 packages in 53ms
+ + annotated-types==0.8.0
+ + pydantic==2.14.4
+ + pydantic-core==2.50.5
+ + python-ulid==4.2.0
+ + spec-kitty-events==11.3.0
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.5
+exit=0
+--- pip freeze
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/events-alone
+annotated-types==0.8.0
+pydantic==2.14.4
+pydantic-core==2.50.5
+python-ulid==4.2.0
+spec-kitty-events==11.3.0
+typing-extensions==4.16.0
+typing-inspection==0.4.5
+--- python
+Python 3.11.15

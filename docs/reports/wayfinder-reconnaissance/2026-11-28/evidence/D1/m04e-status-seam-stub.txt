@@ -1,0 +1,10 @@
+2026-11-28T11:26:31Z
+$ .venv/bin/python evidence/D1/m04e_status_seam_stub.txt  (core head 5c4fc5a7 source, scratch clone)
+# note: a first attempt used the keyword feature_slug= as written in core CLAUDE.md "Common operations"; at head the parameter is mission_slug= (TypeError), so the example in that document does not run as written. A second attempt emitted genesis -> claimed and was refused (Illegal transition); the script now emits planned then claimed.
+read_lane_head: stub-mission/WP01 is in execution lane the Mission write branch but no lane-head stamp could be taken (target branch main does not exist); this transition carries no commit attribution, so a later mixed-lane consolidation may refuse
+read_lane_head: stub-mission/WP01 is in execution lane the Mission write branch but no lane-head stamp could be taken (target branch main does not exist); this transition carries no commit attribution, so a later mixed-lane consolidation may refuse
+emitted True log_lines 2
+stub handler invocations: 2
+first invocation kwargs: ['actor', 'from_lane', 'metadata', 'mission_id', 'mission_slug', 'repo_root', 'to_lane', 'wp_id']
+consumer files edited: 0 (handler registered through adapters.register_*_fanout_handler only)
+exit=0

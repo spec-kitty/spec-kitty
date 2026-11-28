@@ -1,0 +1,40 @@
+2026-11-28T11:26:49Z
+# installed wheel spec-kitty-cli 4.0.0rc9 (head build); fresh project; alternative built-in tree = copy of open-packs a79c3631 packs/built-in in scratch
+$ spec-kitty charter pack path built-in
+venvs/cli-head/lib/python3.11/site-packages/packs/built-in
+exit=0
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks spec-kitty charter pack path built-in
+m04e/altpacks/built-in
+exit=0
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks spec-kitty charter pack list
+┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ built-in │ built-in │ default, minimal │
+│ project  │ project  │ —                │
+└──────────┴──────────┴──────────────────┘
+exit=0
+# EXPLORATORY tamper: append one comment line to m04e/altpacks/built-in/directives/001-architectural-integrity-standard.directive.yaml and delete one tactic file (tree digest no longer equals the pin)
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks spec-kitty charter pack list
+┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ built-in │ built-in │ default, minimal │
+│ project  │ project  │ —                │
+└──────────┴──────────┴──────────────────┘
+exit=0
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks spec-kitty doctor charter-packs --json | tail -c 200
+9,
+      "healthy": true,
+      "invalid_packs": []
+    },
+    "skills": {
+      "skill_count": 0,
+      "loaded": 0,
+      "skipped": 0,
+      "healthy": true,
+      "invalid_skills": []
+    }
+  }
+}
+
+exit=0
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks spec-kitty charter pack validate <altpacks>/built-in --json | head -c 300
+{"advisories": [{"artifact_id": "common-docs-structural-lint", "artifact_type": "assets", "category": "same_id_collision", "file": "m04e/altpacks/built-in/assets/docs_structural_lint.py.asset.yaml", "message": "artifact i
+exit=0

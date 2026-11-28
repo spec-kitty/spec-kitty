@@ -1,0 +1,341 @@
+##### status_files: population 65 outside files, seeded sample 20 (seed 20261128)
+=== mission_runtime/artifacts.py
+  123:     # **events** (``status.events.jsonl`` / ``decisions.events.jsonl`` --
+  264: # (``issue-matrix.md``, ``status.events.jsonl``, …). The residue/partition question
+  295:     "status.events.jsonl": MissionArtifactKind.STATUS_STATE,
+  296:     "status.json": MissionArtifactKind.STATUS_STATE,
+  506:     ``tasks/WP*.md`` → ``WORK_PACKAGE_TASK``, ``status.events.jsonl`` →
+=== specify_cli/acceptance/__init__.py
+  178:     by ``_check_lane_gates`` when ``mutate_matrix=True``) and ``status.json``
+  183:     ``status.json`` is deliberately matched by its OWN basename, not by the
+  184:     coarse ``STATUS_STATE`` kind: that kind also carries ``status.events.jsonl``
+  187:     ``status.events.jsonl`` — it never appends to it (the writer is
+  204:     match to the CURRENT mission only — another mission's ``status.json`` is
+  352:        (``acceptance-matrix.json`` + ``status.json``) are excluded via
+  1161:     """Load canonical WP states from status.events.jsonl; append issues on failure."""
+  1165:         "Cannot validate acceptance without status.events.jsonl. "
+  1253:     The STATUS/acceptance reads (``status.events.jsonl``, acceptance-matrix) keep
+  1431:             activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
+  1601:     # (status.events.jsonl) and below (acceptance-matrix via _check_lane_gates) stay on
+=== specify_cli/audit/classifiers/status_json.py
+  1: """Classifier for status.json mission artifacts."""
+  19:     """Classify status.json for legacy keys, unknown keys, and snapshot drift.
+  23:     ``materialize`` (which writes status.json to disk).  When
+  25:     passes this flag when ``status.events.jsonl`` has corruption that would
+  36:     path = mission_dir / "status.json"
+  50:                 artifact_path="status.json",
+  59:                 artifact_path="status.json",
+  69:                 artifact_path="status.json",
+  75:     findings.extend(detect_legacy_keys(obj, "status.json"))
+  78:     findings.extend(check_unknown_keys("status.json", obj, "status.json"))
+  84:     # NEVER call reducer.materialize() — it writes status.json to disk.
+  96:                 artifact_path="status.json",
+  123:                     artifact_path="status.json",
+  125:                         "reducer output differs from persisted status.json only "
+  141:                     artifact_path="status.json",
+  143:                         "a completed mission's frozen status.json no longer matches "
+  156:                     artifact_path="status.json",
+  157:                     detail="reducer output does not match persisted status.json",
+=== specify_cli/cli/commands/agent/tasks_map_requirements.py
+  766:         written_files.extend(p for name in ("status.events.jsonl", "status.json") if (p := st.feature_dir / name).exists())
+=== specify_cli/consolidation/_constants.py
+  132: _STATUS_EVENTS_FILENAME = "status.events.jsonl"
+  133: _STATUS_FILENAME = "status.json"
+=== specify_cli/consolidation/conflict_resolver.py
+  92:         or normalized.endswith("/status.json")
+  93:         or normalized == "status.json"
+=== specify_cli/consolidation/phase_teardown.py
+  562:     what let a branch-only ``status.events.jsonl`` append (the union stage folds the coordination
+  652:             "Repair or remove the line it names in the coordination worktree's status.events.jsonl and commit it, "
+  740:             f"add the missing events to the coordination worktree's working-tree status.events.jsonl, then re-run: "
+  747:             f"the same way, rematerialize status.json from the union and commit. "
+  755:             f"repair the coordination branch's status.events.jsonl, then re-run: it must parse as JSONL events and it "
+  814:     source = run.feature_dir / "status.events.jsonl"
+  815:     target = run.target_feature_dir / "status.events.jsonl"
+=== specify_cli/consolidation/reconciliation_bound.py
+  121:         "Recovery: repair or restore status.events.jsonl, then re-run"
+=== specify_cli/coordination/workspace.py
+  20:    patterns that keep ``kitty-specs/<dir>/status.events.jsonl`` and
+  21:    ``status.json`` off a lane checkout's disk. The one lane-checkout helper
+  387:     * ``!kitty-specs/<dir>/status.events.jsonl`` — exclude event log
+  388:     * ``!kitty-specs/<dir>/status.json`` — exclude derived snapshot
+  400:         f"!kitty-specs/{mission_dir_name}/status.events.jsonl",
+  401:         f"!kitty-specs/{mission_dir_name}/status.json",
+=== specify_cli/core/mission_creation_scaffold.py
+  68: All WP files are stored flat in `tasks/`. Status is tracked in `status.events.jsonl`, not in WP frontmatter.
+  102: Status is tracked via the canonical event log (`status.events.jsonl`), not in WP frontmatter.
+  232:     # D6 / T031: for a coordination-routed topology, ``status.events.jsonl``
+  253:     # ``status.events.jsonl`` is scaffolded AND included in the owned
+  265:         + (() if coordination_routed else (feature_dir / "status.events.jsonl",))
+  303:         (feature_dir / "status.events.jsonl").touch(exist_ok=True)
+=== specify_cli/git/origin_freshness.py
+  78: _STATUS_LOG = "status.events.jsonl"
+=== specify_cli/lanes/auto_rebase.py
+  74: _STATUS_JSON_FILENAME = "status.json"
+  227:         and parts[-1] == "status.events.jsonl"
+  374:             f"{RULE_ID_STATUS_EVENTS}: refusing status.events.jsonl deletion "
+  455:     events_path = feature_dir / "status.events.jsonl"
+=== specify_cli/lanes/lane_checkout.py
+  20: 5. registers the sparse exclusion of the Mission's ``status.events.jsonl`` and
+  21:    ``status.json`` and reapplies it, so the files leave the disk. git keeps a
+  345: _MISSION_STATUS_FILE_NAMES = frozenset({"status.events.jsonl", "status.json"})
+  349:     """True for ``kitty-specs/<dir>/status.events.jsonl`` or ``.../status.json`` (any Mission).
+  475:         return (f"kitty-specs/{self.mission_dir_name}/status.events.jsonl", f"kitty-specs/{self.mission_dir_name}/status.json")
+=== specify_cli/migration/normalize_mission_lifecycle.py
+  47:     events_path = feature_dir / "status.events.jsonl"
+  50:     return (feature_dir / "status.json").exists() or (feature_dir / "tasks").is_dir()
+  55:     status_path = feature_derived / "status.json"
+  61:     events_path = feature_dir / "status.events.jsonl"
+  185:         result.actions.append("Would rebuild status.events.jsonl from legacy mission state")
+  201:         "Rebuilt status.events.jsonl "
+=== specify_cli/migration/rebuild_state.py
+  10: Cross-validates ALL available sources (existing status.events.jsonl,
+  11: status.json snapshot, frontmatter ``lane`` fields) and produces a
+  30: fixture therefore produce byte-identical ``status.events.jsonl`` output.
+  185:     """Read raw event dicts from status.events.jsonl; return [] on error."""
+  186:     events_file = feature_dir / "status.events.jsonl"
+  206:     """Return the status.json snapshot dict or None if absent/corrupt."""
+  207:     status_file = feature_dir / "status.json"
+  216:         logger.warning("Cannot read status.json in %s: %s", feature_dir, exc)
+  397:     """Source 1: collect 'at' timestamps from status.events.jsonl."""
+  412:     """Source 2: collect 'materialized_at' from status.json."""
+  428:     """Source 3: collect WP 'last_transition_at' values from status.json work_packages."""
+  480:     ``status.events.jsonl``, the ``materialized_at`` and per-WP
+  481:     ``last_transition_at`` values in ``status.json``, and the
+  523:     Cross-validates existing ``status.events.jsonl``, ``status.json``, and
+  594:     # Collect lanes from status.json snapshot
+  770:     events_file = feature_dir / "status.events.jsonl"
+  771:     tmp_file = feature_dir / "status.events.jsonl.tmp"
+=== specify_cli/migration/snapshot_refresh.py
+  1: """Shared ``status.json`` refresh-if-present helper for the migration backfills.
+  24: #: The refresh also reads the existing ``status.json``; one that is not UTF-8
+  31:     """Regenerate ``status.json`` iff it already exists; return ``(refreshed, error)``."""
+  32:     if not (feature_dir / "status.json").is_file():
+  37:         return False, f"status.json refresh failed after the backfill appended events: {type(exc).__name__}: {exc}"
+=== specify_cli/retrospective/generator.py
+  196:     """Load all status events from status.events.jsonl.
+  200:     events_path = feature_dir / "status.events.jsonl"
+  1422:     → tasks.md → tasks/WP*.md → status.events.jsonl
+  1497:     events_rel = f"kitty-specs/{feature_dir.name}/status.events.jsonl"
+=== specify_cli/retrospective/summary.py
+  215:     Reads kitty-specs/<slug>/status.events.jsonl.  Returns (0, 0, 0) on any
+  226:     events_path = feature_dir / "status.events.jsonl"
+  615:         # Proposal-lifecycle events from status.events.jsonl
+  670:     Reads ``status.events.jsonl`` from the given feature directory.
+  674:     events_path = feature_dir / "status.events.jsonl"
+=== specify_cli/state/contract.py
+  368:             "Regenerable machine-facing views (lifecycle.json / status.json / "
+  760:         path_pattern="kitty-specs/<feature>/status.events.jsonl",
+  772:         path_pattern="kitty-specs/<feature>/status.json",
+=== specify_cli/upgrade/migrations/m_4_0_0rc8_lane_checkout_status_exclusion.py
+  5: a lane checkout never shows the Mission's ``status.events.jsonl`` /
+  6: ``status.json``, a lane never changes them and a reader never reads them. The
+  76: _EVENTS_FILENAME = "status.events.jsonl"
+  128:             f"discard the lane copy's change to the Mission's status.events.jsonl and status.json "
+  241:     status_paths = (f"kitty-specs/{mission_dir_name}/{_EVENTS_FILENAME}", f"kitty-specs/{mission_dir_name}/status.json")
+##### packs_tree: population 26 outside files, seeded sample 13 (seed 20261128)
+=== charter/activation/context_json.py
+  152:     entry carries (``"project"``/``"built-in"``/``"org"`` artifact origin); the
+  251: _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
+=== charter/activation/identity_index.py
+  49: _LAYER_BUILT_IN = "built-in"
+=== charter/activation/mission_type_profiles.py
+  296:     ``packs/built-in/missions/mission_types/*.yaml`` resolves a non-empty
+  309:         ``"project"`` (never ``"built-in"``; see above).
+  971:     return "built-in"
+=== charter/activation/org_charter_loader.py
+  19: _EMPTY_BLOCK: dict[str, Any] = {"present": False, "packs": []}
+  31:             "packs": [
+  87:     return {"present": bool(pack_entries), "packs": pack_entries}
+=== specify_cli/analysis_inputs.py
+  199:         roots = (("built-in", built_in_root()), ("mission-assets", get_package_asset_root()))
+=== specify_cli/cli/commands/charter/_status_collectors.py
+  520:     When no packs are configured, returns ``{"packs": [], "has_built_in": True}``.
+  546:         "packs": [],
+  570:         result["packs"].append(pack_entry)
+  667:             "packs": list(dict.fromkeys(pack.pack for pack in packs)),
+=== specify_cli/cli/commands/charter/activate.py
+  1112: DEFAULT_PRESET_PACK = "built-in"
+=== specify_cli/cli/commands/charter/list_cmd.py
+  192:             items[0].kind.plural: [{"id": item.artifact_id, "packs": list(item.pack_names)} for item in items] for items in by_kind.values()
+  265:             ArtifactKind.from_operator_token(kind).plural: [{"id": stem, "packs": _pack_names(packs)} for stem, packs in items]
+=== specify_cli/cli/commands/charter/status.py
+  361:     org_packs = org_layer.get("packs", [])
+=== specify_cli/cli/commands/regen.py
+  5: prompt templates under ``packs/built-in/missions/mission-steps/**``. When a
+  46: _TEMPLATES_REL = Path("packs/built-in/missions/mission-steps/software-dev")
+=== specify_cli/lanes/lane_packs.py
+  27: _PACKS_DIR = "packs"
+=== specify_cli/template/manager.py
+  141:     # Mission content templates live under packs/built-in/missions/<mission>/templates
+  162:     missions_src = repo_root / "packs" / "built-in" / "missions"
+  251:     # missions data to `packs/built-in/missions`, which ships as a
+  304:         # The second conjunct checks packs/built-in/missions (mission
+  310:         return (path / "src" / "charter" / "offering" / "templates" / "AGENTS.md").is_file() and (path / "packs" / "built-in" / "missions").is_dir()
+=== specify_cli/upgrade/migrations/_retired_activation.py
+  73: An id moved to an org pack (e.g. ``packs/internal``) still resolves for a
+  346:     ``packs/internal`` (or any other configured org pack) still resolves for
+  392:         packs = org.get("packs")
+##### charter_bundle: population 30 outside files, seeded sample 15 (seed 20261128)
+=== specify_cli/charter_runtime/freshness/computer.py
+  4: ``charter.yaml`` by ``consolidate-charter-bundle`` WP06 / data-model.md
+  8:   ``.kittify/charter/charter.yaml`` — exists and parses: ``missing`` when
+  10:   Post-inversion ``charter.yaml`` (not ``charter.md``) is the authoritative,
+  11:   resolving source; ``charter.md`` is a curated, never-resolving prose
+  12:   companion (data-model.md Entity: ``charter.md``) and is not consulted
+  13:   here. The historical ``charter.md``-SHA-vs-``metadata.yaml::charter_hash``
+  15:   ``charter.yaml`` cannot live *inside* ``charter.yaml`` (chicken-egg), so
+  20:   still carries the pre-consolidation legacy bundle (``governance.yaml`` /
+  21:   ``directives.yaml`` / ``metadata.yaml`` / ``references.yaml``) but never
+  22:   generated ``charter.yaml`` — both were otherwise identical ``missing``
+  24: * ``synced_bundle.state = "missing"`` when ``charter.yaml`` (the sole entry
+  31:   hash of the current ``charter.yaml`` (``charter.bundle.
+  39:   ``charter.yaml`` itself is absent) does NOT self-heal via ``synthesize``
+  55: * ``synthesized_drg.state = "missing"`` when ``.kittify/charter-packs/graph.yaml``
+  65:   is ``_compute_charter_source`` ("charter.yaml exists but cannot be
+  72: reads ``charter.yaml`` directly — activation now lives INSIDE the same file
+  142: #: F2 (a legacy ``governance.yaml``/``directives.yaml``/``metadata.yaml``/
+  143: #: ``references.yaml`` bundle present, ``charter.yaml`` not yet generated)
+  146: #: charter.yaml from scratch — it does not read the legacy bundle at all, so
+  150: #: ``ConsolidateCharterBundleMigration``, which composes ``charter.yaml``
+  218: #: bundle files (``governance.yaml``, ``directives.yaml``, ``references.yaml``,
+  219: #: ``metadata.yaml``) down to ``charter.yaml`` alone (contracts/manifest-v2.md
+  221: _CHARTER_YAML_FILENAME = "charter.yaml"
+  246: #: charter.yaml" (F2) when ``charter_source``/``synced_bundle`` report
+  249:     "governance.yaml",
+  250:     "directives.yaml",
+  252:     "references.yaml",
+  258: #: retires*, and ``charter.md`` is neither folded nor retired — it survives as
+  266: #: project has no charter at all" — while ``.kittify/charter/charter.md`` sat in
+  270: _READABLE_CHARTER_FILENAME = "charter.md"
+  293:     not yet folded into ``charter.yaml``) for the ``missing`` state (FR-005).
+  304:     ``references.yaml``) — a confidently-wrong inventory of the operator's
+  305:     own ``.kittify/charter/`` directory is strictly worse than the generic
+  313:     # first so a mixed project reads "charter.md/references.yaml" rather than
+  321:                 f"no charter.yaml, but a legacy charter bundle file ({file_list}) "
+  326:             f"no charter.yaml, but legacy charter bundle files ({file_list}) "
+  330:     return "no charter.yaml and no legacy charter bundle files; this project has no charter at all"
+  359:     Used by ``_compute_charter_source`` to decide whether ``charter.yaml``
+  362:     chokepoint; this raw parse-check of ``charter.yaml`` itself is a sibling
+  395:     """Return whether a parsed ``charter.yaml`` mapping satisfies the
+  483:     Landmine 2 (data-model.md): ``charter.yaml`` — not ``charter.md`` — is
+  485:     historical ``charter.md``-SHA-vs-``metadata.yaml::charter_hash``
+  496:     into the existing ``charter.yaml`` via a round-trip YAML parse
+  506:     present, not yet folded into ``charter.yaml``) — see
+  518:     ``ConsolidateCharterBundleMigration`` and composes ``charter.yaml`` FROM
+  546:             detail="charter.yaml exists but cannot be parsed; `charter generate` needs it to already parse — restore from VCS or hand-repair, then re-run",
+  561:                 "charter.yaml exists and parses as YAML but does not match the "
+  578:     ``_BUNDLE_FILES`` is now the single-entry ``("charter.yaml",)`` set
+  589:     once the file exists, since the ``charter.md``-hash ``"stale"`` branch
+  596:     ``charter.yaml`` to already parse. Declared exempt alongside it
+  601:     reached when ``charter.yaml`` — the same file ``charter_source``
+  638:                 "charter.yaml from VCS or hand-repair, then re-run"
+  761:     remedy: it refuses an unsound ``charter.yaml`` and cannot create an absent
+  764:     command for a ``missing`` bundle, and ``None`` (fix ``charter.yaml`` first)
+  787:     contract, now re-pointed at ``charter.yaml`` — see the module docstring)
+  790:     hash) is retired: it is moot once freshness reads ``charter.yaml``
+=== specify_cli/charter_runtime/preflight/runner.py
+  40: * dirty-detection (``git status --porcelain -- .kittify/charter/
+  41:   .kittify/charter-packs/``) — < 100 ms on a clean tree.
+  104: #: legacy ``charter.md``-only bundle means governance intent already
+  108:     "a legacy charter.md-only bundle was detected "
+  109:     "(.kittify/charter/charter.md exists but .kittify/charter/charter.yaml "
+  111:     "charter.yaml bundle format — run "
+  127: # ``.kittify/charter/`` or the project pack root are covered automatically.
+  130:     ".kittify/charter/",
+  274:     # charter.md is display-only and may select advisory copy only after the
+  281:                 "legacy charter.md-only bundle; charter.yaml not yet migrated"
+  424:     ``.kittify/charter/charter.md`` from before the charter.yaml-based
+  431:     (``Path.exists()`` on ``charter.md``) beyond the existing freshness
+  649:        never create or repair ``charter.yaml`` — so for a missing or
+  674:        generate's rewritten ``charter.yaml`` — see that step's own comment
+  718:         # never create/repair `charter.yaml`, see this function's
+  725:             # Exempt state (`invalid` charter.yaml / cascading `stale`
+  801:         # `generate` rewrites `charter.yaml`'s derived catalog but — unlike `synthesize` — never
+  808:         # --dry-run) re-stamps the manifest against the NEW `charter.yaml`
+  848:     by directory prefix so ``.kittify/charter/...`` lands on the
+  850:     (``.kittify/charter-packs/...``) on ``synthesized_drg``.
+  852:     charter_dirty = [p for p in dirty_paths if p.startswith(".kittify/charter/")]
+=== specify_cli/cli/commands/charter/_common.py
+  32:     """Find charter.md in canonical location only.
+  37:     charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+  49:     """Find charter.yaml -- the authoritative bundle -- in canonical location only.
+  52:     the display-only ``charter.md`` and is consumed by prose-rendering
+  54:     This sibling resolves the authoritative ``charter.yaml`` bundle for
+  56:     ``charter.md`` deletion (SC-002). Reuses the shared
+=== specify_cli/cli/commands/charter/generate.py
+  95:     Issue #841: ``charter generate`` must auto-track the produced ``charter.md``
+  107:     operator who has gitignored ``charter.md`` for any reason still gets the
+  109:     declaring ``charter.md`` as a tracked file.
+  163:     """Run the charter staleness check IFF a curated ``charter.md`` exists.
+  165:     Post-inversion (consolidate-charter-bundle WP03/#2773), ``charter.md`` is a
+  169:     ``charter.md`` yet -- skip the step entirely rather than surfacing a
+  184: `.kittify/charter/charter.yaml`. It holds the human *rationale* behind your
+  194:     """Create a starter ``charter.md`` companion IFF one is not already present.
+  196:     consolidate-charter-bundle (#2773 / ADR 2026-07-18-1): ``charter.md`` is a
+  200:     ``charter generate`` yields a ``charter.md``, the ``generate`` command seeds
+  202:     ``charter.md`` is left byte-for-byte untouched, so the never-clobber
+  217:     ``sync_result`` is ``None`` when ``charter.md`` was absent (sync
+  229:     """Read the recorded mission type from an already-compiled ``charter.yaml`` (#4908).
+  231:     Returns ``None`` when ``charter.yaml`` is absent, unreadable, or its
+  236:     / #4993) rather than re-implementing the ``charter.yaml`` read.
+  259:     ``charter.yaml`` it is about to overwrite, which would let a stale or
+  267:     1. ``charter.yaml`` ``catalog.mission`` -- the compiled record. The
+  268:        recompile call sites only reach here after confirming ``charter.yaml``
+  271:     2. ``.kittify/charter/interview/answers.yaml`` ``mission:`` -- the
+  289:     ``"software-dev"`` -- never from an already-compiled ``charter.yaml``.
+  296:     interview record, not read it back from the very ``charter.yaml`` catalog
+  329:     falls back to the ALREADY-COMPILED ``charter.yaml`` ``catalog.mission``
+  434:     charter_dir = repo_root / ".kittify/charter"
+  499:     - On success in a git working tree, the produced ``.kittify/charter/charter.md``
+  507:     - When ``.kittify/charter/charter.md`` is a symlink, ``generate`` exits
+  538:                     "Initialize one with `git init` (so the produced charter.md can be "
+  544:         charter_path = charter_dir / "charter.md"
+  632:         charter_path = charter_dir / "charter.md"
+  650:         # already includes charter.yaml (and charter.md) -- no separate
+  651:         # references.yaml entry is added; that file is retired (T012/T013).
+=== specify_cli/cli/commands/doctor.py
+  1213:     ``org-charter.yaml`` policy status when present.
+  1217:     by ``.kittify/charter-packs/replaceable-builtins.yaml`` or by the overriding
+  1223:     Project-tier (``.kittify/charter-packs/``) overrides of built-ins are
+  1256:     # #3732 FR-011: a retired ``governance.doctrine`` key in charter.yaml is a
+  1257:     # finding (the CLI-root gate does not read charter.yaml).
+  1433:     console.print("  [dim]Only org-tier overrides are adjudicated; project-tier (.kittify/charter-packs/) overrides are intentionally ungoverned (FR-012).[/dim]")
+=== specify_cli/cli/commands/migrate/charter_encoding.py
+  5: ``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file via
+  53: _GLOBAL_CHARTER_GLOB = ".kittify/charter/*.{yaml,md,txt}"
+  137:     - ``.kittify/charter/*.{yaml,md,txt}``
+=== specify_cli/migration/legacy_charter_layout.py
+  5: the retired project layer directory, a standalone ``governance.yaml`` with the
+  12: only when a substring prefilter hits. ``charter.yaml`` is never read here (it is
+  69: #: ``tracker.doctrine``, the standalone ``governance.yaml`` and ``answers.yaml``.
+  82: _GOVERNANCE_FILENAME = "governance.yaml"
+  125:     """Return the standalone legacy ``.kittify/charter/governance.yaml`` of *root*."""
+=== specify_cli/tool_surface/providers/agent_profiles.py
+  581:     paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", "pyproject.toml"))
+=== specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  142:                 template_path = missions_dir / "command-templates" / "charter.md"
+  144:                     template_path = kittify_dir / "templates" / "command-templates" / "charter.md"
+  153:                     charter_dest = kittify_memory / "charter.md"
+=== specify_cli/upgrade/migrations/m_3_2_0rc35_charter_bundle_v2.py
+  59:             return False, "No charter directory found at .kittify/charter"
+=== specify_cli/upgrade/migrations/m_3_2_0rc35_charter_manifest_defaults_repair.py
+  42:             return False, "No charter directory found at .kittify/charter"
+=== specify_cli/upgrade/migrations/m_3_2_0rc35_sync_state_gitignore.py
+  22:     ".kittify/charter/context-state.json",
+=== specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py
+  4:     (a) Detect whether ``.kittify/charter/charter.md`` exists at the canonical root.
+  162:         charter_md = charter_dir / "charter.md"
+  166:         # Case (e): no charter.md — clean no-op, trivially passing.
+  227:         # Enumerate any files under ``.kittify/charter/`` that the v1.0.0
+  228:         # manifest does not declare (``references.yaml``, ``context-state.json``,
+=== specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py
+  25:    pointed ``charter.yaml`` and a standalone ``governance.yaml``),
+  582:     # `.kittify/charter-packs/**`, which hides the rc7 pack_level backfill's
+  768:     """``governance.doctrine`` in the pointed ``charter.yaml``; top-level ``doctrine:`` in ``governance.yaml``."""
+  898:     description = "Charter-pack cutover: move .kittify/doctrine to .kittify/charter-packs and rename the retired keys"
+=== specify_cli/upgrade/migrations/m_4_0_0rc8_activation_ledger.py
+  3: ``.kittify/charter/activation.yaml`` is the single authority for charter
+  6: surface: the ``charter.yaml`` the ``config.yaml`` ``charter:`` pointer names,
+  58:     """Move the legacy activation keys into ``.kittify/charter/activation.yaml``."""
+  61:     description = "Move charter activation keys into the activation ledger (.kittify/charter/activation.yaml)"

@@ -1,0 +1,79 @@
+finding_id: F-D1-020
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04f
+  deviation: null
+subject:
+  component: optional components absent
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M04f absence tests that ran, all exit 0: (1) CLI without the optional services wheel: 8 basic commands on
+  rc8 and head wheels, `init`, `charter pack list`, `doctor charter-packs` (spec-kitty-services not installed; `service
+  status` prints ''No service is pinned in this spec-kitty version yet.''); (2) packs resolution offline from the
+  cache in a fresh checkout and from the wheel in an empty network namespace; (3) status read from files with no
+  service process and no network: `agent tasks status --mission <slug> --json` returns 5 work packages for a Mission
+  of the core repository and leaves the working tree clean. 3 of 3 ran.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04f-absence-services-and-status.txt
+  method: head wheel in a disposable clone of core; unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4
+    --json
+  sha256: 4dbb0b3bd4049b1972e9427678005ec973369bc6f97c1ebb121f13a5c89e2e2d
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:56:02Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04f-packs-offline.txt
+  method: unshare -n python scripts/sync_packs.py --pack all --offline
+  sha256: e220409785ecb6f41d71c864e809a7b373b9c767a9a37fe96e4980004f2fa22f
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:55:44Z'
+- id: E3
+  kind: executed
+  reference: evidence/D1/m04a-cli-head-smoke.txt
+  method: 8 commands
+  sha256: 4d0256440dcc52a16c5939685105fc8cb9ebc8c2376460c4cab0eda4847275fa
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:16:05Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/packs-use-rc8-step1.txt
+  method: spec-kitty init --ai claude --non-interactive; charter pack list; doctor charter-packs --json (rc8 wheel)
+  sha256: 443bda98adcc2f2c0104405510c3d0b4c40b91ae5c75b4b1a4f9c2b115be1f2d
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:46:51Z'
+scope:
+  covered: the three cases the brief lists
+  not_covered: write paths (status emit) without services; Mission creation
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: in the same run `agent status validate` was executed to see whether file-only reads are self-consistent
+  result: 'it exits 1 for that Mission (''Materialization drift: WP05 state differs between status.json and reducer
+    output''); first status attempt exited 1 with ''Detached HEAD'' because the probe clone was detached (artefact,
+    re-run on a branch)'
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- operability
+candidate_invariants: []
+open_questions: []

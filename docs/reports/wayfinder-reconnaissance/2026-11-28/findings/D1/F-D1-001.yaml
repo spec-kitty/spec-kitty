@@ -1,0 +1,69 @@
+finding_id: F-D1-001
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: first-deliverable (pin and lock surface)
+  deviation: null
+subject:
+  component: integration pins (all repositories)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: '33 pin/lock surfaces were found across 6 repositories and 2 released wheels (revision-table.csv rows P01-P33):
+  core holds 12 (2 pack commit pins with tree digests, 1 service tag pin with 8 asset digests, 2 version ranges,
+  2 lock entries, 1 exact companion pin, 1 envelope snapshot, 1 compatibility record, 1 git-commit pin of doc-kitty,
+  1 local path); open-packs 6; charter 3; events 4; doc-kitty 3; tracker 1 (a project stamp only). Reverse pins
+  exist: events pins core commit 512567ee (service/core-pin.json and 3 generator scripts) and open-packs records
+  the core commit f1663393 it was seeded from. Core has no pin file for the write service or the charter service
+  (pins/ holds read-service only).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list
+    --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/pypi-versions.json
+  method: curl https://pypi.org/pypi/<name>/json for spec-kitty-events, -tracker, -cli, -services; summarised
+  sha256: 50e662c1f6c9858edb4f307e7524ebca7681ace201c3849e45e819c51f1f6d37
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: packs/*.source.yaml, pins/*.source.yaml, pyproject.toml, uv.lock, site/package.json, .kittify/metadata.yaml
+    and CI workflow checkouts in core, open-packs, charter, events, doc-kitty, tracker at head; wheels 4.0.0rc8
+    and 3.2.7
+  not_covered: GitHub Actions `uses:` SHA pins of third-party actions; Gradle dependency verification metadata;
+    npm lockfiles; supplementary repositories
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: 'grepped every repository for *.source.yaml, *lock*, pin*, requires_core, repository:/ref: in workflows,
+    and 40-hex literals near sibling repository names to find a pin not listed'
+  result: found the events generator-script copies of the core SHA and the charter mutation/sonar workflow checkouts
+    of open-packs (same openPacksRef); no further surface found; action SHA pins deliberately excluded
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- traceability
+- modifiability
+candidate_invariants: []
+open_questions:
+- Rows P13, P19 state verification from file comments only; not executed here.

@@ -1,0 +1,21 @@
+2026-11-28T09:07:31Z
+$ pip download --no-deps spec-kitty-cli==4.0.0rc8
+exit=0
+$ pip download --no-deps spec-kitty-cli==3.2.7
+exit=0
+$ pip download --no-deps spec-kitty-events==11.3.0
+exit=0
+$ pip download --no-deps spec-kitty-tracker==0.5.2
+exit=0
+$ pip download --no-deps spec-kitty-services==4.0.0rc8
+exit=0
+
+
+303f506ceb820da77b506c0ad73238bec1a3d1bb4345b14e0d4d22bb125fd0b7  spec_kitty_cli-3.2.7-py3-none-any.whl
+2475b7a4292bdacb80b4a2678ab18320ba1d046547e5905e16e1bbc751947bee  spec_kitty_cli-4.0.0rc8-py3-none-any.whl
+92e72cec8bdeb320621cb754bbc46a9f915d9a5179f9dc6f8c6046623eed1d25  spec_kitty_events-11.3.0-py3-none-any.whl
+da28c9775562f2078747e55de137c11408f33c7d790a587a2b0aaae02ca0c458  spec_kitty_events-11.3.0.tar.gz
+00b5edb152b0144cb2a4eba2f88e364bf72d5454d5f7959c7eafaae4e85cd4a5  spec_kitty_services-4.0.0rc8-py3-none-any.whl
+f614967c214cc29b5664572d7bbbee44706ceff22b8106cfa462f3bb84fcc39f  spec_kitty_tracker-0.5.2-py3-none-any.whl
+192f56a9247f0e4ea90002a6d9ef25f5c47efa54989c33766c1aca8966eaa1f8  spec_kitty_tracker-0.5.2.tar.gz
+# sdists fetched by URL from the PyPI JSON API; sha256 equal to the digest PyPI states: spec_kitty_cli-4.0.0rc8.tar.gz 0c491086062f4bfd5559c36f5d710b320c2af9655f7257060980f7b5fe678184; spec_kitty_cli-3.2.7.tar.gz 6fe8098774459b81b79380a1e6a757a274abef0f10c4a8d70fc8e0b446d39142

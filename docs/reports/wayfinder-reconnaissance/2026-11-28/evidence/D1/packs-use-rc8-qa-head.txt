@@ -1,0 +1,20 @@
+2026-11-28T09:48:40Z
+# spec-kitty-cli 4.0.0rc8 wheel; org pack = open-packs packs/qa at head (f9a557510dc7) copied into the project and configured by local_path
+$ spec-kitty doctor charter-packs --json (selected keys)
+exit=1
+org_configured True packs [('qa', None, {})]
+org_drg errors 1 ["org-DRG load error: Org pack <scratch>/proj-rc8/packs/qa/pack.yaml: invalid pack descriptor: 1 validation error for PackDescriptor\ndepends_on\n  Extra inputs are not permitted [type=extra_forbidden, input_value=[{'pack_id': '01M75HSYR9S...', 'range': '>=2.0,<4'}], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.14/v/extra_forbidden"]
+profile_health.healthy False
+$ spec-kitty charter pack list
+exit=1
+$ spec-kitty charter context --action review --json | head -c 300
+{
+  "result": "success",
+  "success": true,
+  "context_schema_version": "1.4.0",
+  "action": "review",
+  "mode": "missing",
+  "first_load": true,
+  "references_count": 0,
+  "context": "Charter Context:\n  - Charter file not found at `.kittify/charter/charter.yaml`.\n  - Run `spec-kitty charter inter
+exit=0

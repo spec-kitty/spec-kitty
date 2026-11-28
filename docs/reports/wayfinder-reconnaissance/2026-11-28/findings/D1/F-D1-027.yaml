@@ -1,0 +1,60 @@
+finding_id: F-D1-027
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core package layering
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Exploratory. File-level import matrix of core packages at head: against the enforced chain kernel <- charter
+  <- {glossary, runtime, mission_runtime} <- specify_cli, 19 of 36 runtime files and 6 of 16 mission_runtime files
+  import specify_cli (11 and 4 import specify_cli.status), and 2 specify_cli.status files import runtime. The layer-rule
+  gate passes (80 passed) with these present. glossary (22 files) imports charter in 3 files, kernel in 7, spec_kitty_events
+  in 1, and is imported by 6 specify_cli files. spec_kitty_events is imported from specify_cli (13 files), specify_cli.status
+  (5), runtime (6) and glossary (1).'
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/m04e-package-import-matrix.json
+  method: AST walk of src/*.py; counts files of <importer> importing <imported>, module- and function-level
+  sha256: fb237cbd4686ecd4b5dba42d4a1a8d4dce1fb4aeebeca4af6a8807fe784247a0
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04e-core-gates-head.txt
+  method: pytest tests/architectural/test_layer_rules.py
+  sha256: ecf996967bc8df7796b11ecab24990039141023bf67a86124b0c995b6e4a4152
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:28:58Z'
+scope:
+  covered: absolute imports
+  not_covered: how many of the upward imports are function-level or covered by the shrink-only ledgers
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: ran the layer gate to see whether these imports are violations of the enforced rule
+  result: gate passes; they are tolerated by the rule set as written
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modifiability
+candidate_invariants: []
+open_questions: []

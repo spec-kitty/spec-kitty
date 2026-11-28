@@ -1,0 +1,20 @@
+import sys,zipfile,tarfile,collections,json,re
+def names(p):
+    if p.endswith(".whl"):
+        z=zipfile.ZipFile(p); return [(i.filename,i.file_size) for i in z.infolist() if not i.is_dir()]
+    t=tarfile.open(p); return [(m.name.split("/",1)[1] if "/" in m.name else m.name, m.size) for m in t.getmembers() if m.isfile()]
+out={}
+for p in sys.argv[1:]:
+    ns=names(p)
+    top=collections.Counter(); size=collections.Counter()
+    for n,s in ns:
+        parts=n.split("/")
+        k=parts[0] if parts[0]!="packs" and parts[0]!="src" else "/".join(parts[:2])
+        top[k]+=1; size[k]+=s
+    ext=collections.Counter(re.sub(r'.*(\.[A-Za-z0-9]+)$',r'\1',n) if '.' in n.split('/')[-1] else '(none)' for n,_ in ns)
+    binaries=[n for n,_ in ns if re.search(r'\.(jar|exe|so|dylib|dll|bin|class)$',n) or 'linux-x64' in n or 'macos-arm64' in n]
+    out[p.split("/")[-1]]={"files":len(ns),"bytes":sum(s for _,s in ns),"top_level":{k:{"files":top[k],"bytes":size[k]} for k in sorted(top)},"binary_like":binaries,
+      "has_packs_internal":any(n.startswith("packs/internal") for n,_ in ns),
+      "pins":[n for n,_ in ns if "_pins/" in n or n.startswith("pins/") or n.endswith("source.yaml")],
+      "ext_top10":ext.most_common(10)}
+json.dump(out,sys.stdout,indent=1)

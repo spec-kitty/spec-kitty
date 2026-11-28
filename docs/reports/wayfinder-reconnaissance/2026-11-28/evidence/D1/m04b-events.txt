@@ -1,0 +1,28 @@
+2026-11-28T09:18:26Z
+# isolated clone, parent dir holds only this repository: spec-kitty-events
+646e330b896b96d7a11f53b34aa3d0c0baa69a05
+$ uv sync --frozen --all-extras
+ + spec-kitty-events==11.5.0 (from file://<scratch>/m04b/iso-spec-kitty-events/spec-kitty-events)
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+exit=0
+$ uv run --frozen pytest --no-cov -q tests/test_compatibility_doc.py tests/test_cloudevents_canonical.py tests/test_fold_differential.py tests/unit/test_validate_transition_core_edges.py tests/test_fixture_determinism.py
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+........................................................................ [ 22%]
+........................................................................ [ 45%]
+........................................................................ [ 68%]
+........................................................................ [ 91%]
+..........................                                               [100%]
+314 passed in 21.46s
+exit=0
+$ uv run --frozen pytest --no-cov -q --pyargs spec_kitty_events.conformance
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+..............................................................           [100%]
+1358 passed in 55.52s
+exit=0
+$ uv build --out-dir $S/m04b/events-dist
+removing build/bdist.linux-x86_64/wheel
+Successfully built <scratch>/m04b/events-dist/spec_kitty_events-11.5.0.tar.gz
+Successfully built <scratch>/m04b/events-dist/spec_kitty_events-11.5.0-py3-none-any.whl
+exit=0

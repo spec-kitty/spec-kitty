@@ -1,0 +1,11 @@
+$ uv build --out-dir dist-head  (scratch clone of core head 5c4fc5a7, after uv sync and sync_packs)
+2026-11-28T09:07:20Z
+$ uv build --out-dir dist-head (core head 5c4fc5a7)
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Building source distribution...
+Building wheel from source distribution...
+Successfully built <scratch>/dist-head/spec_kitty_cli-4.0.0rc9.tar.gz
+Successfully built <scratch>/dist-head/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+exit=0
+27e355a7cab14c6c71c58a30c297ee6d84b24da203a463de9e33de19021d74d0  dist-head/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+e727436ebdf786163f93dd9d542c6d2a2e15261956d56223c54db4780fa4e2db  dist-head/spec_kitty_cli-4.0.0rc9.tar.gz

@@ -1,0 +1,29 @@
+2026-11-28T09:10:20Z
+$ uv pip install --python venvs/tracker-alone spec-kitty-tracker==0.5.2
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/tracker-alone
+Resolved 8 packages in 324ms
+Prepared 4 packages in 30ms
+Installed 8 packages in 7ms
+ + anyio==4.16.0
+ + certifi==2026.11.20
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.29.0
+ + idna==3.20
+ + spec-kitty-tracker==0.5.2
+ + typing-extensions==4.16.0
+exit=0
+--- pip freeze
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using Python 3.11.15 environment at: <scratch>/venvs/tracker-alone
+anyio==4.16.0
+certifi==2026.11.20
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.29.0
+idna==3.20
+spec-kitty-tracker==0.5.2
+typing-extensions==4.16.0
+--- python
+Python 3.11.15

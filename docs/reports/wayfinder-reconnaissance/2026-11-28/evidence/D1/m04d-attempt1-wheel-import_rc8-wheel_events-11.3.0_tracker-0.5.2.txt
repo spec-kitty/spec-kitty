@@ -1,0 +1,112 @@
+2026-11-28T09:49:50Z
+# spec-kitty-cli 4.0.0rc8 WHEEL from PyPI in a clean venv (+[test] extra); tests taken from 'git archive v4.0.0rc8' (1d1a0c04); pytest pythonpath cleared so specify_cli resolves to the installed wheel
+python 3.11.15 spec-kitty-cli 4.0.0rc8 spec-kitty-events 11.3.0 spec-kitty-tracker 0.5.2 pytest 9.0.3
+specify_cli from venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/contract/spec_kitty_events_consumer/test_consumer_contract.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/contract/spec_kitty_tracker_consumer/test_consumer_contract.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/contract/test_packaging_no_vendored_events.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/contract/test_events_envelope_matches_resolved_version.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/architectural/test_shared_package_boundary.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/architectural/test_verdict_vocab_single_source.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/specify_cli/status/test_model_built_payloads_6438.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/specify_cli/status/test_resolved_binding_reducer.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/retrospective/test_events_shapes.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/status/test_reducer.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/status/test_adapters_contract.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/tracker/test_service.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ python -m pytest -q -p no:cacheprovider -o addopts= -o pythonpath= tests/tracker/test_store.py
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/conftest.py", line 231, in pytest_configure
+INTERNALERROR>     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+INTERNALERROR>   File "<scratch>/m04d/rc8-src/tests/_support/import_origin.py", line 14, in assert_checkout_source
+INTERNALERROR>     raise RuntimeError(
+INTERNALERROR> RuntimeError: specify_cli imported from outside this checkout: <scratch>/venvs/rc8-test/lib/python3.11/site-packages/specify_cli/__init__.py; expected /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scr
+exit=3
+$ (cwd empty) python -m pytest -q --pyargs spec_kitty_events.conformance
+................................................                         [100%]
+1200 passed in 7.71s
+exit=0

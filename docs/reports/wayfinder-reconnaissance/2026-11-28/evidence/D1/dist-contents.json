@@ -1,0 +1,755 @@
+{
+ "spec_kitty_cli-4.0.0rc9-py3-none-any.whl": {
+  "files": 2239,
+  "bytes": 28269527,
+  "top_level": {
+   "charter": {
+    "files": 427,
+    "bytes": 4153436
+   },
+   "glossary": {
+    "files": 24,
+    "bytes": 216514
+   },
+   "kernel": {
+    "files": 46,
+    "bytes": 392462
+   },
+   "mission_runtime": {
+    "files": 16,
+    "bytes": 330121
+   },
+   "packs/built-in": {
+    "files": 505,
+    "bytes": 2147741
+   },
+   "runtime": {
+    "files": 36,
+    "bytes": 773789
+   },
+   "spec_kitty_cli-4.0.0rc9.dist-info": {
+    "files": 6,
+    "bytes": 254042
+   },
+   "specify_cli": {
+    "files": 1179,
+    "bytes": 20001422
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [
+   "specify_cli/_pins/README.md",
+   "specify_cli/_pins/read-service.source.yaml"
+  ],
+  "ext_top10": [
+   [
+    ".py",
+    1493
+   ],
+   [
+    ".yaml",
+    414
+   ],
+   [
+    ".md",
+    278
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    11
+   ],
+   [
+    "(none)",
+    7
+   ],
+   [
+    ".gitkeep",
+    4
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_cli-4.0.0rc9.tar.gz": {
+  "files": 2243,
+  "bytes": 29720061,
+  "top_level": {
+   ".gitignore": {
+    "files": 1,
+    "bytes": 10539
+   },
+   "CHANGELOG.md": {
+    "files": 1,
+    "bytes": 1497786
+   },
+   "LICENSE": {
+    "files": 1,
+    "bytes": 1096
+   },
+   "NOTICE": {
+    "files": 1,
+    "bytes": 1016
+   },
+   "PKG-INFO": {
+    "files": 1,
+    "bytes": 16140
+   },
+   "README.md": {
+    "files": 1,
+    "bytes": 11179
+   },
+   "hatch_build.py": {
+    "files": 1,
+    "bytes": 3887
+   },
+   "packs/built-in": {
+    "files": 505,
+    "bytes": 2147741
+   },
+   "packs/built-in.source.yaml": {
+    "files": 1,
+    "bytes": 721
+   },
+   "pins": {
+    "files": 2,
+    "bytes": 4721
+   },
+   "pyproject.toml": {
+    "files": 1,
+    "bytes": 159942
+   },
+   "src/charter": {
+    "files": 427,
+    "bytes": 4153436
+   },
+   "src/glossary": {
+    "files": 24,
+    "bytes": 216514
+   },
+   "src/kernel": {
+    "files": 47,
+    "bytes": 394732
+   },
+   "src/mission_runtime": {
+    "files": 16,
+    "bytes": 330121
+   },
+   "src/runtime": {
+    "files": 36,
+    "bytes": 773789
+   },
+   "src/specify_cli": {
+    "files": 1177,
+    "bytes": 19996701
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [
+   "packs/built-in.source.yaml",
+   "pins/README.md",
+   "pins/read-service.source.yaml"
+  ],
+  "ext_top10": [
+   [
+    ".py",
+    1494
+   ],
+   [
+    ".yaml",
+    415
+   ],
+   [
+    ".md",
+    280
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    11
+   ],
+   [
+    "(none)",
+    5
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".gitkeep",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_cli-4.0.0rc8-py3-none-any.whl": {
+  "files": 2188,
+  "bytes": 26960308,
+  "top_level": {
+   "charter": {
+    "files": 427,
+    "bytes": 4144145
+   },
+   "glossary": {
+    "files": 24,
+    "bytes": 215182
+   },
+   "kernel": {
+    "files": 43,
+    "bytes": 358424
+   },
+   "mission_runtime": {
+    "files": 15,
+    "bytes": 315473
+   },
+   "packs/built-in": {
+    "files": 505,
+    "bytes": 2147741
+   },
+   "runtime": {
+    "files": 35,
+    "bytes": 695829
+   },
+   "spec_kitty_cli-4.0.0rc8.dist-info": {
+    "files": 6,
+    "bytes": 248285
+   },
+   "specify_cli": {
+    "files": 1133,
+    "bytes": 18835229
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [
+   "specify_cli/_pins/README.md",
+   "specify_cli/_pins/read-service.source.yaml"
+  ],
+  "ext_top10": [
+   [
+    ".py",
+    1443
+   ],
+   [
+    ".yaml",
+    414
+   ],
+   [
+    ".md",
+    278
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    10
+   ],
+   [
+    "(none)",
+    7
+   ],
+   [
+    ".gitkeep",
+    4
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_cli-4.0.0rc8.tar.gz": {
+  "files": 2192,
+  "bytes": 28415355,
+  "top_level": {
+   ".gitignore": {
+    "files": 1,
+    "bytes": 10245
+   },
+   "CHANGELOG.md": {
+    "files": 1,
+    "bytes": 1497783
+   },
+   "LICENSE": {
+    "files": 1,
+    "bytes": 1096
+   },
+   "NOTICE": {
+    "files": 1,
+    "bytes": 1016
+   },
+   "PKG-INFO": {
+    "files": 1,
+    "bytes": 15518
+   },
+   "README.md": {
+    "files": 1,
+    "bytes": 10472
+   },
+   "hatch_build.py": {
+    "files": 1,
+    "bytes": 3887
+   },
+   "packs/built-in": {
+    "files": 505,
+    "bytes": 2147741
+   },
+   "packs/built-in.source.yaml": {
+    "files": 1,
+    "bytes": 721
+   },
+   "pins": {
+    "files": 2,
+    "bytes": 4721
+   },
+   "pyproject.toml": {
+    "files": 1,
+    "bytes": 160324
+   },
+   "src/charter": {
+    "files": 427,
+    "bytes": 4144145
+   },
+   "src/glossary": {
+    "files": 24,
+    "bytes": 215182
+   },
+   "src/kernel": {
+    "files": 44,
+    "bytes": 360694
+   },
+   "src/mission_runtime": {
+    "files": 15,
+    "bytes": 315473
+   },
+   "src/runtime": {
+    "files": 35,
+    "bytes": 695829
+   },
+   "src/specify_cli": {
+    "files": 1131,
+    "bytes": 18830508
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [
+   "packs/built-in.source.yaml",
+   "pins/README.md",
+   "pins/read-service.source.yaml"
+  ],
+  "ext_top10": [
+   [
+    ".py",
+    1444
+   ],
+   [
+    ".yaml",
+    415
+   ],
+   [
+    ".md",
+    280
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    10
+   ],
+   [
+    "(none)",
+    5
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".gitkeep",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_cli-3.2.7-py3-none-any.whl": {
+  "files": 2066,
+  "bytes": 22271564,
+  "top_level": {
+   "charter": {
+    "files": 390,
+    "bytes": 3012865
+   },
+   "doctrine.py": {
+    "files": 1,
+    "bytes": 4754
+   },
+   "glossary": {
+    "files": 24,
+    "bytes": 213112
+   },
+   "kernel": {
+    "files": 17,
+    "bytes": 111394
+   },
+   "mission_runtime": {
+    "files": 10,
+    "bytes": 201111
+   },
+   "packs/built-in": {
+    "files": 502,
+    "bytes": 2067324
+   },
+   "runtime": {
+    "files": 32,
+    "bytes": 592938
+   },
+   "spec_kitty_cli-3.2.7.dist-info": {
+    "files": 5,
+    "bytes": 233186
+   },
+   "specify_cli": {
+    "files": 1085,
+    "bytes": 15834880
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [],
+  "ext_top10": [
+   [
+    ".py",
+    1316
+   ],
+   [
+    ".yaml",
+    403
+   ],
+   [
+    ".md",
+    296
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    10
+   ],
+   [
+    "(none)",
+    6
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    ".gitkeep",
+    3
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_cli-3.2.7.tar.gz": {
+  "files": 2563,
+  "bytes": 23761041,
+  "top_level": {
+   ".gitignore": {
+    "files": 1,
+    "bytes": 5360
+   },
+   "LICENSE": {
+    "files": 1,
+    "bytes": 1073
+   },
+   "PKG-INFO": {
+    "files": 1,
+    "bytes": 15330
+   },
+   "README.md": {
+    "files": 1,
+    "bytes": 10225
+   },
+   "docs": {
+    "files": 29,
+    "bytes": 931548
+   },
+   "kitty-specs": {
+    "files": 450,
+    "bytes": 670470
+   },
+   "packs/built-in": {
+    "files": 502,
+    "bytes": 2067324
+   },
+   "packs/internal": {
+    "files": 1,
+    "bytes": 2706
+   },
+   "pyproject.toml": {
+    "files": 1,
+    "bytes": 29213
+   },
+   "research-outputs": {
+    "files": 4,
+    "bytes": 1064
+   },
+   "scripts": {
+    "files": 2,
+    "bytes": 8013
+   },
+   "src/charter": {
+    "files": 390,
+    "bytes": 3012865
+   },
+   "src/doctrine.py": {
+    "files": 1,
+    "bytes": 4754
+   },
+   "src/glossary": {
+    "files": 24,
+    "bytes": 213112
+   },
+   "src/kernel": {
+    "files": 18,
+    "bytes": 113648
+   },
+   "src/mission_runtime": {
+    "files": 10,
+    "bytes": 201111
+   },
+   "src/runtime": {
+    "files": 32,
+    "bytes": 592938
+   },
+   "src/specify_cli": {
+    "files": 1085,
+    "bytes": 15834880
+   },
+   "tests": {
+    "files": 10,
+    "bytes": 45407
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": true,
+  "pins": [],
+  "ext_top10": [
+   [
+    ".py",
+    1316
+   ],
+   [
+    ".md",
+    793
+   ],
+   [
+    ".yaml",
+    403
+   ],
+   [
+    ".yml",
+    13
+   ],
+   [
+    ".json",
+    10
+   ],
+   [
+    ".template",
+    4
+   ],
+   [
+    ".csv",
+    4
+   ],
+   [
+    "(none)",
+    4
+   ],
+   [
+    ".gitkeep",
+    3
+   ],
+   [
+    ".jsonl",
+    3
+   ]
+  ]
+ },
+ "spec_kitty_services-4.0.0rc8-py3-none-any.whl": {
+  "files": 8,
+  "bytes": 20637,
+  "top_level": {
+   "spec_kitty_services": {
+    "files": 4,
+    "bytes": 18310
+   },
+   "spec_kitty_services-4.0.0rc8.dist-info": {
+    "files": 4,
+    "bytes": 2327
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [],
+  "ext_top10": [
+   [
+    "(none)",
+    3
+   ],
+   [
+    ".py",
+    2
+   ],
+   [
+    ".json",
+    1
+   ],
+   [
+    ".typed",
+    1
+   ],
+   [
+    ".txt",
+    1
+   ]
+  ]
+ },
+ "spec_kitty_events-11.3.0-py3-none-any.whl": {
+  "files": 1455,
+  "bytes": 3799163,
+  "top_level": {
+   "spec_kitty_events": {
+    "files": 1450,
+    "bytes": 3572928
+   },
+   "spec_kitty_events-11.3.0.dist-info": {
+    "files": 5,
+    "bytes": 226235
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [],
+  "ext_top10": [
+   [
+    ".json",
+    1341
+   ],
+   [
+    ".py",
+    66
+   ],
+   [
+    ".jsonl",
+    37
+   ],
+   [
+    ".md",
+    5
+   ],
+   [
+    "(none)",
+    4
+   ],
+   [
+    ".typed",
+    1
+   ],
+   [
+    ".txt",
+    1
+   ]
+  ]
+ },
+ "spec_kitty_tracker-0.5.2-py3-none-any.whl": {
+  "files": 47,
+  "bytes": 270328,
+  "top_level": {
+   "spec_kitty_tracker": {
+    "files": 42,
+    "bytes": 253196
+   },
+   "spec_kitty_tracker-0.5.2.dist-info": {
+    "files": 5,
+    "bytes": 17132
+   }
+  },
+  "binary_like": [],
+  "has_packs_internal": false,
+  "pins": [],
+  "ext_top10": [
+   [
+    ".py",
+    41
+   ],
+   [
+    "(none)",
+    4
+   ],
+   [
+    ".typed",
+    1
+   ],
+   [
+    ".txt",
+    1
+   ]
+  ]
+ }
+}

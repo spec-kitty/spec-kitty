@@ -1,0 +1,63 @@
+finding_id: F-D1-019
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: built-in pack integrity at run time
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Exploratory. The built-in tree is digest-verified at build, sync and pin-bump time but not at CLI run time:
+  after appending a line to one directive file and deleting one tactic file in the tree the CLI resolves (via SPEC_KITTY_PACKS_ROOT),
+  `charter pack list` and `doctor charter-packs --json` still exit 0 and report healthy. Statically, check_pack()
+  is called from hatch_build.py, scripts/sync_packs.py, the pack-vendor command and analysis_inputs.py only.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04e-packs-root-override-and-tamper.txt
+  method: head wheel; spec-kitty charter pack path built-in with and without SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks;
+    pack list; doctor charter-packs
+  sha256: 81a3d107afd8131efd5d9e0b6d2345629c2c3d2d99978cf72f28378e1e62410d
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:26:49Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/revision-table.csv
+  method: read each pin/lock file at the head revisions (git show / cat in scratch clones); distances by `git rev-list
+    --count <pin>..origin/main` and commit dates; PyPI JSON API for released versions
+  sha256: 0ba2d77fb1b618239a2450d5cd00a2ebb808e0d17a8e7a7e714af62d5e465787
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: two commands on a modified override tree
+  not_covered: a modified tree inside site-packages; `doctor provenance`; `charter pack validate` semantics (it
+    also exited 0, not analysed)
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: grepped src for run-time callers of check_pack / clean_tree_digest
+  result: only build/sync/vendor/analysis callers
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- integrity
+candidate_invariants: []
+open_questions:
+- Does any record require run-time verification of the shipped tree? None was looked up here; without one this is
+  an observation, not a deficiency.

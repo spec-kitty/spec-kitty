@@ -1,0 +1,81 @@
+finding_id: F-D1-013
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M04d
+  deviation: The brief asks for the lowest and the highest admitted events/tracker versions; the ranges admit one
+    published version each, so the matrix collapses to one combination per core build. Core's tests refuse an installed
+    wheel (see F-D1-014), so for 4.0.0rc8 the named checks ran from the v4.0.0rc8 source export inside a venv built
+    from the rc8 wheel's dependency set, not against the wheel's own modules.
+subject:
+  component: events/tracker seam of core
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'M04d. At the only admitted boundary (spec-kitty-events 11.3.0, spec-kitty-tracker 0.5.2): core head from
+  source: 13 of 13 named seam test files pass (207 tests) and the events packaged conformance passes (1200); core
+  v4.0.0rc8 source in the rc8 dependency set: 13 of 13 files pass (207 tests) and conformance passes (1200). Combinations
+  run: 2 of 2 pass.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04d-head-source_events-11.3.0_tracker-0.5.2.txt
+  method: core head clone venv; one pytest process per file in m04d-seam-tests.txt; then --pyargs spec_kitty_events.conformance
+  sha256: bd0ea0a4b85e65fbe48e11bd66f5161ad4282970c722ec7c52efbbb5691e72ec
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:45:44Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04d-rc8-source_events-11.3.0_tracker-0.5.2.txt
+  method: git archive v4.0.0rc8; venv from spec-kitty-cli[test]==4.0.0rc8 + events 11.3.0 + tracker 0.5.2; same
+    13 files + conformance
+  sha256: d552c656ff1beea7af94c983b982db2123bea3e4f7691d804b8f81661d836e58
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:54:43Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/D1/m04d-seam-tests.txt
+  method: the 13 named test files
+  sha256: 666436f749dcc5c1e487d6d7239dad8f850fe69edc5910baa5e54012f7ae030c
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:40:51Z'
+- id: E4
+  kind: executed
+  reference: evidence/D1/pypi-versions.json
+  method: admitted versions per range
+  sha256: 50e662c1f6c9858edb4f307e7524ebca7681ace201c3849e45e819c51f1f6d37
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T11:36:22Z'
+scope:
+  covered: '13 named files: 2 consumer-contract files, envelope-snapshot, no-vendored-events, shared-package-boundary,
+    verdict vocabulary, 2 status payload/reducer files, retrospective event shapes, status reducer, status adapters
+    contract, 2 tracker files'
+  not_covered: the other 28 paths of core's nightly events-latest lane; any second version of either package
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: ran the same files against an unreleased events build inside the range (F-D1-031) to see whether the seam
+    breaks on the next version
+  result: 12 of 13 files pass; the 1 failure is the lock-pin equality guard, not a behavioural check
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- compatibility
+candidate_invariants: []
+open_questions: []

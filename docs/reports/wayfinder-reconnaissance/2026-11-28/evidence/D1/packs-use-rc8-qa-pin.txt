@@ -1,0 +1,27 @@
+2026-11-28T09:48:13Z
+# spec-kitty-cli 4.0.0rc8 wheel; org pack = open-packs packs/qa at pin (a79c36318b7a) copied into the project and configured by local_path
+$ spec-kitty doctor charter-packs --json (selected keys)
+exit=0
+org_configured True packs [('qa', None, {})]
+org_drg errors 0 []
+profile_health.healthy True
+$ spec-kitty charter pack list
+┃ Pack     ┃ Tier     ┃ Presets          ┃
+┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ built-in │ built-in │ default, minimal │
+│ qa       │ org      │ —                │
+│ project  │ project  │ —                │
+└──────────┴──────────┴──────────────────┘
+
+exit=0
+$ spec-kitty charter context --action review --json | head -c 300
+{
+  "result": "success",
+  "success": true,
+  "context_schema_version": "1.4.0",
+  "action": "review",
+  "mode": "missing",
+  "first_load": true,
+  "references_count": 0,
+  "context": "Charter Context:\n  - Charter file not found at `.kittify/charter/charter.yaml`.\n  - Run `spec-kitty charter inter
+exit=0

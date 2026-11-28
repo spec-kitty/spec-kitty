@@ -1,0 +1,61 @@
+finding_id: F-D1-030
+workstream: D1 - Integration surface, packaging and independence of Python-side capabilities
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: events/tracker seam of core
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+claim: 'Exploratory. Inside the declared range but unreleased: spec-kitty-events 11.5.0 built from events head with
+  core head source passes 12 of 13 named seam files (206 of 207 tests) and its own packaged conformance (1358 passed).
+  The single failure is test_installed_spec_kitty_events_version_matches_lock_pin (installed 11.5.0 != uv.lock 11.3.0),
+  a lock-equality guard.'
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/m04d-EXPLORATORY_head-source_events-11.5.0-unreleased.txt
+  method: 'venv: head wheel deps + spec_kitty_events-11.5.0 wheel built from 646e330b; 13 named files from the head
+    clone; conformance'
+  sha256: e28ac8dc4a628f956cdba6fe8704cda6650540d99caff55efed750a51ba60500
+  exit_code: 1
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T10:01:13Z'
+- id: E2
+  kind: executed
+  reference: evidence/D1/m04b-events.txt
+  method: uv build of events head
+  sha256: 55dd53be55cb1b8e35ca57fc55b73161cea06dd9ac3413c11c6e4c7ebd68fdd5
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+  observed_at: '2026-11-28T09:18:26Z'
+scope:
+  covered: 13 named files
+  not_covered: the rest of the events-latest lane; reducer-verdict pins beyond tests/status/test_reducer.py
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: looked for a behavioural failure caused by the 11.5.0 edge-graph change described in COMPATIBILITY.md
+  result: none in the 13 files
+relations:
+- type: refines
+  target: F-D1-013
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- compatibility
+candidate_invariants: []
+open_questions: []

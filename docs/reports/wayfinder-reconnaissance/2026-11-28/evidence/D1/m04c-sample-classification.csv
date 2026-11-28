@@ -1,0 +1,49 @@
+surface,file,classification,note
+status_files,mission_runtime/artifacts.py,name_only,artifact-kind classification map
+status_files,specify_cli/acceptance/__init__.py,name_only,messages and comments
+status_files,specify_cli/audit/classifiers/status_json.py,direct_fs,reads mission_dir/status.json
+status_files,specify_cli/cli/commands/agent/tasks_map_requirements.py,direct_fs,path join + exists()
+status_files,specify_cli/consolidation/_constants.py,name_only,filename constants
+status_files,specify_cli/consolidation/conflict_resolver.py,name_only,git path match
+status_files,specify_cli/consolidation/phase_teardown.py,direct_fs,is_file()/read_bytes() on status.events.jsonl
+status_files,specify_cli/consolidation/reconciliation_bound.py,name_only,message
+status_files,specify_cli/coordination/workspace.py,name_only,sparse-checkout patterns
+status_files,specify_cli/core/mission_creation_scaffold.py,direct_fs,touch() of status.events.jsonl
+status_files,specify_cli/git/origin_freshness.py,git_path,constant used for git reads
+status_files,specify_cli/lanes/auto_rebase.py,direct_fs,path join + exists()
+status_files,specify_cli/lanes/lane_checkout.py,name_only,sparse exclusion names
+status_files,specify_cli/migration/normalize_mission_lifecycle.py,direct_fs,migration
+status_files,specify_cli/migration/rebuild_state.py,direct_fs,migration; reads and writes both files
+status_files,specify_cli/migration/snapshot_refresh.py,direct_fs,migration; is_file()
+status_files,specify_cli/retrospective/generator.py,direct_fs,read_text() of status.events.jsonl and own JSON parse
+status_files,specify_cli/retrospective/summary.py,direct_fs,read_text() of status.events.jsonl and own JSON parse
+status_files,specify_cli/state/contract.py,name_only,declarative path registry
+status_files,specify_cli/upgrade/migrations/m_4_0_0rc8_lane_checkout_status_exclusion.py,git_path,migration; git pathspecs
+packs_tree,charter/activation/context_json.py,not_a_path,layer label / dict key
+packs_tree,charter/activation/identity_index.py,not_a_path,layer label
+packs_tree,charter/activation/mission_type_profiles.py,not_a_path,layer label
+packs_tree,charter/activation/org_charter_loader.py,not_a_path,dict key
+packs_tree,specify_cli/analysis_inputs.py,not_a_path,uses built_in_root()
+packs_tree,specify_cli/cli/commands/charter/_status_collectors.py,not_a_path,dict key
+packs_tree,specify_cli/cli/commands/charter/activate.py,not_a_path,pack name constant
+packs_tree,specify_cli/cli/commands/charter/list_cmd.py,not_a_path,dict key
+packs_tree,specify_cli/cli/commands/charter/status.py,not_a_path,dict key
+packs_tree,specify_cli/cli/commands/regen.py,direct_path,Path('packs/built-in/missions/mission-steps/software-dev')
+packs_tree,specify_cli/lanes/lane_packs.py,direct_path,places pinned packs into lane checkouts
+packs_tree,specify_cli/template/manager.py,direct_path,repo_root/'packs'/'built-in'/'missions'
+packs_tree,specify_cli/upgrade/migrations/_retired_activation.py,not_a_path,config key
+charter_bundle,specify_cli/charter_runtime/freshness/computer.py,direct_fs,reads charter.yaml directly
+charter_bundle,specify_cli/charter_runtime/preflight/runner.py,direct_fs,exists() on charter.md; git status pathspec
+charter_bundle,specify_cli/cli/commands/charter/_common.py,direct_fs,repo_root/.kittify/charter/charter.md
+charter_bundle,specify_cli/cli/commands/charter/generate.py,direct_fs,charter_dir joins
+charter_bundle,specify_cli/cli/commands/doctor.py,name_only,messages
+charter_bundle,specify_cli/cli/commands/migrate/charter_encoding.py,direct_fs,glob over .kittify/charter
+charter_bundle,specify_cli/migration/legacy_charter_layout.py,direct_fs,migration
+charter_bundle,specify_cli/tool_surface/providers/agent_profiles.py,direct_fs,path list
+charter_bundle,specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py,name_only,different file (command template)
+charter_bundle,specify_cli/upgrade/migrations/m_3_2_0rc35_charter_bundle_v2.py,name_only,message
+charter_bundle,specify_cli/upgrade/migrations/m_3_2_0rc35_charter_manifest_defaults_repair.py,name_only,message
+charter_bundle,specify_cli/upgrade/migrations/m_3_2_0rc35_sync_state_gitignore.py,name_only,gitignore pattern
+charter_bundle,specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py,direct_fs,migration
+charter_bundle,specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py,direct_fs,migration
+charter_bundle,specify_cli/upgrade/migrations/m_4_0_0rc8_activation_ledger.py,name_only,description; uses the activation API

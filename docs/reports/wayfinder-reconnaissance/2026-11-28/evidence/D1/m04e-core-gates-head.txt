@@ -1,0 +1,18 @@
+2026-11-28T11:28:58Z
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_runtime_charter_doctrine_boundary.py
+...................................................                      [100%]
+51 passed in 265.93s (0:04:25)
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_pyproject_shape.py
+............                                                             [100%]
+12 passed in 26.07s
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/architectural/test_layer_rules.py
+........................................................................ [ 90%]
+........                                                                 [100%]
+80 passed in 69.33s (0:01:09)
+exit=0
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts= tests/cross_cutting/packaging/test_packaging_safety.py
+.........................                                                [100%]
+25 passed in 30.53s
+exit=0

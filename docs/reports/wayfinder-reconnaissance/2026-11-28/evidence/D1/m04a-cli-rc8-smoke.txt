@@ -1,0 +1,92 @@
+2026-11-28T09:13:59Z
+# venv cli-rc8; cwd empty directory; scratch HOME; output of each command truncated to 12 lines after capture
+$ spec-kitty --version
+spec-kitty-cli version 4.0.0rc8
+[lines=1] exit=0
+$ spec-kitty --help
+Usage: spec-kitty [OPTIONS] COMMAND [ARGS]...
+
+Setup tool for Spec Kitty spec-driven development projects.
+
+Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice.
+
+Options:
+  -v, --version         Show version and exit
+  --install-completion  Install completion for the current shell.
+  --show-completion     Show completion for the current shell, to copy it or
+                        customize the installation.
+  -h, --help            Show this message and exit.
+[lines=62] exit=0
+$ spec-kitty doctor --help
+                                                                                
+ Usage: spec-kitty doctor [OPTIONS] COMMAND [ARGS]...                           
+                                                                                
+ Project health diagnostics; a bare invocation runs the default check set       
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ bytecode                Flag a corrupt installed-package .pyc before it      │
+│                         bites (#4124, #4130).                                │
+│ channel                 Report the active release channel (stable vs.        │
+[lines=62] exit=0
+$ spec-kitty agent --help
+                                                                                
+ Usage: spec-kitty agent [OPTIONS] COMMAND [ARGS]...                            
+                                                                                
+ Commands for AI agents to execute spec-kitty mission actions programmatically  
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ tracer-append       Append a dated, attributed finding to the mission's      │
+│                     tracer surface.                                          │
+│ issue-verdict       Set an issue-matrix row's verdict, routed via            │
+[lines=33] exit=0
+$ spec-kitty service --help
+                                                                                
+ Usage: spec-kitty service [OPTIONS] COMMAND [ARGS]...                          
+                                                                                
+ Fetch, vendor, inspect and stop the pinned service binaries                    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch   Fetch and verify the pinned build of a service for this host into    │
+│         the cache.                                                           │
+│ status  Show the pin, the cache state and the running instance of a service  │
+[lines=18] exit=0
+$ spec-kitty service status
+No service is pinned in this spec-kitty version yet.
+[lines=1] exit=0
+$ spec-kitty charter --help
+                                                                                
+ Usage: spec-kitty charter [OPTIONS] COMMAND [ARGS]...                          
+                                                                                
+ Charter management commands                                                    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ activate           Activate a doctrine artifact by kind and ID (FR-004), or  │
+│                    apply a pack's preset.                                    │
+│ deactivate         Deactivate a doctrine artifact by kind and ID (FR-005),   │
+[lines=42] exit=0
+$ spec-kitty migrate --help
+                                                                                
+ Usage: spec-kitty migrate [OPTIONS] COMMAND [ARGS]...                          
+                                                                                
+ Migration commands: update .kittify/ layout and backfill identity fields in    
+ legacy missions.                                                               
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run            Show what would change without modifying the            │
+│                      filesystem. Before a subcommand, forwarded if the       │
+│                      subcommand declares it, else rejected (exit 2) — place  │
+│                      it after the subcommand when unsure.                    │
+│ --verbose  -v        Show file-by-file detail. Before a subcommand,          │
+[lines=50] exit=0

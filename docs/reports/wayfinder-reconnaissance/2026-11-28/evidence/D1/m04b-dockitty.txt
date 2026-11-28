@@ -1,0 +1,42 @@
+2026-11-28T09:18:26Z
+# isolated clone, parent dir holds only this repository: doc-kitty
+1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+v22.23.5
+0.36.0
+11.22.0
+$ pnpm install --frozen-lockfile
++ @lhci/cli 0.15.1
++ @playwright/test 1.62.1
++ eslint 10.9.0
++ markdownlint-cli2 0.23.2
++ typescript 5.9.3
++ typescript-eslint 8.67.0
+
+Done in 1m 46.2s using pnpm v11.22.0
+exit=0
+$ pnpm --filter @spec-kitty/doc-toolkit exec vitest run tests/remark-version-pin.test.ts
+
+ RUN  v2.1.9 <scratch>/m04b/iso-doc-kitty/doc-kitty/src
+
+ ✓ |fast| tests/remark-version-pin.test.ts (1 test) 16ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  09:20:46
+   Duration  2.49s (transform 35ms, setup 0ms, collect 59ms, tests 16ms, environment 0ms, prepare 297ms)
+
+exit=0
+$ pnpm run validate:docs
+⚠ docs/adr/0001-build-on-astro-starlight.md: description is 39 chars; convention suggests 50–180
+⚠ docs/adr/template.md: description is 44 chars; convention suggests 50–180
+⚠ docs/architecture/overview.md: description is 49 chars; convention suggests 50–180
+⚠ docs/context/product.md: description is 47 chars; convention suggests 50–180
+✓ 217 file(s) valid against DocKitty across 1 root(s): docs (4 warning(s)).
+exit=0
+$ pnpm --filter @spec-kitty/doc-toolkit run typecheck
+tests/single-h1.test.ts(55,14): error TS2345: Argument of type 'Hast' is not assignable to parameter of type 'HastNode'.
+  Index signature for type 'string' is missing in type 'Hast'.
+<scratch>/m04b/iso-doc-kitty/doc-kitty/src:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @spec-kitty/doc-toolkit@0.7.1 typecheck: `tsc --noEmit`
+Exit status 2
+exit=2
