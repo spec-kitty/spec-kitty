@@ -1,0 +1,54 @@
+finding_id: F-B3-005
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "mission_runtime -> specify_cli"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Category (c), ledgered pair 2: mission_runtime imports specify_cli, recorded as must-not except named ledger entries. Observed weight 30 of 1605 top-level weight (1.9%), of which 1 at load time (0.1% of 1173). At full granularity it is 9 of 656 edges, to 9 of the 67 specify_cli components; the heaviest are specify_cli.core (10), specify_cli.coordination (5) and specify_cli.status (5). The only load-time import is into specify_cli.core."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/category-c-pairs.csv"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "da89dc5c629aa61399ed601aa72e83b73f1a9bc69fd84640f67b5378cb833e6e"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: document-claim
+    reference: "docs/architecture/04_implementation_mapping/README.md:87-92 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/04_implementation_mapping/README.md | sed -n 87,92p"
+    sha256: null
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "The pair at both granularities, all and load-time imports."
+  not_covered: "Ledger membership of each import (see F-B3-004)."
+  population: "14 top-level pairs; 656 edges"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a record that states the pair as permitted without qualification."
+  result: "None found in the frozen table."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity"]
+candidate_invariants: []
+open_questions: []

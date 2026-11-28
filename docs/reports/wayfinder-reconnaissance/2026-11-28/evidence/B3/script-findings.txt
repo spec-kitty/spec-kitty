@@ -1,0 +1,145 @@
+import hashlib, json, os, sys
+R=sys.argv[1]; E=R+'/evidence/B3'; F=R+'/findings/B3'
+H='5c4fc5a79de1c1c299ab221ca26e5555c68ef533'
+ENV='CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux'
+NOW='2026-11-28T09:47:00Z'
+sha=lambda f: hashlib.sha256(open(E+'/'+f,'rb').read()).hexdigest()
+q=json.dumps
+JOIN='python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)'
+MOD='git archive %s src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>'%H
+def ev(i,kind,ref,method,exit_code=0,env=ENV):
+    s=sha(ref.split('/')[-1]) if ref.startswith('evidence/B3/') else None
+    return {'id':'E%d'%i,'kind':kind,'reference':ref,'method':method,'sha256':s,'exit_code':exit_code,'environment':env,'observed_at':NOW}
+def emit(n,d):
+    o=[]
+    def L(s): o.append(s)
+    L('finding_id: F-B3-%03d'%n)
+    L('workstream: B3 documented relationships against the observed component graph')
+    L('hypotheses: []')
+    L('classification: '+d['cls'])
+    L('view: '+d.get('view','observed'))
+    L('prereg:'); L('  measure: '+d['measure']); L('  deviation: '+(q(d['dev']) if d.get('dev') else 'null'))
+    L('subject:'); L('  component: '+q(d['component'])); L('  repository: spec-kitty/spec-kitty'); L('  revision: "%s"'%H); L('  revision_kind: head')
+    L('claim: '+q(d['claim']))
+    if d['evidence']:
+        L('evidence:')
+        for e in d['evidence']:
+            L('  - id: '+e['id']); L('    kind: '+e['kind']); L('    reference: '+q(e['reference'])); L('    method: '+q(e['method']))
+            L('    sha256: '+(q(e['sha256']) if e['sha256'] else 'null')); L('    exit_code: %s'%('null' if e['exit_code'] is None else e['exit_code'])); L('    environment: '+q(e['environment'])); L('    observed_at: "%s"'%e['observed_at'])
+    else: L('evidence: []')
+    sc=d['scope']
+    L('scope:'); L('  covered: '+q(sc[0])); L('  not_covered: '+q(sc[1])); L('  population: '+(q(sc[2]) if sc[2] else 'null')); L('  sample: null'); L('  seed: null')
+    L('interpretation: '+(q(d['interp']) if d.get('interp') else 'null'))
+    L('derived_from: '+json.dumps(d.get('derived',[])))
+    ce=d.get('counter',[])
+    if ce:
+        L('counterevidence:'); [L('  - '+q(c)) for c in ce]
+    else: L('counterevidence: []')
+    L('disconfirmation:'); L('  search: '+q(d['dis'][0])); L('  result: '+q(d['dis'][1]))
+    rel=d.get('rel',[])
+    if rel:
+        L('relations:'); [L('  - {type: %s, target: %s}'%r) for r in rel]
+    else: L('relations: []')
+    L('confidence: '+d.get('conf','high'))
+    L('analyst:'); L('  profile: architect-alphonso'); L('  model: fable')
+    L('verification:'); L('  status: unverified'); L('  by: null')
+    L('quality_attributes: '+json.dumps(d.get('qa',[])))
+    L('candidate_invariants: []')
+    oq=d.get('oq',[])
+    if oq:
+        L('open_questions:'); [L('  - '+q(x)) for x in oq]
+    else: L('open_questions: []')
+    open(F+'/F-B3-%03d.yaml'%n,'w').write('\n'.join(o)+'\n')
+m=json.load(open(E+'/m03b-summary.json'))
+DEVLE='The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read.'
+EJ=lambda i,f: ev(i,'static-derived','evidence/B3/'+f,JOIN)
+RULES=ev(9,'static-derived','evidence/B3/mapping-rules.txt','hand-written before the join; erratum appended after')
+def pct(x): return '%.1f%%'%(100*x)
+def line(g):
+    a=m[g]['all']; l=m[g]['load_time']
+    def s(b,k): return '%d of %d edges (%s), %d of %d weight (%s)'%(b[k]['edges'],b['total_edges'],pct(b[k]['edge_share']),b[k]['weight'],b['total_weight'],pct(b[k]['weight_share']))
+    return 'all imports: '+s(a,'V0_M03b_a_plus_b')+'; load-time imports: '+s(l,'V0_M03b_a_plus_b')
+COV='All 656 cross-component edges of evidence/B1/component-edges-head.csv (74 components, core Python under src/ at head), classified by the rules of mapping-rules.txt against the 72 rows of evidence/A1/documented-relationships.csv, of which 14 rows speak to an in-repo Python pair.'
+NOTC='Relationships to external packages, services, packs and other repositories (50 documented rows, outside the observed table); rules that distinguish modules inside one component; correctness of the B1 edge extraction itself (taken as given, one independent AST pass was run for the strict must-not rules only).'
+emit(1,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'core Python, six top-level packages','claim':
+ 'M03b at top-level granularity (6 packages, 14 cross-package edges). Primary variant, categories (a)+(b): '+line('top_level')+'. By category, all imports: (a) 8 edges / 1410 weight, (b) 3 / 54, (c) strict 0 / 0, (c) with a recorded exception ledger 2 / 128, (d) 1 / 13. Without the general layer-chain rule (a only): 8 of 14 edges (57.1%), 1410 of 1605 weight (87.9%); load-time weight 1067 of 1173 (91.0%). If the two ledgered pairs are counted as documented: 13 of 14 edges (92.9%), 1592 of 1605 weight (99.2%).',
+ 'evidence':[EJ(1,'m03b-summary.json'),EJ(2,'edge-classification-top-level.csv'),RULES],
+ 'scope':(COV,NOTC,'14 top-level package pairs with at least one import; weight = module-level import edges (1605 all, 1173 load-time)'),
+ 'dis':('Checked that the top-level weight sums reproduce B1 own top-level aggregate for all 14 pairs (mapping-summary.json), and looked for any pair classified (a) or (b) whose direction runs against the recorded layer chain.','All 14 sums match. No (a) or (b) pair runs from a lower to a higher layer; the only upward pairs are the two ledgered ones.'),
+ 'rel':[('refines','F-B3-002')],'qa':['modularity','analysability']})
+emit(2,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'core Python, 74 components (top-level packages and second-level subpackages)','claim':
+ 'M03b at full granularity (74 components, 656 cross-component edges, 466 of them with a load-time import). Primary variant, categories (a)+(b): '+line('full')+'. By category, all imports: (a) 157 edges / 1410 weight, (b) 5 / 54, (c) strict 0 / 0, (c) ledgered 29 / 128, (d) 465 / 3263. Without the general rule (a only): 157 of 656 edges (23.9%), 1410 of 4855 weight (29.0%); load-time 135 of 466 edges (29.0%), 1067 of 3112 weight (34.3%). With ledgered pairs counted: 191 of 656 edges (29.1%), 1592 of 4855 weight (32.8%). Of the 656 edges, 464 (70.7%; weight 3250 of 4855, 66.9%) join two components of the same top-level package, and all 464 are in (d); of the 192 edges that cross a top-level package, 162 (84.4%) are in (a) or (b).',
+ 'evidence':[EJ(1,'m03b-summary.json'),EJ(2,'edge-classification-full.csv'),RULES],
+ 'scope':(COV,NOTC,'656 cross-component edges; weight 4855 all imports, 3112 load-time'),
+ 'dis':('Searched the records at head for import rules not present in the frozen table (git grep for must-not-import phrasings over docs/architecture, docs/adr/3.x, docs/adr/4.x and the charter; 26 hits) and re-ran the classification with four relationships read in the records but absent from the frozen table (variant V3, F-B3-010).','The grep found rules for the layer chain, CORE/INTEGRATION, mission_runtime submodules, status internals and the charter offering and activation doors, all already in the frozen table or below component granularity, plus two file-level rules (preflight.py vs push_preflight.py; ref_advance vs consolidation state). V3 moves the share to 176 of 656 edges (26.8%) and 1841 of 4855 weight (37.9%).'),
+ 'rel':[('refines','F-B3-001')],'qa':['modularity','analysability']})
+emit(3,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'strict must-not relationships (kernel, charter, charter.offering, glossary, CORE/INTEGRATION)','claim':
+ 'Category (c), strict: 0 of 656 observed edges (0 of 14 at top level) match a documented must-not relationship that has no recorded exception. The five rules checked are kernel -> any other package, charter -> glossary|runtime|mission_runtime|specify_cli, charter.offering -> anything except kernel, glossary -> specify_cli, and CORE (core, status, readiness, invocation) -> INTEGRATION (orchestrator_api, tracker). charter.offering has one outbound cross-component edge, to kernel (weight 48).',
+ 'evidence':[EJ(1,'category-c-pairs.csv'),EJ(2,'edge-classification-full.csv'),ev(3,'static-derived','evidence/B3/disconfirmation-strict-must-not.json','git archive %s src | tar -x -C <scratch>/head; python3 -I script-disconf.txt <scratch>'%H)],
+ 'scope':('The five strict rules against all 656 edges, plus an independent AST pass over 1490 Python modules under src/ at head (all import statements, including function-level and TYPE_CHECKING ones).','Dynamic imports (importlib, __import__ with computed names), string-based plugin loading and non-Python coupling are not seen by either pass.','5 strict must-not rules; 656 edges; 1490 modules'),
+ 'dis':('Did not rely on the B1 table alone: wrote a separate import walker and counted module pairs that would break each of the five rules; also looked for modules carrying a retired name (sync, saas, saas_client, auth, dashboard, zeitgeist_client).','0 module pairs for each of the five rules; 0 modules with a retired name; src/ holds exactly the six documented top-level packages.'),
+ 'qa':['modularity']})
+emit(4,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'runtime -> specify_cli','claim':
+ 'Category (c), ledgered pair 1: runtime imports specify_cli, which the records state as must-not except named ledger entries. Observed weight 98 of 1605 top-level weight (6.1%), 50 at load time (4.3% of 1173). At full granularity it is 20 of 656 edges, reaching 20 of the 67 specify_cli components; the heaviest are specify_cli.core (16), the specify_cli root (14), specify_cli.status (13), specify_cli.coordination (10) and specify_cli.retrospective (10).',
+ 'evidence':[EJ(1,'category-c-pairs.csv'),ev(2,'document-claim','docs/architecture/04_implementation_mapping/README.md:87-92 at %s'%H,'git show %s:docs/architecture/04_implementation_mapping/README.md | sed -n 87,92p'%H,0)],
+ 'scope':('The pair at both granularities, all and load-time imports.','Whether each observed import is a named entry of the ledger: the ledger is in a test file, outside this workstream inputs.','14 top-level pairs; 656 edges'),
+ 'dis':('Looked for a record that states the pair as permitted without qualification.','None found in the frozen table; the record itself says a strict rule would fail on existing code and that the ledger is shrink-only.'),
+ 'oq':['How many of the 20 component edges are named ledger entries is not established here.'],'qa':['modularity']})
+emit(5,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'mission_runtime -> specify_cli','claim':
+ 'Category (c), ledgered pair 2: mission_runtime imports specify_cli, recorded as must-not except named ledger entries. Observed weight 30 of 1605 top-level weight (1.9%), of which 1 at load time (0.1% of 1173). At full granularity it is 9 of 656 edges, to 9 of the 67 specify_cli components; the heaviest are specify_cli.core (10), specify_cli.coordination (5) and specify_cli.status (5). The only load-time import is into specify_cli.core.',
+ 'evidence':[EJ(1,'category-c-pairs.csv'),ev(2,'document-claim','docs/architecture/04_implementation_mapping/README.md:87-92 at %s'%H,'git show %s:docs/architecture/04_implementation_mapping/README.md | sed -n 87,92p'%H,0)],
+ 'scope':('The pair at both granularities, all and load-time imports.','Ledger membership of each import (see F-B3-004).','14 top-level pairs; 656 edges'),
+ 'dis':('Looked for a record that states the pair as permitted without qualification.','None found in the frozen table.'),
+ 'qa':['modularity']})
+emit(6,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'component pairs no record speaks to','claim':
+ 'Category (d): 465 of 656 edges (70.9%) and 3263 of 4855 weight (67.2%) at full granularity; load-time 315 of 466 edges (67.6%) and 1950 of 3112 weight (62.7%). At top level it is 1 of 14 edges: runtime -> mission_runtime (weight 13, 11 at load time), two packages of the same layer whose mutual order the recorded chain leaves open. The 465 split into: specify_cli subpackage to subpackage 400 edges / 2634 weight; specify_cli root to or from a subpackage 60 / 348; inside charter 4 / 268; layer-2 peers 1 / 13. Top pairs by weight: specify_cli.cli -> specify_cli.core 236; charter.activation -> charter.offering 193; specify_cli.cli -> specify_cli.coordination 86; specify_cli.cli -> specify_cli root 83; specify_cli.cli -> specify_cli.lanes 81; specify_cli.consolidation -> specify_cli.lanes 81; specify_cli.cli -> specify_cli.status 62; specify_cli.consolidation -> specify_cli.core 55; specify_cli.cli -> specify_cli.git 54; specify_cli.upgrade -> specify_cli.core 50. The ten heaviest pairs carry 981 of 3263 (30.1%); specify_cli.cli is the source of 61 edges and 1135 weight (34.8% of the category).',
+ 'evidence':[EJ(1,'category-d-pairs.csv'),EJ(2,'d-subgroups-and-usage.json'),EJ(3,'m03b-summary.json'),ev(4,'document-claim','evidence/A1/units-without-recorded-internal-structure.csv','read as given; A1 lists specify_cli internal packages as having no recorded dependency rules other than CORE->INTEGRATION and the status facade rule',0)],
+ 'scope':(COV,NOTC+' A pair being in (d) says no record in the frozen table speaks to it; it says nothing on whether the import is appropriate.','656 edges'),
+ 'dis':('Searched the records at head for import rules between specify_cli subpackages or inside charter that the frozen table lacks (git grep, 26 hits read), and applied four record-derived relationships outside the frozen table (V3).','Found two file-level rules and the door rules already listed; V3 reclassifies 14 of the 465 edges (weight 377), leaving 451 edges (68.8%) and 2886 weight (59.4%) in (d).'),
+ 'rel':[('refines','F-B3-002')],'qa':['modularity','analysability']})
+ms=json.load(open(E+'/mapping-summary.json'))
+emit(7,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'name mapping between the documented table and the observed components','claim':
+ 'Name mapping. Documented side: of 72 documented relationship rows, 14 (19.4%) resolve to a pair of observed components (2 of them only at a coarser level than written, because charter.offering.api and charter.activation.api are modules inside a component); 3 concern a distinction inside one component (status internals, mission_runtime submodules, the status read door); 3 name a landscape container with no Python component in core (Dashboard, Agent Tool Connectors); 1 has a behaviour as target; 1 targets retired subsystems that have no component; 50 (69.4%) name repositories, packages, services, wheels, packs or contracts outside the observed table. One documented name, Mission Management, has no package mapping in the records read. Three documented INTEGRATION names (sync, saas, saas_client) have no observed component. Observed side: of 74 components, 14 are named at their own level by a frozen row after mapping, 9 are reachable only through a landscape container that no frozen row uses on its own, and 51 (68.9%) have no counterpart below their parent package specify_cli.',
+ 'evidence':[ev(1,'static-derived','evidence/B3/documented-row-mapping.csv','python3 -I script-mapping.txt <report folder> (row statuses hand-assigned in the script from mapping-rules.txt)'),ev(2,'static-derived','evidence/B3/observed-component-mapping.csv','python3 -I script-mapping.txt <report folder>'),ev(3,'static-derived','evidence/B3/mapping-summary.json','python3 -I script-mapping.txt <report folder>'),RULES],
+ 'scope':('All 72 documented rows and all 74 observed components.','Whether the 50 outside-frame rows hold is not assessed here. The mapping of landscape containers to packages follows the 04_implementation_mapping table at head and is a document-claim.','72 documented rows; 74 observed components'),
+ 'dis':('Looked in docs/architecture/diagrams/02_containers, 03_components and 04_implementation_mapping at head for a package list of Mission Management, and checked whether any observed component carries a retired or dashboard name.','Mission Management is described by its parts (Mission + WP lifecycle, status facade, planning artifacts) with no package list; no observed component has a retired or dashboard name.'),
+ 'conf':'medium','qa':['analysability'],'oq':['Which specify_cli subpackages constitute Mission Management is not stated in the records read.']})
+emit(8,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'documented may-depend relationships and their use','claim':
+ 'Documented but unused, and must-not observed. All 8 documented may-depend top-level pairs carry at least one observed import (charter->kernel 124; glossary->charter 3, ->kernel 9; specify_cli->kernel 595, ->charter 424, ->mission_runtime 200, ->runtime 40, ->glossary 15). At subcomponent level 1 of 12 documented target components is unused: nothing in glossary imports charter.offering. Use is uneven: of 67 specify_cli components, 55 import kernel, 31 mission_runtime, 27 charter, 12 runtime and 4 glossary. Documented must-not relationships that are observed: the 2 ledgered pairs only (runtime -> specify_cli, mission_runtime -> specify_cli; F-B3-004, F-B3-005); the 5 strict must-not rules have no observed edge (F-B3-003).',
+ 'evidence':[EJ(1,'documented-may-usage.csv'),EJ(2,'d-subgroups-and-usage.json'),EJ(3,'edge-classification-top-level.csv')],
+ 'scope':('The three documented may-depend rows that resolve to observed components (8 top-level pairs, 12 target components) and all must-not rows that resolve.','Documented relationships outside the observed table.','8 documented may-depend pairs; 12 target components; 7 resolvable must-not rules'),
+ 'dis':('For each documented may-depend pair, looked for a zero-weight case at both granularities.','One zero at subcomponent level (glossary -> charter.offering); none at top level.'),
+ 'rel':[('supports','F-B3-003')],'qa':['modularity']})
+emit(9,{'cls':'observation','measure':'M03b','dev':DEVLE,'component':'sensitivity of M03b to the general layer-chain rule','claim':
+ 'Sensitivity to rule (b). Not counting the general layer-chain rule as documentation moves M03b by 3 of 14 edges at top level (78.6% -> 57.1%; weight 91.2% -> 87.9%; load-time weight 94.7% -> 91.0%) and by 5 of 656 edges at full granularity (24.7% -> 23.9%; weight 30.2% -> 29.0%; load-time edges 29.8% -> 29.0%, load-time weight 35.7% -> 34.3%). The pairs carried only by the general rule are runtime -> kernel (26), runtime -> charter (20) and mission_runtime -> kernel (8). The change of granularity moves the edge share by 53.9 percentage points (78.6% -> 24.7%), against 21.5 points (top level) and 0.8 points (full) for the rule.',
+ 'evidence':[EJ(1,'m03b-summary.json'),EJ(2,'edge-classification-top-level.csv')],
+ 'scope':(COV,NOTC,'14 top-level pairs; 656 edges'),
+ 'dis':('Computed two further variants to see whether another classification choice moves the result more than rule (b): counting ledgered pairs as documented (V2) and adding four record-derived relationships outside the frozen table (V3).','V2 moves the full-granularity edge share by 4.4 points (to 29.1%) and the top-level one by 14.3 points (to 92.9%); V3 moves the full one by 2.1 points (to 26.8%). Neither exceeds the effect of granularity.'),
+ 'rel':[('refines','F-B3-001'),('refines','F-B3-002')],'qa':['analysability']})
+emit(10,{'cls':'observation','measure':'exploratory','dev':DEVLE,'component':'relationships read in the records but absent from the frozen table','claim':
+ 'Exploratory variant V3 (not M03b). Four relationships that the analyst read at head but that are not rows of the frozen table (INTEGRATION may import CORE, ADR 2026-06-26-2; Control Plane -> Kitty-core, Kitty-core -> Event Store and Orchestration -> Event Store, 00_landscape Interaction Contracts) cover 14 further edges of 656 with weight 377: Control Plane -> Kitty-core 5 edges, Orchestration -> Event Store 4, INTEGRATION -> CORE 3, Kitty-core -> Event Store 2. With them the (a)+(b) share is 176 of 656 edges (26.8%) and 1841 of 4855 weight (37.9%); load-time 153 of 466 edges (32.8%) and 1355 of 3112 weight (43.5%). specify_cli.cli -> specify_cli.core (236) is the largest single edge moved.',
+ 'evidence':[EJ(1,'m03b-summary.json'),EJ(2,'edge-classification-full.csv'),ev(3,'document-claim','docs/architecture/00_landscape/README.md:301-314 and docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:76-118 at %s'%H,'git show %s:<path>'%H,0)],
+ 'scope':('The four relationships named, applied after all frozen-table rules.','Other narrative relationships in the records were not searched exhaustively; the choice of these four is purposive.','656 edges'),
+ 'dis':('Checked whether any of the four would turn an edge into a must-not hit instead.','None of the four is a prohibition; no edge changes to (c).'),
+ 'conf':'medium','rel':[('refines','F-B3-006')]})
+ms2=json.load(open(E+'/module-level-contract-checks-summary.json'))
+emit(11,{'cls':'observation','measure':'exploratory','dev':DEVLE,'component':'charter.offering.api and charter.activation.api as import doors','claim':
+ 'Exploratory, module level (below the component table). At head, 0 of 15 module pairs from specify_cli into charter.offering go through charter.offering.api (9 importing modules, 36 imported names; 5 of the 9 modules are under specify_cli.cli); 38 of 256 module pairs (14.8%) from specify_cli into charter.activation go through charter.activation.api, and 21 of 96 importing modules (21.9%) use only that module. Inside charter, 5 of 242 module pairs (2.1%) from non-offering charter modules into charter.offering go through charter.offering.api. The records read give three statements on the offering door: the frozen table row (specify_cli consumes charter.offering.api), the docstring of src/charter/offering/api.py (specify_cli must not import charter.offering.api; the charter.* facades are the sanctioned importers), and ADR 2026-10-12-2, status Superseded (specify_cli must not import charter.offering.*, the api included). The same ADR records a shrink-only baseline of 236 (file, module) reaches into charter.activation internals.',
+ 'evidence':[ev(1,'static-derived','evidence/B3/module-level-contract-checks-summary.json',MOD),ev(2,'static-derived','evidence/B3/module-level-contract-checks.csv',MOD),ev(3,'document-claim','src/charter/offering/api.py:20-27; docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:223-224; .kittify/charter/charter.md:424-440 at %s'%H,'git show %s:<path>'%H,0)],
+ 'scope':('Every import statement in 1490 modules under src/ at head, resolved to the deepest existing module; function-level and TYPE_CHECKING imports included.','Re-exports are not followed: an import of a charter.* root facade that re-exports an offering object is not counted as an offering import. Load-time and deferred imports are not separated. The exception baselines kept in test files were not read.','15, 256 and 242 module pairs'),
+ 'dis':('Read four of the 15 specify_cli -> charter.offering import lines in the source to rule out a resolver artefact, and listed every importer of charter.offering.api.','The four lines are direct imports of charter.offering submodules (for example specify_cli/mission.py:31). By the same resolver charter.offering.api is imported by 5 modules outside the offering, all under src/charter/ (charter.activation.drg_activation, charter.assets, charter.drg, charter.languages, charter.model_routing); a text search finds no import of it under specify_cli, runtime, glossary, mission_runtime or kernel.'),
+ 'conf':'medium','qa':['modularity'],'oq':['Which of the three recorded statements on the offering door is in force at head is not settled by the records read.']})
+emit(12,{'cls':'observation','measure':'exploratory','dev':DEVLE,'component':'mission_runtime package root and specify_cli.status package root as import doors','claim':
+ 'Exploratory, module level. The recorded rule that consumers import mission_runtime only from the package root holds for 213 of 213 importing modules outside mission_runtime (799 imported names, 0 naming a submodule). For specify_cli.status, 202 of 245 module pairs (82.4%) from outside the package target the package root and 43 name a submodule; 182 of 206 importing modules (88.3%) use only the root. The most-named submodules are status._unsafe (7 importing modules), status.models (7), status.wp_metadata (5), status.reducer (3), status.locking (2), status.mission_write (2) and status.read_surface (2). The records forbid imports of status internals from outside Mission Management; which submodules count as internals and which modules are Mission Management is not mapped (F-B3-007), so the 43 pairs are a count, not a count of breaches.',
+ 'evidence':[ev(1,'static-derived','evidence/B3/module-level-contract-checks-summary.json',MOD),ev(2,'static-derived','evidence/B3/module-level-contract-checks.csv',MOD)],
+ 'scope':('Every import statement in 1490 modules under src/ at head.','Attribute access through the package root to private names; the status read-door call-site rule (a call, not an import).','213 importing modules; 245 module pairs'),
+ 'dis':('Looked for any import that names a mission_runtime submodule from outside the package, including relative and function-level imports.','None found.'),
+ 'conf':'medium','qa':['modularity']})
+emit(13,{'cls':'interpretation','view':'observed','measure':'exploratory','dev':None,'component':'granularity of the recorded relationships','claim':
+ 'The value of M03b depends mainly on the granularity at which it is read, because the recorded relationships are stated between top-level packages and the observed import weight lies mostly inside one of them.',
+ 'evidence':[], 'interp':'At top level the frozen records speak to 13 of 14 pairs (11 as allowed, 2 as forbidden with a ledger). At full granularity every one of the 464 edges inside a top-level package is uncovered, and those edges are 70.7% of all edges and 66.9% of the weight; the share of cross-package edges that are covered stays at 84.4%. The frozen table has one rule that reaches below a top-level package and resolves at component level (CORE -> INTEGRATION) plus one inside charter (charter.offering outbound). The alternative reading, that the edge table over-splits specify_cli, was considered: the split follows the directory layout as given by B1 and was not altered here.',
+ 'derived':['F-B3-001','F-B3-002','F-B3-006','F-B3-007','F-B3-009'],
+ 'scope':('Derived from the cited observations only.','No judgement on whether rules below top-level packages are needed.',None),
+ 'dis':('Checked whether the drop comes from a few heavy uncovered pairs instead of from granularity as such.','The ten heaviest uncovered pairs hold 30.1% of the uncovered weight; the remaining 455 pairs hold 69.9%, so the effect is spread, not concentrated.'),
+ 'conf':'medium','qa':['analysability','modularity']})
+print(sorted(os.listdir(F)))

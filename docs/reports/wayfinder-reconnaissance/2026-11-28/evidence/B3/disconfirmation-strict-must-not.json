@@ -1,0 +1,17 @@
+{
+ "modules_parsed": 1490,
+ "D1 kernel->other in-repo package": [],
+ "D3 charter->glossary|runtime|mission_runtime|specify_cli": [],
+ "D4 charter.offering->in-repo package other than kernel and itself": [],
+ "D6 glossary->specify_cli": [],
+ "D10 CORE->INTEGRATION": [],
+ "retired names present as modules": [],
+ "top-level dirs under src": [
+  "charter",
+  "glossary",
+  "kernel",
+  "mission_runtime",
+  "runtime",
+  "specify_cli"
+ ]
+}

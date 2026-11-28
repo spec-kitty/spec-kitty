@@ -1,0 +1,111 @@
+import csv, json, sys, collections
+R=sys.argv[1]
+edges=[(r['from'],r['to'],int(r['weight']),int(r['load_time_weight'])) for r in csv.DictReader(open(R+'/evidence/B1/component-edges-head.csv'))]
+LAYER={'kernel':0,'charter':1,'glossary':2,'runtime':2,'mission_runtime':2,'specify_cli':3}
+top=lambda c:c.split('.')[0]
+CORE={'specify_cli.core','specify_cli.status','specify_cli.readiness','specify_cli.invocation'}
+INTEG={'specify_cli.orchestrator_api','specify_cli.tracker'}
+CP={'specify_cli.cli'}
+KC={'specify_cli.core','specify_cli.mission_v1','specify_cli.missions','specify_cli.template','specify_cli.runtime'}
+ES={'specify_cli.status'}
+ORCH={'specify_cli.orchestrator_api','specify_cli.consolidation','specify_cli.post_merge','specify_cli.lanes','specify_cli.workspace','specify_cli.tracker'}
+def classify(f,t,v3=False):
+    tf,tt=top(f),top(t)
+    if tf=='kernel' and tt!='kernel': return 'c-strict','D1'
+    if f=='charter.offering' and tt!='kernel' and t!='charter.offering': return 'c-strict','D4'
+    if tf=='charter' and tt in('glossary','runtime','mission_runtime','specify_cli'): return 'c-strict','D3'
+    if tf=='glossary' and tt=='specify_cli': return 'c-strict','D6'
+    if f in CORE and t in INTEG: return 'c-strict','D10'
+    if tf=='runtime' and tt=='specify_cli': return 'c-ledgered','D7'
+    if tf=='mission_runtime' and tt=='specify_cli': return 'c-ledgered','D8'
+    if tf=='charter' and tt=='kernel': return 'a','D2'
+    if tf=='glossary' and tt in('charter','kernel'): return 'a','D5'
+    if tf=='specify_cli' and tt!='specify_cli': return 'a','D9'
+    if tf!=tt and LAYER[tf]>LAYER[tt]: return 'b','G'
+    if v3:
+        if f in INTEG and t in CORE: return 'a','X1 INTEGRATION->CORE'
+        if f in CP and t in KC: return 'a','X2 ControlPlane->Kitty-core'
+        if f in KC and t in ES: return 'a','X3 Kitty-core->EventStore'
+        if f in ORCH and t in ES: return 'a','X4 Orchestration->EventStore'
+    return 'd',''
+# full
+full=[(f,t,w,l) for f,t,w,l in edges if f!=t]
+agg=collections.defaultdict(lambda:[0,0])
+for f,t,w,l in full:
+    if top(f)!=top(t):
+        agg[(top(f),top(t))][0]+=w; agg[(top(f),top(t))][1]+=l
+topl=[(f,t,w,l) for (f,t),(w,l) in sorted(agg.items())]
+CATS=['a','b','c-strict','c-ledgered','d']
+def tally(es,v3=False):
+    out={}
+    for basis,sel in (('all',lambda e:(1,e[2]) if e[2]>0 else (0,0)),('load_time',lambda e:(1,e[3]) if e[3]>0 else (0,0))):
+        t={c:[0,0] for c in CATS}
+        for e in es:
+            c,_=classify(e[0],e[1],v3); n,w=sel(e); t[c][0]+=n; t[c][1]+=w
+        N=sum(v[0] for v in t.values()); W=sum(v[1] for v in t.values())
+        def sh(cs): return {'edges':sum(t[c][0] for c in cs),'edge_share':round(sum(t[c][0] for c in cs)/N,4),'weight':sum(t[c][1] for c in cs),'weight_share':round(sum(t[c][1] for c in cs)/W,4)}
+        out[basis]={'total_edges':N,'total_weight':W,'by_category':{c:{'edges':t[c][0],'edge_share':round(t[c][0]/N,4),'weight':t[c][1],'weight_share':round(t[c][1]/W,4)} for c in CATS}}
+        if not v3:
+            out[basis]['V0_M03b_a_plus_b']=sh(['a','b'])
+            out[basis]['V1_M03b_a_only']=sh(['a'])
+            out[basis]['V2_ledger_counted_a_b_ledgered']=sh(['a','b','c-ledgered'])
+            out[basis]['V2_ledger_counted_a_ledgered_no_b']=sh(['a','c-ledgered'])
+        else:
+            out[basis]['V3_exploratory_a_plus_b']=sh(['a','b'])
+    return out
+res={'revision':'5c4fc5a79de1c1c299ab221ca26e5555c68ef533','components_full':len({x for e in full for x in e[:2]}),
+     'top_level':tally(topl),'full':tally(full),'full_V3_exploratory':tally(full,True),
+     'full_intra_top_level_only':tally([e for e in full if top(e[0])==top(e[1])]),
+     'full_cross_top_level_only':tally([e for e in full if top(e[0])!=top(e[1])])}
+json.dump(res,open(R+'/evidence/B3/m03b-summary.json','w'),indent=1)
+with open(R+'/evidence/B3/edge-classification-full.csv','w',newline='') as fh:
+    w=csv.writer(fh); w.writerow(['from','to','weight','load_time_weight','category','rule','category_V3_exploratory','rule_V3'])
+    for f,t,wt,l in sorted(full):
+        c,r=classify(f,t); c3,r3=classify(f,t,True); w.writerow([f,t,wt,l,c,r,c3,r3])
+with open(R+'/evidence/B3/edge-classification-top-level.csv','w',newline='') as fh:
+    w=csv.writer(fh); w.writerow(['from','to','weight','load_time_weight','category','rule'])
+    for f,t,wt,l in topl:
+        c,r=classify(f,t); w.writerow([f,t,wt,l,c,r])
+# c pairs and top d pairs
+with open(R+'/evidence/B3/category-c-pairs.csv','w',newline='') as fh:
+    w=csv.writer(fh); w.writerow(['granularity','from','to','weight','load_time_weight','category','rule'])
+    for g,es in (('top-level',topl),('full',full)):
+        for f,t,wt,l in sorted(es,key=lambda e:-e[2]):
+            c,r=classify(f,t)
+            if c.startswith('c'): w.writerow([g,f,t,wt,l,c,r])
+with open(R+'/evidence/B3/category-d-pairs.csv','w',newline='') as fh:
+    w=csv.writer(fh); w.writerow(['granularity','from','to','weight','load_time_weight','sub_group','category_V3_exploratory'])
+    for g,es in (('top-level',topl),('full',full)):
+        for f,t,wt,l in sorted(es,key=lambda e:-e[2]):
+            c,r=classify(f,t)
+            if c=='d':
+                sg='layer-2 peers' if top(f)!=top(t) else ('inside charter' if top(f)=='charter' else ('specify_cli root <-> subpackage' if 'specify_cli' in (f,t) else 'specify_cli subpackage <-> subpackage'))
+                w.writerow([g,f,t,wt,l,sg,classify(f,t,True)[0]])
+# d subgroup tally
+sub=collections.defaultdict(lambda:[0,0,0,0])
+for f,t,wt,l in full:
+    if classify(f,t)[0]=='d':
+        sg='layer-2 peers' if top(f)!=top(t) else ('inside charter' if top(f)=='charter' else ('specify_cli root <-> subpackage' if 'specify_cli' in (f,t) else 'specify_cli subpackage <-> subpackage'))
+        s=sub[sg]; s[0]+=1; s[1]+=wt; s[2]+=1 if l>0 else 0; s[3]+=l
+# documented but unused
+obs=collections.defaultdict(int)
+for f,t,wt,l in full: obs[(f,t)]+=wt
+comps=sorted({x for e in full for x in e[:2]})
+def members(name): return [c for c in comps if top(c)==name]
+unused=[]
+for row,src,tgts in (('D2','charter',['kernel']),('D5','glossary',['charter','kernel']),('D9','specify_cli',['kernel','charter','glossary','runtime','mission_runtime'])):
+    for tg in tgts:
+        tw=sum(obs[(f,t)] for f in members(src) for t in members(tg))
+        for sub_t in members(tg):
+            n=sum(obs[(f,sub_t)] for f in members(src))
+            unused.append([row,src,tg,sub_t,tw,n,'unused' if n==0 else 'used'])
+with open(R+'/evidence/B3/documented-may-usage.csv','w',newline='') as fh:
+    w=csv.writer(fh); w.writerow(['rule','documented_from','documented_to','target_component','pair_weight_all','weight_into_target_component','status']); w.writerows(unused)
+# importers per D9: how many specify_cli components use each lower package
+d9=[]
+for tg in ['kernel','charter','glossary','runtime','mission_runtime']:
+    users={f for f,t,wt,l in full if top(f)=='specify_cli' and top(t)==tg}
+    d9.append([tg,len(users),len(members('specify_cli'))])
+json.dump({'d_subgroups_full':{k:{'edges':v[0],'weight':v[1],'load_time_edges':v[2],'load_time_weight':v[3]} for k,v in sub.items()},
+ 'D9_specify_cli_components_importing':[{'target':a,'importing_components':b,'of':c} for a,b,c in d9]},open(R+'/evidence/B3/d-subgroups-and-usage.json','w'),indent=1)
+print(json.dumps(res,indent=0)[:6000])

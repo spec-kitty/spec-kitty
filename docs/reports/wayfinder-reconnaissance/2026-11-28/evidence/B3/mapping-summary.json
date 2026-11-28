@@ -1,0 +1,26 @@
+{
+ "documented_rows": 72,
+ "documented_rows_by_mapping_status": {
+  "applied": 12,
+  "applied-coarser": 2,
+  "unmapped-name+below-granularity": 1,
+  "below-granularity": 2,
+  "unmapped-name": 3,
+  "not-an-import-relationship": 1,
+  "target-absent-from-graph": 1,
+  "outside-frame": 50
+ },
+ "observed_components": 74,
+ "observed_components_by_counterpart": {
+  "named at its own level by a frozen documented row (after name mapping)": 14,
+  "no counterpart below the parent package specify_cli": 51,
+  "named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own": 9
+ },
+ "weight_unit_check": {
+  "top_level_sums_equal_B1_layer_edges_head": true,
+  "pairs": 14
+ },
+ "self_edges_in_observed_table": 0,
+ "edges": 656,
+ "edges_with_load_time_weight_gt_0": 466
+}

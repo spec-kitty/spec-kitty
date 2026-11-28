@@ -1,0 +1,63 @@
+finding_id: F-B3-010
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "relationships read in the records but absent from the frozen table"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Exploratory variant V3 (not M03b). Four relationships that the analyst read at head but that are not rows of the frozen table (INTEGRATION may import CORE, ADR 2026-06-26-2; Control Plane -> Kitty-core, Kitty-core -> Event Store and Orchestration -> Event Store, 00_landscape Interaction Contracts) cover 14 further edges of 656 with weight 377: Control Plane -> Kitty-core 5 edges, Orchestration -> Event Store 4, INTEGRATION -> CORE 3, Kitty-core -> Event Store 2. With them the (a)+(b) share is 176 of 656 edges (26.8%) and 1841 of 4855 weight (37.9%); load-time 153 of 466 edges (32.8%) and 1355 of 3112 weight (43.5%). specify_cli.cli -> specify_cli.core (236) is the largest single edge moved."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/m03b-summary.json"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "70b1027a2741130900e04797d82e452f29130b6979ac09f5c852d4e0ea7086aa"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/edge-classification-full.csv"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "7a03f6a7113b61e8679903e317a2816f8cae1eea153935332045b4f83ce1607f"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E3
+    kind: document-claim
+    reference: "docs/architecture/00_landscape/README.md:301-314 and docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:76-118 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path>"
+    sha256: null
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "The four relationships named, applied after all frozen-table rules."
+  not_covered: "Other narrative relationships in the records were not searched exhaustively; the choice of these four is purposive."
+  population: "656 edges"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether any of the four would turn an edge into a must-not hit instead."
+  result: "None of the four is a prohibition; no edge changes to (c)."
+relations:
+  - {type: refines, target: F-B3-006}
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

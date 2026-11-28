@@ -1,0 +1,41 @@
+import csv,sys,collections,json
+S=sys.argv[1]
+# re-derive strict must-not checks from an independent module-level pass (modcheck rows are door checks only), so re-walk
+import ast,os
+root=S+'/head/src'
+def modname(p):
+    rel=os.path.relpath(p,root)[:-3].replace(os.sep,'.')
+    return rel[:-9] if rel.endswith('.__init__') else rel
+mods={modname(os.path.join(d,f)):os.path.join(d,f) for d,_,fs in os.walk(root) for f in fs if f.endswith('.py')}
+def resolve(cur,is_pkg,node):
+    if node.level==0: return node.module or ''
+    parts=cur.split('.')
+    if not is_pkg: parts=parts[:-1]
+    parts=parts[:len(parts)-(node.level-1)]
+    return '.'.join(parts+([node.module] if node.module else []))
+pairs=set()
+for m,p in mods.items():
+    tree=ast.parse(open(p,encoding='utf-8').read()); is_pkg=p.endswith('__init__.py')
+    for n in ast.walk(tree):
+        if isinstance(n,ast.Import):
+            for a in n.names: pairs.add((m,a.name))
+        elif isinstance(n,ast.ImportFrom):
+            b=resolve(m,is_pkg,n)
+            for a in n.names: pairs.add((m,b+'.'+a.name if b+'.'+a.name in mods else b))
+TOPS=('kernel','charter','glossary','runtime','mission_runtime','specify_cli')
+w=lambda m,p: m==p or m.startswith(p+'.')
+def cnt(src,dst): return sorted((s,t) for s,t in pairs if src(s) and dst(t))
+CORE=['specify_cli.core','specify_cli.status','specify_cli.readiness','specify_cli.invocation']
+INTEG=['specify_cli.orchestrator_api','specify_cli.tracker','specify_cli.sync','specify_cli.saas','specify_cli.saas_client']
+res={
+ 'modules_parsed':len(mods),
+ 'D1 kernel->other in-repo package':cnt(lambda s:w(s,'kernel'),lambda t:any(w(t,x) for x in TOPS if x!='kernel')),
+ 'D3 charter->glossary|runtime|mission_runtime|specify_cli':cnt(lambda s:w(s,'charter'),lambda t:any(w(t,x) for x in('glossary','runtime','mission_runtime','specify_cli'))),
+ 'D4 charter.offering->in-repo package other than kernel and itself':cnt(lambda s:w(s,'charter.offering'),lambda t:any(w(t,x) for x in TOPS if x!='kernel') and not w(t,'charter.offering')),
+ 'D6 glossary->specify_cli':cnt(lambda s:w(s,'glossary'),lambda t:w(t,'specify_cli')),
+ 'D10 CORE->INTEGRATION':cnt(lambda s:any(w(s,x) for x in CORE),lambda t:any(w(t,x) for x in INTEG)),
+ 'retired names present as modules':sorted(m for m in mods if any(w(m,x) for x in('specify_cli.sync','specify_cli.saas','specify_cli.saas_client','specify_cli.auth','zeitgeist_client','saas_client','specify_cli.dashboard'))),
+ 'top-level dirs under src':sorted(os.listdir(root)),
+}
+json.dump(res,open(S+'/disconfirmation-strict-must-not.json','w'),indent=1)
+print(json.dumps({k:(len(v) if isinstance(v,list) and k[0]=='D' else v) for k,v in res.items()},indent=1))

@@ -1,0 +1,54 @@
+finding_id: F-B3-012
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "mission_runtime package root and specify_cli.status package root as import doors"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Exploratory, module level. The recorded rule that consumers import mission_runtime only from the package root holds for 213 of 213 importing modules outside mission_runtime (799 imported names, 0 naming a submodule). For specify_cli.status, 202 of 245 module pairs (82.4%) from outside the package target the package root and 43 name a submodule; 182 of 206 importing modules (88.3%) use only the root. The most-named submodules are status._unsafe (7 importing modules), status.models (7), status.wp_metadata (5), status.reducer (3), status.locking (2), status.mission_write (2) and status.read_surface (2). The records forbid imports of status internals from outside Mission Management; which submodules count as internals and which modules are Mission Management is not mapped (F-B3-007), so the 43 pairs are a count, not a count of breaches."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/module-level-contract-checks-summary.json"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>"
+    sha256: "22714b3e75bcd0d95229e4891df5a55a1bdd7ca87fb1775e66ce431632fb1a1d"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/module-level-contract-checks.csv"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>"
+    sha256: "0850b7025492167cea88008a841b6d1b213daa7df71230ab30f4b44dc0aee753"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "Every import statement in 1490 modules under src/ at head."
+  not_covered: "Attribute access through the package root to private names; the status read-door call-site rule (a call, not an import)."
+  population: "213 importing modules; 245 module pairs"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for any import that names a mission_runtime submodule from outside the package, including relative and function-level imports."
+  result: "None found."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity"]
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,63 @@
+finding_id: F-B3-011
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "charter.offering.api and charter.activation.api as import doors"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Exploratory, module level (below the component table). At head, 0 of 15 module pairs from specify_cli into charter.offering go through charter.offering.api (9 importing modules, 36 imported names; 5 of the 9 modules are under specify_cli.cli); 38 of 256 module pairs (14.8%) from specify_cli into charter.activation go through charter.activation.api, and 21 of 96 importing modules (21.9%) use only that module. Inside charter, 5 of 242 module pairs (2.1%) from non-offering charter modules into charter.offering go through charter.offering.api. The records read give three statements on the offering door: the frozen table row (specify_cli consumes charter.offering.api), the docstring of src/charter/offering/api.py (specify_cli must not import charter.offering.api; the charter.* facades are the sanctioned importers), and ADR 2026-10-12-2, status Superseded (specify_cli must not import charter.offering.*, the api included). The same ADR records a shrink-only baseline of 236 (file, module) reaches into charter.activation internals."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/module-level-contract-checks-summary.json"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>"
+    sha256: "22714b3e75bcd0d95229e4891df5a55a1bdd7ca87fb1775e66ce431632fb1a1d"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/module-level-contract-checks.csv"
+    method: "git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>"
+    sha256: "0850b7025492167cea88008a841b6d1b213daa7df71230ab30f4b44dc0aee753"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E3
+    kind: document-claim
+    reference: "src/charter/offering/api.py:20-27; docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:223-224; .kittify/charter/charter.md:424-440 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path>"
+    sha256: null
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "Every import statement in 1490 modules under src/ at head, resolved to the deepest existing module; function-level and TYPE_CHECKING imports included."
+  not_covered: "Re-exports are not followed: an import of a charter.* root facade that re-exports an offering object is not counted as an offering import. Load-time and deferred imports are not separated. The exception baselines kept in test files were not read."
+  population: "15, 256 and 242 module pairs"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Read four of the 15 specify_cli -> charter.offering import lines in the source to rule out a resolver artefact, and listed every importer of charter.offering.api."
+  result: "The four lines are direct imports of charter.offering submodules (for example specify_cli/mission.py:31). By the same resolver charter.offering.api is imported by 5 modules outside the offering, all under src/charter/ (charter.activation.drg_activation, charter.assets, charter.drg, charter.languages, charter.model_routing); a text search finds no import of it under specify_cli, runtime, glossary, mission_runtime or kernel."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity"]
+candidate_invariants: []
+open_questions:
+  - "Which of the three recorded statements on the offering door is in force at head is not settled by the records read."

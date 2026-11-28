@@ -1,0 +1,71 @@
+finding_id: F-B3-007
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "name mapping between the documented table and the observed components"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Name mapping. Documented side: of 72 documented relationship rows, 14 (19.4%) resolve to a pair of observed components (2 of them only at a coarser level than written, because charter.offering.api and charter.activation.api are modules inside a component); 3 concern a distinction inside one component (status internals, mission_runtime submodules, the status read door); 3 name a landscape container with no Python component in core (Dashboard, Agent Tool Connectors); 1 has a behaviour as target; 1 targets retired subsystems that have no component; 50 (69.4%) name repositories, packages, services, wheels, packs or contracts outside the observed table. One documented name, Mission Management, has no package mapping in the records read. Three documented INTEGRATION names (sync, saas, saas_client) have no observed component. Observed side: of 74 components, 14 are named at their own level by a frozen row after mapping, 9 are reachable only through a landscape container that no frozen row uses on its own, and 51 (68.9%) have no counterpart below their parent package specify_cli."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/documented-row-mapping.csv"
+    method: "python3 -I script-mapping.txt <report folder> (row statuses hand-assigned in the script from mapping-rules.txt)"
+    sha256: "64d78f7597f9d211ec5b7d279cf53b61db1b5d86d58dbd6f73b14e92e3b29c54"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/observed-component-mapping.csv"
+    method: "python3 -I script-mapping.txt <report folder>"
+    sha256: "af4886a314ddc378cc4fd25f844bec21c43d02b64aaf2be35a04f559f601d672"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E3
+    kind: static-derived
+    reference: "evidence/B3/mapping-summary.json"
+    method: "python3 -I script-mapping.txt <report folder>"
+    sha256: "aa8fb5dfaaa7e5c962f16614aec725a84636808015327a18225327bd147fc2f9"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E9
+    kind: static-derived
+    reference: "evidence/B3/mapping-rules.txt"
+    method: "hand-written before the join; erratum appended after"
+    sha256: "71f49efe1e3e2552864b2412dc69ad8c3102ef0009421153dce475395dede9f1"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "All 72 documented rows and all 74 observed components."
+  not_covered: "Whether the 50 outside-frame rows hold is not assessed here. The mapping of landscape containers to packages follows the 04_implementation_mapping table at head and is a document-claim."
+  population: "72 documented rows; 74 observed components"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked in docs/architecture/diagrams/02_containers, 03_components and 04_implementation_mapping at head for a package list of Mission Management, and checked whether any observed component carries a retired or dashboard name."
+  result: "Mission Management is described by its parts (Mission + WP lifecycle, status facade, planning artifacts) with no package list; no observed component has a retired or dashboard name."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["analysability"]
+candidate_invariants: []
+open_questions:
+  - "Which specify_cli subpackages constitute Mission Management is not stated in the records read."

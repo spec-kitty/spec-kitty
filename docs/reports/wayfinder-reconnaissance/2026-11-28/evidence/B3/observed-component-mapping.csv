@@ -1,0 +1,75 @@
+observed_component,counterpart
+charter,named at its own level by a frozen documented row (after name mapping)
+charter.activation,named at its own level by a frozen documented row (after name mapping)
+charter.offering,named at its own level by a frozen documented row (after name mapping)
+glossary,named at its own level by a frozen documented row (after name mapping)
+kernel,named at its own level by a frozen documented row (after name mapping)
+mission_runtime,named at its own level by a frozen documented row (after name mapping)
+runtime,named at its own level by a frozen documented row (after name mapping)
+specify_cli,named at its own level by a frozen documented row (after name mapping)
+specify_cli.acceptance,no counterpart below the parent package specify_cli
+specify_cli.agent_utils,no counterpart below the parent package specify_cli
+specify_cli.asset_preservation,no counterpart below the parent package specify_cli
+specify_cli.ast_analysis,no counterpart below the parent package specify_cli
+specify_cli.audit,no counterpart below the parent package specify_cli
+specify_cli.bootstrap,no counterpart below the parent package specify_cli
+specify_cli.bulk_edit,no counterpart below the parent package specify_cli
+specify_cli.calibration,no counterpart below the parent package specify_cli
+specify_cli.charter_pack_synthesizer,no counterpart below the parent package specify_cli
+specify_cli.charter_packs,no counterpart below the parent package specify_cli
+specify_cli.charter_runtime,no counterpart below the parent package specify_cli
+specify_cli.cli,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.compat,no counterpart below the parent package specify_cli
+specify_cli.config,no counterpart below the parent package specify_cli
+specify_cli.consolidation,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.context,no counterpart below the parent package specify_cli
+specify_cli.contracts,no counterpart below the parent package specify_cli
+specify_cli.coordination,no counterpart below the parent package specify_cli
+specify_cli.core,named at its own level by a frozen documented row (after name mapping)
+specify_cli.decisions,no counterpart below the parent package specify_cli
+specify_cli.design,no counterpart below the parent package specify_cli
+specify_cli.diagnostics,no counterpart below the parent package specify_cli
+specify_cli.distribution,no counterpart below the parent package specify_cli
+specify_cli.doc_analysis,no counterpart below the parent package specify_cli
+specify_cli.docs,no counterpart below the parent package specify_cli
+specify_cli.doctor,no counterpart below the parent package specify_cli
+specify_cli.dossier,no counterpart below the parent package specify_cli
+specify_cli.drg_writers,no counterpart below the parent package specify_cli
+specify_cli.events,no counterpart below the parent package specify_cli
+specify_cli.git,no counterpart below the parent package specify_cli
+specify_cli.identity,no counterpart below the parent package specify_cli
+specify_cli.intake,no counterpart below the parent package specify_cli
+specify_cli.invocation,named at its own level by a frozen documented row (after name mapping)
+specify_cli.lanes,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.migration,no counterpart below the parent package specify_cli
+specify_cli.mission_loader,no counterpart below the parent package specify_cli
+specify_cli.mission_step_contracts,no counterpart below the parent package specify_cli
+specify_cli.mission_v1,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.missions,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.orchestrator_api,named at its own level by a frozen documented row (after name mapping)
+specify_cli.ownership,no counterpart below the parent package specify_cli
+specify_cli.paths,no counterpart below the parent package specify_cli
+specify_cli.policy,no counterpart below the parent package specify_cli
+specify_cli.post_merge,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.provisioning,no counterpart below the parent package specify_cli
+specify_cli.readiness,named at its own level by a frozen documented row (after name mapping)
+specify_cli.release,no counterpart below the parent package specify_cli
+specify_cli.requirement_mapping,no counterpart below the parent package specify_cli
+specify_cli.retrospective,no counterpart below the parent package specify_cli
+specify_cli.review,no counterpart below the parent package specify_cli
+specify_cli.runtime,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.services,no counterpart below the parent package specify_cli
+specify_cli.session_presence,no counterpart below the parent package specify_cli
+specify_cli.shims,no counterpart below the parent package specify_cli
+specify_cli.skills,no counterpart below the parent package specify_cli
+specify_cli.state,no counterpart below the parent package specify_cli
+specify_cli.status,named at its own level by a frozen documented row (after name mapping)
+specify_cli.task_utils,no counterpart below the parent package specify_cli
+specify_cli.tasks,no counterpart below the parent package specify_cli
+specify_cli.tasks_authoring,no counterpart below the parent package specify_cli
+specify_cli.template,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own
+specify_cli.tool_surface,no counterpart below the parent package specify_cli
+specify_cli.tracker,named at its own level by a frozen documented row (after name mapping)
+specify_cli.upgrade,no counterpart below the parent package specify_cli
+specify_cli.validators,no counterpart below the parent package specify_cli
+specify_cli.workspace,named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own

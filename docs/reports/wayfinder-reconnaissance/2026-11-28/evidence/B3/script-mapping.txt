@@ -1,0 +1,36 @@
+import csv,sys,json,collections
+R=sys.argv[1]; E=R+'/evidence/B3'
+rows=list(csv.DictReader(open(R+'/evidence/A1/documented-relationships.csv')))
+st={0:('applied','D1'),1:('applied','D2'),2:('applied','D3'),3:('applied','D3 (container names resolve to the same pairs)'),4:('applied','D4'),5:('applied','D5'),6:('applied','D6'),7:('applied','D7'),8:('applied','D8'),9:('applied','D9'),
+10:('applied-coarser','D9; the api module is below component granularity'),11:('applied-coarser','D9; the api module is below component granularity'),12:('applied','D3'),
+13:('unmapped-name+below-granularity','Mission Management has no package mapping in the records read; status internals vs facade is inside one component'),
+14:('below-granularity','root vs submodule of mission_runtime is inside one component'),15:('below-granularity','a call-site rule inside specify_cli.status consumers'),
+16:('unmapped-name','Dashboard: no Python component in core at head'),17:('unmapped-name','Agent Tool Connectors: rendered prompt files, no Python component'),
+18:('not-an-import-relationship','target is a behaviour (planning artifact construction)'),19:('unmapped-name','Agent Tool Connectors: no Python component'),
+20:('applied','D10 (INTEGRATION names sync, saas, saas_client have no observed component)'),21:('target-absent-from-graph','no observed component carries a retired name'),}
+out=[]
+for i,r in enumerate(rows):
+    s,n=st.get(i,('outside-frame','names a repository, package, service, wheel, pack, contract file or external consumer; the observed table holds in-repo Python components only'))
+    out.append([i+1,r['from'],r['to'],r['relation'],r['tier'],r['view'],s,n])
+w=csv.writer(open(E+'/documented-row-mapping.csv','w',newline='')); w.writerow(['row','from','to','relation','tier','view','mapping_status','note']); w.writerows(out)
+c=collections.Counter(o[6] for o in out)
+edges=list(csv.DictReader(open(R+'/evidence/B1/component-edges-head.csv')))
+comps=sorted({e['from'] for e in edges}|{e['to'] for e in edges})
+own={'kernel','charter','charter.activation','charter.offering','glossary','runtime','mission_runtime','specify_cli','specify_cli.core','specify_cli.status','specify_cli.readiness','specify_cli.invocation','specify_cli.orchestrator_api','specify_cli.tracker'}
+cont={'specify_cli.cli','specify_cli.mission_v1','specify_cli.missions','specify_cli.template','specify_cli.runtime','specify_cli.consolidation','specify_cli.post_merge','specify_cli.lanes','specify_cli.workspace'}
+w=csv.writer(open(E+'/observed-component-mapping.csv','w',newline='')); w.writerow(['observed_component','counterpart'])
+cc=collections.Counter()
+for x in comps:
+    k='named at its own level by a frozen documented row (after name mapping)' if x in own else ('named only through a landscape container (04_implementation_mapping); no frozen row resolves to it on its own' if x in cont else 'no counterpart below the parent package specify_cli')
+    cc[k]+=1; w.writerow([x,k])
+# weight unit check against B1 layer aggregate
+agg=collections.Counter(); aggl=collections.Counter()
+for e in edges:
+    a,b=e['from'].split('.')[0],e['to'].split('.')[0]
+    if a!=b: agg[(a,b)]+=int(e['weight']); aggl[(a,b)]+=int(e['load_time_weight'])
+le={(r['from_layer'],r['to_layer']):(int(r['module_edges_all']),int(r['module_edges_load_time'])) for r in csv.DictReader(open(R+'/evidence/B1/layer-edges-head.csv'))}
+match=all(le.get(k)==(agg[k],aggl[k]) for k in agg) and set(le)==set(agg)
+json.dump({'documented_rows':len(rows),'documented_rows_by_mapping_status':dict(c),'observed_components':len(comps),'observed_components_by_counterpart':dict(cc),
+ 'weight_unit_check':{'top_level_sums_equal_B1_layer_edges_head':match,'pairs':len(agg)},
+ 'self_edges_in_observed_table':sum(1 for e in edges if e['from']==e['to']),'edges':len(edges),'edges_with_load_time_weight_gt_0':sum(1 for e in edges if int(e['load_time_weight'])>0)},open(E+'/mapping-summary.json','w'),indent=1)
+print(open(E+'/mapping-summary.json').read())

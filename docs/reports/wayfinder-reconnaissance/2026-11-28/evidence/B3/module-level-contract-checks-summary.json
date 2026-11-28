@@ -1,0 +1,340 @@
+{
+ "specify_cli->charter.offering": {
+  "imported_names": 36,
+  "imported_names_through_door": 0,
+  "module_pairs": 15,
+  "module_pairs_through_door": 0,
+  "module_pairs_not_through_door": 15,
+  "share_pairs_through_door": 0.0,
+  "importing_modules": 9,
+  "importing_modules_only_through_door": 0,
+  "top_bypassed_targets": [
+   [
+    "charter.offering.missions.models",
+    2
+   ],
+   [
+    "charter.offering.service",
+    2
+   ],
+   [
+    "charter.offering.drg.loader",
+    1
+   ],
+   [
+    "charter.offering",
+    1
+   ],
+   [
+    "charter.offering.artifact_kinds",
+    1
+   ],
+   [
+    "charter.offering.agent_profiles.operating_procedures",
+    1
+   ],
+   [
+    "charter.offering.drg.migration.hand_authored_overlay",
+    1
+   ],
+   [
+    "charter.offering.missions.step_contracts",
+    1
+   ]
+  ],
+  "bypassing_components": [
+   [
+    "specify_cli.cli",
+    11
+   ],
+   [
+    "specify_cli.tool_surface",
+    1
+   ],
+   [
+    "specify_cli.mission",
+    1
+   ],
+   [
+    "specify_cli.dossier",
+    1
+   ],
+   [
+    "specify_cli.mission_step_contracts",
+    1
+   ]
+  ]
+ },
+ "specify_cli->charter.activation": {
+  "imported_names": 525,
+  "imported_names_through_door": 109,
+  "module_pairs": 256,
+  "module_pairs_through_door": 38,
+  "module_pairs_not_through_door": 218,
+  "share_pairs_through_door": 0.1484,
+  "importing_modules": 96,
+  "importing_modules_only_through_door": 21,
+  "top_bypassed_targets": [
+   [
+    "charter.activation.pack_context",
+    23
+   ],
+   [
+    "charter.activation.layer_roots",
+    15
+   ],
+   [
+    "charter.activation.charter_yaml_io",
+    12
+   ],
+   [
+    "charter.activation.mission_type_profiles",
+    11
+   ],
+   [
+    "charter.activation.compiler",
+    10
+   ],
+   [
+    "charter.activation.active_charter_service_builder",
+    9
+   ],
+   [
+    "charter.activation.drg_activation",
+    8
+   ],
+   [
+    "charter.activation.kind_vocabulary",
+    8
+   ]
+  ],
+  "bypassing_components": [
+   [
+    "specify_cli.cli",
+    143
+   ],
+   [
+    "specify_cli.upgrade",
+    17
+   ],
+   [
+    "specify_cli.skills",
+    9
+   ],
+   [
+    "specify_cli.charter_runtime",
+    7
+   ],
+   [
+    "specify_cli.invocation",
+    6
+   ],
+   [
+    "specify_cli.analysis_inputs",
+    5
+   ],
+   [
+    "specify_cli.runtime",
+    5
+   ],
+   [
+    "specify_cli.tool_surface",
+    4
+   ]
+  ]
+ },
+ "non-offering charter->charter.offering": {
+  "imported_names": 521,
+  "imported_names_through_door": 13,
+  "module_pairs": 242,
+  "module_pairs_through_door": 5,
+  "module_pairs_not_through_door": 237,
+  "share_pairs_through_door": 0.0207,
+  "importing_modules": 85,
+  "importing_modules_only_through_door": 3,
+  "top_bypassed_targets": [
+   [
+    "charter.offering.artifact_kinds",
+    34
+   ],
+   [
+    "charter.offering.drg.models",
+    20
+   ],
+   [
+    "charter.offering.drg.loader",
+    12
+   ],
+   [
+    "charter.offering.pack_paths",
+    10
+   ],
+   [
+    "charter.offering.drg.validator",
+    9
+   ],
+   [
+    "charter.offering.packs.retired_fields",
+    8
+   ],
+   [
+    "charter.offering.missions.repository",
+    8
+   ],
+   [
+    "charter.offering.service",
+    7
+   ]
+  ],
+  "bypassing_components": [
+   [
+    "charter.activation",
+    192
+   ],
+   [
+    "charter.packs",
+    12
+   ],
+   [
+    "charter.drg",
+    12
+   ],
+   [
+    "charter.missions",
+    5
+   ],
+   [
+    "charter.profiles",
+    4
+   ],
+   [
+    "charter.mission_steps",
+    3
+   ],
+   [
+    "charter.template_catalog",
+    1
+   ],
+   [
+    "charter.versioning",
+    1
+   ]
+  ]
+ },
+ "runtime|glossary|mission_runtime->charter.offering": {
+  "imported_names": 2,
+  "imported_names_through_door": 0,
+  "module_pairs": 2,
+  "module_pairs_through_door": 0,
+  "module_pairs_not_through_door": 2,
+  "share_pairs_through_door": 0.0,
+  "importing_modules": 2,
+  "importing_modules_only_through_door": 0,
+  "top_bypassed_targets": [
+   [
+    "charter.offering.missions.step_contracts",
+    1
+   ],
+   [
+    "charter.offering.missions.step_projection",
+    1
+   ]
+  ],
+  "bypassing_components": [
+   [
+    "runtime.next",
+    2
+   ]
+  ]
+ },
+ "outside->mission_runtime": {
+  "imported_names": 799,
+  "imported_names_through_door": 799,
+  "module_pairs": 213,
+  "module_pairs_through_door": 213,
+  "module_pairs_not_through_door": 0,
+  "share_pairs_through_door": 1.0,
+  "importing_modules": 213,
+  "importing_modules_only_through_door": 213,
+  "top_bypassed_targets": [],
+  "bypassing_components": []
+ },
+ "outside specify_cli.status->specify_cli.status": {
+  "imported_names": 1072,
+  "imported_names_through_door": 999,
+  "module_pairs": 245,
+  "module_pairs_through_door": 202,
+  "module_pairs_not_through_door": 43,
+  "share_pairs_through_door": 0.8245,
+  "importing_modules": 206,
+  "importing_modules_only_through_door": 182,
+  "top_bypassed_targets": [
+   [
+    "specify_cli.status.models",
+    7
+   ],
+   [
+    "specify_cli.status._unsafe",
+    7
+   ],
+   [
+    "specify_cli.status.wp_metadata",
+    5
+   ],
+   [
+    "specify_cli.status.reducer",
+    3
+   ],
+   [
+    "specify_cli.status.store",
+    2
+   ],
+   [
+    "specify_cli.status.locking",
+    2
+   ],
+   [
+    "specify_cli.status.emit",
+    2
+   ],
+   [
+    "specify_cli.status.mission_write",
+    2
+   ]
+  ],
+  "bypassing_components": [
+   [
+    "specify_cli.coordination",
+    18
+   ],
+   [
+    "specify_cli.migration",
+    5
+   ],
+   [
+    "specify_cli.cli",
+    4
+   ],
+   [
+    "specify_cli.consolidation",
+    2
+   ],
+   [
+    "mission_runtime.lifecycle_phase",
+    2
+   ],
+   [
+    "specify_cli.retrospective",
+    2
+   ],
+   [
+    "runtime.next",
+    2
+   ],
+   [
+    "specify_cli.review",
+    2
+   ]
+  ]
+ }
+}

@@ -1,0 +1,71 @@
+finding_id: F-B3-006
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "component pairs no record speaks to"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Category (d): 465 of 656 edges (70.9%) and 3263 of 4855 weight (67.2%) at full granularity; load-time 315 of 466 edges (67.6%) and 1950 of 3112 weight (62.7%). At top level it is 1 of 14 edges: runtime -> mission_runtime (weight 13, 11 at load time), two packages of the same layer whose mutual order the recorded chain leaves open. The 465 split into: specify_cli subpackage to subpackage 400 edges / 2634 weight; specify_cli root to or from a subpackage 60 / 348; inside charter 4 / 268; layer-2 peers 1 / 13. Top pairs by weight: specify_cli.cli -> specify_cli.core 236; charter.activation -> charter.offering 193; specify_cli.cli -> specify_cli.coordination 86; specify_cli.cli -> specify_cli root 83; specify_cli.cli -> specify_cli.lanes 81; specify_cli.consolidation -> specify_cli.lanes 81; specify_cli.cli -> specify_cli.status 62; specify_cli.consolidation -> specify_cli.core 55; specify_cli.cli -> specify_cli.git 54; specify_cli.upgrade -> specify_cli.core 50. The ten heaviest pairs carry 981 of 3263 (30.1%); specify_cli.cli is the source of 61 edges and 1135 weight (34.8% of the category)."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/category-d-pairs.csv"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "59d00144ad4fa7a15b4187bbb99ccad459cfe8f0c4c324a22c61e6427d51a12b"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/d-subgroups-and-usage.json"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "e49f2943a81e3618e64456f9a61047cd8173ce0833485cf2a46e1d2c27c5d402"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E3
+    kind: static-derived
+    reference: "evidence/B3/m03b-summary.json"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "70b1027a2741130900e04797d82e452f29130b6979ac09f5c852d4e0ea7086aa"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E4
+    kind: document-claim
+    reference: "evidence/A1/units-without-recorded-internal-structure.csv"
+    method: "read as given; A1 lists specify_cli internal packages as having no recorded dependency rules other than CORE->INTEGRATION and the status facade rule"
+    sha256: null
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "All 656 cross-component edges of evidence/B1/component-edges-head.csv (74 components, core Python under src/ at head), classified by the rules of mapping-rules.txt against the 72 rows of evidence/A1/documented-relationships.csv, of which 14 rows speak to an in-repo Python pair."
+  not_covered: "Relationships to external packages, services, packs and other repositories (50 documented rows, outside the observed table); rules that distinguish modules inside one component; correctness of the B1 edge extraction itself (taken as given, one independent AST pass was run for the strict must-not rules only). A pair being in (d) says no record in the frozen table speaks to it; it says nothing on whether the import is appropriate."
+  population: "656 edges"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Searched the records at head for import rules between specify_cli subpackages or inside charter that the frozen table lacks (git grep, 26 hits read), and applied four record-derived relationships outside the frozen table (V3)."
+  result: "Found two file-level rules and the door rules already listed; V3 reclassifies 14 of the 465 edges (weight 377), leaving 451 edges (68.8%) and 2886 weight (59.4%) in (d)."
+relations:
+  - {type: refines, target: F-B3-002}
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity", "analysability"]
+candidate_invariants: []
+open_questions: []

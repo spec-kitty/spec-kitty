@@ -1,0 +1,63 @@
+finding_id: F-B3-001
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "core Python, six top-level packages"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M03b at top-level granularity (6 packages, 14 cross-package edges). Primary variant, categories (a)+(b): all imports: 11 of 14 edges (78.6%), 1464 of 1605 weight (91.2%); load-time imports: 11 of 14 edges (78.6%), 1111 of 1173 weight (94.7%). By category, all imports: (a) 8 edges / 1410 weight, (b) 3 / 54, (c) strict 0 / 0, (c) with a recorded exception ledger 2 / 128, (d) 1 / 13. Without the general layer-chain rule (a only): 8 of 14 edges (57.1%), 1410 of 1605 weight (87.9%); load-time weight 1067 of 1173 (91.0%). If the two ledgered pairs are counted as documented: 13 of 14 edges (92.9%), 1592 of 1605 weight (99.2%)."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/m03b-summary.json"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "70b1027a2741130900e04797d82e452f29130b6979ac09f5c852d4e0ea7086aa"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/edge-classification-top-level.csv"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "7d9cc6b1167ab28242ea5e49949e6d821630ce3ae627988746b4066d1d2b15fc"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E9
+    kind: static-derived
+    reference: "evidence/B3/mapping-rules.txt"
+    method: "hand-written before the join; erratum appended after"
+    sha256: "71f49efe1e3e2552864b2412dc69ad8c3102ef0009421153dce475395dede9f1"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "All 656 cross-component edges of evidence/B1/component-edges-head.csv (74 components, core Python under src/ at head), classified by the rules of mapping-rules.txt against the 72 rows of evidence/A1/documented-relationships.csv, of which 14 rows speak to an in-repo Python pair."
+  not_covered: "Relationships to external packages, services, packs and other repositories (50 documented rows, outside the observed table); rules that distinguish modules inside one component; correctness of the B1 edge extraction itself (taken as given, one independent AST pass was run for the strict must-not rules only)."
+  population: "14 top-level package pairs with at least one import; weight = module-level import edges (1605 all, 1173 load-time)"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked that the top-level weight sums reproduce B1 own top-level aggregate for all 14 pairs (mapping-summary.json), and looked for any pair classified (a) or (b) whose direction runs against the recorded layer chain."
+  result: "All 14 sums match. No (a) or (b) pair runs from a lower to a higher layer; the only upward pairs are the two ledgered ones."
+relations:
+  - {type: refines, target: F-B3-002}
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity", "analysability"]
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,38 @@
+finding_id: F-B3-013
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: "granularity of the recorded relationships"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "The value of M03b depends mainly on the granularity at which it is read, because the recorded relationships are stated between top-level packages and the observed import weight lies mostly inside one of them."
+evidence: []
+scope:
+  covered: "Derived from the cited observations only."
+  not_covered: "No judgement on whether rules below top-level packages are needed."
+  population: null
+  sample: null
+  seed: null
+interpretation: "At top level the frozen records speak to 13 of 14 pairs (11 as allowed, 2 as forbidden with a ledger). At full granularity every one of the 464 edges inside a top-level package is uncovered, and those edges are 70.7% of all edges and 66.9% of the weight; the share of cross-package edges that are covered stays at 84.4%. The frozen table has one rule that reaches below a top-level package and resolves at component level (CORE -> INTEGRATION) plus one inside charter (charter.offering outbound). The alternative reading, that the edge table over-splits specify_cli, was considered: the split follows the directory layout as given by B1 and was not altered here."
+derived_from: ["F-B3-001", "F-B3-002", "F-B3-006", "F-B3-007", "F-B3-009"]
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the drop comes from a few heavy uncovered pairs instead of from granularity as such."
+  result: "The ten heaviest uncovered pairs hold 30.1% of the uncovered weight; the remaining 455 pairs hold 69.9%, so the effect is spread, not concentrated."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["analysability", "modularity"]
+candidate_invariants: []
+open_questions: []

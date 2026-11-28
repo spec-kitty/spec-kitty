@@ -111,3 +111,9 @@ Inputs
                       no observed edge; and at full granularity each subcomponent of the
                       target that no component of the source imports.
   Must-not observed : every c-strict and c-ledgered pair, with weights.
+
+ERRATUM (added after the join, 2026-11-28T09:47Z; nothing above was changed)
+  - The documented table has 72 data rows, not 73 (73 lines with the header).
+  - No rule was altered after the join. The row-by-row mapping status is in
+    documented-row-mapping.csv; the component-by-component one in
+    observed-component-mapping.csv.

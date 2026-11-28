@@ -1,0 +1,63 @@
+finding_id: F-B3-002
+workstream: B3 documented relationships against the observed component graph
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: "The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It was used only to confirm the unit of the weight column. No other non-permitted input was read."
+subject:
+  component: "core Python, 74 components (top-level packages and second-level subpackages)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "M03b at full granularity (74 components, 656 cross-component edges, 466 of them with a load-time import). Primary variant, categories (a)+(b): all imports: 162 of 656 edges (24.7%), 1464 of 4855 weight (30.1%); load-time imports: 139 of 466 edges (29.8%), 1111 of 3112 weight (35.7%). By category, all imports: (a) 157 edges / 1410 weight, (b) 5 / 54, (c) strict 0 / 0, (c) ledgered 29 / 128, (d) 465 / 3263. Without the general rule (a only): 157 of 656 edges (23.9%), 1410 of 4855 weight (29.0%); load-time 135 of 466 edges (29.0%), 1067 of 3112 weight (34.3%). With ledgered pairs counted: 191 of 656 edges (29.1%), 1592 of 4855 weight (32.8%). Of the 656 edges, 464 (70.7%; weight 3250 of 4855, 66.9%) join two components of the same top-level package, and all 464 are in (d); of the 192 edges that cross a top-level package, 162 (84.4%) are in (a) or (b)."
+evidence:
+  - id: E1
+    kind: static-derived
+    reference: "evidence/B3/m03b-summary.json"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "70b1027a2741130900e04797d82e452f29130b6979ac09f5c852d4e0ea7086aa"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E2
+    kind: static-derived
+    reference: "evidence/B3/edge-classification-full.csv"
+    method: "python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)"
+    sha256: "7a03f6a7113b61e8679903e317a2816f8cae1eea153935332045b4f83ce1607f"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+  - id: E9
+    kind: static-derived
+    reference: "evidence/B3/mapping-rules.txt"
+    method: "hand-written before the join; erratum appended after"
+    sha256: "71f49efe1e3e2552864b2412dc69ad8c3102ef0009421153dce475395dede9f1"
+    exit_code: 0
+    environment: "CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux"
+    observed_at: "2026-11-28T09:47:00Z"
+scope:
+  covered: "All 656 cross-component edges of evidence/B1/component-edges-head.csv (74 components, core Python under src/ at head), classified by the rules of mapping-rules.txt against the 72 rows of evidence/A1/documented-relationships.csv, of which 14 rows speak to an in-repo Python pair."
+  not_covered: "Relationships to external packages, services, packs and other repositories (50 documented rows, outside the observed table); rules that distinguish modules inside one component; correctness of the B1 edge extraction itself (taken as given, one independent AST pass was run for the strict must-not rules only)."
+  population: "656 cross-component edges; weight 4855 all imports, 3112 load-time"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Searched the records at head for import rules not present in the frozen table (git grep for must-not-import phrasings over docs/architecture, docs/adr/3.x, docs/adr/4.x and the charter; 26 hits) and re-ran the classification with four relationships read in the records but absent from the frozen table (variant V3, F-B3-010)."
+  result: "The grep found rules for the layer chain, CORE/INTEGRATION, mission_runtime submodules, status internals and the charter offering and activation doors, all already in the frozen table or below component granularity, plus two file-level rules (preflight.py vs push_preflight.py; ref_advance vs consolidation state). V3 moves the share to 176 of 656 edges (26.8%) and 1841 of 4855 weight (37.9%)."
+relations:
+  - {type: refines, target: F-B3-001}
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: ["modularity", "analysability"]
+candidate_invariants: []
+open_questions: []

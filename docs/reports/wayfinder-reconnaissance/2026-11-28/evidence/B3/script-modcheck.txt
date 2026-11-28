@@ -1,0 +1,50 @@
+import ast, sys, os, csv, json, collections
+root=sys.argv[1]; out=sys.argv[2]
+def modname(p):
+    rel=os.path.relpath(p,root)[:-3].replace(os.sep,'.')
+    return rel[:-9] if rel.endswith('.__init__') else rel
+files=[os.path.join(d,f) for d,_,fs in os.walk(root) for f in fs if f.endswith('.py')]
+mods={modname(p):p for p in files}
+def resolve(cur,is_pkg,node):
+    if node.level==0: return node.module or ''
+    parts=cur.split('.')
+    if not is_pkg: parts=parts[:-1]
+    parts=parts[:len(parts)-(node.level-1)]
+    return '.'.join(parts+([node.module] if node.module else []))
+rows=[]
+for m,p in sorted(mods.items()):
+    try: tree=ast.parse(open(p,encoding='utf-8').read())
+    except SyntaxError: continue
+    is_pkg=p.endswith('__init__.py')
+    for n in ast.walk(tree):
+        tg=[]
+        if isinstance(n,ast.Import): tg=[a.name for a in n.names]
+        elif isinstance(n,ast.ImportFrom):
+            base=resolve(m,is_pkg,n)
+            for a in n.names:
+                full=base+'.'+a.name
+                tg.append(full if full in mods else base)
+        for t in tg: rows.append((m,t,n.lineno))
+def within(m,pkg): return m==pkg or m.startswith(pkg+'.')
+checks={
+ 'specify_cli->charter.offering': (lambda s: within(s,'specify_cli'),'charter.offering',lambda t: within(t,'charter.offering.api')),
+ 'specify_cli->charter.activation': (lambda s: within(s,'specify_cli'),'charter.activation',lambda t: within(t,'charter.activation.api')),
+ 'non-offering charter->charter.offering': (lambda s: within(s,'charter') and not within(s,'charter.offering'),'charter.offering',lambda t: within(t,'charter.offering.api')),
+ 'runtime|glossary|mission_runtime->charter.offering': (lambda s: s.split('.')[0] in('runtime','glossary','mission_runtime'),'charter.offering',lambda t: within(t,'charter.offering.api')),
+ 'outside->mission_runtime': (lambda s: not within(s,'mission_runtime'),'mission_runtime',lambda t: t=='mission_runtime'),
+ 'outside specify_cli.status->specify_cli.status': (lambda s: not within(s,'specify_cli.status'),'specify_cli.status',lambda t: t=='specify_cli.status'),
+}
+summ={}
+w=csv.writer(open(out+'/module-level-contract-checks.csv','w',newline='')); w.writerow(['check','through_door','importing_module','imported_module','line'])
+for name,(src,pkg,door) in checks.items():
+    sel=[(s,t,l) for s,t,l in rows if src(s) and within(t,pkg)]
+    stm=len(sel); ok=sum(1 for s,t,l in sel if door(t))
+    pairs={(s,t) for s,t,l in sel}; okp={(s,t) for s,t in pairs if door(t)}
+    bym=collections.Counter(t for s,t in pairs-okp)
+    comp=collections.Counter('.'.join(s.split('.')[:2]) for s,t in pairs-okp)
+    summ[name]={'imported_names':stm,'imported_names_through_door':ok,'module_pairs':len(pairs),'module_pairs_through_door':len(okp),'module_pairs_not_through_door':len(pairs-okp),
+      'share_pairs_through_door':round(len(okp)/len(pairs),4) if pairs else None,'importing_modules':len({s for s,t in pairs}),'importing_modules_only_through_door':len({s for s,t in pairs}-{s for s,t in pairs-okp}),
+      'top_bypassed_targets':bym.most_common(8),'bypassing_components':comp.most_common(8)}
+    for s,t,l in sorted(sel): w.writerow([name,'yes' if door(t) else 'no',s,t,l])
+json.dump(summ,open(out+'/module-level-contract-checks-summary.json','w'),indent=1)
+print(json.dumps(summ,indent=1))

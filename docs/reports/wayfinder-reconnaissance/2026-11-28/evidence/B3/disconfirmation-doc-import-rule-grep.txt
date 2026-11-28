@@ -1,0 +1,26 @@
+docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md:39:   compatibility; importing `preflight.py` must not import `push_preflight.py`
+docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md:70:during migration) but must not import CLI presentation layers
+docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md:95:**must not import directly** — enforced by
+docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md:146:  submodules are import-forbidden from outside the package.
+docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:78:These modules **MUST NOT** import from the INTEGRATION set.
+docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:116:CORE must NOT import INTEGRATION.
+docs/adr/3.x/2026-06-26-2-core-integration-boundary.md:170:- **This ADR governs package import *direction*** — CORE must not import the
+docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md:55:layer may not import.
+docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md:173:  `software-dev`). Because `charter/` may not import `specify_cli` (layer rule,
+docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md:44:- **Preserve** the #2732 content-identity machinery and the C-001 layer boundary (`src/charter/` must not import `specify_cli`).
+docs/adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md:82:  post-consolidation state must not re-import that ambiguity.
+docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md:159:cross-layer one; `doctrine` still never imports `charter`. This is why the mechanism qualifies as
+docs/adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md:68:- Respect layer directionality (doctrine must not import upward into `mission_runtime`).
+docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md:76:Charter must not import `specify_cli` (project-wide constraint C-001,
+docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md:91:* **C-001 (charter must not import specify_cli).** The relocated authority,
+docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md:179:`charter.offering` (where `MalformedManifestError` sits) must not import
+docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md:313:  in one module — a direct consequence of the offering-must-not-import-activation
+docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md:399:  `ref_advance` stays plumbing and never imports consolidation state. A live tip in the chain
+docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md:215:  (`charter` must never import `specify_cli`), C-005 (routing-safety coupling between the
+docs/adr/4.x/2026-10-08-1-serialise-run-dir-advance.md:38:3. **A new `specify_cli` mission-write lock.** Rejected: the runtime layer must not import `specify_cli` (layer rules), so PR #5890's lock is not reusable here.
+docs/adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md:58:- Steps call only the driver. They never import Python and never use internal Java classes; published contracts (for example `contracts/mission-status/openapi.yaml`) are allowed.
+docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md:223:- **The `charter.*` facades stay the in-tree door for offering.** `specify_cli` must not import `charter.offering.*`, `charter.offering.api` included (C-001, stated in the `charter.offering.api` docstring and ratche
+docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md:72:  (`charter.offering` never imports activation; `specify_cli` reaches it through
+docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md:287:  because the floor lives in activation and `charter.offering` must not import it (C-002). A
+docs/architecture/diagrams/02_containers/README.md:238:2. Modules communicate through OHS facades; `status` internals are import-forbidden
+docs/architecture/org-doctrine-layer.md:355:an explicit `org_root` argument when present. It must not import from
