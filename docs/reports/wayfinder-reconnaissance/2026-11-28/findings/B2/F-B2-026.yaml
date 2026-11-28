@@ -1,0 +1,61 @@
+finding_id: F-B2-026
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: packs/built-in.source.yaml
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "The commit core pins for its built-in pack (packs/built-in.source.yaml:6, a79c36318b7a506ca2ab26d74705c5e3e406004f,\
+  \ dated 2026-10-31) is not an ancestor of spec-kitty-open-packs origin/main. In the local clone it is contained\
+  \ in one remote branch, origin/issue-6562-glossary-core-rc8, one commit off its merge base with main (af1c370f).\
+  \ The internal pack pin (ecda7b00) is an ancestor of main."
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/B2/xrepo-pin-matrix.csv
+  method: git -C /home/user/spec-kitty-open-packs merge-base --is-ancestor a79c3631 origin/main (exit 1); git branch
+    -r --contains a79c3631; git merge-base a79c3631 origin/main; git rev-list --count origin/main..a79c3631
+  sha256: f903a248d871efa8e0e3bd7a614d5c5b75dc19c66f1bfb65697e8c481c513720
+  exit_code: 0
+  environment: git 2.43.0
+  observed_at: '2026-11-28T09:11:55Z'
+- id: E2
+  kind: document-claim
+  reference: packs/built-in.source.yaml:5-12
+  method: read at core head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Ancestry of the two pack pins in the open-packs clone as fetched on 2026-11-28.
+  not_covered: Whether the content of that commit reached main by another commit (squash or cherry-pick) was not
+    compared tree by tree. Tags on the remote that the clone lacks.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether any tag or other remote branch contains the commit."
+  result: "Only the one issue branch contains it in this clone."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- reproducibility
+candidate_invariants: []
+open_questions:
+- Is the built-in pin meant to name a commit that stays reachable from open-packs main?

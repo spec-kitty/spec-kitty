@@ -1,0 +1,64 @@
+finding_id: F-B2-027
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: repository-level pin graph
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Taking each commit or version pin as a directed edge between repositories, the graph over the five repositories\
+  \ has 11 distinct edges and two 2-node cycles: charter <-> open-packs (charter's gradle.properties pins an open-packs\
+  \ commit for its governance and usability packs; open-packs' charter.lock.yaml pins a charter release to prove\
+  \ its packs against) and core <-> events (core pins the events read service and depends on the events PyPI package;\
+  \ events' service/core-pin.json pins a core commit for CI-only parity oracles). doc-kitty is depended on by the\
+  \ other four and itself pins only charter. Core holds no pin of the charter repository: pins/ contains read-service.source.yaml\
+  \ only, while src/kernel/service_pin.py:71 already names a charter-service asset."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/xrepo-coupling-points-curated.csv
+  method: hand-verified file:line list (purposive)
+  sha256: a5c71c42da688c020bfa939938b77c04de8cba7bbfb1b4349460dfe46aa69c41
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:37:06Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-charter gradle.properties:14-19; spec-kitty-open-packs charter.lock.yaml:1-34; spec-kitty-events
+    service/core-pin.json:1; spec-kitty pins/ (directory listing)
+  method: read at each head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Pins and version dependencies in tracked build, pin and CI files.
+  not_covered: Run-time composition; pins added by release automation outside the tracked files.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a core pin of charter (grep spec-kitty-charter in pins/, pyproject.toml, Makefile, workflows,\
+    \ scripts) and for an open-packs pin of core."
+  result: "No charter pin file in core. open-packs records core only as provenance (seeded_from) and, at core's\
+    \ pinned commit, a requires_core range."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+candidate_invariants: []
+open_questions: []

@@ -1,0 +1,65 @@
+finding_id: F-B2-031
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: shared schemas or contracts duplicated between repositories
+  deviation: null
+subject:
+  component: pack artifact schemas
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "8 pack-artifact schemas are defined in both core (src/charter/offering/schemas/<kind>.schema.yaml, YAML,\
+  \ $id under spec-kitty.ai/schemas/doctrine) and the charter repository (contracts/packs/schemas/<kind>.schema.json,\
+  \ JSON, $id under schemas.spec-kitty.ai/charter/packs): agent-profile, directive, paradigm, procedure, skill,\
+  \ styleguide, tactic, toolguide. No pair is byte- or canonically identical (different formats). By top-level property\
+  \ names, 1 of 8 pairs matches exactly (skill, 15 of 15) and 7 differ: core has properties charter lacks in 7 pairs\
+  \ (references in 6 of them) and charter has properties core lacks in 3 (agent-profile, paradigm, procedure). The\
+  \ required lists differ in 2 pairs (agent-profile, procedure)."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-core-vs-charter-properties.csv
+  method: inline Python over the 8 pairs (PyYAML 6.0.3, json)
+  sha256: 42be9864262680cdf527a035bc6431c02b71065ef966c552779b34424b6071c1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:47Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-stem-overlap.json
+  method: 'inline Python: schema stems per repository'
+  sha256: 20881cc7d07a6aac794a6b5a2a1b6dd2d9415db3ab0d2240e87b91f3c6013aa6
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:37Z'
+scope:
+  covered: Top-level properties and required lists of the 8 pairs at both heads.
+  not_covered: Nested definitions, constraints and enums; which of the two a given consumer validates against; the
+    Python loaders and Java records behind the schemas.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a generator or sync step that derives one set from the other (grep for the other repository's\
+    \ schema path in scripts and build files)."
+  result: "None found. charter holds a script that reads core's verdicts at a pinned core commit (scripts/packs/core_verdicts.py:36),\
+    \ which compares behaviour, not schema files."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- contract clarity
+- evolvability
+candidate_invariants: []
+open_questions: []

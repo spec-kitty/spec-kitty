@@ -1,0 +1,78 @@
+finding_id: F-B2-006
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03c
+  deviation: null
+subject:
+  component: modules without an enforced structural rule
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "By hand-written Java main lines, 3,449 of 124,725 (2.8%) are in Gradle modules that no enforced architecture\
+  \ rule names: contracts (3,402 lines, package ai.speckitty.charter.contracts) and client-java (47). The other\
+  \ 14 hand-written modules and the generated charter-api are each named by at least one ArchUnit rule, and the\
+  \ rule class set is the package ai.speckitty.charter as seen from deployable's test classpath. build-logic (1,678\
+  \ Kotlin main lines) and scripts/ (4,910 Python and shell lines) have unit tests but no rule stating intended\
+  \ structure."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/charter-arch-rule-files.csv
+  method: python3 script-arch_rule_inventory.txt /home/user/spec-kitty-charter ...
+  sha256: bc8e99fb652661bd8882c3a41f19344b006e67dd20e42709740bf107cadf8c68
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-charter.csv
+  method: python3 script-loc.txt ...
+  sha256: 43f222b16e2162b27162e6f4e4bb51884fbab6686b8c3716d4a7a35d74da32d7
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:18Z'
+- id: E3
+  kind: document-claim
+  reference: service/deployable/src/test/java/ai/speckitty/charter/deployable/ServiceClasses.java:27-29
+  method: 'read at head: importPackages("ai.speckitty.charter") with tests excluded'
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B2/charter-gradle-declared.csv
+  method: deployable declares no dependency on :contracts or :client-java other than the contractBundle configuration
+  sha256: c2d2673c0708b045582dcaddcfdf89ea4b72dd2be0cfa5d9cfaf52d4693d5228
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:36Z'
+scope:
+  covered: All 18 Gradle projects; a module counts as covered when a rule's package predicate names its root package.
+  not_covered: Whether each rule is strong enough for its module is not assessed. Coverage is by module, not by
+    line.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep of every module root package (kernel, packs, profiles, routing, missions, activations, artifacts,\
+    \ packdoctor, packvalidation, api, web, deployable, contracts, client) in the ArchUnit sources."
+  result: "contracts and client: 0 occurrences as a package predicate; all others at least 5."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

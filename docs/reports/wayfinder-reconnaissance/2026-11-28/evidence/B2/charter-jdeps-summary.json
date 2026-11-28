@@ -1,0 +1,53 @@
+{
+ "modules_with_classes": {
+  "kernel": 135,
+  "packs": 1115,
+  "profiles": 33,
+  "profiles-edge": 53,
+  "routing": 22,
+  "routing-edge": 30,
+  "missions": 27,
+  "missions-edge": 49,
+  "artifacts-edge": 131,
+  "activations": 213,
+  "pack-validation": 39,
+  "pack-doctor": 39,
+  "charter-api": 305,
+  "web-transport": 24,
+  "deployable": 25
+ },
+ "classes": 2240,
+ "packages": 80,
+ "module_edges": 44,
+ "package_edges": 219,
+ "cross_module_class_dependencies": 3577,
+ "module_cycles": [],
+ "package_cycles": [
+  [
+   "ai.speckitty.charter.packs.domain",
+   "ai.speckitty.charter.packs.domain.graph",
+   "ai.speckitty.charter.packs.domain.rules"
+  ],
+  [
+   "ai.speckitty.charter.packs.infra.storage",
+   "ai.speckitty.charter.packs.infra.storage.markdown"
+  ]
+ ],
+ "jdeps_runs": [
+  "## kernel exit=0 lines=70",
+  "## packs exit=0 lines=3770",
+  "## profiles exit=0 lines=42",
+  "## profiles-edge exit=0 lines=273",
+  "## routing exit=0 lines=29",
+  "## routing-edge exit=0 lines=84",
+  "## missions exit=0 lines=87",
+  "## missions-edge exit=0 lines=143",
+  "## artifacts-edge exit=0 lines=570",
+  "## activations exit=0 lines=899",
+  "## pack-validation exit=0 lines=150",
+  "## pack-doctor exit=0 lines=76",
+  "## charter-api exit=0 lines=70",
+  "## web-transport exit=0 lines=26",
+  "## deployable exit=0 lines=77"
+ ]
+}

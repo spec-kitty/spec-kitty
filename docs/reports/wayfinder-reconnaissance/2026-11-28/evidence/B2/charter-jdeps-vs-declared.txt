@@ -1,0 +1,5 @@
+declared main-scope edges: 50 ; jdeps module edges: 44
+declared, no class dependency observed: [('deployable', 'artifacts-edge'), ('deployable', 'missions-edge'), ('deployable', 'profiles-edge'), ('deployable', 'routing'), ('deployable', 'routing-edge'), ('deployable', 'web-transport'), ('missions-edge', 'web-transport'), ('pack-validation', 'missions'), ('pack-validation', 'profiles'), ('profiles-edge', 'web-transport')]
+observed, not declared directly (reachable through api()): [('missions-edge', 'kernel'), ('pack-doctor', 'kernel'), ('profiles-edge', 'kernel'), ('routing-edge', 'kernel')]
+jdeps edges absent from the import scan: [('activations', 'charter-api'), ('artifacts-edge', 'charter-api'), ('missions-edge', 'charter-api'), ('packs', 'charter-api'), ('profiles-edge', 'charter-api'), ('routing-edge', 'charter-api'), ('web-transport', 'charter-api')]
+import-scan edges absent from jdeps: []

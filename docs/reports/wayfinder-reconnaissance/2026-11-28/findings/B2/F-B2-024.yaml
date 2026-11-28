@@ -1,0 +1,71 @@
+finding_id: F-B2-024
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references (open-packs to charter)
+  deviation: null
+subject:
+  component: scripts/ci and charter.lock.yaml
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: "f9a557510dc7ff04597a0b8aba87f736e25f785e"
+  revision_kind: head
+claim: "open-packs reaches the charter repository through four mechanisms, all keyed to one pin file (charter.lock.yaml:31-34:\
+  \ commit cb9b1542, release tag service-v0.1.0-rc.3, two jar digests): (1) an HTTPS fetch of contracts/packs schemas\
+  \ at the pinned commit (scripts/ci/validate_pack_schemas.py:203), (2) the released service jar started as a process\
+  \ and driven over loopback HTTP at /api/v1 (scripts/ci/charter_service_check.py:71,221), (3) the released pack-check\
+  \ jar run as a command (scripts/ci/charter_pack_check.py:229-242), and (4) a workflow that proposes pin bumps.\
+  \ No Python module of open-packs imports charter code and no charter source is copied into the repository (1 schema-like\
+  \ file is tracked in open-packs, none shared with charter)."
+evidence:
+- id: E1
+  kind: document-claim
+  reference: charter.lock.yaml:1-34; scripts/ci/validate_pack_schemas.py:56,203; scripts/ci/charter_service_check.py:71,221;
+    scripts/ci/charter_pack_check.py:229-242
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/openpacks-scripts-imports.txt
+  method: inline Python ast scan of 45 Python files
+  sha256: 6ed8fc08df7ddd175d346d49416f7fa26676119be1c86c175676d4b8277fb280
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:13:06Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-summary.json
+  method: python3 script-dup_schemas.txt dup-schemas
+  sha256: d37b552737ef68fd5104c7c2a3a41361f284e67d67ecab30e696372f694c3289
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:24Z'
+scope:
+  covered: scripts/, tests/, the pin file and the schema population.
+  not_covered: The workflows were read for repository references only; the jars were not downloaded or run.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for vendored copies of charter schemas in open-packs and for imports of charter modules."
+  result: "None."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- contract clarity
+- replaceability
+candidate_invariants: []
+open_questions: []

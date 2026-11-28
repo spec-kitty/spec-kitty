@@ -1,0 +1,64 @@
+finding_id: F-B2-002
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module dependency graph (from Gradle build files)
+  deviation: null
+subject:
+  component: Gradle project dependencies
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "The module build files declare 50 main-scope project-to-project dependencies (api/implementation) among\
+  \ 15 projects and 10 test-scope ones. The main-scope declared graph has no cycle. With test scope included there\
+  \ is one module cycle: packs --testImplementation--> pack-validation --api--> packs. kernel is declared directly\
+  \ by 9 modules; deployable declares 9 project dependencies and no project declares deployable."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/charter-gradle-declared.csv
+  method: python3 script-gradle_declared.txt /home/user/spec-kitty-charter charter-gradle-declared.csv <module=dir
+    ...>
+  sha256: c2d2673c0708b045582dcaddcfdf89ea4b72dd2be0cfa5d9cfaf52d4693d5228
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:36Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/charter-static-test-cycles.json
+  method: python3 script-java_imports.txt ... test ...
+  sha256: 5a789edf6112b9f8ddbcaba6e2a3b1cbeee3175182ba8522c84d61f7923657de
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:19:17Z'
+scope:
+  covered: project(":x") references in the 18 module build files and the 11 convention plugins under build-logic.
+  not_covered: Dependencies added programmatically by a convention plugin in a form the line pattern does not match;
+    charter-reports' aggregation configurations (apiDocs, jacocoAggregation) are listed as other-reference and not
+    counted as module dependencies.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Read every convention plugin for project(...) calls and compared the declared main-scope set with the\
+    \ import-derived set."
+  result: "Convention plugins add one project dependency (client-java's contractBundle on :contracts). Four import-derived\
+    \ edges are not declared directly (missions-edge, profiles-edge, routing-edge and pack-doctor -> kernel); each\
+    \ is reachable through an api() dependency."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

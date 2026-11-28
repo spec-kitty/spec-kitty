@@ -1,0 +1,93 @@
+finding_id: F-B2-003
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module dependency graph (observed) and cycles at module level
+  deviation: null
+subject:
+  component: hand-written service modules
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "From compiled classes (jdeps, 15 modules, 2,240 classes, 80 packages) the service has 44 module-to-module\
+  \ dependency edges carrying 3,577 class-level dependencies, and no module cycle. The import scan of source finds\
+  \ 37 of these 44; the 7 it misses all target the generated module charter-api. 10 of the 50 declared main-scope\
+  \ Gradle dependencies have no class-level dependency in main code: 6 are deployable's (artifacts-edge, missions-edge,\
+  \ profiles-edge, routing, routing-edge, web-transport) and 4 are missions-edge -> web-transport, profiles-edge\
+  \ -> web-transport, pack-validation -> missions and pack-validation -> profiles. 4 observed edges are not declared\
+  \ directly and arrive through an api() dependency (missions-edge, profiles-edge, routing-edge and pack-doctor\
+  \ -> kernel). packs -> kernel alone carries 1,712 of the 3,577 class dependencies (47.9%)."
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B2/charter-jdeps-module-edges.csv
+  method: python3 script-jdeps_graph.txt /usr/lib/jvm/temurin-25/bin/jdeps charter-jdeps 'ai\.speckitty\.charter\..*'
+    <module=classes dir ...>
+  sha256: 021a5bd9b6192633e60adede09130627d869dd6c50ab796769ba9a5416fa7ecd
+  exit_code: 0
+  environment: jdeps 25.0.5 (Temurin), classes built by Gradle 9.8.1, Python 3.13.18
+  observed_at: '2026-11-28T11:26:08Z'
+- id: E2
+  kind: executed
+  reference: evidence/B2/charter-jdeps-summary.json
+  method: same
+  sha256: ee5190418b2a32b323bf04f5b73f12ad78ddb8eb0a54a7d42dd1a13ae4c2f4d8
+  exit_code: 0
+  environment: jdeps 25.0.5 (Temurin), classes built by Gradle 9.8.1, Python 3.13.18
+  observed_at: '2026-11-28T11:26:08Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/charter-jdeps-vs-declared.txt
+  method: set differences of declared, jdeps and import-derived edges
+  sha256: fef3cc9308693a3a44549fdf28ce72d685079596ff1e63a1f96cd145bc8e61b9
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T11:36:25Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B2/charter-static-main-module-edges.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: 26cf8bdd7a2c436a843a41f106aedf7aed72c50c4d09d6e1154b0576eb6bb90e
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:16Z'
+- id: E5
+  kind: executed
+  reference: evidence/B2/charter-build-runs.txt
+  method: ./gradlew :deployable:testClasses :pack-doctor:classes :contracts:classes --max-workers=1 --no-daemon
+  sha256: 860e26f8fa7a3969481b42296c97512beca5d4a1bc720f7df84a94fd62785088
+  exit_code: 0
+  environment: OpenJDK Temurin 25.0.5, Gradle 9.8.1 (wrapper), ArchUnit as pinned by the repository
+  observed_at: '2026-11-28T11:53:42Z'
+scope:
+  covered: Compiled main classes of the 15 service modules (charter-api included) for jdeps; main sources of the
+    same hand-written modules plus contracts and client-java (1,030 Java files, 83 packages) for the import scan.
+  not_covered: contracts and client-java are not in the jdeps run (no main class directory was produced for them
+    by the tasks run); for those two the import scan is the only source, and it shows no dependency to or from the
+    service modules in main scope. jdeps -verbose:class leaves out dependencies inside one package. Reflection and
+    Spring component scanning are not seen, which is how deployable reaches the edge modules it declares.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for module cycles in the main-scope graph and separately in the test-scope graph; looked for import-derived\
+    \ edges with no declared Gradle path."
+  result: "No main-scope module cycle in either the jdeps or the import-derived graph. Test scope adds the packs\
+    \ <-> pack-validation cycle (F-B2-002). No observed edge lacks a declared or api-transitive Gradle path."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

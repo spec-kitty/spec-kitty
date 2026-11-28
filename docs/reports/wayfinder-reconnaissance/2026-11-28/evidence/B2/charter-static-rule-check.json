@@ -1,0 +1,16 @@
+{
+ "package_edges_considered": 203,
+ "cross_module_imports_considered": 1928,
+ "pack_doctor_main_adapter_imports": [
+  "ai.speckitty.charter.packs.infra.storage.FileSystemPackInspector",
+  "ai.speckitty.charter.packs.infra.storage.PackRemediation",
+  "ai.speckitty.charter.packs.infra.storage.PackRoundTrip"
+ ],
+ "violations": {
+  "ONION_DOMAIN_DEPENDS_ON_NOTHING_OUTWARD": [],
+  "ONION_APPLICATION_DEPENDS_ON_DOMAIN_ONLY": [],
+  "ONION_NOTHING_DEPENDS_ON_COMPOSITION_ROOT": [],
+  "ONION_ONLY_DEPLOYABLE_COMPOSES_ADAPTERS": [],
+  "ONION_THE_PACK_DOCTOR_MAIN_COMPOSES_THREE_ADAPTERS": []
+ }
+}

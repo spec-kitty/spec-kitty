@@ -1,0 +1,79 @@
+finding_id: F-B2-009
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module dependency graph and cycles at module level
+  deviation: 'The events Gradle build did not run in this environment (attempt 1: dependency verification refused
+    a plugin marker POM served by the environment''s Maven Central mirror; attempts 2 and 3 without the mirror:
+    HTTP 429 from repo.maven.apache.org). No class files, no jdeps, no ArchUnit run: every number here is derived
+    from source text. The graph is from Gradle build files and import statements, not from compiled classes.'
+subject:
+  component: Gradle modules
+  repository: spec-kitty/spec-kitty-events
+  revision: "646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "The build files declare 5 main-scope project dependencies among the Java modules (mission-status-api ->\
+  \ domain-model, event-log; command-cli -> domain-model, event-log; event-log -> domain-model as api) and 1 test-scope\
+  \ one (command-cli -> event-log test fixtures). The import-derived graph has the same 5 edges (140 cross-module\
+  \ import statements) and no cycle. java-binding and contracts have no project dependency in either direction.\
+  \ The two deployables (mission-status-api, command-cli) do not depend on each other."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-gradle-declared.csv
+  method: python3 script-gradle_declared.txt /home/user/spec-kitty-events ...
+  sha256: eaf9530ea00b553cfc60393ee5d1d8796c5d126650a024607af20a0860afbad1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-static-main-module-edges.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: eff8cb8517197ccd3a9cc1f7c1b5b19d95bae4be77ddaeb52c2364bdbd38f48b
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/events-static-main-cycles.json
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: ea117cec8866f0dc65451c763a4ea4d1b81e98253ac4d78b318b68cf0b8a481c
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+- id: E4
+  kind: executed
+  reference: evidence/B2/events-build-attempts.txt
+  method: ./gradlew classes --max-workers=2 (three attempts)
+  sha256: d72dcb9be2870be3f5b790cb112c0bd76449f1ebdb21196b226b1f05e36fddd9
+  exit_code: 1
+  environment: OpenJDK Temurin 25.0.5, Gradle 9.8.1 (wrapper)
+  observed_at: '2026-11-28T11:53:42Z'
+scope:
+  covered: Main sources of the 5 Java modules (276 files, 39 packages).
+  not_covered: Class-file level dependencies; test sources.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Compared declared and import-derived edge sets in both directions; strongly connected components at module\
+    \ level."
+  result: "Sets are equal (5 = 5). No component with more than one module."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

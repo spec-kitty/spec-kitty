@@ -1,0 +1,33 @@
+# spec-kitty-charter Gradle runs, workstream B2, scratch clone at 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a; Temurin 25.0.5; Gradle 9.8.1
+attempt 1: ./gradlew classes --max-workers=3 --no-daemon : exit 1, daemon killed by the shared memory limit (cgroup OOM), log sha256 96196e58c15d22a9d9ba0819034e0e61d7d351e2ce78b5526266e130ad08e36a
+attempt 2: ./gradlew :deployable:testClasses :pack-doctor:classes :contracts:classes --max-workers=1 --no-daemon -Xmx1400m : exit 1, same cause, log sha256 327dc68a88cead50c623e34cdf91af890cfe3c71f02ee34170be38058f2011bc
+attempt 3: same command : exit 0, BUILD SUCCESSFUL in 10m 24s, log sha256 263f84b156c9ff52037967aabc33213fcf2c185739f418f7a2a06aaa1d157ddb
+arch tests deployable: exit 0, log sha256 f50f9f0c9899b1369abb88f6cff8550d8c003adbbf8b3f61a4bf5078646a202e
+arch tests packs: exit 0, log sha256 07f26d883fee902bb150451fc7a7e93a9af5c14393aeaf77db20352aea320ec2
+
+## tail of attempt 3
+> Task :deployable:processResources UP-TO-DATE
+> Task :deployable:classes
+> Task :pack-validation:compileJava
+> Task :pack-doctor:compileJava
+> Task :packs:compileTestFixturesJava
+> Task :deployable:compileTestJava
+> Task :deployable:processTestResources
+> Task :deployable:testClasses
+> Task :pack-doctor:packDoctorVersion UP-TO-DATE
+> Task :pack-doctor:processResources UP-TO-DATE
+> Task :pack-doctor:classes
+BUILD SUCCESSFUL in 10m 24s
+## tail of deployable test run
+> Task :deployable:classes UP-TO-DATE
+> Task :deployable:compileTestJava UP-TO-DATE
+> Task :deployable:testClasses UP-TO-DATE
+> Task :deployable:test
+BUILD SUCCESSFUL in 16m 45s
+## tail of packs test run
+> Task :packs:testFixturesClasses UP-TO-DATE
+> Task :packs:testFixturesJar UP-TO-DATE
+> Task :packs:compileTestJava
+> Task :packs:testClasses
+> Task :packs:test
+BUILD SUCCESSFUL in 7m 9s

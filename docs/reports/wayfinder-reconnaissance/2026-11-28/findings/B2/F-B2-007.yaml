@@ -1,0 +1,66 @@
+finding_id: F-B2-007
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: private access across modules
+  deviation: The brief's 'internal/impl packages' do not exist here as named. The strict count uses the literal
+    names; the ring distribution (domain / application / infra / config) is reported beside it as the repository's
+    own notion of non-public rings.
+subject:
+  component: cross-module imports
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "0 of 1,928 cross-module import statements in main sources target a package with a segment named internal\
+  \ or impl; no such package exists in the repository, and there is no module-info.java (0 files), so the Java module\
+  \ system hides nothing between Gradle modules. By target ring, 1,409 (73.1%) of the 1,928 target a domain package,\
+  \ 406 (21.1%) a shared top-level package (kernel non-domain, web), 69 (3.6%) another module's application package,\
+  \ 35 (1.8%) another module's infra package and 9 (0.5%) a config package. All 35 infra-targeting imports come\
+  \ from deployable (32) and pack-doctor (3)."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/private-access-java.txt
+  method: inline Python over charter-static-main-cross-module-imports.csv
+  sha256: 77711e278e1c32f061c67069de77a43e6da3bc14acc42a727f976db5538db6a1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:13:26Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/charter-static-main-cross-module-imports.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: a08b76b61b5be5be7e486603d8940cf2e2e7cfdc5cfd34b9691865fa9249be24
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:16Z'
+scope:
+  covered: Import statements of main sources that resolve to a type owned by another Gradle module.
+  not_covered: Reflection, Spring component scanning and configuration-by-name; access that needs no import.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "find -name module-info.java; listed every package name for segments internal or impl; listed importers\
+    \ of infra packages by module."
+  result: "No module-info.java, no internal/impl package. The importers of another module's infra package are the\
+    \ composition root and pack-doctor, which the enforced rules name as the permitted composers (ONION_ONLY_DEPLOYABLE_COMPOSES_ADAPTERS,\
+    \ ONION_THE_PACK_DOCTOR_MAIN_COMPOSES_THREE_ADAPTERS)."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- encapsulation
+candidate_invariants: []
+open_questions: []

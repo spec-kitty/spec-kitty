@@ -1,0 +1,50 @@
+finding_id: F-B2-034
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: where the Java structure is enforced
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "In both Java repositories the module boundary that the build system gives (Gradle project dependencies)\
+  \ is coarse, and the finer intended structure is held by test-time rules, not by the language's module system."
+evidence: []
+scope:
+  covered: Derived from the cited observations only.
+  not_covered: Whether a different enforcement point would be better; that is not assessed.
+  population: null
+  sample: null
+  seed: null
+interpretation: Neither repository uses module-info.java, so every public type of a module is reachable by any module
+  that depends on it; cross-module reach into application and infra packages does occur and is bounded only by ArchUnit
+  rules that run in one module's test task. Where a module is not on that task's classpath (charter's contracts
+  and client-java, events' java-binding) no structural rule applies. This reading rests on static counts; for events
+  it also rests on rules that were not executed here.
+derived_from:
+- F-B2-005
+- F-B2-006
+- F-B2-007
+- F-B2-011
+- F-B2-012
+- F-B2-013
+counterevidence: []
+disconfirmation:
+  search: "Looked in the cited observations for a boundary that the build system alone enforces below module level."
+  result: "Found two: charter.domain-conventions (no external library in four plain-Java modules) and ModuleDependencyAllowlist\
+    \ (two modules), both at Gradle configuration time."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

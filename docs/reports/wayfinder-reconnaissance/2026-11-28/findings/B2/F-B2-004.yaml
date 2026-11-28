@@ -1,0 +1,60 @@
+finding_id: F-B2-004
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cycles at package level
+  deviation: null
+subject:
+  component: Java packages
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "Of 83 main-source Java packages, 5 (6.0%) are in a package-level import cycle, in 2 cycles, both inside\
+  \ the module packs: {packs.domain, packs.domain.graph, packs.domain.rules} and {packs.infra.storage, packs.infra.storage.markdown}.\
+  \ No package cycle crosses a module boundary. No enforced rule in the repository forbids package cycles (no ArchUnit\
+  \ slices() or beFreeOfCycles() call in any test source)."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/charter-static-main-cycles.json
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: 55f1a3432ca0c404599383514c23ff3e379ab9acae7a3a47f465883d103b8021
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:16Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/charter-static-main-package-edges.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: 9e02c0d666e6777076e3dbb6c89cf66877321a3b97c03787e0b7508fe4fab462
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:16Z'
+scope:
+  covered: 203 package-to-package import edges of the main sources.
+  not_covered: Dependencies expressed without an import statement (same-package use, fully qualified names inline).
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn 'beFreeOfCycles\\|slices()' over service/ test sources; strongly connected components over the\
+    \ package graph."
+  result: "No cycle rule found. The two components above are the only ones with more than one package."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- analysability
+candidate_invariants: []
+open_questions: []

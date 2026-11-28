@@ -1,0 +1,72 @@
+finding_id: F-B2-001
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module inventory with lines of code by language
+  deviation: null
+subject:
+  component: Gradle build (18 projects + build-logic)
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "At head the charter Gradle build includes 18 projects (16 under service/, plus contracts and client-java)\
+  \ and one included build (build-logic). Tracked hand-written Java is 124,725 non-blank main lines and 180,607\
+  \ non-blank test lines; 76,663 of the 124,725 main lines (61.5%) are in the single module packs. charter-api and\
+  \ charter-reports hold no tracked Java (charter-api's sources are generated at build time). Outside the modules:\
+  \ build-logic 1,678 Kotlin main lines, scripts/ 2,870 Python and 2,040 shell lines."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/loc-charter.csv
+  method: python3 script-loc.txt /home/user/spec-kitty-charter charter loc-charter.csv
+  sha256: 43f222b16e2162b27162e6f4e4bb51884fbab6686b8c3716d4a7a35d74da32d7
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:18Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-summary.json
+  method: aggregation of loc-*.csv
+  sha256: 3fc4a77f99240c22fc1185a2048d2566d0771edac7a7f3586e5407daffa11d79
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:17Z'
+- id: E3
+  kind: document-claim
+  reference: settings.gradle.kts:27-68 (project list)
+  method: read at the head revision
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: All 7,489 tracked files at head; physical and non-blank lines per module, language and scope (test =
+    path under test/tests/testFixtures/fixtures).
+  not_covered: Comment lines are not separated from code lines. Generated sources (charter-api, client-java generated
+    set) are not tracked and not counted.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether a module holds sources outside src/main/java and src/test/java that the path rule would\
+    \ miss (git ls-files per module, by extension)."
+  result: "packs also has src/testFixtures/java (counted as test) and one Python test helper (767 lines); no other\
+    \ source roots found."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- analysability
+candidate_invariants: []
+open_questions: []

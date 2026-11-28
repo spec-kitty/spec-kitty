@@ -1,0 +1,12 @@
+# command: ./gradlew :deployable:test --tests '*HexagonalArchitectureTest' --tests '*GeneratedConstraintTypesTest' --tests '*MixInHintsGateTest' --tests '*NoBuildTimeProfilesTest' --tests '*ReservedRefusalCodesTest' --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g
+# spec-kitty-charter@06cdfbe94856e8d24eca350c63d2a7b47bb9f13a (scratch clone); Gradle 9.8.1; OpenJDK Temurin 25.0.5; BUILD SUCCESSFUL in 16m 45s; exit 0
+# source: JUnit XML under service/deployable/build/test-results/test/
+result_file,suite_name,tests,failures,errors,skipped
+TEST-ai.speckitty.charter.deployable.GeneratedConstraintTypesTest.xml,"ai.speckitty.charter.deployable.GeneratedConstraintTypesTest",2,0,0,0
+TEST-ai.speckitty.charter.deployable.HexagonalArchitectureTest.xml,"ai.speckitty.charter.deployable.HexagonalArchitectureTest",99,0,0,0
+TEST-ai.speckitty.charter.deployable.MixInHintsGateTest.xml,"Every mix-in is imported and registered by its declaring class's runtime hints (#658)",5,0,0,0
+TEST-ai.speckitty.charter.deployable.NoBuildTimeProfilesTest.xml,"ai.speckitty.charter.deployable.NoBuildTimeProfilesTest",3,0,0,0
+TEST-ai.speckitty.charter.deployable.ReservedRefusalCodesTest.xml,"ai.speckitty.charter.deployable.ReservedRefusalCodesTest",14,0,0,0
+TOTAL_five_named_classes,,123,0,0,0
+# also executed although not asked for: the Cucumber suite of the same test task, which the --tests class filter did not exclude:
+other_result_files=201,tests=1557,failures=0,errors=0,skipped=0

@@ -1,0 +1,49 @@
+finding_id: F-B2-035
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: independence dimensions of the packs contract between charter, open-packs and doc-kitty
+  repository: spec-kitty/doc-kitty
+  revision: "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"
+  revision_kind: head
+claim: "Read through the five independence dimensions, the three consumers of the charter packs contract differ\
+  \ in the contract and source dimensions while all are separate in distribution."
+evidence: []
+scope:
+  covered: Derived from the cited observations only.
+  not_covered: Run-time behaviour; the logical and deployment dimensions.
+  population: null
+  sample: null
+  seed: null
+interpretation: 'Contract: open-packs and doc-kitty each consume the packs contract through an explicit pinned artefact
+  (a commit plus release digests; a vendored snapshot with a per-file lock). Core holds its own schema set for the
+  same eight artifact kinds with different property sets, with no pin tying the two. Source: doc-kitty''s copy has
+  drifted from charter head in 3 of 7 files while its lock still names the commit it was taken from, so the difference
+  is visible; the core and charter schema sets have no such record. Distribution: each repository is built and released
+  on its own. Deployment and logical ownership are not established by these observations.'
+derived_from:
+- F-B2-021
+- F-B2-024
+- F-B2-025
+- F-B2-029
+- F-B2-031
+counterevidence: []
+disconfirmation:
+  search: "Looked in the cited observations for a consumer that uses the contract without any pin or lock."
+  result: "Core's eight schemas are the one case without a recorded link to the charter contract."
+relations: []
+confidence: low
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: []
+candidate_invariants: []
+open_questions: []

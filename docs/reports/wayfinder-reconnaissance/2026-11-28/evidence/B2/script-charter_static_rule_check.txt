@@ -1,0 +1,25 @@
+"""Static approximation of charter's five ONION_DEPENDS_INWARD rules (HexagonalArchitectureTest.java:104-176)
+over import statements of main sources. usage: charter_static_rule_check.py <package-edges.csv> <cross-module-imports.csv> <out.json>
+Only project-package dependencies visible as imports are checked; the other 87 ArchRule declarations are not.
+"""
+import csv,sys,json,re
+R="ai.speckitty.charter"
+pe=list(csv.DictReader(open(sys.argv[1]))); xi=list(csv.DictReader(open(sys.argv[2])))
+def seg(p,s): return re.search(r"(^|\.)%s(\.|$)"%s,p) is not None
+def under(p,pre): return p==pre or p.startswith(pre+".")
+DOM=[R+".kernel"]+[f"{R}.{s}.domain" for s in ("packs","profiles","routing","missions","activations")]
+ADAPT=[R+".packs.infra."+x for x in ("api","storage","fetch","archive")]; DEP=R+".deployable"
+def indom(p): return any(under(p,d) for d in DOM)
+def inad(p): return any(under(p,a) for a in ADAPT)
+res={}
+res["ONION_DOMAIN_DEPENDS_ON_NOTHING_OUTWARD"]=[(e["from_package"],e["to_package"]) for e in pe if indom(e["from_package"]) and (seg(e["to_package"],"application") or seg(e["to_package"],"infra") or under(e["to_package"],DEP))]
+res["ONION_APPLICATION_DEPENDS_ON_DOMAIN_ONLY"]=[(e["from_package"],e["to_package"]) for e in pe if seg(e["from_package"],"application") and (seg(e["to_package"],"infra") or under(e["to_package"],DEP))]
+res["ONION_NOTHING_DEPENDS_ON_COMPOSITION_ROOT"]=[(e["from_package"],e["to_package"]) for e in pe if not under(e["from_package"],DEP) and under(e["to_package"],DEP)]
+intra=[(e["from_package"],e["to_package"]) for e in pe if not inad(e["from_package"]) and not under(e["from_package"],DEP) and inad(e["to_package"]) and e["from_module"]==e["to_module"]]
+cross=[(r["file"],r["imported"]) for r in xi if not inad(r["from_package"]) and not under(r["from_package"],DEP) and inad(r["to_package"]) and not r["file"].endswith("/packdoctor/PackDoctorMain.java")]
+res["ONION_ONLY_DEPLOYABLE_COMPOSES_ADAPTERS"]=intra+cross
+ok={R+".packs.infra.storage.FileSystemPackInspector",R+".packs.infra.storage.PackRoundTrip",R+".packs.infra.storage.PackRemediation"}
+res["ONION_THE_PACK_DOCTOR_MAIN_COMPOSES_THREE_ADAPTERS"]=[(r["file"],r["imported"]) for r in xi if r["file"].endswith("/packdoctor/PackDoctorMain.java") and inad(r["to_package"]) and not any(r["imported"]==o or r["imported"].startswith(o+".") for o in ok)]
+out={"package_edges_considered":len(pe),"cross_module_imports_considered":len(xi),"pack_doctor_main_adapter_imports":[r["imported"] for r in xi if r["file"].endswith("/packdoctor/PackDoctorMain.java") and inad(r["to_package"])],
+     "violations":{k:v for k,v in res.items()}}
+json.dump(out,open(sys.argv[3],"w"),indent=1); print(json.dumps({k:len(v) for k,v in res.items()}),out["pack_doctor_main_adapter_imports"]); [print(k,v) for k,v in res.items() if v]

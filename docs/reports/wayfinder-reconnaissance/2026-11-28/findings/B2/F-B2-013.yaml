@@ -1,0 +1,63 @@
+finding_id: F-B2-013
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: private access across modules
+  deviation: 'The events Gradle build did not run in this environment (attempt 1: dependency verification refused
+    a plugin marker POM served by the environment''s Maven Central mirror; attempts 2 and 3 without the mirror:
+    HTTP 429 from repo.maven.apache.org). No class files, no jdeps, no ArchUnit run: every number here is derived
+    from source text.'
+subject:
+  component: cross-module imports
+  repository: spec-kitty/spec-kitty-events
+  revision: "646e330b896b96d7a11f53b34aa3d0c0baa69a05"
+  revision_kind: head
+claim: "0 of 140 cross-module import statements target a package with a segment internal or impl (none exists; 0\
+  \ module-info.java files). 129 (92.1%) target domain-model's single package org.speckitty.missionstatus.domain.model\
+  \ or event-log's domain.readmodel.reducer; 11 (7.9%) target event-log's adapter packages, 10 of them from command-cli\
+  \ and 1 from mission-status-api."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/private-access-java.txt
+  method: inline Python over events-static-main-cross-module-imports.csv
+  sha256: 77711e278e1c32f061c67069de77a43e6da3bc14acc42a727f976db5538db6a1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:13:26Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-static-main-cross-module-imports.csv
+  method: python3 script-java_imports.txt <repo> <prefix> main <module=dir ...> (see MANIFEST.csv)
+  sha256: f5224e4c507ddaf1427390f760aaa694cf71014e1108ee7e730b1a596f84cba0
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:07:46Z'
+scope:
+  covered: Import statements of main sources resolving to a type of another Gradle module.
+  not_covered: Reflection and access without an import.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "find -name module-info.java; listed package names for internal/impl; listed importers of event-log adapter\
+    \ packages."
+  result: "None found; importers as stated."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- encapsulation
+candidate_invariants: []
+open_questions: []

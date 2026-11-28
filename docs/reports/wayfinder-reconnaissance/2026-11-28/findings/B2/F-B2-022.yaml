@@ -1,0 +1,58 @@
+finding_id: F-B2-022
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module inventory with lines of code by language
+  deviation: null
+subject:
+  component: packs, scripts, tests
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: "f9a557510dc7ff04597a0b8aba87f736e25f785e"
+  revision_kind: head
+claim: "At head the repository holds 19 packs under packs/ (7 at level built-in, 12 at level org) and 1,578 tracked\
+  \ files, of which 617 are YAML, 662 Markdown and 119 JSON. Code is Python: 4,123 non-blank lines in scripts/ (11\
+  \ files), 6,733 lines inside pack assets (qa 4,114, internal 1,863, writing 756) and 6,476 lines of tests; plus\
+  \ 278 shell lines."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/loc-open-packs.csv
+  method: python3 script-loc.txt /home/user/spec-kitty-open-packs open-packs loc-open-packs.csv
+  sha256: 0a75a0f2cc37b1e6e386f374d8852611f7c0465d133b153f1b49ed2b73c078e0
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:21Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/openpacks-head-packs-nodes.csv
+  method: python3 script-pack_graph.txt /home/user/spec-kitty-open-packs f9a55751 openpacks-head-packs
+  sha256: bff54406f162287004b05f3e77d2fab2f75ba33897f1fbfa1a7d6d4f741b64e6
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:12:56Z'
+scope:
+  covered: All tracked files; packs identified by packs/<name>/pack.yaml.
+  not_covered: Artifact counts by kind inside each pack beyond the per-directory file counts in the nodes file.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Compared the packs/ directory listing with the set of pack.yaml files."
+  result: "19 directories, 19 descriptors, 19 <name>.source.yaml siblings."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

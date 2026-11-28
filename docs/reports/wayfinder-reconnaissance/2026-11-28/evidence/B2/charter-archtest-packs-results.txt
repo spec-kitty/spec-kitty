@@ -1,0 +1,8 @@
+# command: ./gradlew :packs:test --tests '*NetworkCodeBoundaryTest' --tests '*OwnerOnlyBoundaryTest' --tests '*PackGraphWalkBoundaryTest' --tests '*OneClosureFaultTypeTest' --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g
+# spec-kitty-charter@06cdfbe94856e8d24eca350c63d2a7b47bb9f13a (scratch clone); Gradle 9.8.1; OpenJDK Temurin 25.0.5; BUILD SUCCESSFUL in 7m 9s; exit 0
+result_file,suite_name,tests,failures,errors,skipped
+TEST-ai.speckitty.charter.packs.NetworkCodeBoundaryTest.xml,"ai.speckitty.charter.packs.NetworkCodeBoundaryTest",6,0,0,0
+TEST-ai.speckitty.charter.packs.OwnerOnlyBoundaryTest.xml,"ai.speckitty.charter.packs.OwnerOnlyBoundaryTest",2,0,0,0
+TEST-ai.speckitty.charter.packs.PackGraphWalkBoundaryTest.xml,"ai.speckitty.charter.packs.PackGraphWalkBoundaryTest",3,0,0,0
+TEST-ai.speckitty.charter.packs.domain.OneClosureFaultTypeTest.xml,"One closure fault type: CompositionFault is gone (#614)",2,0,0,0
+TOTAL,4 files,13,0,0,0

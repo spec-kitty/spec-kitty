@@ -1,0 +1,57 @@
+finding_id: F-B2-033
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: internal pack asset
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: "f9a557510dc7ff04597a0b8aba87f736e25f785e"
+  revision_kind: head
+claim: "One Python file shipped as a pack asset imports a core Python package: packs/internal/assets/debrief/collect-debrief.py:53\
+  \ imports now_utc and now_utc_iso from kernel.clock, a module of core's src/kernel. It is 1 of 45 Python files\
+  \ in open-packs and the only import of a core module found there."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/openpacks-scripts-imports.txt
+  method: inline Python ast scan (third-party/unknown top-level imports)
+  sha256: 6ed8fc08df7ddd175d346d49416f7fa26676119be1c86c175676d4b8277fb280
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:13:06Z'
+- id: E2
+  kind: document-claim
+  reference: packs/internal/assets/debrief/collect-debrief.py:53
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Imports of every tracked Python file under scripts/, packs/ and tests/.
+  not_covered: How and where the asset is run; shell scripts.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rn 'from kernel|import kernel|specify_cli|from charter' over *.py in open-packs."
+  result: "The one line above."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

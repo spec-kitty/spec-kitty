@@ -1,0 +1,60 @@
+finding_id: F-B2-028
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: '@spec-kitty/doc-toolkit consumers'
+  repository: spec-kitty/doc-kitty
+  revision: "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"
+  revision_kind: head
+claim: "The four other repositories each build a documentation site on @spec-kitty/doc-toolkit and each pins a different\
+  \ version: charter 0.7.0 (site/package.json:26), events 0.6.0 (:25), open-packs 0.3.0 (:21), and core a git commit\
+  \ of doc-kitty (site/package.json:15, 1042a407, 144 commits behind main) instead of a published version. The toolkit\
+  \ at doc-kitty head is 0.7.1. 4 of 4 consumers are on distinct versions; 0 of 4 are on the head version."
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-charter site/package.json:26; spec-kitty-events site/package.json:25; spec-kitty-open-packs
+    site/package.json:21; spec-kitty site/package.json:15; doc-kitty src/package.json (version)
+  method: read at each head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E2
+  kind: history-derived
+  reference: evidence/B2/xrepo-pin-matrix.csv
+  method: git rev-list --count 1042a407..origin/main in doc-kitty
+  sha256: f903a248d871efa8e0e3bd7a614d5c5b75dc19c66f1bfb65697e8c481c513720
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:11:55Z'
+scope:
+  covered: site/package.json of the four repositories.
+  not_covered: Lockfiles of the sites; whether the version spread has any behavioural effect.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Looked for a shared version declaration (a workspace catalog or a common pin file) that would align the\
+    \ four."
+  result: "None found; each site declares its own."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- evolvability
+candidate_invariants: []
+open_questions: []

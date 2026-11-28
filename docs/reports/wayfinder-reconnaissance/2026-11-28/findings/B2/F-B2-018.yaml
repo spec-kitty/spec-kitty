@@ -1,0 +1,67 @@
+finding_id: F-B2-018
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: module inventory with lines of code by language
+  deviation: null
+subject:
+  component: pnpm workspace (3 packages)
+  repository: spec-kitty/doc-kitty
+  revision: "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"
+  revision_kind: head
+claim: "At head the workspace has 3 packages: src (@spec-kitty/doc-toolkit 0.7.1, published), mcp (@spec-kitty/doc-kitty-mcp,\
+  \ private) and example (private). The toolkit holds 57,241 non-blank main code lines (JavaScript 29,589, TypeScript\
+  \ 21,460, CSS 3,164, Astro 3,028) and 57,795 test lines; mcp 2,291 main and 4,864 test lines; example 480. Repository\
+  \ total: 60,713 main and 75,450 test code lines."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/loc-doc-kitty.csv
+  method: python3 script-loc.txt /home/user/doc-kitty doc-kitty loc-doc-kitty.csv
+  sha256: 96190c08142f03044dda3fbca5d72d295410d722edf968fcf58ecb95bedca94a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:21Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-summary.json
+  method: aggregation
+  sha256: 3fc4a77f99240c22fc1185a2048d2566d0771edac7a7f3586e5407daffa11d79
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:17Z'
+- id: E3
+  kind: document-claim
+  reference: pnpm-workspace.yaml:1-4; src/package.json; mcp/package.json; example/package.json
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: All 3,562 tracked files.
+  not_covered: node_modules; built output.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "git ls-files | grep package.json to look for further workspace members."
+  result: "Two more package.json files exist under tests/consumption (consumer fixtures); they are not workspace\
+    \ members."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

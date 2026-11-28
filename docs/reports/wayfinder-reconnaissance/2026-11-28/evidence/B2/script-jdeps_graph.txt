@@ -1,0 +1,61 @@
+"""Module and package dependency graph from compiled classes with jdeps (class-level, project classes only).
+usage: jdeps_graph.py <jdeps> <outprefix> <root_package_regex> module=classesdir ...
+Runs: jdeps -verbose:class -e <regex> <dir> for each module's main class directory; owner of a class = the module
+whose directory holds its .class file (nested classes map to their outer class file's module).
+"""
+import subprocess, sys, os, re, csv, json, collections
+jdeps, outp, rx = sys.argv[1:4]
+mods=[a.split("=",1) for a in sys.argv[4:]]
+owner={}; pk={}
+for m,d in mods:
+    for dp,_,fs in os.walk(d):
+        for f in fs:
+            if f.endswith(".class"):
+                cn=os.path.relpath(os.path.join(dp,f),d)[:-6].replace(os.sep,".")
+                owner[cn]=m
+L=re.compile(r"^\s+(\S+)\s+->\s+(\S+)\s")
+medges=collections.Counter(); pedges=collections.Counter(); classes=collections.Counter(); raw=[]
+for m,d in mods:
+    if not os.path.isdir(d): continue
+    r=subprocess.run([jdeps,"-verbose:class","-e",rx,d],capture_output=True,text=True)
+    raw.append(f"## {m} exit={r.returncode} lines={len(r.stdout.splitlines())}")
+    for line in r.stdout.splitlines():
+        mm=L.match(line)
+        if not mm: continue
+        a,b=mm.groups()
+        if a not in owner or b not in owner: 
+            if b not in owner: medges[(m,"(unresolved project class)")]+=0
+            continue
+        am,bm=owner[a],owner[b]; ap=a.rpartition(".")[0]; bp=b.rpartition(".")[0]
+        if am!=bm: medges[(am,bm)]+=1
+        if (am,ap)!=(bm,bp): pedges[(am,ap,bm,bp)]+=1
+for c,m in owner.items(): classes[m]+=1
+def sccs(g):
+    sys.setrecursionlimit(100000); idx={};low={};st=[];on=set();out=[];c=[0]
+    def v(x):
+        idx[x]=low[x]=c[0];c[0]+=1;st.append(x);on.add(x)
+        for w in g.get(x,()):
+            if w not in idx: v(w);low[x]=min(low[x],low[w])
+            elif w in on: low[x]=min(low[x],idx[w])
+        if low[x]==idx[x]:
+            comp=[]
+            while True:
+                w=st.pop();on.discard(w);comp.append(w)
+                if w==x:break
+            if len(comp)>1: out.append(sorted(comp))
+    for x in list(g):
+        if x not in idx: v(x)
+    return out
+mg=collections.defaultdict(set); pg=collections.defaultdict(set)
+for (a,b),n in medges.items():
+    if n: mg[a].add(b)
+for (a,ap,b,bp) in pedges: pg[ap].add(bp)
+w=csv.writer(open(outp+"-module-edges.csv","w",newline="")); w.writerow(["from_module","to_module","class_dependencies"])
+for (a,b),n in sorted(medges.items()):
+    if n: w.writerow([a,b,n])
+w=csv.writer(open(outp+"-package-edges.csv","w",newline="")); w.writerow(["from_module","from_package","to_module","to_package","class_dependencies"])
+for k,n in sorted(pedges.items()): w.writerow(list(k)+[n])
+pkgs={c.rpartition(".")[0] for c in owner}
+s={"modules_with_classes":dict(classes),"classes":len(owner),"packages":len(pkgs),"module_edges":sum(1 for n in medges.values() if n),"package_edges":len(pedges),
+   "cross_module_class_dependencies":sum(medges.values()),"module_cycles":sccs(mg),"package_cycles":sccs(pg),"jdeps_runs":raw}
+json.dump(s,open(outp+"-summary.json","w"),indent=1); print(json.dumps(s,indent=1)[:3000])

@@ -1,0 +1,63 @@
+finding_id: F-B2-020
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03a / M03c
+  deviation: null
+subject:
+  component: enforced structural rules
+  repository: spec-kitty/doc-kitty
+  revision: "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"
+  revision_kind: head
+claim: "No lint or test rule states an intended dependency structure between directories or packages of the workspace:\
+  \ eslint.config.js has no import restriction, and no dependency-cruiser, madge or equivalent configuration is\
+  \ tracked. Three point guards exist: two module-graph assertions on single toolkit entry files (src/tests/scenario-index.test.ts:503,\
+  \ src/tests/agent-page-includes.test.ts:291) and one scan of mcp's built graph that forbids HTTP and socket modules\
+  \ (mcp/tests/perf/boundary.test.ts), beside a dependency-closure audit (mcp/scripts/audit-closure.mjs). With no\
+  \ enforced model, a count of violations (M03a) is not defined for this repository; by M03c the 60,713 main code\
+  \ lines have no rule stating intended structure, apart from the files those guards name."
+evidence:
+- id: E1
+  kind: document-claim
+  reference: eslint.config.js; mcp/tests/perf/boundary.test.ts:1-45; mcp/scripts/audit-closure.mjs:1-40; src/tests/scenario-index.test.ts:503;
+    src/tests/agent-page-includes.test.ts:291
+  method: read at head; grep for restricted|boundaries|dependency-cruiser|madge|no-restricted-imports
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-doc-kitty.csv
+  method: python3 script-loc.txt ...
+  sha256: 96190c08142f03044dda3fbca5d72d295410d722edf968fcf58ecb95bedca94a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:06:21Z'
+scope:
+  covered: Tracked lint configuration and test sources.
+  not_covered: CI workflow steps that could run an external checker without a tracked config.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "grep -rln 'no-restricted-imports|dependency-cruiser|madge|ALLOWED_IMPORTS|helpers/module-graph' over\
+    \ the tree outside node_modules."
+  result: "Only the three guards named above."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+candidate_invariants: []
+open_questions: []

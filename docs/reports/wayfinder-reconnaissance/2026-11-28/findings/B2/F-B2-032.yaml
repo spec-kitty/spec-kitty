@@ -1,0 +1,60 @@
+finding_id: F-B2-032
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: cross-repository references in code and build files
+  deviation: null
+subject:
+  component: core imports of spec_kitty_events
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "25 of 1,490 Python files under core's src/ import spec_kitty_events, in 41 import statements naming 75 distinct\
+  \ (module, name) pairs. 13 statements import from the package root and 28 (68%) from 10 submodule paths (decisionpoint\
+  \ 5, mission_next 4, status 4, project_lifecycle 4, persistence 3, lifecycle 3, decision_moment 2, conformance\
+  \ 1, zeitgeist_attrs 1, diary 1). 0 import an underscore-prefixed module or name."
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/core-imports-of-events.txt
+  method: inline Python ast scan of core src/ at head
+  sha256: d43bf52a4cbb11e676b2267f2d28ca7aa0122b258cef0e77ee733ca59bc974eb
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:14:50Z'
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-events docs/api/python-package.md:16-19
+  method: 'read at events head: the stated import surface is the top-level package plus producer_contract and total_order'
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: Static imports in core src/ at head. The import paths are properties of core's source; the installed
+    events version (11.3.0 per the lock) was not loaded.
+  not_covered: core tests/; dynamic imports.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked each of the 10 submodules against the events package at head for an __all__ of its own."
+  result: "decision_moment, diary, persistence, project_lifecycle, conformance and zeitgeist_attrs declare __all__;\
+    \ decisionpoint, mission_next, status and lifecycle do not (their names are re-exported by the package root)."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- contract clarity
+candidate_invariants: []
+open_questions: []

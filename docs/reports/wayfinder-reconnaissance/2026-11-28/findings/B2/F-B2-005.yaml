@@ -1,0 +1,113 @@
+finding_id: F-B2-005
+workstream: B2 - Observed structure, Java services and doc-kitty
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: M03a
+  deviation: null
+subject:
+  component: enforced architecture model (ArchUnit, module allowlists, convention plugins)
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "The charter repository enforces its intended structure in three places: 92 ArchRule declarations in 10 test-source\
+  \ files (82 in HexagonalArchitectureTest), a declared-dependency allowlist on 2 modules (pack-validation, pack-doctor)\
+  \ and a no-external-library convention on 4 plain-Java modules (kernel, profiles, routing, missions). Run at head,\
+  \ the 9 architecture test classes executed 136 tests with 0 failures and 0 errors (deployable: 123 in 5 classes;\
+  \ packs: 13 in 4 classes), and the build configured without an allowlist or convention refusal: 0 observed dependencies\
+  \ violate the enforced model. The rules carry 9 named-class exemption lines, naming 6 distinct exempted classes\
+  \ (PackDoctorMain in 3 rules, Relationship, EndpointRule, RefusalCode, the round-trip rule class, OwnerOnly) and\
+  \ 1 exclusion of package-info. Beside them the pack-doctor main rule lists 3 adapter classes it may name; the\
+  \ import scan finds it names exactly those 3."
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B2/charter-archtest-deployable-results.txt
+  method: ./gradlew :deployable:test --tests '*HexagonalArchitectureTest' --tests '*GeneratedConstraintTypesTest'
+    --tests '*MixInHintsGateTest' --tests '*NoBuildTimeProfilesTest' --tests '*ReservedRefusalCodesTest' --max-workers=2
+    -Dorg.gradle.jvmargs=-Xmx2g
+  sha256: c1a7f4ab3ad323e894d32f82e50f3f98954aab2a57f6a382ef4b8350923f133c
+  exit_code: 0
+  environment: OpenJDK Temurin 25.0.5, Gradle 9.8.1 (wrapper), ArchUnit as pinned by the repository
+  observed_at: '2026-11-28T11:43:33Z'
+- id: E2
+  kind: executed
+  reference: evidence/B2/charter-archtest-packs-results.txt
+  method: ./gradlew :packs:test --tests '*NetworkCodeBoundaryTest' --tests '*OwnerOnlyBoundaryTest' --tests '*PackGraphWalkBoundaryTest'
+    --tests '*OneClosureFaultTypeTest' --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g
+  sha256: 8a4d9d8f369bec9e26eed297e5f4d8204748e0612843141ebc1ce6db5adfbcd2
+  exit_code: 0
+  environment: OpenJDK Temurin 25.0.5, Gradle 9.8.1 (wrapper), ArchUnit as pinned by the repository
+  observed_at: '2026-11-28T11:51:21Z'
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/charter-arch-rule-files.csv
+  method: python3 script-arch_rule_inventory.txt /home/user/spec-kitty-charter ...
+  sha256: bc8e99fb652661bd8882c3a41f19344b006e67dd20e42709740bf107cadf8c68
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:36Z'
+- id: E4
+  kind: static-derived
+  reference: evidence/B2/charter-arch-rule-exemptions.csv
+  method: same
+  sha256: c3c65160c1747ab06f694ae9f60cd20df52e535e2d12131c6aae4ec37c30051a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:24:36Z'
+- id: E5
+  kind: static-derived
+  reference: evidence/B2/charter-static-rule-check.json
+  method: python3 script-charter_static_rule_check.txt ...
+  sha256: 06137a9aa7197d3c34c8e943d0f035da868e81c577785b61a4046edec60caa44
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:55:42Z'
+- id: E6
+  kind: document-claim
+  reference: build-logic/src/main/kotlin/ModuleDependencyAllowlist.kt:8-23; build-logic/src/main/kotlin/charter.domain-conventions.gradle.kts:11-18;
+    service/pack-validation/build.gradle.kts:23-34; service/pack-doctor/build.gradle.kts:21-31
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+  observed_at: '2026-11-28T09:45:00Z'
+scope:
+  covered: The 10 test-source files that import ArchUnit (92 ArchRule declarations, 132 JUnit test methods; 82 of
+    the declarations are in HexagonalArchitectureTest), the two ModuleDependencyAllowlist declarations (pack-validation,
+    pack-doctor) and charter.domain-conventions (kernel, profiles, routing, missions).
+  not_covered: The Checkstyle suppression register (config/checkstyle/suppressions.xml) is a register of style exceptions,
+    not of dependency exceptions, and is not counted. Package carve-outs written into a rule's own subject (resideOutsideOfPackages)
+    are part of the rule and are not counted as exceptions. Rules that use allowEmptyShould (16 uses) pass when
+    their subject is empty; whether each subject is non-empty was not re-checked beyond the repository's own control
+    tests, which ran and passed.
+  population: null
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Ran the rule classes and read the JUnit XML for failures, errors and skips; separately tested the five\
+    \ ONION_DEPENDS_INWARD rules against the import-derived package graph (203 package edges, 1,928 cross-module\
+    \ imports); searched the rule sources for ignoreDependency and FreezingArchRule (a frozen-violation store would\
+    \ hide accepted violations)."
+  result: "0 failures, 0 errors, 0 skipped in the 9 classes. 0 statically violating edges for the five onion rules.\
+    \ No ignoreDependency and no FreezingArchRule in the charter test sources."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes:
+- modularity
+- testability
+candidate_invariants:
+- Each named-class exemption in an architecture rule is paired with a control test that fails when the exempted
+  class is missing or another class uses the exemption (stated for pack-doctor's main at HexagonalArchitectureTest.java:158
+  and :193).
+open_questions: []

@@ -1,0 +1,81 @@
+# spec-kitty-events Gradle build attempts, workstream B2, scratch clone at 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+# command (both): GRADLE_USER_HOME=<scratch> ./gradlew classes --max-workers=2 --no-daemon --console=plain
+# JDK: OpenJDK Temurin 25.0.5; Gradle 9.8.1 (wrapper)
+
+## attempt 1 (environment init script redirecting Maven Central to Google's mirror) - exit 1
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '<scratch>/events/build.gradle.kts' line: 3
+
+* What went wrong:
+Error resolving plugin [id: 'org.springframework.boot', version: '4.1.1', apply: false]
+> Dependency verification failed for configuration 'detachedConfiguration1'
+  One artifact failed verification: org.springframework.boot.gradle.plugin-4.1.1.pom (org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.1) from repository CentralMirror
+  This can indicate that a dependency has been compromised. Please carefully verify the checksums.
+  
+  Open this report for more details: file://<scratch>/events/build/reports/dependency-verification/at-1795856753216/dependency-verification-report.html
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 12s
+Configuration cache entry stored.
+exit=1
+
+## attempt 2 (no init script; repositories as the repository declares them) - exit 1
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '<scratch>/events/build.gradle.kts' line: 3
+
+* What went wrong:
+Error resolving plugin [id: 'org.springframework.boot', version: '4.1.1', apply: false]
+> A problem occurred configuring project ':build-logic'.
+   > Could not resolve all artifacts for configuration 'classpath'.
+      > Could not resolve org.jetbrains:annotations:13.0.
+        Required by:
+            buildscript of project ':build-logic'
+         > Repository Gradle Central Plugin Repository is disabled due to earlier error below:
+            > Could not resolve org.jetbrains.kotlin:fus-statistics-gradle-plugin:2.4.10.
+               > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/fus-statistics-gradle-plugin/2.4.10/fus-statistics-gradle-plugin-2.4.10.module'.
+                  > Could not HEAD 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/fus-statistics-gradle-plugin/2.4.10/fus-statistics-gradle-plugin-2.4.10.module'.
+                     > Received status code 429 from server: Too Many Requests
+> There are 12 more failures with identical causes.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 19s
+Configuration cache entry stored.
+exit=1
+
+## a variant with the mirror for libraries and plugin markers from the plugin portal was not permitted in this environment and was not run.
+
+## attempt 3 (after the coordinator's resume instruction; no init script; one daemon, -Xmx2g, --max-workers=2) - exit 1
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':build-logic:compilePluginsBlocks' (registered by plugin class 'org.gradle.kotlin.dsl.plugins.precompiled.PrecompiledScriptPlugins').
+> Could not resolve all files for configuration ':build-logic:compilePluginsBlocksPluginClasspathElements'.
+   > Could not download kotlin-scripting-compiler-embeddable-2.4.10.jar (org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.4.10)
+      > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.4.10/kotlin-scripting-compiler-embeddable-2.4.10.jar'.
+         > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.4.10/kotlin-scripting-compiler-embeddable-2.4.10.jar'.
+            > Received status code 429 from server: Too Many Requests
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 50s
+3 actionable tasks: 3 executed
+Configuration cache entry stored.
+exit=1
