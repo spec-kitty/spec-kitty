@@ -250,15 +250,14 @@ The orchestrator API reports it as
   package that a Mission finalized before #7816 placed in `lane-planning`, when it is moved to
   `done` before the Mission lands. The check fails safe: it asks for an override instead of
   passing.
-- **The planning lane has no approval-stamp bound.** Code lanes are bounded by each work
-  package's approval stamp; the planning lane is not stamped. A change to an approved planning
-  work package's owned path made after its approval, by any commit on the Mission branch, still
-  counts as approved authorship in the reconciliation claim.
-- **The planning scope is read from the live working tree.** The reconciliation claim reads the
-  planning work packages' `owned_files` from the task files in the working tree (the placement
-  seam's `tasks/` directory), not at the coordination base the rest of the claim is pinned to,
-  and `consolidate --resume` does not freeze it. An `owned_files` edit made between runs, even an
-  uncommitted one, changes the scope.
+- **A change after the approval is not credited.** Each approved planning work package is
+  credited only up to the commit that introduced its newest approval on the Mission branch. A
+  later change to one of its owned paths is un-attributable and the landing check FAILs: send
+  the work package back for review and approve it again. If a work package was approved by a
+  forced move instead of a review, its content up to that move is credited.
+- **The planning scope is read as committed.** `owned_files` is read from the task files
+  committed on the Mission branch being judged (frozen across `consolidate --resume`), never
+  from the working tree, so commit an `owned_files` change before consolidating.
 - **The review range lists owned files only.** The review range of a planning work package is
   limited to its `owned_files` pathspecs, so a change the work package made outside its ownership
   map is not shown in the review commands. The review range keeps its own reading of the write
