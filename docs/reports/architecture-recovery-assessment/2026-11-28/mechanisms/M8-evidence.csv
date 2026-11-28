@@ -1,0 +1,46 @@
+claim,reference,tag
+Upgrade package holds 23 modules and 5873 lines,spec-kitty:src/specify_cli/upgrade/ (wc -l),executed
+Migration steps directory holds 155 Python files and 27282 lines,spec-kitty:src/specify_cli/upgrade/migrations/ (wc -l),executed
+Operator migration package holds 23 modules and 12003 lines,spec-kitty:src/specify_cli/migration/ (wc -l),executed
+Registry discovers 144 migrations: 35 below 2.0; 24 in 2.x; 57 in 3.x; 28 at 4.0 pre-releases; 15 superseded; 17 clone-local; 2 require git,"spec-kitty: .venv/bin/python -c 'auto_discover_migrations(); MigrationRegistry.get_all()' counted by target_version",executed
+Order manifest has 144 entries with a three-entry runs-first lead block,spec-kitty:src/specify_cli/upgrade/migrations/order_manifest.txt:19-21,read
+Last stable release is 3.2.6 of 2026-09-03; current is 4.0.0rc9,spec-kitty:CHANGELOG.md:1323; spec-kitty:pyproject.toml,read
+Release dates 3.0.0 2026-03-30; 2.0.0 2026-02-22; 0.11.0 2026-01-12,spec-kitty:CHANGELOG.md:8653;8944;9519,read
+mission_id minted at creation since 3.1.1,spec-kitty:CHANGELOG.md:8409,read
+User guide documents no upgrade floor and says kitty-specs is not touched,spec-kitty:docs/guides/how-to/installation/upgrade-project.md:15-31;84,read
+ADR records old migrations rewriting meta.json and status.events.jsonl on a 4.x project,spec-kitty:docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md:452,read
+ADR 2026-10-17-1 carries 8 amendments over 8238 words,spec-kitty:docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md (grep -c '## Amendment'; wc -w),executed
+Adoption re-derives the version floor once through an adoption ceiling,spec-kitty:src/specify_cli/upgrade/registry.py:229,read
+Runner writes the ledger and an in-memory metadata record that never reaches disk,spec-kitty:src/specify_cli/upgrade/runner.py:941-971; spec-kitty:src/specify_cli/upgrade/metadata.py:260-303,read
+Start-up gate decides on schema_version only,spec-kitty:src/specify_cli/compat/planner.py:631-658; spec-kitty:src/specify_cli/migration/gate.py:89-175,read
+MIN and MAX supported schema are both 3 in a no-op activation phase; REQUIRED_SCHEMA_VERSION kept as deprecated alias,spec-kitty:src/specify_cli/migration/schema_version.py:18-27,read
+Legacy charter layout gate and legacy user-dir discard run at every CLI start-up,spec-kitty:src/specify_cli/__init__.py:161-243,read
+Pre-3.0 lane-directory layout guard refuses before WP mutation,spec-kitty:src/specify_cli/upgrade/pre30_guard.py:30-44,read
+Unmigrated refusals appear in 26 files outside upgrade and migration packages,"spec-kitty:src (grep -rnE 'UNMIGRATED|[Uu]nmigrated|Run `spec-kitty upgrade' --include=*.py)",executed
+Fourteen migrate subcommands exist (backfill-identity to activation-ledger),spec-kitty:src/specify_cli/cli/commands/migrate_cmd.py:471-2027,read
+Only one upgrade migration calls the topology backfill module; identity backfill is not called by upgrade,spec-kitty:src/specify_cli/upgrade/migrations/m_4_0_0rc5_single_branch_code_lanes_restamp.py (grep),executed
+Runtime code imports topology readers from the migration package at 24 sites,spec-kitty:src/specify_cli/lanes/single_branch_landing.py:103; src/specify_cli/git/protection_policy.py:318; src/mission_runtime/resolution.py:1203; src/runtime/next/runtime_bridge_decision_log.py:164,executed
+Unstamped Missions derive topology at runtime and a derived single_branch reads as lanes,spec-kitty:src/specify_cli/migration/backfill_topology.py:100-119; spec-kitty:src/mission_runtime/context.py:105-120,read
+A gate asserts topology inference has zero live decision sites,spec-kitty:tests/architectural/test_topology_inference_retired.py:1-30,read
+Pre-SSOT Missions keep writing status into the lane checkout and skip the status exclusion,spec-kitty:src/specify_cli/coordination/legacy_resolution.py:177-195; spec-kitty:src/specify_cli/lanes/lane_checkout.py:201-211,read
+Lane branch naming keeps a legacy failover with a deprecation warning and suppress variable,spec-kitty:src/specify_cli/lanes/branch_naming.py:248-262;845-870,read
+Activation ledger module carries 109 legacy mentions and legacy loaders,spec-kitty:src/charter/activation/activation_ledger.py:432-450;1268-1295,read
+Command installer carries 130 legacy mentions with legacy entry migrate and retire,spec-kitty:src/specify_cli/skills/command_installer.py:953-1034,read
+Declarative tool-surface reconciler holds 10743 lines,spec-kitty:src/specify_cli/tool_surface/ (wc -l),executed
+Global agent commands and skills are installed at every CLI start-up,spec-kitty:src/specify_cli/__init__.py:174-192; spec-kitty:src/specify_cli/runtime/agent_commands.py:967,read
+Merge-driver seeding requires three surfaces including an upgrade migration,spec-kitty:src/specify_cli/upgrade/migrations/_merge_driver_seeding.py:1-13,read
+Upgrade finalizer and init also install merge-driver git config declaratively,spec-kitty:src/specify_cli/cli/commands/upgrade.py:1703-1718; spec-kitty:src/specify_cli/lanes/consolidation.py:745; spec-kitty:src/specify_cli/cli/commands/init.py:527-530,read
+Residue-safe successors and plumbing add 545 lines for 0.9.0 to 3.1.1 steps,spec-kitty:src/specify_cli/upgrade/migrations/_residue_successor.py; m_*residue_safe*.py (wc -l),executed
+17 commits since 2026-10-01 touched 0.x or 2.x migration modules,spec-kitty: git log --since=2026-10-01 --format=%h -- src/specify_cli/upgrade/migrations/m_0_*.py m_2_*.py,executed
+Old missions migrations re-ran on 4.x projects until keyed to the metadata stamp,spec-kitty:src/specify_cli/upgrade/compat.py:24-62,read
+Supersession table holds 10 entries (W counts 12) all added after 2026-10-25,spec-kitty:src/specify_cli/upgrade/supersession.py:20-60; W:synthesis/input/observations-index.csv F-E1-026,read
+Second atomic runner with backup and rollback used by the 3.0 canonical-context step,spec-kitty:src/specify_cli/migration/runner.py:1-15,read
+Shim registry is empty yet has a doctor subcommand and three gates,spec-kitty:docs/migrations/shim-registry.yaml; spec-kitty:src/specify_cli/cli/commands/doctor.py:680; spec-kitty:tests/architectural/test_shim_registry_schema.py,read
+BaseMigration knobs identity and sequenced_after have no users; content_hash_sources and ledger_adoption one,spec-kitty:src/specify_cli/upgrade/migrations/base.py:242-416 (grep over m_*.py),executed
+27 migration modules declare runs_on_worktrees; worktree pass and selection are 628 lines,spec-kitty:src/specify_cli/upgrade/worktree_pass.py:1-22; worktree_selection.py,executed
+About 243 test files and 105000 lines cover upgrade and migration paths (upper bound),spec-kitty:tests (find -path '*upgrade*' -o -path '*migration*'),executed
+Doctor has 19 subcommands across 9877 lines,spec-kitty:src/specify_cli/cli/commands/doctor.py; _*_doctor.py (wc -l),executed
+Tracked migration ledger is committed in core and three other local repositories,spec-kitty:.kittify/migration-ledger.jsonl; doc-kitty; spec-kitty-events; spec-kitty-container,executed
+Open-packs names spec-kitty upgrade in 22 files and migrate or backfill commands in 4,spec-kitty-open-packs (grep -rlE),executed
+Legacy vocabulary outside upgrade and migration: 434 files; 56 define a legacy-named symbol,spec-kitty:src (grep -rliE legacy --include=*.py),executed
+65 of 310 architectural gates read an exceptions file or capped allowlist,W:synthesis/assurance-gaps.md:26 (F-E1-003),read
