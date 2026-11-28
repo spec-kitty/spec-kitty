@@ -18,7 +18,7 @@ The coherent architecture is reachable from here, and most of the way is deletio
 
 With status out of the tree, topology, the coordination branch, the PRIMARY/COORD partition and the placement seam have nothing left to decide. With one branch per work package and approval naming a commit, landing is a tree comparison. I replace three subsystems (coordination, execution lanes, consolidation) because repair is worse, and consolidate the rest.
 
-Rough effect on core [inferred from M1 to M8]: about 110,000 lines deleted, about 78,000 more leave with the Python charter, of 525,000. Concepts retired: topology, coordination branch and worktree, partition, placement surface, execution lane, run cursor, claim and reconciliation gate, approval stamp and window, attestation, migration ledger partitions.
+Rough effect on core [inferred from M1 to M8]: about 110,000 lines deleted and about 78,000 more leaving with the Python charter, of 525,000.
 
 ## 1. The architecture in one page
 
@@ -54,38 +54,38 @@ Git               Mission branch, work branches, ledger ref, target
 
 | Id | Disposition | Carrier in the target | Reason |
 |---|---|---|---|
-| C01 | kept | `init`, one `doctor` | core need |
-| C02 | kept, reduced | tool-surface reconciler; tool profiles as data; commands generated per active mission type | one mechanism instead of five (M6 §5.7) |
-| C03 | kept | specify step; decisions as ledger events | core need |
-| C04 | kept | `wps.yaml` as the one work-package manifest | three dependency sources today (M3 §6) |
-| C05 | kept | `decide`: pure function of frozen type, artefacts, ledger | six claimants today |
+| C01 | kept | `init`, one `doctor` | core |
+| C02 | kept, reduced | tool-surface reconciler; tool profiles as data; commands generated per active mission type | five mechanisms today (M6 §5.7) |
+| C03 | kept | specify step; decisions as ledger events | core |
+| C04 | kept | `wps.yaml` as the one work-package manifest | three dependency sources today |
+| C05 | kept | `decide`: a function of frozen type, artefacts, ledger | six claimants today |
 | C06 | kept | Mission ledger on a ref | one authority |
 | C07 | kept, changed | work branch per work package, optional worktree | isolation without topology |
 | C08 | kept, simpler | a dependent starts from the Mission branch, which holds approved predecessors | no dependency merge |
 | C09 | kept | verdict event naming a commit; independence guard in the state machine | one owner |
-| C10 | kept, strengthened | acceptance event naming the Mission tip | `accept` is a nudge today (M7 §2) |
+| C10 | kept, strengthened | acceptance event naming the Mission tip | a nudge today (M7 §2) |
 | C11 | kept, changed | landing by tree equality; one ref moves | replaces claim, gate, rollback |
-| C12 | kept | Mission branch always; `ProtectionPolicy` returns typed refusals | default already (M1 G4) |
-| C13 | kept, simpler | every operation is re-runnable; no run state files | recovery by construction |
+| C12 | kept | Mission branch always; typed protection refusals | already the default (M1 G4) |
+| C13 | kept, simpler | every operation re-runnable; no run state files | by construction |
 | C14 | kept | mission types as pack data only | no type names in code |
-| C15 | kept, made true | same format as built-ins; a project may override a built-in | extension point exercised on the main path |
+| C15 | kept, made true | built-ins use the same format; a project may override one | extension point on the main path |
 | C16 | kept | compiled charter files | six claimants today |
-| C17 | kept, reduced | activation = ordered pack list + exclusions | per-artifact allow lists dropped (M5 B) |
+| C17 | kept, reduced | activation = ordered pack list + exclusions | M5 B |
 | C18 | kept | org pack with a required floor, enforced at compile | |
 | C19 | kept | profiles as pack content, appended at delivery | |
-| C20 | kept, reduced | glossary as pack content and an authoring lint | optional need; no run-time pipeline |
-| C21 | kept, reduced | `dispatch` = context + one ledger record | keyword router dropped (M6 §7) |
-| C22 | kept, changed | orchestrator API 2.0, a pure view of the operations | half a second implementation today |
-| C23 | kept | external orchestrator over the API; stops at decisions and acceptance | |
+| C20 | kept, reduced | glossary as pack content and an authoring lint | optional need |
+| C21 | kept, reduced | `dispatch` = context + one ledger record | router dropped |
+| C22 | kept, changed | orchestrator API 2.0, a pure view | half a second implementation today |
+| C23 | kept | external orchestrator; stops at decisions and acceptance | |
 | C24 | kept | `read` operation; events system streams | one door |
-| C25 | kept, reduced | consumers read the ledger; no in-process seam | no consumer at head (M4 §5.5) |
-| C26 | kept | retrospective events; proposals applied through charter verbs by a human | |
-| C27 | kept, reduced | floor at 3.2.x; one converter; declarative reconcilers | M8 A |
-| C28 | kept as is | tracker package behind its public imports | optional; outside the scope of change |
-| C29 | kept, reduced | `doctor` checks only stores that still exist | most doctors guard retired interactions |
+| C25 | kept, reduced | consumers read the ledger | no consumer at head |
+| C26 | kept | retrospective events; a human applies proposals through charter verbs | |
+| C27 | kept, reduced | floor 3.2.x; one converter; reconcilers | M8 A |
+| C28 | kept as is | tracker package | optional; not changed here |
+| C29 | kept, reduced | `doctor` over stores that still exist | |
 | C30 | kept | `mission_id`; Mission value object | |
-| C31 | reduced | close and archive as ledger events; reopen and follow-up are new Missions that cite the old one | no journey found (needs §4) |
-| C32 | kept | ledger ref and branches travel by ordinary push and fetch | |
+| C31 | reduced | close and archive as ledger events; reopen is a new Mission citing the old | no journey found |
+| C32 | kept | ledger ref and branches travel by push and fetch | |
 
 Nothing documented is dropped outright. The reductions that a user can notice are in section 12.
 
@@ -131,11 +131,11 @@ Where each rule that is duplicated today would live:
 
 No lane computation. `owned_files` in `wps.yaml` (`src/specify_cli/core/wps_manifest.py:53` [read]) stays as planning data: tasks-finalize warns when two work packages without a dependency between them overlap. Conflicts that still occur surface at integration, as in plain git.
 
-**Deletes** [inferred, M1 §8, M7 §8]: the topology enum, its source and settlement; `coordination/` (about 15,000 lines); the placement seam and partition (`mission_runtime/`, about 6,000); read-path resolution (about 3,000); most of `lanes/` (about 14,000 of 16,500): lane computation, `lanes.json`, dependency merges, auto-rebase, incorporate, sparse exclusion, invocation probe; workspace context records. About 120 refusal codes.
+**Deletes** [inferred, M1 §8]: topology and settlement; `coordination/` (about 15,000 lines); the placement seam (`mission_runtime/`, about 6,000); read-path resolution (about 3,000); about 14,000 of 16,500 lines in `lanes/` (lane computation, `lanes.json`, dependency merges, auto-rebase, incorporate, sparse exclusion); about 120 refusal codes.
 
 **Kept from today:** worktree allocation and the rule that a branch with commits not contained in the Mission branch is never deleted by the tool. That rule replaces the lane-tip hooks: `git branch -d` semantics plus a refusal.
 
-**No longer does:** choose a topology; hold status in any checkout; keep parallel work unintegrated until the whole Mission is accepted; group work packages by keyword.
+**No longer does:** choose a topology; hold status in a checkout; keep approved work unintegrated until acceptance.
 
 ### 4.2 Mission-type definition and the step runtime
 
@@ -143,9 +143,9 @@ No lane computation. `owned_files` in `wps.yaml` (`src/specify_cli/core/wps_mani
 
 At `mission create` the resolved definition is written to `kitty-specs/<m>/type.lock.yaml` and committed. `decide` reads the lock, the artefacts on the Mission branch and the ledger. It returns step, decision required, blocked or done. Steps with no artefact record a `StepCompleted` event. There is no run cursor.
 
-**Deletes** [inferred, M2 §8, M6 §8]: `mission.yaml` and the `Mission` class; `mission-runtime.yaml` and its discovery chain; workflows; `_GUARD_TABLES` (`src/runtime/next/runtime_bridge_cores.py:859` [read]) and the per-type Python tables; `RESERVED_BUILTIN_KEYS`; the internalised engine and reconcile phases; `mission-events.jsonl`; the copied tree `src/specify_cli/missions/<type>/`. About 12,000 to 15,000 lines of the 27,000 M2 counts.
+**Deletes** [inferred, M2 §8, M6 §8]: `mission.yaml` and the `Mission` class; `mission-runtime.yaml`; workflows; `_GUARD_TABLES` (`src/runtime/next/runtime_bridge_cores.py:859` [read]) and the other per-type tables; the internalised engine and its reconcile phases; `mission-events.jsonl`; the copied tree under `src/specify_cli/missions/`. About 12,000 to 15,000 of the 27,000 lines M2 counts.
 
-**No longer does:** RACI and significance scoring in the engine. If "which steps a human decides" is wanted, it is the "human decision recorded" check, which is data.
+**No longer does:** RACI and significance scoring. "A human decides this step" is the "human decision recorded" check.
 
 ### 4.3 Mission and work-package lifecycle
 
@@ -155,9 +155,7 @@ Mission-level facts in the same ledger: created, step completed, decision asked 
 
 Guards that need only ledger facts live in the events system. Guards that need git facts are satisfied by evidence the caller supplies as event fields (the reviewed commit, the integrated commit); core's review component computes them. Every door reaches the same guards because there is one `act` operation.
 
-**Deletes** [inferred, M3 §8]: the frontmatter mirror and `status_phase`; committed `status.json`; sentinel states; runtime fields in work-package files; two write shells; the five-source read door; merge driver; repair modules; the three-level guard split in `move-task`. About 13,000 of 21,400 lines in `status/`, plus most of the 6,500 lines of `move-task` modules.
-
-**No longer does:** derive state from files in a checkout; accept a state change that bypasses the guards through a second command.
+**Deletes** [inferred, M3 §8]: the frontmatter mirror; committed `status.json`; sentinel states; runtime fields in work-package files; two write shells; the five-source read door; the merge driver; repair modules. About 13,000 of 21,400 lines in `status/` and most of the 6,500 lines of `move-task` modules.
 
 ### 4.4 Events
 
@@ -167,7 +165,7 @@ One envelope with a version. Order is append order. Two clones that both appende
 
 One deployable serves command and query, with one fold. Core holds a client behind the existing port (`src/runtime/next/event_bridge.py` [read]).
 
-**Deletes** [inferred, M4 §8]: core's appenders and reducer wrapper; the wall-clock ordering, approved-departure lift and seed arbitration (not ported); the second Java fold; the produce seam (`src/specify_cli/status/adapters.py:150-318` [read], no registrant per X1 6.1); `canonical-events.jsonl`; the Lamport reducer and hosted vocabulary in the package (they move to their consumer or go). Parity oracles against a pinned core commit end, because core's Python stops being the oracle.
+**Deletes** [inferred, M4 §8]: core's appenders and reducer wrapper; wall-clock ordering, the approved-departure lift and seed arbitration (not ported); the second Java fold; the produce seam (`src/specify_cli/status/adapters.py:150-318` [read]; no registrant, X1 6.1); `canonical-events.jsonl`; the hosted vocabulary in the package; the parity oracles against a pinned core commit.
 
 **No longer does:** byte parity with today's rows; union of logs written on several branches.
 
@@ -177,9 +175,9 @@ One deployable serves command and query, with one fold. Core holds a client behi
 
 `charter` CLI verbs forward to the charter system's command. No resident charter process is needed locally.
 
-**Deletes:** `src/charter/` and the CLI-side helpers leave core (about 78,000 lines plus 9,300 [inferred, M5 §4]); the six-tier template chain and its copy (X1 3.4); `selected_*`, three-state allow lists, per-kind absent defaults, the identity index, cascade as a run-time walk, the catalog copy in `charter.yaml`.
+**Deletes:** `src/charter/` and the CLI-side helpers leave core (about 87,000 lines [inferred, M5 §4]); the six-tier template chain and its copy; `selected_*`, three-state allow lists, per-kind defaults, the identity index, the catalog copy in `charter.yaml`.
 
-**No longer does:** per-artefact opt-in without a pack (exclusions replace it); relationship queries at run time; a different context on first load.
+**No longer does:** per-artefact opt-in without a pack; relationship queries at run time.
 
 ### 4.6 Execution coordination and agent integration
 
@@ -189,9 +187,9 @@ Commands in agent tools are generated from the active mission types, one per ste
 
 `dispatch` loads the compiled context for a role and appends one record to the Ops ledger.
 
-**Deletes** [inferred, M6 §8, M8 §4]: the parallel claim path in `orchestrator_api/wp_lifecycle.py`; top-level lifecycle shims; `shims/`; the user-global installers; about 56 agent-copy migrations; three of four ownership manifests; the dispatch keyword router; `kitty-ops/lifecycle` records.
+**Deletes** [inferred, M6 §8, M8 §4]: the parallel claim path in `orchestrator_api/`; lifecycle shims; `shims/`; user-global installers; about 56 agent-copy migrations; three of four ownership manifests; the dispatch keyword router.
 
-**No longer does:** install anything outside the project; keep a fixed software-dev command list.
+**No longer does:** install outside the project; keep a fixed software-dev command list.
 
 ### 4.7 Landing approved work with evidence
 
@@ -204,15 +202,15 @@ Commands in agent tools are generated from the active mission types, one per ste
 
 `land --dry-run` runs the same checks without the ref update. Publication stays a push and a pull request by the user; `land --as-pr` stops after the checks and prints the branch to publish.
 
-**Deletes** [inferred, M7 §8]: the six gate axes, attribution, windows, line attribution, approval-stamp bound, attestations, `--dependency-ref`, `--release-branch`, snapshot and intent records, resume recovery, merge-attribute guard, forecast, coordination teardown, bookkeeping projection, the orchestrator mirror, the `rebase` strategy. About 30,000 of 36,400 lines in `consolidation/`, about 6,000 in `acceptance/` and `review/`.
+**Deletes** [inferred, M7 §8]: the gate axes, attribution, windows, the approval-stamp bound, attestations, `--dependency-ref`, snapshot and intent records, resume recovery, the merge-attribute guard, forecast, coordination teardown, the orchestrator mirror, the `rebase` strategy. About 30,000 of 36,400 lines in `consolidation/`.
 
-**No longer does:** land a branch that mixes approved and canceled work; prove authorship per line; lift a refusal by attestation.
+**No longer does:** land a branch that mixes approved and canceled work; lift a refusal by attestation.
 
 ### 4.8 Upgrade and compatibility
 
 **Design** (M8 A, ending at B). `schema_version` is the one "older or newer" authority; `MIN_SUPPORTED_SCHEMA` (`src/specify_cli/migration/schema_version.py:22` [read], unchanged since 3.0) is raised to 4 once. `upgrade` does three things: refuse below the floor (3.2.x) naming the stepping-stone command; run one converter to shape 4; run the reconcilers (tool surface, ignore lines, git config). After 4.0, a data change is one idempotent converter per major version. No ledger of applied steps.
 
-**Deletes:** about 140 of 144 registered migrations (`order_manifest.txt` [read]); supersession, adoption, lead block, clone-local partition and lock; the 14 `migrate` subcommands; the worktree pass; runtime legacy readers in 26 files (M8 §5.2); the empty shim registry and its gates. About 20,000 to 25,000 lines.
+**Deletes** [inferred, M8 §8]: nearly all 144 registered migrations; supersession, adoption, the clone-local partition; the 14 `migrate` subcommands; the worktree pass; runtime legacy readers in 26 files; the empty shim registry. About 20,000 to 25,000 lines.
 
 ## 5. How the extension points work
 
@@ -252,9 +250,9 @@ That is eight stores against 62 registered surfaces today (M3 §4). No local-onl
 | Shared through git | Ledger refs and branches are ordinary branches. |
 | Usable offline | Everything is local; the join rule runs at the next push. |
 | Replaceable parts | Three contracts: ledger commands and queries, compiled charter files, orchestrator API. Core imports neither Java service's model. |
-| Explainable refusals | Refusals name one mechanism each. I expect under 40 codes for workspaces, lifecycle and landing together, against about 300 today (X1 class 5). |
+| Explainable refusals | A refusal names one mechanism. |
 
-**Traded away:** proof against a dishonest agent (identities stay asserted; a host with authenticated review is the answer, M7 §2); landing of partially canceled branches without rework; a pure-Python install if the ledger writer is the Java service.
+**Traded away:** proof against a dishonest agent (identities stay asserted, M7 §2); a pure-Python install if the ledger writer is the Java service.
 
 ## 8. What this design is worse at
 
@@ -325,9 +323,9 @@ Transitional arrangements, each with its end:
 | API 1.x verb names accepted and mapped | the two clients update once | 4.1 |
 | Stepping stone through a pinned 3.2.x CLI | projects below the floor | lives outside core; no code kept |
 
-Legacy that can simply be retired, with no arrangement: G0 status routes, `lanes` and `coord` topologies, the `LEGACY` template tier, legacy activation keys, clone-local migration records, `feature_*` aliases and the `--feature` flag, the `rebase` strategy, RACI and significance code, workflows, hosted vocabulary in the events package.
+Legacy retired with no arrangement: G0 status routes, the `lanes` and `coord` topologies, the `LEGACY` template tier, legacy activation keys, `feature_*` aliases, the `rebase` strategy, workflows.
 
-The old consolidation executor is not kept for old Missions. Keeping both shapes without an end is how the present generations came to coexist (M1 §9).
+The old consolidation executor is not kept for old Missions. Two shapes without an end is how the present generations came to coexist (M1 §9).
 
 ## 12. Breaking changes as trade-offs
 
@@ -346,10 +344,8 @@ The old consolidation executor is not kept for old Missions. Keeping both shapes
 
 ## Confidence and what would change my mind
 
-Confidence is medium-high that topology, coordination, execution lanes and consolidation should be replaced together, and medium on the unit of approval. It is medium on the Java service as ledger writer; the design does not depend on it.
+Medium-high that topology, coordination, execution lanes and consolidation should be replaced together. Medium on the unit of approval and on the Java service as ledger writer; the design does not depend on the latter.
 
-Decision-relevant uncertainty: whether the live ledger must be in the target tree; whether unattended landing without a forge is a real journey; whether any user relies on unintegrated approved work.
+Settleable by safe experiment: declarative checks against present guards (M2 §11); tree equality against the present gate on landed Missions (M7 §11); append order against the fold (M4 §11); `decide` without the cursor (M6 §11).
 
-Settleable by experiment, safely: whether declarative checks reproduce every present guard (M2 §11); whether tree equality reproduces the present gate's verdicts on landed Missions (M7 §11); whether append order reproduces the fold (M4 §11); whether `decide` without the cursor resumes a software-dev and a plan Mission (M6 §11).
-
-I would change the recommendation on evidence of a documented journey that needs planning artefacts on the target while status sits elsewhere before landing, or of teams for whom re-review after an integration conflict is more costly than the lane machinery it replaces.
+I would change the recommendation on a documented journey that needs planning artefacts on the target while status sits elsewhere before landing, or on evidence that re-review after an integration conflict costs teams more than the lane machinery it replaces.
