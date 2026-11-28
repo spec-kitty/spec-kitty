@@ -434,3 +434,39 @@ def test_the_recovery_text_names_the_mission_branch() -> None:
     assert "on the target branch for a planning-artifact work package" not in recovery
     planning_remedy = wp_evidence.PLANNING_WINDOW_RECOVERY[wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE]
     assert planning_remedy in wp_evidence._RECOVERY[wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE]
+
+
+# ---------------------------------------------------------------- planning_approval_end (#7860 review M1)
+
+
+def _force_approve(fx: _Fixture, wp_id: str, *, attestation: bool = False) -> str:
+    """Commit a forced move into ``approved`` (no review), or a no-implementation attestation of it; returns its commit."""
+    event = _event(fx, wp_id, "in_progress", "approved", "operator")
+    event["force"] = True
+    if attestation:
+        event["policy_metadata"] = {"attestation": wp_evidence.NO_IMPLEMENTATION}
+    _append_events(fx, [event], commit=f"chore: forced approval of {wp_id}")
+    return _git(fx.repo, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("case", ["review_approval", "forced_move_skips_attestation", "no_approval", "not_on_mission_branch"])
+def test_planning_approval_end_is_the_commit_that_introduced_the_approval(tmp_path: Path, case: str) -> None:
+    """The window end is the commit introducing the newest approval; with no review approval, the newest forced move (never an attestation)."""
+    fx = _build(tmp_path, meta=_meta(topology_source="explicit") if case == "not_on_mission_branch" else None)
+    _claim(fx, "WP02")
+    expected: str | None = None
+    if case == "review_approval":
+        _approve(fx, "WP02")
+        expected = _git(fx.repo, "rev-parse", "HEAD")
+    elif case == "forced_move_skips_attestation":
+        expected = _force_approve(fx, "WP02")
+        _force_approve(fx, "WP02", attestation=True)
+
+    events = read_events(fx.feature_dir)
+    if expected is not None:
+        assert wp_evidence.planning_approval_end(fx.repo, fx.manifest(), "WP02", events) == expected
+        return
+    with pytest.raises(wp_evidence.PlanningWindowUnresolved) as raised:
+        wp_evidence.planning_approval_end(fx.repo, fx.manifest(), "WP02", events)
+    assert raised.value.code == wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE
+    assert ("no approval is recorded for WP02" if case == "no_approval" else "does not write to the Mission branch") in raised.value.detail

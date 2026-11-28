@@ -633,7 +633,7 @@ def test_an_owned_change_made_after_the_approval_is_not_credited(tmp_path: Path,
 
     assert after not in claim.shas
     assert "curation/pkg/after_approval.py" not in {path for path, _blob in claim.blobs}
-    # An un-attributable later change to the path taints it: nothing of that file is credited either.
+    # A pre-approval change to the path is credited only when the window end is known.
     assert (late in claim.shas) is ends_known
 
 
