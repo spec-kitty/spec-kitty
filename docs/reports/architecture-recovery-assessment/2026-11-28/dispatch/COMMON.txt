@@ -1,0 +1,62 @@
+# Common brief: architecture recovery assessment
+
+You take part in an architectural assessment and design exercise for the Spec Kitty ecosystem, commissioned by its human architect. Read this file fully, then A/00-mandate-and-rulings.md, then your own brief.
+
+A = /home/user/spec-kitty/docs/reports/architecture-recovery-assessment/2026-11-28/
+W = /home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/   (an earlier reconnaissance; reusable)
+
+## What this is about
+
+The question is not whether dependency rules are obeyed. It is whether the design is coherent and whether each mechanism deserves to exist. Look for: the same domain rule or responsibility implemented in several places; competing mechanisms for one problem; special cases that bypass an established abstraction or extension mechanism; complexity out of proportion to the need; remnants of an older design that was never fully extracted or retired; mechanisms that no longer earn their keep. The two leading questions: does the code need this complexity, and is this a remnant.
+
+Nothing existing is a fixed constraint (ruling R7): not on-disk formats, not existing Missions, not public APIs, not upgrade paths (R6), not recorded decisions (R1). The target is the best possible 4.0. Judge necessity before implementation quality (R3). Prefer deletion to reorganisation where the need does not justify the mechanism (R10).
+
+Needs come from documented needs and user journeys (user docs, README, command prompts, the charter's stated purpose), not from how often something is used in Spec Kitty's own repositories, which are skewed to the software-dev mission type (R5). Do not over-fit to that usage, in either direction: a rarely used capability may be needed, and a heavily used mechanism may be accidental.
+
+Do not investigate who caused anything or reconstruct history (R2). Use history only to tell a remnant from a living design, or to name a migration constraint.
+
+## Envelope
+
+- Assess, design, recommend. No implementation, no remediation, no issue, no pull request, nothing posted to GitHub.
+- Never modify, stage or commit any file under /home/user except new files under A as your brief names. No git command that changes state in /home/user/*. The coordinator commits.
+- Experiments only in a disposable location under /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ar-<your id>/ (use `git clone --shared`). Never a whole test suite; the machine has 15 GB of memory and other agents run beside you. Mostly you read code.
+- The human architect decides. You recommend, with your confidence and what would change your mind.
+
+## Load your profile
+
+In /home/user/spec-kitty run `spec-kitty agent profile show <profile id>` for the profile in your brief and `spec-kitty charter context --action plan --json` (stderr warnings about a typescript toolguide are benign). Where the profile conflicts with this envelope, the envelope wins; note it in one line.
+
+## Sources
+
+- Code at head: /home/user/spec-kitty (core, 5c4fc5a79d plus additive report folders), /home/user/spec-kitty-charter, /home/user/spec-kitty-events, /home/user/spec-kitty-open-packs, /home/user/doc-kitty, and read-only clones of spec-kitty-orchestrator, spec-kitty-tracker, fleet-kitty, spec-kitty-container, spec-kitty-planning, event-router, spec-kitty-pack-composer, spec-kitty-mcp under /home/user. Core's fetched pack trees are under packs/built-in and packs/internal. Do not `git fetch`.
+- CodeGraph: if a repository has a `.codegraph/` directory, `codegraph explore "<symbols or question>"` gives source and call paths in one call; otherwise use grep and read.
+- The reconnaissance, to reuse and not to repeat: W/report/wtf-is-up-with-the-spec-kitty-architecture.md (overview), W/synthesis/component-catalogue.md and .csv, dependency-models.md, independence-and-contracts.md, execution-capability-matrix.md, deviation-catalogue.md, assurance-gaps.md, decision-timeline.csv, knowledge-model.md, open-human-decisions.md, and W/synthesis/input/observations-index.csv (393 observations with claims; search it). Its hypotheses and verdict apparatus do not bind you. Its statements about what records say are useful; a record is evidence, not intent beyond challenge.
+- /home/user/spec-kitty/CLAUDE.md describes many mechanisms and residuals in the project's own words. Treat it as a map to check against code, and as evidence of accumulated special rules.
+
+## Evidence standard
+
+- Every factual statement about the implementation carries a source reference: `repo:path:line` (or a symbol name with path), checked by you at head. Tag it [read], [executed] (you ran something; keep the command) or [inferred].
+- Representative evidence is enough to establish a pattern: give three to six concrete, well-chosen examples and a rough measure of spread (a count from a stated grep or query). Do not enumerate exhaustively.
+- Scale the evidence to the reversibility of what you recommend. Anything that touches persistent data or a public contract: name the consumers and the data affected.
+- Separate uncertainty that would change a decision from uncertainty that an implementation experiment can settle safely.
+
+## Terms
+
+Use the ecosystem's terms (docs/context/ in core). The domain object is a Mission. Name the sense of overloaded words (primary, merge, routing, residue, projection, runner, coordination). A repository gate forbids a few retired phrases under docs/: before you finish run `python3 /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/tools/scrub2.py <each file you wrote>`.
+
+## Output form
+
+Markdown under A, each file starting with exactly
+
+```
+---
+doc_status: draft
+updated: '2026-11-28'
+---
+```
+
+Plain, short sentences. Tables for tabular content. Lead with the conclusion. Respect the word limit in your brief. Only .md, .csv, .txt, .json files. No secrets, tokens or personal e-mail addresses.
+
+## Final message
+
+At most 120 words to the coordinator: files written, anything blocked, deviations. Do not summarise your conclusions.

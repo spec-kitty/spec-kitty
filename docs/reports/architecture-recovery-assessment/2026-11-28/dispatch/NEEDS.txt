@@ -1,0 +1,18 @@
+# Brief: needs and user journeys
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Profile: analyst-annie. Id: N1.
+
+Establish what capabilities Spec Kitty genuinely has to provide, from documented needs and user journeys, without deriving them from the present implementation and without weighting them by how often Spec Kitty's own repositories use them (ruling R5).
+
+Sources: core README.md and docs/ (tutorials, how-tos, guides, the published documentation structure), the command prompts users actually run (packs/built-in/missions/ and the mission-step prompts), the charter's statement of purpose (.kittify/charter/charter.md, purpose and principles only), the product description at the top of core's CLAUDE.md, the README files of the other repositories, and W/synthesis/component-catalogue.md. Read implementation only to resolve what a documented journey means.
+
+Write A/needs/needs-and-journeys.md, at most 3,000 words, and A/needs/capabilities.csv:
+
+1. The actors (for example: a solo developer with one agent; a team with several agents in parallel; an external orchestrator; a maintainer of packs; an organisation that sets governance) and the eight to twelve journeys that matter, each in a few steps, from intent to verified result.
+2. The capabilities those journeys require, each stated as a need without naming a mechanism ("several agents can work on one Mission without overwriting each other", not "lanes"). For each: which journeys need it, how essential (core to the product's promise, important, optional, speculative), which quality attributes it must meet, and how well the need is documented (stated, implied, not found).
+3. For each capability, the mechanisms that currently claim to serve it (names only, from the component catalogue and a light look at the CLI command list), and capabilities served by more than one mechanism.
+4. Documented capabilities with no journey behind them, and journeys the documentation promises that depend on something not placed anywhere.
+5. The principles in ruling R8, each restated as what a user or the human in charge must be able to do or rely on, so that an architect can test a design against them.
+6. Where the documentation itself reflects an older design (names, steps or concepts that the present product no longer has).
+
+capabilities.csv: id, capability, journeys, essentiality, quality_attributes, documentation, current_mechanisms.

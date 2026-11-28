@@ -1,0 +1,20 @@
+# Brief: mechanism assessment (one assessor per mechanism)
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Your mechanism, id, profile and starting points are in your instructions.
+
+Assess necessity before quality. Write A/mechanisms/<id>.md, at most 3,000 words, in this order:
+
+1. **Verdict in five lines.** Provisional disposition (retain, simplify, consolidate, replace, remove, investigate further), confidence (high, medium, low), and the one-sentence reason.
+2. **The need.** The user or operational need behind the mechanism, taken from documented needs and user journeys. Who needs it, when, and what goes wrong without it. If you cannot find a documented need, say so.
+3. **Essential complexity.** What any honest solution to that need must handle, stated without reference to the present implementation. Keep it short and concrete.
+4. **Current mechanisms.** What exists today to meet the need: the modules, commands, on-disk state, configuration, and their rough size (files, lines, number of states, modes, flags, refusal codes, where countable). Name every mode or variant (for example topologies) and what distinguishes it.
+5. **Accidental complexity.** Where the implementation exceeds the essential complexity, with representative examples: special cases, modes that exist for one caller, guards that compensate for another mechanism's design, state kept in two places, rules restated in several modules, remnants of a superseded design (say what marks it as a remnant), compatibility paths, and indirection with one implementation behind it.
+6. **Duplication and distribution of responsibility.** The same rule or decision made in more than one place; responsibilities split across unrelated locations; competing sources of authority. Give paths.
+7. **Is it still necessary?** Mechanism by mechanism and mode by mode: needed as is, needed in a simpler form, not needed. Say what the mechanism compensates for; a mechanism that exists only to protect against another mechanism is a candidate for joint removal.
+8. **Simpler alternatives.** Two or three, including the most radical one you can defend (for example: remove it, or delegate it to git, the host tool or the operating environment). For each: what it gives up, what it deletes (rough lines and concepts), what it needs from other mechanisms.
+9. **Blast radius.** What consolidation, replacement or removal would touch: callers, commands, on-disk data, public contracts, other repositories, tests, documentation and prompts. Name consumers for anything public or persistent.
+10. **Obstructions.** The concrete arrangements that make the simpler form hard to reach today.
+11. **Uncertainty.** What would change the disposition (decision-material), and what an implementation experiment can safely settle. Suggest the smallest reversible experiment.
+12. **Evidence table.** As A/mechanisms/<id>-evidence.csv: claim, reference (repo:path:line), tag (read, executed, inferred).
+
+You assess one mechanism, but mechanisms interlock: where yours exists because of another one, say so plainly and name it. Do not read other assessors' files in A/mechanisms/.

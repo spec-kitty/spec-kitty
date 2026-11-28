@@ -1,0 +1,20 @@
+# Brief: semantic duplication and competing mechanisms (cross-cutting)
+
+Read A/dispatch/COMMON.txt and A/00-mandate-and-rulings.md first. Profile: paula-patterns. Id: X1.
+
+Other assessors look at one mechanism each. You look across them, for patterns that no single mechanism owns. Representative, not exhaustive. Write A/duplication/catalogue.md (at most 3,500 words) and A/duplication/catalogue.csv.
+
+Hunt, in core first and across repositories second, for these classes, and give for each class three to six concrete cases with references and a rough measure of spread:
+
+1. **Hardcoded special cases beside a configuration or extension mechanism.** Start from the architect's example: mission types are defined in packs, and code branches on literal mission-type names. A first grep found 27 comparisons of a mission type against a literal and built-in mission-type names in 98 source files; verify, classify (legitimate default, bypass, remnant) and find the equivalents for topologies, agents and tools, artifact kinds, lane names, step ids, pack names.
+2. **The same domain rule in several places.** For example: what makes a work package ready, approved or done; what a Mission's target branch is; where a status write goes; how a Mission is identified and resolved; what counts as a protected branch; which artefacts belong to the tool.
+3. **Competing mechanisms for one problem.** For example: more than one way to drive a Mission forward; more than one way to record state; more than one place that decides where a file is written; more than one review or acceptance gate over the same evidence; more than one notion of a workspace; more than one registry of commands, agents or skills.
+4. **Competing sources of authority.** The same fact held in two stores (file and event log, frontmatter and manifest, config and ledger, core and another repository) with code to reconcile them.
+5. **Compensating mechanisms.** Guards, refusal codes, doctors, repair commands and migrations that exist because another mechanism can get into a bad state. A first grep found about 165 distinct refusal-style codes; sample them and say what each family protects against, and which families would disappear with the mechanism they guard.
+6. **Indirection with nothing behind it.** Seams, ports, adapters, facades and registries with one implementation or no caller; re-export shims; parallel old and new modules.
+7. **Remnants.** Vocabulary, modules, fields and flags of a retired design that are still read or written (for example names that still say "feature", "merge", "sync", "phase", "doctrine", "worktree per work package").
+8. **Parameter and output redundancy.** The same value passed or emitted under several names (for example branch names in JSON output), flags that only select between historical behaviours.
+
+For each case: what it is, the references, which class, whether it looks like a bypass, a remnant, a compensation or a deliberate default, what a single owner would be, and roughly what would be deleted. End with the five patterns that cost the most and the five that are cheapest to remove.
+
+catalogue.csv: id, class, case, references, nature, single_owner, deletable_estimate, confidence.
