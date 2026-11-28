@@ -593,26 +593,27 @@ def read_wp_ownership_at_ref(repo_root: Path, mission_slug: str, wp_ids: Iterabl
     cannot be listed or whose task file cannot be read leaves the affected work packages
     unresolved (fail closed).
     """
-    from specify_cli.consolidation.git_probes import _read_git_blob_bytes
-    from specify_cli.core.git_ops import run_command
+    from kernel.git import GitCommandError, blob_at, tree_paths
 
     wanted = set(wp_ids)
     rel = f"kitty-specs/{mission_slug}/tasks"
-    ret, out, err = run_command(["git", "ls-tree", "--name-only", ref, f"{rel}/"], capture=True, check_return=False, cwd=repo_root)
-    if ret != 0:
-        return {}, dict.fromkeys(wanted, f"the tasks directory could not be listed at {ref} ({(err or '').strip()})")
+    try:
+        entries = sorted(str(path) for path in tree_paths(repo_root, ref, pathspecs=(f"{rel}/",)))
+    except GitCommandError as exc:
+        return {}, dict.fromkeys(wanted, f"the tasks directory could not be listed at {ref} ({_failure_summary(exc)})")
     with tempfile.TemporaryDirectory(prefix="wp-ownership-") as scratch:
         tasks_dir = Path(scratch) / "tasks"
         tasks_dir.mkdir()
-        for entry in out.splitlines():
-            name = entry.rsplit("/", 1)[-1]
-            if not (name.startswith("WP") and name.endswith(".md")):
+        for entry in entries:
+            parent, _sep, name = entry.rpartition("/")
+            if parent != rel or not (name.startswith("WP") and name.endswith(".md")):
                 continue
-            blob = _read_git_blob_bytes(repo_root, ref, entry)
-            if blob is not None:
-                (tasks_dir / name).write_bytes(blob)
-            else:
-                (tasks_dir / name).write_bytes(b"")  # an unreadable committed file stays visible as an unreadable one
+            try:
+                blob = blob_at(repo_root, ref, entry)
+            except GitCommandError:
+                blob = None
+            # An unreadable committed file stays visible as an unreadable (empty) one.
+            (tasks_dir / name).write_bytes(blob if blob is not None else b"")
         resolved, reasons, _dir = _ownership_in_tasks_dir(tasks_dir, wanted)
     return resolved, {wp: reason.replace(str(tasks_dir), f"{ref}:{rel}") for wp, reason in reasons.items()}
 
