@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.git_env import remove_inherited_git_config_env
+
 from kernel.git.read_cache import (
     Depends,
     cached_git_read,
@@ -26,6 +28,11 @@ from kernel.git.read_cache import (
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
+
+@pytest.fixture(autouse=True)
+def _no_inherited_git_config_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    remove_inherited_git_config_env(monkeypatch)
 
 
 def _git(cwd: Path, *args: str) -> str:

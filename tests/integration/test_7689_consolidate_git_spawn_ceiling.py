@@ -25,7 +25,15 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.git_env import remove_inherited_git_config_env
+
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.slow]
+
+
+@pytest.fixture(autouse=True)
+def _no_inherited_git_config_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    remove_inherited_git_config_env(monkeypatch)
+
 
 _SRC = str(Path(__file__).resolve().parents[2] / "src")
 _CLI_TIMEOUT_SECONDS = 300
