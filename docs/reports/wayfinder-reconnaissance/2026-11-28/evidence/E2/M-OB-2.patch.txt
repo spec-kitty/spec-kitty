@@ -1,0 +1,30 @@
+diff --git a/src/specify_cli/charter_activate.py b/src/specify_cli/charter_activate.py
+index 86c71fd4de..d91d367223 100644
+--- a/src/specify_cli/charter_activate.py
++++ b/src/specify_cli/charter_activate.py
+@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
+ from pathlib import Path
+ 
+ from rich.console import Console
++from ruamel.yaml import YAML
+ 
+ from specify_cli.mission_metadata import load_meta_or_empty
+ 
+@@ -34,6 +35,17 @@ __all__ = [
+     "emit_step_removal_warnings",
+ ]
+ 
++
++def force_activate_directive(repo_root: Path, directive_id: str) -> None:
++    """Add *directive_id* to the project's activated directives."""
++    path = repo_root / ".kittify" / "charter" / "activation.yaml"
++    yaml = YAML()
++    data = yaml.load(path) or {}
++    data.setdefault("activated_directives", []).append(directive_id)
++    with path.open("w", encoding="utf-8") as handle:
++        yaml.dump(data, handle)
++
++
+ # ---------------------------------------------------------------------------
+ # Lanes that correspond to "in-flight" status (non-terminal, active work)
+ # ---------------------------------------------------------------------------

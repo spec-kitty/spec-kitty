@@ -1,0 +1,26 @@
+{
+ "status_event_log": {
+  "outside_owner_literal_and_write_primitive_in_file": 34,
+  "outside_owner_literal_only": 94,
+  "owner": 18
+ },
+ "activation_record": {
+  "owner": 4,
+  "outside_owner_literal_only": 7
+ },
+ "migration_record": {
+  "outside_owner_literal_only": 1,
+  "outside_owner_literal_and_write_primitive_in_file": 1,
+  "owner": 3
+ },
+ "pins": {
+  "outside_owner_literal_only": 6,
+  "owner": 2,
+  "outside_owner_literal_and_write_primitive_in_file": 2
+ },
+ "python_files_scanned": 1490
+}
+
+real	0m1.147s
+user	0m0.509s
+sys	0m0.046s

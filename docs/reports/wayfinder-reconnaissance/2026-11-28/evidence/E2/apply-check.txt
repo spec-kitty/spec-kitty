@@ -1,0 +1,29 @@
+git git version 2.43.0
+clone spec-kitty-charter HEAD=06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+clone spec-kitty HEAD=5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+clone spec-kitty-events HEAD=646e330b896b96d7a11f53b34aa3d0c0baa69a05
+clone spec-kitty-open-packs HEAD=f9a557510dc7ff04597a0b8aba87f736e25f785e
+M-PI-1 repo=spec-kitty apply_check_exit=0 files=1 numstat=[6 1 src/specify_cli/status/reducer.py;] clean_after=yes
+M-PI-2 repo=spec-kitty apply_check_exit=0 files=1 numstat=[7 0 src/specify_cli/charter_activate.py;] clean_after=yes
+M-PI-3 repo=spec-kitty apply_check_exit=0 files=1 numstat=[7 0 src/specify_cli/events/decision_log.py;] clean_after=yes
+M-PI-4 repo=spec-kitty-charter apply_check_exit=0 files=1 numstat=[11 0 service/activations/src/main/java/ai/speckitty/charter/activations/application/ActivationIdMint.java;] clean_after=yes
+M-PI-5 repo=spec-kitty apply_check_exit=0 files=1 numstat=[7 0 src/specify_cli/drg_writers/registry.py;] clean_after=yes
+M-PI-6 repo=spec-kitty-charter apply_check_exit=0 files=1 numstat=[4 0 service/activations/src/main/java/ai/speckitty/charter/activations/application/IfMatchTags.java;] clean_after=yes
+M-RD-1 repo=spec-kitty apply_check_exit=0 files=1 numstat=[7 0 src/kernel/site_urls.py;] clean_after=yes
+M-RD-2 repo=spec-kitty apply_check_exit=0 files=1 numstat=[6 0 src/charter/hasher.py;] clean_after=yes
+M-RD-3 repo=spec-kitty apply_check_exit=0 files=1 numstat=[3 1 src/runtime/next/prompt_builder.py;] clean_after=yes
+M-RD-4 repo=spec-kitty-events apply_check_exit=0 files=1 numstat=[7 0 src/spec_kitty_events/status_log.py;] clean_after=yes
+M-RD-5 repo=spec-kitty apply_check_exit=0 files=1 numstat=[5 0 src/kernel/glossary_runner.py;] clean_after=yes
+M-RD-6 repo=spec-kitty-charter apply_check_exit=0 files=1 numstat=[11 0 service/activations/src/main/java/ai/speckitty/charter/activations/domain/Revision.java;] clean_after=yes
+M-OB-1 repo=spec-kitty apply_check_exit=0 files=1 numstat=[8 0 src/specify_cli/mission_brief.py;] clean_after=yes
+M-OB-2 repo=spec-kitty apply_check_exit=0 files=1 numstat=[12 0 src/specify_cli/charter_activate.py;] clean_after=yes
+M-OB-3 repo=spec-kitty apply_check_exit=0 files=1 numstat=[9 0 src/specify_cli/upgrade/finalize.py;] clean_after=yes
+M-OB-4 repo=spec-kitty apply_check_exit=0 files=1 numstat=[9 2 src/specify_cli/services/resolution.py;] clean_after=yes
+M-OB-5 repo=spec-kitty-events apply_check_exit=0 files=1 numstat=[8 0 service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java;] clean_after=yes
+M-OB-6 repo=spec-kitty apply_check_exit=0 files=1 numstat=[5 0 src/specify_cli/policy/audit.py;] clean_after=yes
+M-IC-1 repo=spec-kitty-events apply_check_exit=0 files=3 numstat=[1 1 src/spec_kitty_events/gates.py;3 3 src/spec_kitty_events/schemas/gate_failed_payload.schema.json;3 3 src/spec_kitty_events/schemas/gate_passed_payload.schema.json;] clean_after=yes
+M-IC-2 repo=spec-kitty-charter apply_check_exit=0 files=1 numstat=[2 1 contracts/charter/schemas/ExclusionRequest.yaml;] clean_after=yes
+M-IC-3 repo=spec-kitty-events apply_check_exit=0 files=1 numstat=[1 1 contracts/mission-status/schemas/ReviewVerdict.yaml;] clean_after=yes
+M-IC-4 repo=spec-kitty apply_check_exit=0 files=1 numstat=[1 1 src/specify_cli/orchestrator_api/envelope.py;] clean_after=yes
+M-IC-5 repo=spec-kitty-open-packs apply_check_exit=0 files=1 numstat=[1 1 packs/built-in/pack.yaml;] clean_after=yes
+M-IC-6 repo=spec-kitty apply_check_exit=0 files=1 numstat=[4 4 src/specify_cli/status/wp_window.py;] clean_after=yes

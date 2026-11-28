@@ -1,0 +1,24 @@
+python Python 3.11.15; HEAD=5c4fc5a79de1c1c299ab221ca26e5555c68ef533; packs/built-in copied untracked from /home/user/spec-kitty/packs/built-in for import only
+M-PI-1 import_ok specify_cli.status.reducer
+M-PI-2 import_ok specify_cli.charter_activate
+M-PI-3 import_ok specify_cli.events.decision_log
+M-PI-5 import_ok specify_cli.drg_writers.registry
+M-RD-1 import_ok kernel.site_urls
+M-RD-2 import_ok charter.hasher
+M-RD-3 import_ok runtime.next.prompt_builder
+M-RD-5 import_ok kernel.glossary_runner
+M-OB-1 import_ok specify_cli.mission_brief
+M-OB-2 import_ok specify_cli.charter_activate
+M-OB-3 import_ok specify_cli.upgrade.finalize
+M-OB-4 import_ok specify_cli.services.resolution
+M-OB-6 import_ok specify_cli.policy.audit
+M-IC-4 import_ok specify_cli.orchestrator_api.envelope
+M-IC-6 import_ok specify_cli.status.wp_window
+events HEAD=646e330b896b96d7a11f53b34aa3d0c0baa69a05; python3 Python 3.13.18
+M-RD-4/IC-1 ast_ok src/spec_kitty_events/status_log.py
+M-RD-4/IC-1 ast_ok src/spec_kitty_events/gates.py
+M-IC-1 json_ok passed
+M-IC-1 json_ok failed
+M-IC-2 yaml_ok contracts/charter/schemas/ExclusionRequest.yaml
+M-IC-3 yaml_ok contracts/mission-status/schemas/ReviewVerdict.yaml
+M-IC-5 yaml_ok packs/built-in/pack.yaml

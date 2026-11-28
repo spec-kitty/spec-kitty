@@ -1,0 +1,12 @@
+#!/bin/bash
+# usage: g.sh QNUM "pattern" [extra grep args]   -- searches run-1 corpus, logs
+S=/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-H06a
+C=${CORPUS:-$S/corpus}; LOG=${LOG:-$S/search-log-run1.txt}
+q=$1; shift; pat=$1; shift
+cd $C/${SUB:-.}
+out=$(grep -rniE "$@" -- "$pat" . 2>/dev/null)
+n=$(printf "%s" "$out" | grep -c . )
+nf=$(printf "%s" "$out" | cut -d: -f1 | sort -u | grep -c .)
+echo "$(date -u +%FT%TZ)	Q$q	grep -rniE $* [in ${SUB:-all}] -- '$pat'	hits=$n	files=$nf" >> $LOG
+printf "%s\n" "$out" | cut -c1-260 | head -${HEAD:-40}
+echo "== hits=$n files=$nf"

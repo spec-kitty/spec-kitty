@@ -1,0 +1,37 @@
+# m04c_import_census: AST census of core's imports of spec_kitty_events / spec_kitty_tracker
+# usage: <venv with core deps>/bin/python m04c_import_census.txt <core src root> [more roots]
+import ast,sys,importlib,json,collections,pathlib
+PK=("spec_kitty_events","spec_kitty_tracker")
+rows=[]
+for root in sys.argv[1:]:
+    for p in sorted(pathlib.Path(root).rglob("*.py")):
+        try: t=ast.parse(p.read_text(encoding="utf-8"))
+        except Exception as e: continue
+        for n in ast.walk(t):
+            if isinstance(n,ast.ImportFrom) and n.module and n.level==0 and n.module.split(".")[0] in PK:
+                for a in n.names: rows.append((str(p),n.lineno,n.module,a.name))
+            elif isinstance(n,ast.Import):
+                for a in n.names:
+                    if a.name.split(".")[0] in PK: rows.append((str(p),n.lineno,a.name,None))
+def classify(mod,name):
+    try: m=importlib.import_module(mod)
+    except Exception as e: return "module_missing"
+    priv_mod=any(s.startswith("_") for s in mod.split(".")[1:])
+    if name is None: return "private_module" if priv_mod else "module_import"
+    if name=="*": return "star"
+    if not hasattr(m,name):
+        try: importlib.import_module(mod+"."+name); return "private_module" if (priv_mod or name.startswith("_")) else "submodule_import"
+        except Exception: return "name_missing"
+    if name.startswith("_") or priv_mod: return "private_name"
+    al=getattr(m,"__all__",None)
+    if al is None: return "public_name_module_has_no___all__"
+    return "in___all__" if name in al else "not_in___all__"
+out=[];c=collections.Counter()
+for f,l,mod,name in rows:
+    k=classify(mod,name); c[(mod.split(".")[0],k)]+=1; out.append({"file":f,"line":l,"module":mod,"name":name,"class":k})
+import importlib.metadata as md
+res={"versions":{p.replace("_","-"):md.version(p.replace("_","-")) for p in PK},"import_statements_names":len(rows),"files":len({r[0] for r in rows}),
+ "by_package_class":{f"{a}|{b}":n for (a,b),n in sorted(c.items())},
+ "by_module":dict(collections.Counter(r[2] for r in rows).most_common()),
+ "non_public":[o for o in out if o["class"] not in ("in___all__","module_import","submodule_import")]}
+json.dump(res,sys.stdout,indent=1)

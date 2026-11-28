@@ -1,0 +1,22 @@
+diff --git a/service/activations/src/main/java/ai/speckitty/charter/activations/application/IfMatchTags.java b/service/activations/src/main/java/ai/speckitty/charter/activations/application/IfMatchTags.java
+index 315e48061..36e709ab6 100644
+--- a/service/activations/src/main/java/ai/speckitty/charter/activations/application/IfMatchTags.java
++++ b/service/activations/src/main/java/ai/speckitty/charter/activations/application/IfMatchTags.java
+@@ -5,6 +5,7 @@ import ai.speckitty.charter.activations.domain.EffectiveTag;
+ import ai.speckitty.charter.activations.domain.StoredActivation;
+ import ai.speckitty.charter.kernel.domain.CharterRefusal;
+ import ai.speckitty.charter.kernel.transport.EntityTags;
++import ai.speckitty.charter.packs.infra.storage.ConfigRoot;
+ import java.util.Objects;
+ import java.util.Optional;
+ import java.util.regex.Pattern;
+@@ -29,6 +30,9 @@ final class IfMatchTags {
+     /** The shape of a tag the service answers: a header that holds none cannot be a closure tag, so it costs no read. */
+     private static final Pattern TAG_SHAPED = Pattern.compile("sha256:[0-9a-f]{64}");
+ 
++    /** The configuration directory the judged documents are stored under. */
++    static final String STORE_DIRECTORY = ConfigRoot.ACTIVATIONS;
++
+     private IfMatchTags() {}
+ 
+     /**

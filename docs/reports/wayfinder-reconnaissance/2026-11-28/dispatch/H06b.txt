@@ -1,0 +1,16 @@
+Workstream H06b - Checking documentation answers against code
+Id: H06b. Profile: reviewer-renata. Action for charter context: review.
+
+Goal: another workstream answered twenty questions from documentation only. Check each answer against the code and the build at the head revisions, and look for a second source that contradicts the cited one.
+
+Inputs you may read from that workstream: evidence/H06a/answers-run1.csv and evidence/H06a/answers-run2.csv only (not its findings, report or search logs).
+
+For each of the 20 run-1 answers record in evidence/H06b/checks.csv:
+- answered: yes / "not answered by the documentation";
+- single authoritative source cited: yes/no; is the cited source one that the repositories' own authority rules treat as authoritative for that subject (cite the rule)?
+- correct against code: correct / partly correct / incorrect / not checkable, with the code or build evidence (path:line at head, or a command you ran in a disposable clone) - derive the code truth yourself BEFORE re-reading the answer's reasoning;
+- contradicting source: search the documentation trees, READMEs and charters of the five primary repos for a source that states something incompatible with the cited one; record found / not found, with citations and the search you ran;
+- final cell "meets all three" = answered from one authoritative source AND correct against code AND no contradicting source found.
+Then the same three columns for run 2 where the answer changed.
+
+Report the counts with denominators (out of 20) for each column and for "meets all three", for run 1 and run 2. File one observation finding per question where the answer is incorrect, partly correct, or contradicted (cite both sources), one finding with the counts, and nothing else. Do not judge the documentation as a whole.

@@ -1,0 +1,45 @@
+Workstream F - M07b mission-coordination responsibilities (pre-registered list)
+Written: 2026-11-28T09:05:36Z, BEFORE any classification of either set (M07a or M07b).
+Author: workstream F (analyst-annie, opus). The coordinator commits this file.
+
+Definition used: a "mission-coordination responsibility" is a duty that decides or records
+the state of a Mission or its work packages across executors, independent of who executes
+any one unit of agent work. Each item is written as the question it answers.
+
+C01 work-package eligibility       - Which work package may be started next (lane/state readiness, "next" selection)?
+C02 dependency gating              - Are a work package's declared dependencies satisfied before it is claimed/implemented?
+C03 state transition validation    - Is a requested lane transition legal (matrix + guards, force rules)?
+C04 ordering of status events      - In what order are appended status events folded into a snapshot (reducer ordering)?
+C05 review independence            - Is the approving reviewer a different identity from the implementer?
+C06 approval bound                 - Is the content to be consolidated bounded by what was approved (approval stamp)?
+C07 acceptance                     - Is the Mission as a whole accepted before consolidation (accept gate)?
+C08 consolidation                  - Are approved lanes integrated into the target branch, verified, and recorded?
+C09 rollback                       - When a consolidation refuses/fails, are branches restored to the pre-mutation snapshot?
+C10 identity                       - How is a Mission (and its work packages and lanes) identified unambiguously (mission_id, mid8, slug, WP id, lane id)?
+C11 status read                    - Where is authoritative Mission/WP status read from (one read door)?
+C12 retention / cleanup            - Which lane/coordination branches and worktrees are removed or kept after consolidation?
+C13 topology settlement            - Which topology (single_branch / lanes / lanes_with_coord) does a Mission settle on, and when?
+C14 exception attestations         - How are recorded operator exceptions (attest-* overrides, forced transitions) captured and bounded?
+C15 resume                         - Can an interrupted coordination operation (consolidation) be resumed or aborted from recorded state?
+
+Rubric applied afterwards (same as M07a): locus (core runtime / external tool / human operations /
+external coordination system / another ecosystem component) and state (verified by execution /
+present but unverified / specified only / missing / delegated by recorded intent / out of scope by
+recorded intent).
+
+Working interpretation of the fifteen M07a execution responsibilities (DIRECTIVE_032, stated before classification):
+X01 resource identity      - how the thing that carries out a unit of agent work (an agent/model/profile/process) is named and identified in records.
+X02 context preparation    - assembling the prompt/governance/workspace context handed to the executor.
+X03 workspace provisioning - creating/reusing the checkout (worktree, lane) where the executor writes.
+X04 dispatch               - actually starting the executor (spawning a process/session/container/job).
+X05 model/profile selection- choosing which agent profile and which model performs the work.
+X06 lifecycle supervision  - observing liveness, enforcing timeouts, detecting stalls of a running unit.
+X07 cancellation           - stopping a running unit on request.
+X08 handover               - transferring an in-flight unit from one executor to another (incl. implement->review handoff of the same WP).
+X09 evidence collection    - capturing what the executor produced (commits, test output, review verdicts) as records.
+X10 event publication      - emitting events about execution to other parties.
+X11 reconciliation after interruption - establishing the true state of a unit that stopped mid-way and recovering.
+X12 permissions/authority  - limiting what an executor may do (paths, branches, commands, approvals).
+X13 human attachment       - a person observing or taking over a running unit.
+X14 dependency eligibility - whether a unit of execution may start given its prerequisites (execution-side view of C02).
+X15 acceptance             - deciding that the executed unit's result is accepted (execution-side: WP approval/for_review gate).

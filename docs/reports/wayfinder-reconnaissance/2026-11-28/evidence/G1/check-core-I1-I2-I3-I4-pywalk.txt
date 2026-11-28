@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""G1 generic import walker for core Python. Design inputs: pyproject wheel packages,
+documented layer chain, documented seams, PEP 8 underscore convention, __all__ declarations.
+usage: pywalk.py <src_root> <out_dir>   (src_root contains kernel/ charter/ ... specify_cli/)"""
+import ast, sys, os, json, csv, collections
+PKGS = ["kernel", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"]  # pyproject wheel packages
+RANK = {"kernel": 0, "charter": 1, "glossary": 2, "runtime": 2, "mission_runtime": 2, "specify_cli": 3}
+EXTERNAL_CONTRACT = ["spec_kitty_events", "spec_kitty_tracker"]
+CLI_LIBS = {"typer", "click", "rich", "readchar", "argparse", "getopt", "optparse"}
+root, out = sys.argv[1], sys.argv[2]
+os.makedirs(out, exist_ok=True)
+
+modules = {}  # dotted -> path
+for p in PKGS:
+    for d, dn, fn in os.walk(os.path.join(root, p)):
+        dn[:] = [x for x in dn if x != "__pycache__"]
+        for f in fn:
+            if f.endswith(".py"):
+                rel = os.path.relpath(os.path.join(d, f), root)[:-3].split(os.sep)
+                is_pkg = rel[-1] == "__init__"
+                if is_pkg: rel = rel[:-1]
+                modules[".".join(rel)] = (os.path.join(d, f), is_pkg)
+
+def resolve(name):
+    """longest in-tree module prefix of dotted name"""
+    parts = name.split(".")
+    for i in range(len(parts), 0, -1):
+        m = ".".join(parts[:i])
+        if m in modules: return m
+    return None
+
+class V(ast.NodeVisitor):
+    def __init__(s, mod, is_pkg):
+        s.mod, s.is_pkg, s.depth, s.tc, s.imps, s.argv = mod, is_pkg, 0, 0, [], []
+    def _scope(s, n):
+        s.depth += 1; s.generic_visit(n); s.depth -= 1
+    visit_FunctionDef = visit_AsyncFunctionDef = visit_Lambda = _scope
+    def visit_If(s, n):
+        t = ast.unparse(n.test)
+        if "TYPE_CHECKING" in t:
+            s.tc += 1
+            for b in n.body: s.visit(b)
+            s.tc -= 1
+            for b in n.orelse: s.visit(b)
+        else: s.generic_visit(n)
+    def kind(s): return "type_checking" if s.tc else ("deferred" if s.depth else "module")
+    def visit_Import(s, n):
+        for a in n.names: s.imps.append((a.name, None, n.lineno, s.kind()))
+    def visit_ImportFrom(s, n):
+        base = n.module or ""
+        if n.level:
+            pk = s.mod.split(".") if s.is_pkg else s.mod.split(".")[:-1]
+            pk = pk[:len(pk) - (n.level - 1)] if n.level > 1 else pk
+            base = ".".join(pk + ([base] if base else []))
+        for a in n.names: s.imps.append((base, a.name, n.lineno, s.kind()))
+    def visit_Attribute(s, n):
+        if isinstance(n.value, ast.Name) and n.value.id == "sys" and n.attr == "argv": s.argv.append(n.lineno)
+        s.generic_visit(n)
+
+all_decl = {}   # module -> set or None
+rows = []       # src_mod, target (module or external top), name, line, kind
+argv_hits = []; parse_fail = []
+for mod, (path, is_pkg) in sorted(modules.items()):
+    try: tree = ast.parse(open(path, encoding="utf-8").read())
+    except Exception as e: parse_fail.append((mod, str(e))); continue
+    al = None
+    for n in tree.body:
+        tg = []
+        if isinstance(n, ast.Assign): tg = n.targets; val = n.value
+        elif isinstance(n, ast.AnnAssign) and n.value is not None: tg = [n.target]; val = n.value
+        for t in tg:
+            if isinstance(t, ast.Name) and t.id == "__all__":
+                try: al = set(ast.literal_eval(val))
+                except Exception: al = "dynamic"
+    all_decl[mod] = al
+    v = V(mod, is_pkg); v.visit(tree)
+    for l in v.argv: argv_hits.append((mod, l))
+    for base, name, line, kind in v.imps:
+        rows.append((mod, base, name, line, kind))
+
+def comp1(m): return m.split(".")[0]
+def comp2(m):
+    p = m.split("."); return ".".join(p[:2]) if len(p) > 1 else p[0] + ".__init__"
+
+edges = []  # resolved intra-tree: src_mod, dst_mod, name, line, kind, raw
+ext = []
+for mod, base, name, line, kind in rows:
+    full = base + ("." + name if name and name != "*" else "")
+    top = base.split(".")[0] if base else (name or "")
+    if top in PKGS:
+        dst = resolve(full) or resolve(base)
+        if dst: edges.append((mod, dst, name, line, kind, base))
+    else:
+        ext.append((mod, base, name, line, kind))
+
+def sccs(nodes, es):
+    g = collections.defaultdict(set)
+    for a, b in es:
+        if a != b: g[a].add(b)
+    idx = {}; low = {}; st = []; on = set(); res = []; c = [0]
+    sys.setrecursionlimit(100000)
+    def sc(v):
+        idx[v] = low[v] = c[0]; c[0] += 1; st.append(v); on.add(v)
+        for w in g[v]:
+            if w not in idx: sc(w); low[v] = min(low[v], low[w])
+            elif w in on: low[v] = min(low[v], idx[w])
+        if low[v] == idx[v]:
+            comp = []
+            while True:
+                w = st.pop(); on.discard(w); comp.append(w)
+                if w == v: break
+            if len(comp) > 1: res.append(sorted(comp))
+    for n in sorted(nodes):
+        if n not in idx: sc(n)
+    return sorted(res)
+
+# ---- I1
+i1 = {}
+for label, cf in (("L1_top_package", comp1), ("L2_second_level", comp2)):
+    for variant, kinds in (("all_imports", {"module", "deferred", "type_checking"}), ("module_level_runtime", {"module"})):
+        es = {(cf(a), cf(b)) for a, b, _, _, k, _ in edges if k in kinds and cf(a) != cf(b)}
+        nodes = {cf(m) for m in modules}
+        sc = sccs(nodes, es)
+        member = {n: i for i, c in enumerate(sc) for n in c}
+        cyc_edges = sorted(f"{a} -> {b}" for a, b in es if a in member and member.get(b) == member[a])
+        i1[f"{label}|{variant}"] = {"components": len(nodes), "edges": len(es), "scc_count": len(sc),
+            "scc_sizes": [len(c) for c in sc], "sccs": sc, "cyclic_edges": cyc_edges}
+json.dump(i1, open(os.path.join(out, "I1_cycles.json"), "w"), indent=1)
+
+# ---- I2
+i2 = []
+def priv(seg): return seg.startswith("_") and not (seg.startswith("__") and seg.endswith("__"))
+for a, b, name, line, kind, base in edges:
+    if comp1(a) == comp1(b): continue
+    full = base + ("." + name if name else "")
+    segs = [s for s in full.split(".")]
+    if any(priv(s) for s in segs): i2.append(("R1_underscore_private", a, full, line, kind))
+    if comp1(a) == "specify_cli" and base.startswith("charter.offering") and not (base == "charter.offering.api" or base.startswith("charter.offering.api.") or (base == "charter.offering" and name == "api")):
+        i2.append(("R2_offering_seam_bypass", a, full, line, kind))
+    if comp1(a) == "specify_cli" and base.startswith("charter.activation") and not (base == "charter.activation.api" or base.startswith("charter.activation.api.") or (base == "charter.activation" and name == "api")):
+        i2.append(("R3_activation_api_bypass", a, full, line, kind))
+    if name and name != "*":
+        tm = resolve(base)
+        if tm == base and isinstance(all_decl.get(tm), set) and name not in all_decl[tm] and (base + "." + name) not in modules:
+            i2.append(("R4_not_in___all__", a, full, line, kind))
+for mod, base, name, line, kind in ext:
+    if base.split(".")[0] in EXTERNAL_CONTRACT:
+        full = base + ("." + name if name else "")
+        if any(priv(s) for s in full.split(".")): i2.append(("R1x_external_underscore_private", mod, full, line, kind))
+with open(os.path.join(out, "I2_private_access.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["rule", "importer_module", "imported", "line", "import_kind"]); w.writerows(sorted(i2))
+
+# ---- I3
+i3 = []; peer = collections.Counter(); cross = collections.Counter()
+for a, b, name, line, kind, base in edges:
+    ca, cb = comp1(a), comp1(b)
+    if ca == cb: continue
+    cross[(ca, cb)] += 1
+    if RANK[cb] > RANK[ca]: i3.append((ca, cb, a, base + ("." + name if name else ""), line, kind))
+    elif RANK[cb] == RANK[ca]: peer[(ca, cb, kind)] += 1
+with open(os.path.join(out, "I3_reverse_layer.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["from_pkg", "to_pkg", "importer_module", "imported", "line", "import_kind"]); w.writerows(sorted(i3))
+
+# ---- I4
+i4 = []
+for mod, base, name, line, kind in ext:
+    top = base.split(".")[0] if base else ""
+    if top in CLI_LIBS:
+        tier = "A_layer_package" if comp1(mod) != "specify_cli" else ("cli_surface" if mod.startswith("specify_cli.cli") or mod in ("specify_cli", "specify_cli.__main__") else "B_specify_cli_non_cli")
+        i4.append((tier, mod, top, base + ("." + name if name else ""), line, kind))
+for mod, l in argv_hits:
+    tier = "A_layer_package" if comp1(mod) != "specify_cli" else ("cli_surface" if mod.startswith("specify_cli.cli") or mod in ("specify_cli", "specify_cli.__main__") else "B_specify_cli_non_cli")
+    i4.append((tier, mod, "sys.argv", "sys.argv", l, "attr"))
+with open(os.path.join(out, "I4_cli_in_domain.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["tier", "module", "cli_lib", "imported", "line", "import_kind"]); w.writerows(sorted(i4))
+
+summ = {"src_root": root, "modules": len(modules), "parse_failures": parse_fail, "import_statements_names": len(rows),
+  "intra_tree_edges": len(edges), "cross_package_import_counts": {f"{a}->{b}": n for (a, b), n in sorted(cross.items())},
+  "I1": {k: {x: v[x] for x in ("components", "edges", "scc_count", "scc_sizes")} for k, v in i1.items()},
+  "I2": {"by_rule": dict(collections.Counter(r[0] for r in i2)), "by_rule_distinct_importer_modules": {k: len({r[1] for r in i2 if r[0] == k}) for k in {r[0] for r in i2}},
+         "cross_package_import_names_total": sum(1 for a, b, *_ in edges if comp1(a) != comp1(b)),
+         "modules_declaring___all__": sum(1 for v in all_decl.values() if isinstance(v, set)), "modules_total": len(all_decl)},
+  "I3": {"violations": len(i3), "by_pair_kind": {f"{a}->{b}|{k}": n for (a, b, k), n in sorted(collections.Counter((r[0], r[1], r[5]) for r in i3).items())},
+         "same_rank_peer_imports": {f"{a}->{b}|{k}": n for (a, b, k), n in sorted(peer.items())}},
+  "I4": {"by_tier": dict(collections.Counter(r[0] for r in i4)), "distinct_modules_by_tier": {t: len({r[1] for r in i4 if r[0] == t}) for t in {r[0] for r in i4}},
+         "modules_by_tier_population": {"A_layer_package": sum(1 for m in modules if comp1(m) != "specify_cli"),
+            "B_specify_cli_non_cli": sum(1 for m in modules if comp1(m) == "specify_cli" and not m.startswith("specify_cli.cli") and m not in ("specify_cli", "specify_cli.__main__"))},
+         "tierA_by_pkg_lib": {f"{comp1(r[1])}|{r[2]}": n for r, n in []}}}
+summ["I4"]["tierA_by_pkg_lib"] = {k: n for k, n in sorted(collections.Counter(f"{comp1(r[1])}|{r[2]}" for r in i4 if r[0] == "A_layer_package").items())}
+json.dump(summ, open(os.path.join(out, "summary.json"), "w"), indent=1)
+print(json.dumps(summ, indent=1))

@@ -1,0 +1,33 @@
+import csv, random, re, sys
+rows = list(csv.DictReader(open(sys.argv[1])))
+def stratum(x):
+    r = x['repo']
+    if r == 'spec-kitty':
+        return 'core-' + x['era_folder']
+    if r == 'spec-kitty-charter':
+        n = int(x['id'][:4]); return 'charter-0001-0041' if n <= 41 else 'charter-0042-0083'
+    if r == 'spec-kitty-open-packs':
+        return 'open-packs-2026-07' if x['id'].startswith('2026-07') else 'open-packs-2026-10..11'
+    if r == 'doc-kitty':
+        n = int(x['id'][:4]); return 'doc-kitty-0001-0042' if n <= 42 else 'doc-kitty-0043-0087'
+    if r == 'spec-kitty-events':
+        return 'events'
+    if r == 'spec-kitty-planning:decisions':
+        return 'planning-decisions'
+    return None
+alloc = {'core-1.x':2,'core-2.x':3,'core-3.x':9,'core-4.x':6,'charter-0001-0041':4,'charter-0042-0083':4,
+         'events':2,'open-packs-2026-07':1,'open-packs-2026-10..11':2,'doc-kitty-0001-0042':2,'doc-kitty-0043-0087':3,'planning-decisions':2}
+strata = {}
+for x in rows:
+    s = stratum(x)
+    if s: strata.setdefault(s, []).append(x)
+rng = random.Random(20261128)
+out = []
+for s in sorted(alloc):
+    pop = sorted(strata[s], key=lambda x: x['path'])
+    pick = rng.sample(pop, alloc[s])
+    for x in sorted(pick, key=lambda x: x['path']):
+        out.append((s, len(pop), alloc[s], x['repo'], x['path']))
+w = csv.writer(sys.stdout)
+w.writerow(['stratum','stratum_population','stratum_sample','repo','path'])
+w.writerows(out)

@@ -1,0 +1,63 @@
+{
+ "module_sccs_all": {
+  "baseline_rc3": [
+   [
+    "pack-validation",
+    "packs"
+   ]
+  ],
+  "head": [
+   [
+    "pack-validation",
+    "packs"
+   ]
+  ],
+  "newly_in_cycle": [],
+  "no_longer_in_cycle": []
+ },
+ "module_sccs_production": {
+  "baseline_rc3": [],
+  "head": [],
+  "newly_in_cycle": [],
+  "no_longer_in_cycle": []
+ },
+ "slice_sccs": {
+  "baseline_rc3": [
+   [
+    "activations",
+    "missions",
+    "packs",
+    "profiles",
+    "routing"
+   ]
+  ],
+  "head": [
+   [
+    "activations",
+    "missions",
+    "packs",
+    "profiles",
+    "routing"
+   ]
+  ],
+  "newly_in_cycle": [],
+  "no_longer_in_cycle": []
+ },
+ "ring_sccs": {
+  "baseline_rc3": [],
+  "head": [],
+  "newly_in_cycle": [],
+  "no_longer_in_cycle": []
+ },
+ "modules": {
+  "baseline": 16,
+  "head": 16,
+  "added": [
+   "pack-doctor"
+  ]
+ },
+ "pack_validation_packs_edges_head": [
+  "pack-validation -> packs",
+  "packs -> pack-validation"
+ ]
+}

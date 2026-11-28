@@ -1,0 +1,20 @@
+import sys, re
+from pathlib import Path
+for p in sys.argv[1:]:
+    t = Path(p).read_text(errors='replace')
+    lines = t.split('\n')
+    print('=' * 8, p.split('/docs/')[-1] if '/docs/' in p else p, f'({len(lines)} lines)')
+    fm = re.match(r'^---\n(.*?)\n---\n', t, re.S)
+    if fm:
+        for k in ('title','description','status','decision_status','date','decision_date'):
+            m = re.search(rf'^{k}:\s*(.+)$', fm.group(1), re.M)
+            if m: print(f'  {k}: {m.group(1)[:400]}')
+    for i, l in enumerate(lines, 1):
+        ls = l.strip()
+        if re.match(r'^\*\*(Status|Date|Deciders?|Decided|Approver|Supersedes|Superseded)', ls) or re.match(r'^#{1,4} .*(Amendment|Decision|Status)', ls, re.I) or re.search(r'supersed', ls, re.I) and len(ls) < 400:
+            print(f'  L{i}: {ls[:330]}')
+    # decision section body
+    m = re.search(r'^#{2,3} +(Decision|Decisions|The decision)\b[^\n]*\n(.*?)(?=^#{2} )', t, re.S | re.M)
+    if m:
+        body = [b for b in m.group(2).split('\n') if b.strip()][:14]
+        print('  DECISION:'); [print('    ' + b[:300]) for b in body]

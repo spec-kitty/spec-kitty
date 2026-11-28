@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# G1 I6 (charter Java): build from a clean clone with no sibling repositories referenced, then run one named gate.
+# Inputs: settings.gradle.kts (module list, includeBuild), README/docs build guide, gate name from docs/architecture/hexagonal-service.md.
+set -u; cd $1
+java -version 2>&1; ./gradlew --version 2>&1 | grep -E "Gradle|JVM"
+echo "== includeBuild / parent-path references:"; grep -rn 'includeBuild\|"\.\./' settings.gradle.kts build-logic/settings.gradle.kts
+T0=$(date +%s); ./gradlew --no-daemon --console=plain assemble 2>&1 | tail -40; echo "assemble_exit=${PIPESTATUS[0]} seconds=$(( $(date +%s)-T0 ))"
+T0=$(date +%s); ./gradlew --no-daemon --console=plain :deployable:test --tests '*HexagonalArchitectureTest' 2>&1 | tail -40; echo "named_gate_exit=${PIPESTATUS[0]} seconds=$(( $(date +%s)-T0 ))"
+echo "== test result files:"; find service/deployable/build/test-results -name '*HexagonalArchitectureTest*.xml' | while read f; do grep -o '<testsuite [^>]*>' "$f" | head -1; done

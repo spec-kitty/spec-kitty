@@ -1,0 +1,63 @@
+# H06a run-1 search log. Corpus: run-1 allowed paths extracted by git archive at head revisions into scratch corpus/ (docs/**, site/**/*.md|mdx, README* at any level, .kittify/charter/charter.md; excluding kitty-specs/**, changelog/CHANGELOG*, docs/reports/wayfinder-reconnaissance/**). Tool: GNU grep -rniE via wrapper g.sh. Columns: utc, question, command [subtree], hit lines, files.
+2026-11-28T09:06:00Z	Q1	grep -rniE  -- 'kernel *<- *charter|charter *<-|layer rule|import direction'	hits=60	files=36
+2026-11-28T09:06:00Z	Q1	grep -rniE  -- 'charter.{0,40}(may|must not|cannot) import'	hits=10	files=8
+2026-11-28T09:06:07Z	Q1	grep -rniE --include=*.md -l -- 'Modularity SSOT|enforced pair|test_layer_rules'	hits=32	files=32
+2026-11-28T09:06:12Z	Q1	grep -rniE --include=*.md -- 'charter.{0,30}(imports|depends on).{0,40}kernel|kernel.{0,15}only'	hits=22	files=17
+2026-11-28T09:06:17Z	Q2	grep -rniE --include=*.md -- 'lamport|wall.clock|reduce_parsed'	hits=265	files=73
+2026-11-28T09:06:24Z	Q2	grep -rniE --include=*.md spec-kitty-events/docs spec-kitty-events/README.md -- 'lamport'	hits=0	files=0
+2026-11-28T09:06:30Z	Q2	grep -rniE  [in spec-kitty-events] -- 'lamport|ordering|reduce_parsed|sort key'	hits=127	files=31
+2026-11-28T09:06:45Z	Q2	grep -rniE  [in spec-kitty-events] -- 'diary'	hits=74	files=16
+2026-11-28T09:06:53Z	Q3	grep -rniE --include=*.md [in all] -- 'sole authority|single source of truth.{0,40}(lane|status|state)|status.events.jsonl.{0,60}(authority|truth)'	hits=32	files=25
+2026-11-28T09:06:58Z	Q3	grep -rniE --include=*.md [in all] -- 'read door|resolve_status_read|status read surface'	hits=20	files=13
+2026-11-28T09:07:04Z	Q4	grep -rniE --include=*.md [in all] -- 'sync-packs|built-in.source.yaml'	hits=66	files=37
+2026-11-28T09:07:10Z	Q4	grep -rniE --include=*.md [in all] -- '(edit|author).{0,40}packs/built-in|source of truth.{0,40}built-in|built-in.{0,40}source of truth|vendored? copy'	hits=19	files=13
+2026-11-28T09:07:21Z	Q5	grep -rniE --include=*.md [in all] -- 'contract.{0,30}(authority|owner|owns)|owns.{0,40}(contract|schema)|schema.{0,30}version'	hits=454	files=208
+2026-11-28T09:07:26Z	Q5	grep -rniE --include=*.md [in spec-kitty-events] -- 'semver|versioning|service-v|release line|contract bundle|schema_version'	hits=226	files=47
+2026-11-28T09:07:38Z	Q6	grep -rniE --include=*.md [in all] -- 'authoritative for activation|activation.{0,40}authorit|activation ledger.{0,60}(copy|authorit)'	hits=28	files=22
+2026-11-28T09:07:51Z	Q7	grep -rniE --include=*.md [in all] -- 'charter\.offering\.api|generated python client|python client'	hits=102	files=48
+2026-11-28T09:08:04Z	Q8	grep -rniE --include=*.md [in all] -- 'daemon|never launch|CLI-started|per-worktree|service stop|service status|idle.timeout'	hits=486	files=125
+2026-11-28T09:08:18Z	Q8	grep -rniE --include=*.md [in all] -- 'git common dir.{0,80}(daemon|instance|service)|(one|single) (daemon|instance).{0,60}(common dir|worktree|clone)|launch(es|ed)? on (first )?(use|need)'	hits=18	files=14
+2026-11-28T09:08:25Z	Q9	grep -rniE --include=*.md [in all] -- 'orchestrator-api.{0,80}(external|supported|only)|external (system|orchestrator|automation)'	hits=83	files=50
+2026-11-28T09:08:34Z	Q9	grep -rniE --include=*.md [in all] -- 'Mission Write API.{0,120}(client|consumer|external|orchestrat|ui)'	hits=2	files=2
+2026-11-28T09:08:39Z	Q10	grep -rniE --include=*.md [in all] -- 'mid8|mission_id.{0,60}(ULID|identity|canonical)'	hits=519	files=117
+2026-11-28T09:08:46Z	Q10	grep -rniE --include=*.md [in all] -- 'mission_number.{0,80}(lookup|select|resolve|never)|(by|accepts).{0,30}(number|NNN)'	hits=40	files=32
+2026-11-28T09:08:53Z	Q11	grep -rniE --include=*.md [in all] -- 'on conflict|wins|prevail|derived view|takes precedence|source of truth for (architecture|the module)'	hits=419	files=221
+2026-11-28T09:08:59Z	Q11	grep -rniE --include=*.md [in all] -- 'charter wins|code wins|ADR wins|newer.{0,20}(wins|supersed)|supersedes.{0,30}(older|earlier)|precedence.{0,40}(charter|ADR|architecture)'	hits=35	files=29
+2026-11-28T09:09:14Z	Q12	grep -rniE --include=*.md [in all] -- 'uv.lock.{0,80}events|events.{0,80}uv.lock|bump.{0,40}spec-kitty-events|spec-kitty-events.{0,40}(bump|upgrade|release)'	hits=58	files=34
+2026-11-28T09:09:27Z	Q13	grep -rniE --include=*.md [in all] -- 'wheel.{0,60}(ships|excluded|never|not shipped|exclude)|(excluded|left out) from the wheel|ships? in the (PyPI )?wheel'	hits=35	files=23
+2026-11-28T09:09:39Z	Q14	grep -rniE --include=*.md [in all] -- '(four|4|five|5|six) (built-in )?mission types|mission-runtime.yaml|state machine.{0,60}mission type|mission type.{0,60}state machine'	hits=77	files=40
+2026-11-28T09:09:45Z	Q14	grep -rniE --include=*.md -l [in all] -- 'mission.?type.{0,40}(erp|plan|research|documentation|software-dev).{0,80}'	hits=77	files=77
+2026-11-28T09:09:57Z	Q15	grep -rniE --include=*.md [in all] -- 'adapters.py|no default handler|publication seam|fanout handler|default transport|event-router'	hits=112	files=40
+2026-11-28T09:10:08Z	Q16	grep -rniE --include=*.md [in all] -- 'doc-kitty|DocKitty'	hits=1191	files=212
+2026-11-28T09:10:16Z	Q16	grep -rniE --include=*.md [in doc-kitty] -- 'spec-kitty-events|spec-kitty-charter|open-packs|consumer repo|consumers? (of|repositor)'	hits=99	files=12
+2026-11-28T09:10:22Z	Q17	grep -rniE --include=*.md [in all] -- 'model.?task.?routing|model routing|agent_assignment|model_routing|which model|(tool|agent) and model'	hits=58	files=30
+2026-11-28T09:10:37Z	Q17	grep -rniE --include=*.md [in all] -- 'agent_profile|preferred_model|invocation record|spec-kitty dispatch'	hits=549	files=212
+2026-11-28T09:10:42Z	Q17	grep -rniE --include=*.md [in all] -- 'agent_profile|preferred_model|invocation record|spec-kitty dispatch'	hits=549	files=212
+2026-11-28T09:10:49Z	Q17	grep -rniE --include=*.md [in all] -- 'agent_profile.{0,40}(frontmatter|planned|assign)|preferred_model|governed profile invocation'	hits=29	files=21
+2026-11-28T09:10:56Z	Q18	grep -rniE --include=*.md -l [in all] -- 'exception (register|ledger)|exemption|allowlist.{0,40}(owner|expiry|retire)|shrink-only|burn-down'	hits=109	files=109
+2026-11-28T09:11:12Z	Q18	grep -rniE --include=*.md [in all] -- 'priced debt'	hits=14	files=9
+2026-11-28T09:11:18Z	Q19	grep -rniE --include=*.md [in all] -- 'interrupt|crash recovery|--recover|resum(e|able)'	hits=474	files=134
+2026-11-28T09:11:22Z	Q19	grep -rniE --include=*.md [in all] -- 'interrupt|crash recovery|--recover|resum(e|able)'	hits=474	files=134
+2026-11-28T09:11:47Z	Q20	grep -rniE --include=*.md [in all] -- '(moves? to|move into|extract(ed|ion)? (to|into)|relocat|change owner|new home|cutover)'	hits=1507	files=394
+2026-11-28T09:12:00Z	Q20	grep -rniE --include=*.md [in all] -- 'approved plan|status: approved|plan status|approved by'	hits=16	files=16
+# ---- Targeted reads (sed/grep -n inside one already-located file; not counted as searches) ----
+Q1	read	spec-kitty/.kittify/charter/charter.md:425-445
+Q2	read+grep	spec-kitty/docs/architecture/status-model.md (lamport|order|sort); spec-kitty/docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md (amendment|lamport|order); spec-kitty-events/docs/architecture/ordering-and-reduction.md:15-70; spec-kitty-events/docs/events/work-and-status.md (sort|order)
+Q3	none
+Q4	read	spec-kitty-charter/docs/adr/0005-service-registers-and-distributes-packs.md:1-20,45-70; spec-kitty-charter/docs/context/system-context.md:70-90; spec-kitty/docs/development/how-to/sync-packs.md:15-30
+Q5	read	spec-kitty/.kittify/charter/charter.md:380-410; spec-kitty-events/.kittify/charter/charter.md:60-95; spec-kitty-events/README.md:205-225
+Q6	read	spec-kitty-charter/docs/adr/0033-*.md:1-75; spec-kitty/docs/architecture/activation-ledger-and-charter-contract.md (authorit); spec-kitty/docs/adr/4.x/2026-10-16-1-*.md:201-215
+Q7	read	spec-kitty/docs/adr/4.x/2026-10-12-2-*.md:218-228; spec-kitty/src/charter/offering/README.md:28-42; spec-kitty/docs/adr/4.x/2026-10-03-1-*.md:395-402
+Q8	read	spec-kitty/docs/development/how-to/service-pins.md:14-100
+Q9	read	spec-kitty/docs/api/orchestrator-api.md:12-30; spec-kitty/docs/guides/how-to/collaboration/run-an-autonomous-mission.md:16-40; spec-kitty/docs/adr/3.x/2026-06-26-2-*.md:28-40
+Q10	read	spec-kitty/docs/api/terminology.md:30-45; spec-kitty/docs/api/orchestrator-api.md:328-345
+Q11	read	spec-kitty/docs/architecture/README.md:30-50,100-110; spec-kitty/docs/architecture/ai-agent-architecture.md:34-42; spec-kitty/docs/development/how-to/manage-issue-tracker.md:360-370; spec-kitty/docs/development/reference/quality-and-tech-debt-standing-orders.md:15-22; charter.md grep (precedence|wins|supersed|conflict)
+Q12	read	spec-kitty/docs/development/reference/events-in-core.md:155-195; spec-kitty/docs/adr/2.x/2026-02-11-6-*.md header
+Q13	read	spec-kitty/packs/README.md:1-25; spec-kitty/.kittify/charter/charter.md:470-480
+Q14	read	spec-kitty/docs/context/mission-types.md:18-30; spec-kitty/docs/api/missions.md:12-25; spec-kitty/docs/architecture/mission-system.md:100-112,172-185; spec-kitty/docs/adr/3.x/2026-09-20-1-*.md:1-50
+Q15	read	spec-kitty/docs/adr/4.x/2026-10-13-2-*.md:104-120; spec-kitty/docs/development/reference/events-in-core.md:52-62; spec-kitty/README.md:180-186
+Q16	read	doc-kitty/README.md:1-40
+Q17	read	spec-kitty/docs/architecture/status-model.md:515-532; spec-kitty/.kittify/charter/charter.md:218-232; spec-kitty-charter/docs/adr/0080-*.md:60-80
+Q18	read	spec-kitty/.kittify/charter/charter.md:702-706,140-152,763-790; spec-kitty/docs/development/how-to/add-architectural-gate-exemption.md:1-60
+Q19	read	spec-kitty/docs/guides/how-to/recovery/recover-from-implementation-crash.md:13-60; spec-kitty/docs/architecture/runtime-loop.md:230-250
+Q20	read	spec-kitty/docs/plans/README.md:1-30; spec-kitty/docs/plans/4-0-0-milestone-roadmap.md:1-30,78-125; spec-kitty/docs/plans/events-domain-move/plan.md:1-30; grep events charter, ADR 2026-11-06-6, ADR 2026-10-22-1 headings

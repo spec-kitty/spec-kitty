@@ -1,0 +1,73 @@
+Workstream C - commit classification and population rules
+Written 2026-11-28 (UTC) BEFORE any commit was classified. Inputs seen while writing: the frequency table of
+subject prefixes of code commits and 40 unprefixed subjects (seed 1), no diffs. Not changed afterwards;
+any later doubt is recorded in the workstream report as a deviation, not by editing this file.
+
+0. POPULATION
+- Revision: core origin/main 5c4fc5a79de1c1c299ab221ca26e5555c68ef533; every commit reachable from it.
+- Unit: one non-merge commit, measured by its own diff against its single parent
+  (git log --no-merges -M --numstat). A squash commit and a small branch commit are both one unit.
+- Merge commits (2+ parents) are NOT units: their content is carried by the non-merge commits they join.
+  They are counted in the volume denominators only. Content introduced inside a merge commit itself
+  (conflict resolution) is not measured, with one exception: the convergence merge 2554bd13ad, which is
+  reported on its own by diff against each parent.
+- Date: committer date converted to UTC; month = UTC calendar month.
+- Line: pre-fork = reachable from fork point 38090b6493 (merge-base of 614c52cb38 and f57b06dd87);
+  public = reachable from 614c52cb38 and not from the fork point; experimental = reachable from f57b06dd87
+  and not from the fork point; converged = reachable from head and from neither merge parent.
+- Period: T1 = 2026-04-01..2026-06-30; T2 = 2026-07-01..2026-09-05 on lines pre-fork, public, experimental
+  (reported per line segment and pooled); T3 = converged line, 2026-09-05 (after the merge)..2026-11-28.
+  A converged-line commit dated 2026-09-05 belongs to T3. A pre-fork/public/experimental commit dated
+  outside its window is kept in its date's month and line.
+- Code commit: changes >=1 path under src/ (old or new side of a rename).
+- Non-code commit: all paths under docs/, kitty-specs/, .kittify/ or tests/ ("docs-specs-tests only"),
+  counted separately; everything else that is not a code commit is "other non-src".
+- Bulk commit: >500 files in the numstat; excluded from all per-commit measures and listed.
+- Component of a path under src/: (a) follow the file through recorded renames (git -M) to its last path;
+  if that last path is under src/, use it; (b) otherwise apply the directory map in rename-map.csv;
+  then component = src/<top> for kernel, glossary, runtime, mission_runtime;
+  <top>/<second-level directory> for specify_cli and charter; <top>/(root) for files directly in
+  specify_cli/ or charter/. A directory that no longer exists at head and has no successor keeps its
+  historical name and is flagged retired.
+
+1. COMMIT CLASS - first matching rule wins
+Subject normalisation: strip leading "[...]" tags and whitespace; lower-case; "prefix" = the token before
+the first ":" if it matches ^[a-z_+-]+(\(.*?\))?!?: , else the first word.
+
+C1 convergence-activity
+   - message body contains "(cherry picked from commit", or
+   - subject contains "converge" or "convergence" (case-insensitive), or
+   - prefix is "port" or "integ" or subject starts with "merge latest main into convergence".
+C2 compatibility-work
+   - subject matches (case-insensitive) \b(migrat\w*|shim\w*|legacy|backfill\w*|deprecat\w*|backward\w*|
+     back-compat\w*|compat\w*|upgrade path)\b , or
+   - at least half of the src/ paths changed are under src/specify_cli/upgrade/, src/specify_cli/migration/,
+     src/specify_cli/shims/ or src/specify_cli/compat/.
+C3 corrective-maintenance
+   - prefix in {fix, hotfix, bugfix, revert, harden, fold, landing, fix+refactor}
+   - or first word in {fix, fixes, fixed, revert, harden, prevent, reject, suppress}.
+C4 restructuring
+   - prefix in {refactor, perf, style, rename, cleanup}
+   - or first word in {remove, drop, delete, retire, rename, extract, split, move, reduce, consolidate}.
+C5 capability-growth
+   - prefix in {feat, feature}
+   - or first word in {add, implement, introduce, enable, support}.
+C6 other: everything else (docs, test, chore, ci, build, release, wip, doctrine, unprefixed remainder).
+
+2. FIX-CLASS SUBJECT (used by M02a, M02b and the recurrence measures; independent of rule order above)
+   prefix in {fix, hotfix, bugfix, revert, fix+refactor} or first word in {fix, fixes, fixed, revert}.
+
+3. M02 FRAME DEFINITIONS
+- Window: converged-line non-merge commits with committer date 2026-09-07..2026-11-28 (UTC), fix-class
+  subject, not bulk.
+- Pin/lock file: packs/*.source.yaml; pins/**; uv.lock; pyproject.toml only when an added or removed diff line
+  matches a requirement specifier  ^[+-]\s*"?[A-Za-z0-9_.-]+(\[[^\]]*\])?\s*(==|>=|<=|~=|<|>)  .
+- Contract file: a path outside kitty-specs/ and tests/ that has a directory segment named contracts,
+  contract, schemas or schema, or whose basename matches *.schema.json, *schema*.yaml, *schema*.yml or
+  openapi*.
+- M02a frame: fix-class commit in the window that touches >=2 components, or a pin/lock file, or a
+  contract file. M02b frame: fix-class commit in the window that touches exactly 1 component and no
+  pin/lock or contract file.
+
+4. SEEDS
+All samples use Python random.Random(20261128) over the frame sorted by commit SHA.

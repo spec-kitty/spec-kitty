@@ -1,0 +1,14 @@
+diff --git a/contracts/charter/schemas/ExclusionRequest.yaml b/contracts/charter/schemas/ExclusionRequest.yaml
+index 9e111b5f9..cc69b4eb8 100644
+--- a/contracts/charter/schemas/ExclusionRequest.yaml
++++ b/contracts/charter/schemas/ExclusionRequest.yaml
+@@ -2,7 +2,8 @@ title: ExclusionRequest
+ description: The body of a deactivate (ADR-0020 D6). Send {} for no cascade.
+ type: object
+ additionalProperties: false
+-required: []
++required:
++- cascade
+ properties:
+   cascade:
+     allOf:

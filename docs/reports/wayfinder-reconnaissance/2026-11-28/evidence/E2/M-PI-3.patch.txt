@@ -1,0 +1,15 @@
+diff --git a/src/specify_cli/events/decision_log.py b/src/specify_cli/events/decision_log.py
+index d688260174..cb81edd82f 100644
+--- a/src/specify_cli/events/decision_log.py
++++ b/src/specify_cli/events/decision_log.py
+@@ -320,3 +320,10 @@ class DecisionGitLog:
+                 f"Decision log commit failed for mission {self._mission_slug}; "
+                 f"{self._decisions_file} may contain uncommitted decision events."
+             )
++
++
++def issued_step_of_run(run_dir: Path) -> str | None:
++    """Return the id of the step the runtime run at *run_dir* has issued, if any."""
++    from runtime.next._internal_runtime.engine import _read_snapshot
++
++    return _read_snapshot(run_dir).issued_step_id

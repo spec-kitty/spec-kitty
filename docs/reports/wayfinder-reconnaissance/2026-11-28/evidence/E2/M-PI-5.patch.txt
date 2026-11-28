@@ -1,0 +1,25 @@
+diff --git a/src/specify_cli/drg_writers/registry.py b/src/specify_cli/drg_writers/registry.py
+index 2747314a7e..30a545c31c 100644
+--- a/src/specify_cli/drg_writers/registry.py
++++ b/src/specify_cli/drg_writers/registry.py
+@@ -37,6 +37,7 @@ joins is invisible" blind spot the registry concedes.
+ 
+ from __future__ import annotations
+ 
++import importlib
+ from collections.abc import Callable, Collection, Mapping
+ from dataclasses import dataclass
+ from typing import Any, Final, Protocol, cast
+@@ -203,6 +204,12 @@ MODEL_BRIDGES: Final[tuple[ModelBridge, ...]] = (
+ )
+ 
+ 
++def node_violates_layer_rule(node: object) -> bool:
++    """Whether an org node breaks the built-in layer rule, as the merge judges it."""
++    merge = importlib.import_module("charter.offering.drg.merge")
++    return bool(merge._violates_layer_rule(node))
++
++
+ __all__ = [
+     "DOCUMENT_WRITERS",
+     "MAPPING_WRITERS",

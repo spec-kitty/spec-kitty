@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# G1 I3 (charter Java): no dependency of the charter build or its main sources on the core CLI. Inputs: Gradle metadata + fixed pattern.
+R=$1
+echo "== gradle metadata mentions (build files, version catalog, verification metadata):"
+grep -rn -i -E "spec[-_]?kitty[-_]?cli|specify[-_]cli|io\.speckitty|spec-kitty/spec-kitty[^-]" $R/settings.gradle.kts $R/build.gradle.kts $R/gradle/libs.versions.toml $R/build-logic --include='*.kts' --include='*.toml' $(find $R/service $R/contracts $R/client-java -name 'build.gradle.kts') | cut -c1-220; echo "gradle_metadata_hits=$(grep -rn -i -E 'spec[-_]?kitty[-_]?cli|specify[-_]cli' $R/settings.gradle.kts $R/build.gradle.kts $R/gradle/libs.versions.toml $(find $R/service $R/contracts $R/client-java $R/build-logic -name '*.kts') | wc -l)"
+echo "== main Java sources naming the core CLI distribution or its Python packages (fixed pattern):"
+grep -rln -E "specify_cli|spec-kitty-cli|spec_kitty_cli" $R/service/*/src/main $R/client-java/src/main $R/contracts/src/main 2>/dev/null | sed "s#$R/##" ; echo "main_source_files_with_hits=$(grep -rln -E 'specify_cli|spec-kitty-cli|spec_kitty_cli' $R/service/*/src/main $R/client-java/src/main $R/contracts/src/main 2>/dev/null | wc -l) of $(find $R/service/*/src/main $R/client-java/src/main $R/contracts/src/main -type f 2>/dev/null | wc -l) main files"
+echo "== main Java sources starting a 'spec-kitty' process (fixed pattern \"spec-kitty\" as a string literal):"
+grep -rn -E '"spec-kitty"' $R/service/*/src/main --include='*.java' | wc -l

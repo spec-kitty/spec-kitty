@@ -1,0 +1,22 @@
+diff --git a/src/kernel/site_urls.py b/src/kernel/site_urls.py
+index 00f11c8018..dc746645a4 100644
+--- a/src/kernel/site_urls.py
++++ b/src/kernel/site_urls.py
+@@ -18,6 +18,8 @@ Layer rule: ``kernel`` imports nothing upward, so every layer can read these.
+ 
+ from __future__ import annotations
+ 
++from specify_cli.version_utils import cli_version
++
+ __all__ = ["INSTALL_AND_UPGRADE_URL"]
+ 
+ #: The one registrable domain Spec Kitty owns for its branded hosts.
+@@ -36,3 +38,8 @@ def docs_url(page: str) -> str:
+ 
+ 
+ INSTALL_AND_UPGRADE_URL = docs_url(INSTALL_AND_UPGRADE_PAGE)
++
++
++def versioned_docs_url(page: str) -> str:
++    """Return the docs URL of *page*, tagged with the running CLI version."""
++    return f"{docs_url(page)}?v={cli_version()}"

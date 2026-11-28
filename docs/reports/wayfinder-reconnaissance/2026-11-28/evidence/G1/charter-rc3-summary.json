@@ -1,0 +1,142 @@
+{
+ "repo_root": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/charter-rc3",
+ "main_java_files": 961,
+ "modules_with_main_sources": 14,
+ "slices_seen": [
+  "activations",
+  "artifacts",
+  "deployable",
+  "kernel",
+  "missions",
+  "packcheck",
+  "packs",
+  "packvalidation",
+  "profiles",
+  "routing",
+  "web"
+ ],
+ "module_top_packages": {
+  "activations": [
+   "ai.speckitty.charter.activations"
+  ],
+  "artifacts-edge": [
+   "ai.speckitty.charter.artifacts"
+  ],
+  "deployable": [
+   "ai.speckitty.charter.deployable"
+  ],
+  "kernel": [
+   "ai.speckitty.charter.kernel"
+  ],
+  "missions": [
+   "ai.speckitty.charter.missions"
+  ],
+  "missions-edge": [
+   "ai.speckitty.charter.missions"
+  ],
+  "pack-check": [
+   "ai.speckitty.charter.packcheck"
+  ],
+  "pack-validation": [
+   "ai.speckitty.charter.packvalidation"
+  ],
+  "packs": [
+   "ai.speckitty.charter.packs"
+  ],
+  "profiles": [
+   "ai.speckitty.charter.profiles"
+  ],
+  "profiles-edge": [
+   "ai.speckitty.charter.profiles"
+  ],
+  "routing": [
+   "ai.speckitty.charter.routing"
+  ],
+  "routing-edge": [
+   "ai.speckitty.charter.routing"
+  ],
+  "web-transport": [
+   "ai.speckitty.charter.web"
+  ]
+ },
+ "unknown_base_targets": {
+  "api": 444
+ },
+ "I1": {
+  "module_edges_all_configurations": 53,
+  "module_edges_production_configurations": 50,
+  "module_sccs_all": [
+   [
+    "pack-validation",
+    "packs"
+   ]
+  ],
+  "module_sccs_production": [],
+  "slice_nodes": 11,
+  "slice_edges": 38,
+  "slice_sccs": [
+   [
+    "activations",
+    "missions",
+    "packs",
+    "profiles",
+    "routing"
+   ]
+  ],
+  "ring_nodes": 43,
+  "ring_edges": 156,
+  "ring_sccs": [],
+  "ring_cyclic_edges": 0
+ },
+ "I2": {
+  "violations_distinct": 25,
+  "by_rule": {
+   "cross_slice_outside_designated_adapter": 25
+  },
+  "distinct_files": 6,
+  "by_rule_importer_ring": {
+   "cross_slice_outside_designated_adapter|artifacts.infra.packs": 6,
+   "cross_slice_outside_designated_adapter|packcheck": 19
+  }
+ },
+ "I3": {
+  "violations_distinct": 55,
+  "by_rule": {
+   "domain_imports_external_library": 38,
+   "kernel_imports_non_jdk": 17
+  },
+  "distinct_files": 55,
+  "external_libs_in_domain": {
+   "org.jspecify.annotations": 55
+  }
+ },
+ "I4": {
+  "file_population_by_tier": {
+   "other": 421,
+   "B_application": 191,
+   "A_kernel_or_domain": 349
+  },
+  "matches_by_tier": {
+   "other": 13
+  },
+  "distinct_files_by_tier": {
+   "other": 3
+  },
+  "matches_by_tier_token": {
+   "other|String[] args": 8,
+   "other|System.err": 2,
+   "other|System.exit": 2,
+   "other|System.out": 1
+  }
+ },
+ "I5": {
+  "files_with_write_primitives_by_class": {
+   "storage_or_outbound_adapter": 14,
+   "outside_storage_rings": 2
+  },
+  "outside_by_ring": {
+   "packcheck.": 1,
+   "packs.application": 1
+  }
+ }
+}

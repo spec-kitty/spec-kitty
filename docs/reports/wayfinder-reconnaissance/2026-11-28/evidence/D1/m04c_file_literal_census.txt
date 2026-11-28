@@ -1,0 +1,34 @@
+# m04c_file_literal_census: non-docstring string constants in core src that name another component's files
+# usage: python m04c_file_literal_census.txt <core src root>
+import ast,sys,pathlib,json,collections,re
+ROOT=pathlib.Path(sys.argv[1])
+SURF={ # surface: (regex on literal, owner path prefixes)
+ "packs_tree":(re.compile(r"packs/(built-in|internal)|^built-in$|^packs$"),("charter/offering/","charter/pack_paths.py","charter/packs.py","kernel/pack")),
+ "charter_bundle":(re.compile(r"\.kittify/charter|charter\.md$|^charter\.ya?ml$|governance\.yaml|directives\.yaml|references\.yaml"),("charter/",)),
+ "status_files":(re.compile(r"status\.events\.jsonl|^status\.json$|/status\.json$"),("specify_cli/status/",)),
+ "activation_file":(re.compile(r"activation\.yaml"),("charter/activation/","kernel/")),
+ "lanes_manifest":(re.compile(r"lanes\.json"),("specify_cli/lanes/",)),
+ "mission_meta":(re.compile(r"^meta\.json$|/meta\.json$"),("specify_cli/mission_metadata","specify_cli/core/","mission_runtime/")),
+}
+IO=re.compile(r"\.read_text\(|\.read_bytes\(|open\(|\.write_text\(|\.exists\(\)|\.is_file\(\)|json\.load|yaml\.safe_load|\.load\(")
+res={k:{"owner_files":set(),"outside_files":set(),"outside_files_with_io":set(),"literals_owner":0,"literals_outside":0,"outside_by_package":collections.Counter()} for k in SURF}
+for p in sorted(ROOT.rglob("*.py")):
+    rel=str(p.relative_to(ROOT)); src=p.read_text(encoding="utf-8")
+    try: t=ast.parse(src)
+    except Exception: continue
+    doc=set()
+    for n in ast.walk(t):
+        if isinstance(n,(ast.Module,ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)) and n.body and isinstance(n.body[0],ast.Expr) and isinstance(getattr(n.body[0],"value",None),ast.Constant) and isinstance(n.body[0].value.value,str):
+            doc.add(id(n.body[0].value))
+    for n in ast.walk(t):
+        if isinstance(n,ast.Constant) and isinstance(n.value,str) and id(n) not in doc and len(n.value)<200:
+            for k,(rx,owners) in SURF.items():
+                if rx.search(n.value):
+                    own=any(rel.startswith(o) for o in owners)
+                    r=res[k]
+                    if own: r["owner_files"].add(rel); r["literals_owner"]+=1
+                    else:
+                        r["outside_files"].add(rel); r["literals_outside"]+=1; r["outside_by_package"][rel.split("/")[0]]+=1
+                        if IO.search(src): r["outside_files_with_io"].add(rel)
+out={k:{"owner_prefixes":SURF[k][1],"owner_files":len(v["owner_files"]),"outside_files":len(v["outside_files"]),"outside_files_with_io_calls":len(v["outside_files_with_io"]),"literals_owner":v["literals_owner"],"literals_outside":v["literals_outside"],"outside_literals_by_top_package":dict(v["outside_by_package"]),"outside_file_list":sorted(v["outside_files"])} for k,v in res.items()}
+json.dump(out,sys.stdout,indent=1)

@@ -1,0 +1,3 @@
+2026-11-28T09:15:19Z
+4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252  out/answers-run1.csv
+run-1 closed before run-2 corpus was opened; SHA-256 above is of answers-run1.csv before scrubbing (scrub may alter retired phrases; MANIFEST hash is post-scrub).

@@ -1,0 +1,23 @@
+diff --git a/src/kernel/glossary_runner.py b/src/kernel/glossary_runner.py
+index d9494f1693..185240c247 100644
+--- a/src/kernel/glossary_runner.py
++++ b/src/kernel/glossary_runner.py
+@@ -63,6 +63,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+ if TYPE_CHECKING:
+     from pathlib import Path
+ 
++    from charter.offering.artifact_kinds import ArtifactKind
++
+ 
+ @runtime_checkable
+ class GlossaryRunnerProtocol(Protocol):
+@@ -90,6 +92,9 @@ class GlossaryRunnerProtocol(Protocol):
+ # Module-level registry slot — holds the concrete runner class or None.
+ _registry: type[GlossaryRunnerProtocol] | None = None
+ 
++#: The artifact kind a registered runner attaches glossary terms for, when it declares one.
++_runner_kind: ArtifactKind | None = None
++
+ 
+ def register(runner_cls: type[GlossaryRunnerProtocol]) -> None:
+     """Register the concrete glossary runner class.

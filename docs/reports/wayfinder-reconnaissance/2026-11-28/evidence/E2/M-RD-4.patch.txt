@@ -1,0 +1,15 @@
+diff --git a/src/spec_kitty_events/status_log.py b/src/spec_kitty_events/status_log.py
+index 3dfd4083..63bc5869 100644
+--- a/src/spec_kitty_events/status_log.py
++++ b/src/spec_kitty_events/status_log.py
+@@ -210,3 +210,10 @@ def encode_status_row(row: Mapping[str, Any]) -> bytes:
+     except ValueError as exc:
+         raise NonFiniteNumber("status rows cannot contain NaN or infinity") from exc
+     return (encoded + "\n").encode("ascii")
++
++
++def normalize_lane_token(token: str) -> str:
++    """Resolve a lane token the way the CLI does at its input boundary."""
++    from specify_cli.status.transitions import resolve_lane_alias  # type: ignore[import-not-found]
++
++    return str(resolve_lane_alias(token))

@@ -1,0 +1,76 @@
+Workstream C2 - commit classification rules (fixed BEFORE any commit was classified)
+Written: 2026-11-28. Only a subject-prefix frequency survey and a survey of chore/op scopes
+were looked at before writing these rules; no commit was classified by reading.
+
+Input per commit: subject line (S), full message body (B), list of changed paths (P),
+is-merge flag, and the commit SHA.
+
+Notation: PREFIX = conventional-commit type of S, i.e. the regex
+  ^([A-Za-z_-]+)(\([^)]*\))?!?:\s*(.*)$  group 1 lowercased; DESC = group 3.
+  If S does not match, PREFIX = "<none>" and DESC = S with a leading "[#NNN] " tag stripped.
+  SCOPE = group 2 without parentheses, lowercased ("" when absent).
+All keyword tests are case-insensitive whole-word regex tests on DESC unless stated.
+
+Rules are applied in this order; the first that fires decides the class.
+
+R1 convergence-activity
+  a) the commit is the convergence merge 2554bd13adc289d3457681308645fe52619bca0e; or
+  b) B contains "cherry picked from commit"; or
+  c) SCOPE matches convergence|converge|port, or DESC matches
+     \b(convergence|converge|converged|converging)\b, or S matches \bport(ed|s)?\b.*\b(from|of)\b.*\b(public|experimental|pre-fork|upstream)\b
+
+R2 corrective-maintenance (decided by prefix)
+  PREFIX in {fix, hotfix, bugfix, revert, fixup, fold}
+  or S starts with "Revert " or "landing fold" or "fold:"
+
+R3 restructuring (decided by prefix)
+  PREFIX in {refactor, style}
+  -- except when R5 compatibility applies (see R5 note): a refactor whose DESC matches
+     the compatibility keyword list or whose changed src paths are ALL under
+     src/specify_cli/upgrade/ is compatibility-work.
+
+R4 capability-growth (decided by prefix)
+  PREFIX == feat
+  -- except when the R5 compatibility test applies (feat adding a migration, shim, legacy
+     reader or upgrade path is compatibility-work).
+
+R5 compatibility-work (keyword / path test), for all commits that reached here, and as
+   the override inside R3 and R4:
+  DESC matches \b(migrat\w*|shim\w*|unshim\w*|legacy|back-?compat\w*|backwards?[- ]compat\w*|
+     compat|compatibility|upgrade\w*|deprecat\w*|backfill\w*|restamp\w*)\b
+  or at least one changed path is under src/specify_cli/upgrade/migrations/
+     (for R3/R4 override: ALL changed src paths under src/specify_cli/upgrade/)
+
+R6 corrective-maintenance (keyword test, prefixes other than feat/refactor/style)
+  DESC matches ^(fix|fixes|fixed|repair|correct|resolve)\b
+  or \b(bug|bugfix|regression|hotfix|broken|crash\w*)\b
+  or \bfix(es|ed)?\b
+
+R7 restructuring (keyword test)
+  DESC matches \b(refactor\w*|extract\w*|split\w*|decompos\w*|relocat\w*|rename\w*|
+     move[sd]?|moving|dedup\w*|collapse\w*|inline\w*|retire\w*|remove[sd]?|delete[sd]?|
+     drop(s|ped)?|reorgani[sz]\w*|restructur\w*|modulari[sz]\w*)\b
+
+R8 capability-growth (keyword test)
+  PREFIX in {<none>, chore, op, build, perf} and DESC matches
+  ^(add|adds|added|implement\w*|introduc\w*|support\w*|enable\w*|expose\w*|wire\w*|new)\b
+  and at least one changed path is under src/
+
+R9 other: everything else (tests, docs, ci, release, status/bookkeeping, op records, ...)
+
+Notes
+- perf is not a class of its own; perf commits fall through to R5..R9.
+- PREFIX test/docs/ci/chore/op do not by themselves decide a class; they fall through to
+  the keyword tests R5..R8 and then R9.
+- Merge commits: excluded from per-commit measures (their content is carried by the
+  non-merge commits they introduce). They are counted separately. The convergence merge is
+  classified convergence-activity by R1a and analysed separately against each parent.
+- Bulk commits (> 500 changed files, all paths) are excluded from per-commit measures and
+  listed in bulk-commits.csv.
+- The rules are deterministic and implemented in classify() in extract-script.txt.
+
+Validation
+- A seeded sample of 50 non-merge, non-bulk code commits (random.Random(20261128)) is
+  classified by reading the diff, blind to the rule output where practical (the rule label
+  is computed and stored separately and joined only after the reading). Agreement is
+  reported as a confusion table (rules x reading) in classification-validation.csv.

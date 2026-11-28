@@ -1,0 +1,13 @@
+diff --git a/contracts/mission-status/schemas/ReviewVerdict.yaml b/contracts/mission-status/schemas/ReviewVerdict.yaml
+index 6698b02d..6a24770a 100644
+--- a/contracts/mission-status/schemas/ReviewVerdict.yaml
++++ b/contracts/mission-status/schemas/ReviewVerdict.yaml
+@@ -5,7 +5,7 @@ description: >-
+ type: string
+ enum:
+   - approved
+-  - changes_requested
++  - rejected
+ x-source:
+   path: src/specify_cli/status/models.py
+   symbol: ReviewResult

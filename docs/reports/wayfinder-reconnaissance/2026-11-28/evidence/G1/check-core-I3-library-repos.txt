@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# G1 I3 (library/contract repos must not depend on core). Inputs: pyproject.toml dependency tables + generic import grep.
+for repo in spec-kitty-events spec-kitty-tracker; do
+  r=/home/user/$repo; echo "== $repo $(git -C $r rev-parse HEAD)"
+  echo "-- pyproject mentions of core distribution:"; grep -n -i "spec-kitty-cli\|specify[-_]cli" $r/pyproject.toml || echo "(none)"
+  echo "-- python imports of core packages under src/ (count, files):"
+  grep -rEn --include='*.py' '^\s*(from|import)\s+(specify_cli|charter|mission_runtime|runtime|glossary|kernel)(\.|\s|$)' $r/src | tee /tmp/_i3 | wc -l; cut -d: -f1 /tmp/_i3 | sort -u | head -20
+  echo "-- python files under src/: $(find $r/src -name '*.py' | wc -l)"
+done
+echo "== locked installed spec-kitty-events/tracker wheels (uv.lock versions) are checked in I6 venv step"

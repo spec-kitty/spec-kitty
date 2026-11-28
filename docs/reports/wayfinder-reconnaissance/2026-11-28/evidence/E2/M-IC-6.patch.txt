@@ -1,0 +1,34 @@
+diff --git a/src/specify_cli/status/wp_window.py b/src/specify_cli/status/wp_window.py
+index c44bf0e3d3..d9ae2ea86c 100644
+--- a/src/specify_cli/status/wp_window.py
++++ b/src/specify_cli/status/wp_window.py
+@@ -35,7 +35,7 @@ WINDOW_OPENING_LANES: Final[frozenset[str]] = frozenset({"claimed", "in_progress
+ 
+ # A git object name: SHA-1 (40 hex) or SHA-256 (64 hex), lower case.
+ _OPEN_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+-_WINDOW_KEYS: frozenset[str] = frozenset({"schema_version", "open_sha", "gap"})
++_WINDOW_KEYS: frozenset[str] = frozenset({"schema_version", "opened_at", "gap"})
+ _GAP_KEYS: frozenset[str] = frozenset({"reason", "cause", "detail"})
+ 
+ 
+@@ -70,7 +70,7 @@ class ParsedWpWindow:
+ 
+ def encode_open(sha: str) -> dict[str, Any]:
+     """The value recording that the window opens at *sha*."""
+-    return {"schema_version": WP_WINDOW_SCHEMA_VERSION, "open_sha": sha}
++    return {"schema_version": WP_WINDOW_SCHEMA_VERSION, "opened_at": sha}
+ 
+ 
+ def encode_gap(cause: CaptureCause, detail: str) -> dict[str, Any]:
+@@ -108,9 +108,9 @@ def parse_wp_window(value: object) -> ParsedWpWindow | None:
+     # ``True == 1`` in Python; the contract's ``const: 1`` is an integer, never a boolean.
+     if type(version) is not int or version != WP_WINDOW_SCHEMA_VERSION:
+         return None
+-    if ("open_sha" in value) == ("gap" in value):
++    if ("opened_at" in value) == ("gap" in value):
+         return None
+     if "gap" in value:
+         return _parse_gap(value["gap"])
+-    sha = value["open_sha"]
++    sha = value["opened_at"]
+     return ParsedWpWindow(open_sha=sha) if isinstance(sha, str) and _OPEN_SHA.fullmatch(sha) else None

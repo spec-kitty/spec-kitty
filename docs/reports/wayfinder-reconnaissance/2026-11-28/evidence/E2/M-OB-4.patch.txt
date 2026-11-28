@@ -1,0 +1,36 @@
+diff --git a/src/specify_cli/services/resolution.py b/src/specify_cli/services/resolution.py
+index 9bb71ecaec..a803b03944 100644
+--- a/src/specify_cli/services/resolution.py
++++ b/src/specify_cli/services/resolution.py
+@@ -41,7 +41,7 @@ import importlib.resources
+ import os
+ import tomllib
+ from collections.abc import Iterable, Mapping
+-from dataclasses import dataclass
++from dataclasses import dataclass, replace
+ from importlib.metadata import entry_points
+ from importlib.resources.abc import Traversable
+ from pathlib import Path
+@@ -60,7 +60,7 @@ from kernel.service_artifacts import (
+     verify_asset,
+ )
+ from kernel.service_hosts import host_target, select_build
+-from kernel.service_pin import PIN_SUFFIX, PINS_DIR, ServiceAsset, ServicePin, ServicePinError, ServiceTarget, load_service_pin
++from kernel.service_pin import PIN_SUFFIX, PINS_DIR, ServiceAsset, ServicePin, ServicePinError, ServiceTarget, load_service_pin, write_service_pin
+ from specify_cli.services.errors import ServiceRefusal, ServiceRefusalCode, remedy_for
+ from specify_cli.services.host import find_java
+ from specify_cli.status import SUPPORTED_PROTOCOL_VERSIONS
+@@ -163,6 +163,13 @@ def find_pin(service: str) -> Path | None:
+     return path if path.is_file() else None
+ 
+ 
++def repin_commit(service: str, commit: str) -> None:
++    """Move the pin of *service* to *commit*, the build a developer supplied locally."""
++    path = find_pin(service)
++    if path is not None:
++        write_service_pin(replace(load_service_pin(path), commit=commit), path)
++
++
+ def load_pin(path: Path) -> ServicePin:
+     """Load the lockfile at *path*; a malformed one is a ``SERVICE_PIN_INVALID`` refusal with the vendor remedy."""
+     try:

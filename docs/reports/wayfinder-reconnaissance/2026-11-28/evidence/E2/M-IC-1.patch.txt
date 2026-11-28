@@ -1,0 +1,65 @@
+diff --git a/src/spec_kitty_events/gates.py b/src/spec_kitty_events/gates.py
+index 3e07e768..d0710120 100644
+--- a/src/spec_kitty_events/gates.py
++++ b/src/spec_kitty_events/gates.py
+@@ -19,7 +19,7 @@ class GatePayloadBase(BaseModel):
+ 
+     model_config = ConfigDict(frozen=True)
+ 
+-    gate_name: str = Field(
++    gate_label: str = Field(
+         ...,
+         min_length=1,
+         description="Name of the CI gate (e.g., 'ci/build', 'ci/lint')",
+diff --git a/src/spec_kitty_events/schemas/gate_failed_payload.schema.json b/src/spec_kitty_events/schemas/gate_failed_payload.schema.json
+index 0f0bafd8..3a7915b3 100644
+--- a/src/spec_kitty_events/schemas/gate_failed_payload.schema.json
++++ b/src/spec_kitty_events/schemas/gate_failed_payload.schema.json
+@@ -39,10 +39,10 @@
+       "title": "External Provider",
+       "type": "string"
+     },
+-    "gate_name": {
++    "gate_label": {
+       "description": "Name of the CI gate (e.g., 'ci/build', 'ci/lint')",
+       "minLength": 1,
+-      "title": "Gate Name",
++      "title": "Gate Label",
+       "type": "string"
+     },
+     "gate_type": {
+@@ -67,7 +67,7 @@
+     }
+   },
+   "required": [
+-    "gate_name",
++    "gate_label",
+     "gate_type",
+     "conclusion",
+     "external_provider",
+diff --git a/src/spec_kitty_events/schemas/gate_passed_payload.schema.json b/src/spec_kitty_events/schemas/gate_passed_payload.schema.json
+index 489e6214..8f042b35 100644
+--- a/src/spec_kitty_events/schemas/gate_passed_payload.schema.json
++++ b/src/spec_kitty_events/schemas/gate_passed_payload.schema.json
+@@ -34,10 +34,10 @@
+       "title": "External Provider",
+       "type": "string"
+     },
+-    "gate_name": {
++    "gate_label": {
+       "description": "Name of the CI gate (e.g., 'ci/build', 'ci/lint')",
+       "minLength": 1,
+-      "title": "Gate Name",
++      "title": "Gate Label",
+       "type": "string"
+     },
+     "gate_type": {
+@@ -62,7 +62,7 @@
+     }
+   },
+   "required": [
+-    "gate_name",
++    "gate_label",
+     "gate_type",
+     "conclusion",
+     "external_provider",

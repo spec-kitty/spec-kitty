@@ -1,0 +1,29 @@
+diff --git a/service/activations/src/main/java/ai/speckitty/charter/activations/application/ActivationIdMint.java b/service/activations/src/main/java/ai/speckitty/charter/activations/application/ActivationIdMint.java
+index 1d8ea4a29..a4444e1f6 100644
+--- a/service/activations/src/main/java/ai/speckitty/charter/activations/application/ActivationIdMint.java
++++ b/service/activations/src/main/java/ai/speckitty/charter/activations/application/ActivationIdMint.java
+@@ -1,6 +1,7 @@
+ package ai.speckitty.charter.activations.application;
+ 
+ import ai.speckitty.charter.activations.domain.ActivationId;
++import ai.speckitty.charter.packs.domain.PackEntryNames;
+ import java.security.SecureRandom;
+ import java.time.Clock;
+ import java.util.Objects;
+@@ -55,6 +56,16 @@ public class ActivationIdMint {
+         return ActivationId.mint(this::ulid);
+     }
+ 
++    /**
++     * Whether a directory entry could hold a stored activation.
++     *
++     * @param name the entry name
++     * @return {@code true} when the name is not a staging or aside entry
++     */
++    public static boolean canHoldAnActivation(String name) {
++        return PackEntryNames.canBeAPack(name);
++    }
++
+     private String ulid() {
+         long time = clock.millis();
+         if (time < 0 || time > MAX_TIME) {

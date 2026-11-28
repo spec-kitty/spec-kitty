@@ -1,0 +1,13 @@
+diff --git a/src/specify_cli/orchestrator_api/envelope.py b/src/specify_cli/orchestrator_api/envelope.py
+index eb2a05a87e..4c64291d1d 100644
+--- a/src/specify_cli/orchestrator_api/envelope.py
++++ b/src/specify_cli/orchestrator_api/envelope.py
+@@ -303,7 +303,7 @@ def make_envelope(
+         "contract_version": CONTRACT_VERSION,
+         "command": f"orchestrator-api.{command}",
+         "timestamp": now_utc_iso(),
+-        "correlation_id": _new_correlation_id(),
++        "request_id": _new_correlation_id(),
+         "success": success,
+         "error_code": error_code,
+         "data": data,

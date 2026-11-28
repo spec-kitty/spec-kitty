@@ -1,0 +1,15 @@
+diff --git a/src/runtime/next/prompt_builder.py b/src/runtime/next/prompt_builder.py
+index 68e4ee6e94..a7da413d89 100644
+--- a/src/runtime/next/prompt_builder.py
++++ b/src/runtime/next/prompt_builder.py
+@@ -465,7 +465,9 @@ def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) ->
+         f"Mission directory: {feature_dir}",
+         "=" * 80,
+     ]
+-    return "\n".join(lines)
++    from specify_cli.text_sanitization import sanitize_markdown_text
++
++    return sanitize_markdown_text("\n".join(lines))
+ 
+ 
+ def _mission_type_governance_lines(repo_root: Path, feature_dir: Path) -> list[str]:

@@ -1,0 +1,260 @@
+{
+ "result": "success",
+ "success": true,
+ "context_schema_version": "1.4.0",
+ "action": "specify",
+ "mode": "compact",
+ "directives_source": "activation+charter+project_local",
+ "all_directives": [
+  {
+   "id": "DIRECTIVE_001",
+   "source": "built-in",
+   "title": "Architectural Integrity Standard"
+  },
+  {
+   "id": "DIRECTIVE_003",
+   "source": "built-in",
+   "title": "Decision Documentation Requirement"
+  },
+  {
+   "id": "DIRECTIVE_010",
+   "source": "built-in",
+   "title": "Specification Fidelity Requirement"
+  },
+  {
+   "id": "DIRECTIVE_018",
+   "source": "built-in",
+   "title": "Doctrine Versioning Requirement"
+  },
+  {
+   "id": "DIRECTIVE_024",
+   "source": "built-in",
+   "title": "Locality of Change"
+  },
+  {
+   "id": "DIRECTIVE_025",
+   "source": "built-in",
+   "title": "Boy Scout Rule"
+  },
+  {
+   "id": "DIRECTIVE_028",
+   "source": "built-in",
+   "title": "Efficient Local Tooling"
+  },
+  {
+   "id": "DIRECTIVE_029",
+   "source": "built-in",
+   "title": "Agent Commit Signing Policy"
+  },
+  {
+   "id": "DIRECTIVE_030",
+   "source": "built-in",
+   "title": "Test and Typecheck Quality Gate"
+  },
+  {
+   "id": "DIRECTIVE_031",
+   "source": "built-in",
+   "title": "Context-Aware Design"
+  },
+  {
+   "id": "DIRECTIVE_032",
+   "source": "built-in",
+   "title": "Conceptual Alignment"
+  },
+  {
+   "id": "DIRECTIVE_033",
+   "source": "built-in",
+   "title": "Targeted Staging Policy"
+  },
+  {
+   "id": "DIRECTIVE_034",
+   "source": "built-in",
+   "title": "Test-First Development"
+  },
+  {
+   "id": "DIRECTIVE_035",
+   "source": "built-in",
+   "title": "Bulk Edit Occurrence Classification"
+  },
+  {
+   "id": "DIRECTIVE_036",
+   "source": "built-in",
+   "title": "Black-Box Integration Testing"
+  },
+  {
+   "id": "DIRECTIVE_037",
+   "source": "built-in",
+   "title": "Living Documentation Sync"
+  },
+  {
+   "id": "DIRECTIVE_038",
+   "source": "built-in",
+   "title": "Structured Prompt Change-Boundary"
+  },
+  {
+   "id": "DIRECTIVE_039",
+   "source": "built-in",
+   "title": "Lynn Cole Engineering Culture"
+  },
+  {
+   "id": "DIRECTIVE_040",
+   "source": "built-in",
+   "title": "Recurring-Bug Structural-Intervention Discipline"
+  },
+  {
+   "id": "DIRECTIVE_041",
+   "source": "built-in",
+   "title": "Tests as Scaffold, Not Friction"
+  },
+  {
+   "id": "DIRECTIVE_042",
+   "source": "built-in",
+   "title": "Common Docs Documentation Standard"
+  },
+  {
+   "id": "DIRECTIVE_043",
+   "source": "built-in",
+   "title": "Close Defect Classes by Construction"
+  },
+  {
+   "id": "DIRECTIVE_044",
+   "source": "built-in",
+   "title": "Canonical Sources and Unification"
+  },
+  {
+   "id": "DIRECTIVE_045",
+   "source": "built-in",
+   "title": "PRs-Only and Read-Intent Before High-Risk Operations"
+  },
+  {
+   "id": "DIRECTIVE_046",
+   "source": "built-in",
+   "title": "Readable and Consistent Pull Requests"
+  },
+  {
+   "id": "DIRECTIVE_047",
+   "source": "built-in",
+   "title": "Audience-Oriented Writing"
+  },
+  {
+   "id": "DIRECTIVE_048",
+   "source": "built-in",
+   "title": "Version Governance"
+  },
+  {
+   "id": "DIRECTIVE_049",
+   "source": "built-in",
+   "title": "Agent Declaration and Self-Introduction"
+  },
+  {
+   "id": "DIRECTIVE_050",
+   "source": "built-in",
+   "title": "Credential Handling Discipline"
+  },
+  {
+   "id": "DIRECTIVE_051",
+   "source": "built-in",
+   "title": "Supply-Chain Install Safety"
+  },
+  {
+   "id": "DIRECTIVE_052",
+   "source": "built-in",
+   "title": "Prefer Durable Fixes"
+  },
+  {
+   "id": "DIRECTIVE_053",
+   "source": "built-in",
+   "title": "Choose Op or Mission Before Starting"
+  },
+  {
+   "id": "DISCIPLINED_REFACTORING",
+   "source": "built-in",
+   "title": "Disciplined Refactoring"
+  },
+  {
+   "id": "NO_FULL_HEAVY_SUITES_IN_MISSION",
+   "source": "org",
+   "title": "No Full Runs of Computationally Heavy Suites in Mission Work"
+  },
+  {
+   "id": "RECONCILE_CHANGE_SCOPE_TENSIONS",
+   "source": "built-in",
+   "title": "Reconciling Change-Scope Tensions"
+  },
+  {
+   "id": "USE_C4_MODEL_TECHNIQUES",
+   "source": "built-in",
+   "title": "Use C4 Model Techniques"
+  },
+  {
+   "id": "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+   "source": "built-in",
+   "title": "Use Mutation Testing to Validate Test Quality"
+  },
+  {
+   "id": "DIR-001",
+   "source": "project",
+   "title": "**Cross-platform:** Linux, macOS, Windows 10+"
+  },
+  {
+   "id": "DIR-002",
+   "source": "project",
+   "title": "**Python 3.11+** (no legacy Python 2 support)"
+  },
+  {
+   "id": "DIR-003",
+   "source": "project",
+   "title": "**Git required** (all worktree features depend on "
+  },
+  {
+   "id": "DIR-004",
+   "source": "project",
+   "title": "**PyPI distribution** via automated release workfl"
+  },
+  {
+   "id": "DIR-005",
+   "source": "project",
+   "title": "Tests added for new functionality"
+  },
+  {
+   "id": "DIR-006",
+   "source": "project",
+   "title": "Type annotations present (mypy --strict passes)"
+  },
+  {
+   "id": "DIR-007",
+   "source": "project",
+   "title": "Docstrings for public APIs"
+  },
+  {
+   "id": "DIR-008",
+   "source": "project",
+   "title": "No security issues (credentials, secrets handling)"
+  },
+  {
+   "id": "DIR-009",
+   "source": "project",
+   "title": "Breaking changes documented in CHANGELOG.md"
+  },
+  {
+   "id": "DIR-010",
+   "source": "project",
+   "title": "Database names, lane identifiers, and other storag"
+  },
+  {
+   "id": "DIR-011",
+   "source": "project",
+   "title": "Any change to identifier normalization or slug san"
+  },
+  {
+   "id": "DIR-012",
+   "source": "project",
+   "title": "When an agent starts implementing work from a trac"
+  },
+  {
+   "id": "DIR-013",
+   "source": "project",
+   "title": "When an agent encounters pre-existing test failure"
+  }
+ ]
+}

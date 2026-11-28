@@ -1,0 +1,19 @@
+diff --git a/service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java b/service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java
+index 1ad1f7c6..01c90346 100644
+--- a/service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java
++++ b/service/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceLedger.java
+@@ -152,6 +152,14 @@ final class FilesystemMissionEventSourceLedger {
+     }
+   }
+ 
++  /** Cuts the ledger back to {@code end}, so a torn tail is gone before the next read. */
++  static void dropTornTail(Path ledger, long end) throws IOException {
++    try (java.nio.channels.FileChannel channel =
++        java.nio.channels.FileChannel.open(ledger, java.nio.file.StandardOpenOption.WRITE)) {
++      channel.truncate(end);
++    }
++  }
++
+   // ---- byte scanning --------------------------------------------------------------------------------------------------------------
+ 
+   /** The position just after the last {@code \n} that lies before {@code limit}, or 0 when there is none. Reads backward in chunks. */

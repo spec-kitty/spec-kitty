@@ -1,0 +1,14 @@
+tier,module,package,file,match
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,String[] args
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,String[] args
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,System.err
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,System.exit
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/Arguments.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,String[] args
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,System.err
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,System.exit
+other,pack-check,ai.speckitty.charter.packcheck,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,System.out

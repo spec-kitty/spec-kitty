@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""G1 generic Java import walker for the charter service. Design inputs: settings.gradle.kts module list,
+build.gradle.kts project() dependencies, docs/architecture/hexagonal-service.md (module table, 'The rule',
+'A slice over another slice', shared web ring). Main sources only (src/main/java).
+usage: javawalk.py <repo_root> <out_dir>"""
+import os, re, sys, json, csv, collections
+root, out = sys.argv[1], sys.argv[2]; os.makedirs(out, exist_ok=True)
+BASE = "ai.speckitty.charter."
+# ---- module graph from Gradle metadata
+mods = {}
+for d in sorted(os.listdir(os.path.join(root, "service"))) if os.path.isdir(os.path.join(root, "service")) else []:
+    for bf in ("build.gradle.kts", "build.gradle"):
+        p = os.path.join(root, "service", d, bf)
+        if os.path.exists(p):
+            deps = []
+            for ln in open(p, encoding="utf-8"):
+                s = ln.split("//")[0]
+                for m in re.finditer(r'(\w+)\s*\(\s*(?:\w+\s*\(\s*)*project\(\s*"(:[\w-]+)"', s):
+                    deps.append((m.group(1), m.group(2).lstrip(":")))
+                for m in re.finditer(r'projects\.([\w.]+)', s): deps.append(("accessor", m.group(1)))
+            mods[d] = deps
+def tarjan(nodes, es):
+    g = collections.defaultdict(set)
+    for a, b in es:
+        if a != b: g[a].add(b)
+    idx, low, st, on, res, c = {}, {}, [], set(), [], [0]
+    sys.setrecursionlimit(100000)
+    def sc(v):
+        idx[v] = low[v] = c[0]; c[0] += 1; st.append(v); on.add(v)
+        for w in g[v]:
+            if w not in idx: sc(w); low[v] = min(low[v], low[w])
+            elif w in on: low[v] = min(low[v], idx[w])
+        if low[v] == idx[v]:
+            comp = []
+            while True:
+                w = st.pop(); on.discard(w); comp.append(w)
+                if w == v: break
+            if len(comp) > 1: res.append(sorted(comp))
+    for n in sorted(nodes):
+        if n not in idx: sc(n)
+    return sorted(res)
+PROD = {"api", "implementation", "compileOnly", "runtimeOnly", "compileOnlyApi", "annotationProcessor"}
+mod_edges_all = sorted({(m, d) for m, ds in mods.items() for _, d in ds})
+mod_edges_prod = sorted({(m, d) for m, ds in mods.items() for c, d in ds if c in PROD})
+# ---- source walk
+files = []  # (module, pkg, path, imports, text)
+for m in mods:
+    src = os.path.join(root, "service", m, "src", "main", "java")
+    for d, dn, fn in os.walk(src):
+        for f in fn:
+            if f.endswith(".java"):
+                p = os.path.join(d, f); t = open(p, encoding="utf-8", errors="replace").read()
+                pk = re.search(r'^\s*package\s+([\w.]+)\s*;', t, re.M)
+                imps = re.findall(r'^\s*import\s+(?:static\s+)?([\w.]+?)(?:\.\*)?\s*;', t, re.M)
+                files.append((m, pk.group(1) if pk else "", os.path.relpath(p, root), imps, t))
+def ring(pkg):
+    """(slice, ring) for a base package; ring = domain|application|infra.<x>|<other first segment>|''"""
+    if not (pkg + ".").startswith(BASE): return (None, None)
+    segs = pkg[len(BASE):].split(".")
+    sl = segs[0]; r = segs[1] if len(segs) > 1 else ""
+    if r == "infra" and len(segs) > 2: r = "infra." + segs[2]
+    return sl, r
+def imp_ring(imp):
+    """ring of an imported type name: strip the trailing Type (and nested/static member) segments heuristically = lowercase-leading segments"""
+    segs = imp.split("."); pk = []
+    for s in segs:
+        if s[:1].isupper(): break
+        pk.append(s)
+    return ring(".".join(pk)), ".".join(pk)
+slices = sorted({ring(pk)[0] for _, pk, *_ in files if ring(pk)[0]})
+pk_of_mod = collections.defaultdict(set)
+for m, pk, *_ in files: pk_of_mod[m].add(".".join(pk.split(".")[:4]))
+# ---- I1 package-ring cycles
+redges = set(); i2 = []; i3 = []; unknown = collections.Counter()
+JDK = ("java.", "javax.", "jdk.")
+for m, pk, path, imps, t in files:
+    sa, ra = ring(pk)
+    for imp in imps:
+        (sb, rb), ipk = imp_ring(imp)
+        if sb is None:
+            # I3: purity of kernel and domain rings
+            if sa == "kernel" and not imp.startswith(JDK): i3.append(("kernel_imports_non_jdk", path, imp))
+            elif ra == "domain" and not imp.startswith(JDK): i3.append(("domain_imports_external_library", path, imp))
+            if re.search(r'spec[-_]?kitty[-_]?cli|specify[-_]cli', imp, re.I): i3.append(("imports_core_cli", path, imp))
+            continue
+        if sb not in slices: unknown[sb] += 1
+        a, b = f"{sa}.{ra}", f"{sb}.{rb}"
+        if a != b: redges.add((a, b))
+        if sa == sb:
+            if ra == "domain" and rb in ("application",) or (ra == "domain" and rb.startswith("infra")): i3.append(("domain_imports_outer_ring_same_slice", path, imp))
+            if ra == "application" and rb.startswith("infra"): i3.append(("application_imports_infra_same_slice", path, imp))
+            continue
+        # cross-slice
+        if sa == "kernel": i3.append(("kernel_imports_slice", path, imp)); continue
+        if ra == "domain" and sb != "kernel": i3.append(("domain_imports_other_slice", path, imp))
+        if sb == "kernel": continue
+        if sa == "deployable": continue                      # composition root knows every slice
+        if sb == "deployable": i2.append(("names_composition_root", path, pk, imp)); continue
+        if sb not in slices: continue                        # generated contract or unknown; counted in unknown
+        if sb == "web":
+            if not ra.startswith("infra.api"): i2.append(("web_ring_named_outside_infra_api", path, pk, imp))
+            continue
+        if ra == "infra." + sb:
+            if rb not in ("application", "domain"): i2.append(("slice_adapter_reaches_other_slice_non_application_ring", path, pk, imp))
+            continue
+        if sa == "packs" and ra == "infra.storage" and sb in ("profiles", "missions", "routing") and rb == "domain": continue
+        if sa == "packvalidation":
+            if not (sb == "packs" and rb == "domain"): i2.append(("packvalidation_names_other_than_packs_domain", path, pk, imp))
+            continue
+        if sa == "packdoctor" and sb in ("packvalidation", "packs"): continue
+        i2.append(("cross_slice_outside_designated_adapter", path, pk, imp))
+rnodes = {f"{ring(pk)[0]}.{ring(pk)[1]}" for _, pk, *_ in files if ring(pk)[0]}
+rs = tarjan(rnodes, redges); mem = {n: i for i, c in enumerate(rs) for n in c}
+snodes = set(slices); sedges = {(a.split(".")[0], b.split(".")[0]) for a, b in redges if a.split(".")[0] != b.split(".")[0]}
+ss = tarjan(snodes, sedges)
+i1 = {"gradle_modules": sorted(mods), "module_edges_all_configurations": [f"{a} -> {b}" for a, b in mod_edges_all],
+      "module_edges_production_configurations": [f"{a} -> {b}" for a, b in mod_edges_prod],
+      "module_sccs_all": tarjan(set(mods), mod_edges_all), "module_sccs_production": tarjan(set(mods), mod_edges_prod),
+      "slice_nodes": len(snodes), "slice_edges": sorted(f"{a} -> {b}" for a, b in sedges), "slice_sccs": ss,
+      "ring_nodes": len(rnodes), "ring_edges": len(redges), "ring_sccs": rs,
+      "ring_cyclic_edges": sorted(f"{a} -> {b}" for a, b in redges if a in mem and mem.get(b) == mem[a])}
+json.dump(i1, open(os.path.join(out, "I1_cycles.json"), "w"), indent=1)
+for name, hdr, rows in (("I2_private_access.csv", ["rule", "file", "importer_package", "imported"], i2), ("I3_reverse_and_inward.csv", ["rule", "file", "imported"], i3)):
+    with open(os.path.join(out, name), "w", newline="") as f:
+        w = csv.writer(f); w.writerow(hdr); w.writerows(sorted(set(rows)))
+# ---- I4 CLI concern in kernel/domain (tier A) and application (tier B)
+CLI = re.compile(r'System\.(out|err|exit|console|in)\b|String\s*\[\]\s*args|String\.\.\.\s*args|\bpicocli\.|org\.apache\.commons\.cli|com\.beust\.jcommander|joptsimple|net\.sourceforge\.argparse4j')
+WRITE = re.compile(r'Files\.(write|writeString|newOutputStream|newBufferedWriter|move|delete|deleteIfExists|copy|createFile|createDirectories|createDirectory|createTempFile|createTempDirectory|setPosixFilePermissions|createSymbolicLink|createLink)\b|\bFileOutputStream\b|\bFileWriter\b|\bRandomAccessFile\b|FileChannel\.open|\bPrintWriter\b')
+i4 = []; i5 = []; pop = collections.Counter()
+for m, pk, path, imps, t in files:
+    sa, ra = ring(pk)
+    code = re.sub(r'/\*.*?\*/', '', t, flags=re.S); code = re.sub(r'//[^\n]*', '', code)
+    tier = "A_kernel_or_domain" if (sa == "kernel" or ra == "domain") else ("B_application" if ra == "application" else ("cli_module" if sa == "packdoctor" else "other"))
+    pop[tier] += 1
+    for h in CLI.finditer(code): i4.append((tier, m, pk, path, h.group(0)))
+    n = len(WRITE.findall(code))
+    if n:
+        cls = "storage_or_outbound_adapter" if ra in ("infra.storage", "infra.fetch", "infra.archive") else ("cli_module_packdoctor" if sa == "packdoctor" else ("composition_root" if sa == "deployable" or m == "deployable" else "outside_storage_rings"))
+        i5.append((cls, m, f"{sa}.{ra}", path, n))
+with open(os.path.join(out, "I4_cli_in_domain.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["tier", "module", "package", "file", "match"]); w.writerows(sorted(i4))
+with open(os.path.join(out, "I5_file_writes.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["class", "module", "slice.ring", "file", "write_primitive_occurrences"]); w.writerows(sorted(i5))
+summ = {"repo_root": root, "main_java_files": len(files), "modules_with_main_sources": len({f[0] for f in files}), "slices_seen": slices,
+  "module_top_packages": {m: sorted(v) for m, v in sorted(pk_of_mod.items())}, "unknown_base_targets": dict(unknown),
+  "I1": {k: (len(v) if isinstance(v, list) and (k.endswith("edges") or k.endswith("configurations")) else v) for k, v in i1.items() if k not in ("gradle_modules",)},
+  "I2": {"violations_distinct": len(set(i2)), "by_rule": dict(collections.Counter(r[0] for r in set(i2))), "distinct_files": len({r[1] for r in i2}),
+         "by_rule_importer_ring": dict(collections.Counter(f"{r[0]}|{'.'.join(r[2][len(BASE):].split('.')[:3])}" for r in set(i2)))},
+  "I3": {"violations_distinct": len(set(i3)), "by_rule": dict(collections.Counter(r[0] for r in set(i3))), "distinct_files": len({r[1] for r in i3}),
+         "external_libs_in_domain": dict(collections.Counter(".".join(r[2].split(".")[:3]) for r in set(i3) if r[0] in ("domain_imports_external_library", "kernel_imports_non_jdk")))},
+  "I4": {"file_population_by_tier": dict(pop), "matches_by_tier": dict(collections.Counter(r[0] for r in i4)), "distinct_files_by_tier": {t: len({r[3] for r in i4 if r[0] == t}) for t in {r[0] for r in i4}},
+         "matches_by_tier_token": dict(collections.Counter(f"{r[0]}|{r[4]}" for r in i4))},
+  "I5": {"files_with_write_primitives_by_class": dict(collections.Counter(r[0] for r in i5)), "outside_by_ring": dict(collections.Counter(r[2] for r in i5 if r[0] == "outside_storage_rings"))}}
+json.dump(summ, open(os.path.join(out, "summary.json"), "w"), indent=1); print(json.dumps(summ, indent=1))

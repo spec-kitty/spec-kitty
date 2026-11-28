@@ -1,0 +1,158 @@
+{
+ "L1_top_package|all_imports": {
+  "baseline_rc8": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "head": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "cyclic_edges_baseline": 5,
+  "cyclic_edges_head": 5,
+  "new_cyclic_edges": [],
+  "removed_cyclic_edges_count": 0,
+  "components_newly_in_a_cycle": [],
+  "components_no_longer_in_a_cycle": [],
+  "head_sccs_small": [
+   [
+    "mission_runtime",
+    "runtime",
+    "specify_cli"
+   ]
+  ]
+ },
+ "L1_top_package|module_level_runtime": {
+  "baseline_rc8": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "head": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "cyclic_edges_baseline": 5,
+  "cyclic_edges_head": 5,
+  "new_cyclic_edges": [],
+  "removed_cyclic_edges_count": 0,
+  "components_newly_in_a_cycle": [],
+  "components_no_longer_in_a_cycle": [],
+  "head_sccs_small": [
+   [
+    "mission_runtime",
+    "runtime",
+    "specify_cli"
+   ]
+  ]
+ },
+ "L2_second_level|all_imports": {
+  "baseline_rc8": {
+   "components": 189,
+   "edges": 1243,
+   "scc_count": 3,
+   "scc_sizes": [
+    2,
+    4,
+    85
+   ]
+  },
+  "head": {
+   "components": 191,
+   "edges": 1280,
+   "scc_count": 3,
+   "scc_sizes": [
+    2,
+    4,
+    86
+   ]
+  },
+  "cyclic_edges_baseline": 626,
+  "cyclic_edges_head": 642,
+  "new_cyclic_edges": [
+   "runtime.next -> specify_cli.mission_v1",
+   "specify_cli.cli -> specify_cli.analysis_inputs",
+   "specify_cli.cli -> specify_cli.mission_v1",
+   "specify_cli.config -> specify_cli.cli",
+   "specify_cli.consolidation -> specify_cli.invocation",
+   "specify_cli.coordination -> specify_cli.invocation",
+   "specify_cli.mission_v1 -> mission_runtime.__init__",
+   "specify_cli.mission_v1 -> runtime.next",
+   "specify_cli.mission_v1 -> specify_cli.core",
+   "specify_cli.mission_v1 -> specify_cli.git",
+   "specify_cli.missions -> specify_cli.consolidation",
+   "specify_cli.orchestrator_api -> specify_cli.mission_v1",
+   "specify_cli.review -> specify_cli.lanes",
+   "specify_cli.review -> specify_cli.ownership",
+   "specify_cli.review -> specify_cli.requirement_mapping",
+   "specify_cli.review -> specify_cli.workspace"
+  ],
+  "removed_cyclic_edges_count": 0,
+  "components_newly_in_a_cycle": [
+   "specify_cli.mission_v1"
+  ],
+  "components_no_longer_in_a_cycle": [],
+  "head_sccs_small": [
+   [
+    "charter.activation",
+    "charter.bundle"
+   ],
+   [
+    "glossary.checkpoint",
+    "glossary.events",
+    "glossary.scope",
+    "glossary.seed_validation"
+   ]
+  ]
+ },
+ "L2_second_level|module_level_runtime": {
+  "baseline_rc8": {
+   "components": 189,
+   "edges": 942,
+   "scc_count": 1,
+   "scc_sizes": [
+    65
+   ]
+  },
+  "head": {
+   "components": 191,
+   "edges": 971,
+   "scc_count": 1,
+   "scc_sizes": [
+    65
+   ]
+  },
+  "cyclic_edges_baseline": 338,
+  "cyclic_edges_head": 347,
+  "new_cyclic_edges": [
+   "specify_cli.consolidation -> specify_cli.invocation",
+   "specify_cli.consolidation -> specify_cli.ownership",
+   "specify_cli.missions -> specify_cli.consolidation",
+   "specify_cli.missions -> specify_cli.coordination",
+   "specify_cli.review -> specify_cli.lanes",
+   "specify_cli.review -> specify_cli.ownership",
+   "specify_cli.review -> specify_cli.workspace",
+   "specify_cli.session_presence -> specify_cli.identity",
+   "specify_cli.upgrade -> specify_cli.session_presence"
+  ],
+  "removed_cyclic_edges_count": 0,
+  "components_newly_in_a_cycle": [],
+  "components_no_longer_in_a_cycle": [],
+  "head_sccs_small": []
+ }
+}

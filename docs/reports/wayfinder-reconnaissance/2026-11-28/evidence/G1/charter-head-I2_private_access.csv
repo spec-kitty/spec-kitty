@@ -1,0 +1,7 @@
+rule,file,importer_package,imported
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.Grade
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.ModelCost
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.ModelEntry
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.RoutingCatalog
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.RoutingPolicy
+cross_slice_outside_designated_adapter,service/artifacts-edge/src/main/java/ai/speckitty/charter/artifacts/infra/packs/PacksRoutingCatalogs.java,ai.speckitty.charter.artifacts.infra.packs,ai.speckitty.charter.routing.domain.RoutingWeights

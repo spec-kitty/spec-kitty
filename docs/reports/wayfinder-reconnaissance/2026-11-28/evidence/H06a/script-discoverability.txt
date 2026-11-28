@@ -1,0 +1,33 @@
+# Computes discoverability-measures.csv from answers-run1.csv, answers-run2.csv and search-log-run1.txt.
+# Run: python3 -I script-discoverability.txt  (from evidence/H06a)
+import csv,statistics,collections
+a1=list(csv.DictReader(open("answers-run1.csv")))
+a2={r["question"]:r for r in csv.DictReader(open("answers-run2.csv"))}
+kind={1:"charter",2:"ADR",3:"architecture",4:"ADR",5:"README",6:"ADR",7:"ADR",8:"charter",9:"api-reference",10:"api-reference",11:"architecture",12:"development-reference",13:"charter",14:"architecture",15:"ADR",16:"ADR",17:"architecture",18:"ADR",19:"how-to",20:"plan"}
+# differing source that is itself a charter, ADR or architecture/decision document (analyst classification, see workstream report)
+decdiff={1,2,4,5,6,7,8,11,12,14,15,17,18,20}
+reads=collections.Counter()
+for line in open("search-log-run1.txt"):
+    p=line.rstrip("\n").split("\t")
+    if len(p)>=3 and p[1] in ("read","read+grep"):
+        reads[p[0]]+=len([x for x in p[2].split(";") if x.strip()])
+rows=[]
+for r in a1:
+    q=int(r["question"]); diff=r["other_sources_different"]
+    nodiff=diff.startswith("No contradicting") or diff.startswith("No direct")
+    ndiff=0 if nodiff else len([x for x in diff.split(";") if x.strip()])
+    rows.append(dict(question=q,searches_run1=int(r["searches"]),targeted_reads_run1=reads["Q%d"%q],
+      authority_repository=r["authoritative_source"].split("/")[0],authority_kind=kind[q],
+      differing_sources_cited=ndiff,differing_decision_document=q in decdiff,confidence_run1=r["confidence"],
+      run2_change=a2[str(q)]["change_type"] if str(q) in a2 else "none"))
+w=csv.DictWriter(open("discoverability-measures.csv","w",newline=""),fieldnames=list(rows[0]))
+w.writeheader(); [w.writerow(x) for x in rows]
+s=[x["searches_run1"] for x in rows]
+print("questions",len(rows),"searches_total",sum(s),"mean",round(statistics.mean(s),2),"median",statistics.median(s),"max",max(s))
+print("targeted_reads_total",sum(x["targeted_reads_run1"] for x in rows))
+print("with_any_differing_source",sum(1 for x in rows if x["differing_sources_cited"]>0))
+print("with_differing_decision_document",sum(1 for x in rows if x["differing_decision_document"]))
+print("confidence",collections.Counter(x["confidence_run1"] for x in rows))
+print("authority_kind",collections.Counter(x["authority_kind"] for x in rows))
+print("authority_repository",collections.Counter(x["authority_repository"] for x in rows))
+print("run2",collections.Counter(x["run2_change"] for x in rows))

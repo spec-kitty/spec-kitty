@@ -1,0 +1,16 @@
+tier,module,package,file,match
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/Arguments.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/Arguments.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/Arguments.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,String[] args
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,System.err
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,System.exit
+cli_module,pack-doctor,ai.speckitty.charter.packdoctor,service/pack-doctor/src/main/java/ai/speckitty/charter/packdoctor/PackDoctorMain.java,System.out
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,String[] args
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,String[] args
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,System.err
+other,deployable,ai.speckitty.charter.deployable,service/deployable/src/main/java/ai/speckitty/charter/deployable/CharterServiceApplication.java,System.exit

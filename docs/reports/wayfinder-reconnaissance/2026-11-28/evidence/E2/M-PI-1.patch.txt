@@ -1,0 +1,22 @@
+diff --git a/src/specify_cli/status/reducer.py b/src/specify_cli/status/reducer.py
+index 7a1a19e36b..5d300c47fc 100644
+--- a/src/specify_cli/status/reducer.py
++++ b/src/specify_cli/status/reducer.py
+@@ -14,7 +14,7 @@ from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Any, cast
+ 
+-from spec_kitty_events.diary import State, reduce_parsed
++from spec_kitty_events.diary import State, _is_rollback_event, reduce_parsed
+ from spec_kitty_events.status import reduce as reduce_shared_state
+ 
+ from kernel.atomic import notify_written
+@@ -447,3 +447,8 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
+         notify_written(out_path, json_str.encode("utf-8"))
+ 
+     return snapshot
++
++
++def is_rollback_event(event: Any) -> bool:
++    """Whether *event* is a review rollback, as the shared reducer classifies it."""
++    return bool(_is_rollback_event(event))

@@ -1,0 +1,8 @@
+questions 20 searches_total 41 mean 2.05 median 2.0 max 4
+targeted_reads_total 51
+with_any_differing_source 15
+with_differing_decision_document 14
+confidence Counter({'medium': 10, 'high': 8, 'low': 2})
+authority_kind Counter({'ADR': 7, 'architecture': 4, 'charter': 3, 'api-reference': 2, 'README': 1, 'development-reference': 1, 'how-to': 1, 'plan': 1})
+authority_repository Counter({'spec-kitty': 19, 'spec-kitty-events': 1})
+run2 Counter({'none': 8, 'changed': 5, 'gained contradicting source': 2, 'gained authority claim': 1, 'gained qualifying sources': 1, 'gained contradicting wording': 1, 'changed (partly answerable)': 1, 'gained sources': 1})

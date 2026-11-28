@@ -1,0 +1,10 @@
+uv run --frozen python scripts/sync_packs.py --pack all
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Using CPython 3.11.15
+Creating virtual environment at: .venv
+   Building spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core-clone
+      Built spec-kitty-cli @ file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core-clone
+Installed 63 packages in 308ms
+built-in: synced a79c36318b7a
+internal: synced ecda7b00c789
+sync_packs_exit=0 seconds=5

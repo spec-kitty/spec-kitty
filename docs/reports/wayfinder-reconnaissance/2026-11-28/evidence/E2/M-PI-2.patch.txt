@@ -1,0 +1,25 @@
+diff --git a/src/specify_cli/charter_activate.py b/src/specify_cli/charter_activate.py
+index 86c71fd4de..fe868f4d8c 100644
+--- a/src/specify_cli/charter_activate.py
++++ b/src/specify_cli/charter_activate.py
+@@ -24,6 +24,7 @@ from pathlib import Path
+ 
+ from rich.console import Console
+ 
++from charter.activation._io import load_charter_file
+ from specify_cli.mission_metadata import load_meta_or_empty
+ 
+ __all__ = [
+@@ -34,6 +35,12 @@ __all__ = [
+     "emit_step_removal_warnings",
+ ]
+ 
++
++def read_charter_text(charter_path: Path) -> str:
++    """Return the decoded text of the charter file at *charter_path*."""
++    return load_charter_file(charter_path).text
++
++
+ # ---------------------------------------------------------------------------
+ # Lanes that correspond to "in-flight" status (non-terminal, active work)
+ # ---------------------------------------------------------------------------

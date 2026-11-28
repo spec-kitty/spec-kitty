@@ -1,0 +1,15 @@
+file,sha256,produced_by_command,revision,tool_versions,exit_code,observed_at_utc
+answers-run1.csv,4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252,python3 script-write-answers-run1.txt answers-run1.csv (after searches in search-log-run1.txt),5c4fc5a79d (core) and head revisions of 4 sibling repos,Python 3.13; GNU grep 3.11,0,2026-11-28T09:20:00Z
+answers-run2.csv,8f65e6eaf4cbed9e2852e094ad2d6574ab07a289b3b22d120288beaef7c61fc5,python3 script-write-answers-run2.txt answers-run2.csv (after searches in search-log-run2.txt),head revisions of 5 primary repos,Python 3.13; GNU grep 3.11,0,2026-11-28T09:20:00Z
+charter-context-specify-summary.json,42e6c59eba75ff7b6d0f32ee915429e3f92327c0dc3d4462061431798569f846,"spec-kitty charter context --action specify --json (summarised; full output sha256 17b21279990a01958d4bcf4b674e22f86e5b2b0644297560f452c4e1f7fc0a8a, 41315 bytes, kept in scratch)",core working tree,spec-kitty-cli 4.0.0rc9; Python 3.13,0,2026-11-28T09:20:00Z
+corpus-inventory.csv,2481caf6996da3f11c0f4c088dc599fc6c2d48db9323d724cb065600b99ab042,git ls-tree -r --name-only <rev> filtered to allowed paths (run1/run2),head revisions of 5 primary repos,git; Python 3.13,0,2026-11-28T09:20:00Z
+discoverability-measures.csv,8a6f5717d89b649a6b98e6640361fd22673732e32d22b9d8a41e67405be61fbb,python3 -I script-discoverability.txt,derived,Python 3.13,0,2026-11-28T09:20:00Z
+discoverability-summary.txt,2812b4f071117692e8eca4d716e4e67a54cbefacf7272aaf2591c3f60de25021,python3 -I script-discoverability.txt > discoverability-summary.txt,derived,Python 3.13,0,2026-11-28T09:20:00Z
+profile-researcher-robbie.txt,b5003dc00a4851a1e466776366a196443984de732a07f885401bbda18226f404,spec-kitty agent profile show researcher-robbie,core working tree CLI (editable install),spec-kitty-cli 4.0.0rc9,0,2026-11-28T09:20:00Z
+run1-closure.txt,933ef9de41e979cc6cd6d20848464925da2711744819055ef2bdcfa644608ad7,date -u; sha256sum answers-run1.csv (pre-scrub),n/a,coreutils,0,2026-11-28T09:20:00Z
+script-discoverability.txt,57d56210b8725f0572ec61787dd900eaec1ec7907048964b94e328301160b657,authored script,n/a,Python 3.13,0,2026-11-28T09:20:00Z
+script-search-wrapper.txt,f9feb247f3c98a28e7dbd0373efc7f91a5b965f8d257201887f6648769fb35b2,authored script,n/a,bash,0,2026-11-28T09:20:00Z
+script-write-answers-run1.txt,27d430c8b710eed452206f49bb5068255770aafd91486484fbb859396b3077a4,authored script,n/a,Python 3.13,0,2026-11-28T09:20:00Z
+script-write-answers-run2.txt,7479bf6156fd308f541606b74db0babc9dfb5fe3ef9e980e127f7e3dc2dc2eb3,authored script,n/a,Python 3.13,0,2026-11-28T09:20:00Z
+search-log-run1.txt,445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad,script-search-wrapper.txt per question over run-1 corpus,head revisions of 5 primary repos,GNU grep 3.11; bash,0,2026-11-28T09:20:00Z
+search-log-run2.txt,8fb6b094d7faaa961c71c97994272f2fa9dba59daf3e68fc0591f3b8561dca91,script-search-wrapper.txt per question over run-2 corpus,head revisions of 5 primary repos,GNU grep 3.11; bash,0,2026-11-28T09:20:00Z

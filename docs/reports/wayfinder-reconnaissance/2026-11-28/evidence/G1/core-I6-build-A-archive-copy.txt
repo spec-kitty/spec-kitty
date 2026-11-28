@@ -1,0 +1,69 @@
+uv 0.11.32 (x86_64-unknown-linux-gnu)
+Python 3.13.18
+== step1 build wheel
+Building wheel...
+Traceback (most recent call last):
+  File "<string>", line 11, in <module>
+  File "/root/.cache/uv/builds-v0/.tmp4h1E8q/lib/python3.11/site-packages/hatchling/build.py", line 58, in build_wheel
+    return os.path.basename(next(builder.build(directory=wheel_directory, versions=["standard"])))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.cache/uv/builds-v0/.tmp4h1E8q/lib/python3.11/site-packages/hatchling/builders/plugin/interface.py", line 149, in build
+    build_hook.initialize(version, build_data)
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core/hatch_build.py", line 92, in initialize
+    ensure_built_in_tree(root)
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core/hatch_build.py", line 73, in ensure_built_in_tree
+    raise pack_fetch.PackSyncError(
+charter.offering.packs.pack_fetch.PackSyncError: PACK_TREE_STALE: packs/built-in is missing or does not match the digest pinned in packs/built-in.source.yaml; an sdist build verifies only and never fetches; rebuild from a git checkout after `make sync-packs`
+error: Failed to build `/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core`
+  Caused by: The build backend returned an error
+  Caused by: Call to `hatchling.build.build_wheel` failed (exit status: 1)
+
+hint: Build failures usually indicate a problem with the package or the build environment
+build_exit=2 build_seconds=2
+total 12
+drwxr-xr-x 2 root root 4096 Nov 28 09:07 .
+drwxr-xr-x 3 root root 4096 Nov 28 09:07 ..
+-rw-r--r-- 1 root root    1 Nov 28 09:07 .gitignore
+== step1b sibling-source references in build output dir listing of packs:
+README.md
+built-in.source.yaml
+internal.source.yaml
+== step2 install in fresh venv
+error: The wheel filename "*.whl" is invalid: Must have a version
+install_exit=2
+== step3 smoke (cwd=/, no source tree on path)
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/scripts/i6_core.sh: line 10: /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/i6core/venv/bin/spec-kitty: No such file or directory
+version_exit=127
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import kernel, charter, glossary, runtime, mission_runtime, specify_cli, spec_kitty_events, spec_kitty_tracker; print('import ok', specify_cli.__file__)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'kernel'
+import_exit=1
+== step3b installed external contract packages do not require core:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/importlib/metadata/__init__.py", line 407, in from_name
+    return next(iter(cls.discover(name=name)))
+StopIteration
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    print(d, m.version(d), [r for r in (m.requires(d) or []) if 'spec-kitty' in r or 'specify' in r])
+             ~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/importlib/metadata/__init__.py", line 987, in version
+    return distribution(distribution_name).version
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/importlib/metadata/__init__.py", line 960, in distribution
+    return Distribution.from_name(distribution_name)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/importlib/metadata/__init__.py", line 409, in from_name
+    raise PackageNotFoundError(name)
+importlib.metadata.PackageNotFoundError: No package metadata was found for spec-kitty-events
+== step3c any path into sibling checkouts recorded in the installed dist:
+0
+
+real	0m1.824s
+user	0m0.820s
+sys	0m0.147s

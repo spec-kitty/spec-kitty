@@ -1,0 +1,27 @@
+diff --git a/src/specify_cli/upgrade/finalize.py b/src/specify_cli/upgrade/finalize.py
+index 335e54fa47..0019310789 100644
+--- a/src/specify_cli/upgrade/finalize.py
++++ b/src/specify_cli/upgrade/finalize.py
+@@ -18,9 +18,12 @@ branch on which case it received.
+ 
+ from __future__ import annotations
+ 
++import json
+ from collections.abc import Callable, Sequence
+ from contextlib import AbstractContextManager, nullcontext
++from pathlib import Path
+ 
++from .ledger import TRACKED_LEDGER_RELPATH
+ from .outcome import MergeDriverConfigState, MissionStateReportOutcome, SurfaceRepairReport, UpgradeOutcome
+ 
+ 
+@@ -99,3 +102,9 @@ def _run_report_isolated(report_mission_state: Callable[[], MissionStateReportOu
+         return report_mission_state()
+     except Exception as exc:  # noqa: BLE001 - isolation boundary: repair must not crash the upgrade tail
+         return MissionStateReportOutcome(failed=True, message=f"Mission-state report boundary raised: {exc}", surface_message=True)
++
++
++def mark_migration_settled(project_root: Path, migration_id: str) -> None:
++    """Record *migration_id* as applied, so the upgrade tail does not select it again."""
++    with (project_root / TRACKED_LEDGER_RELPATH).open("a", encoding="utf-8") as ledger:
++        ledger.write(json.dumps({"id": migration_id, "result": "success"}, sort_keys=True) + "\n")

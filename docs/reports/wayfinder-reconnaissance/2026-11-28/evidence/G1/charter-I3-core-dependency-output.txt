@@ -1,0 +1,6 @@
+== gradle metadata mentions (build files, version catalog, verification metadata):
+gradle_metadata_hits=0
+== main Java sources naming the core CLI distribution or its Python packages (fixed pattern):
+main_source_files_with_hits=0 of 1039 main files
+== main Java sources starting a 'spec-kitty' process (fixed pattern "spec-kitty" as a string literal):
+0

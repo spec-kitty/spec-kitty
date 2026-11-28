@@ -1,0 +1,13 @@
+== spec-kitty-events 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+-- pyproject mentions of core distribution:
+(none)
+-- python imports of core packages under src/ (count, files):
+0
+-- python files under src/: 71
+== spec-kitty-tracker 658abee7b33ed2d14003c08fdbec4ffea2f45223
+-- pyproject mentions of core distribution:
+(none)
+-- python imports of core packages under src/ (count, files):
+0
+-- python files under src/: 41
+== locked installed spec-kitty-events/tracker wheels (uv.lock versions) are checked in I6 venv step

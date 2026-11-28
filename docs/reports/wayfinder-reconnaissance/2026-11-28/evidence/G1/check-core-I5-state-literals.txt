@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""G1 I5 (core): state-file literals outside the documented owning package.
+Owners and file names come from published docs only (CLAUDE.md/AGENTS.md sections 'Status Model Patterns',
+'Activation Ledger', 'Migration Ledger Model', 'Shared Package Boundary', pyproject comments).
+usage: i5_core.py <src_root> <out_csv>"""
+import os, re, sys, csv, json, collections
+root, out = sys.argv[1], sys.argv[2]
+STATES = {  # state -> (literal regex, owner path prefixes)
+ "status_event_log": (r"status\.events\.jsonl", ["specify_cli/status/"]),
+ "activation_record": (r"activation\.yaml", ["charter/activation/"]),
+ "migration_record": (r"migration-ledger\.jsonl|clone-local\.jsonl", ["specify_cli/upgrade/"]),
+ "pins": (r"\.source\.yaml", ["charter/offering/packs/", "specify_cli/services/"]),
+}
+WRITE = re.compile(r"\.write_text\(|\.write_bytes\(|\bopen\([^)\n]*['\"][wax]b?\+?['\"]|os\.replace\(|os\.rename\(|\.unlink\(|shutil\.(move|copy|rmtree)|atomic_write|\.touch\(|\.rename\(|\.replace\(\s*[A-Za-z_]+[^,)]*\)\s*$", re.M)
+rows = []; summ = {}
+files = []
+for d, dn, fn in os.walk(root):
+    dn[:] = [x for x in dn if x != "__pycache__"]
+    for f in fn:
+        if f.endswith(".py"): files.append(os.path.join(d, f))
+for st, (pat, owners) in STATES.items():
+    rx = re.compile(pat); c = collections.Counter()
+    for p in sorted(files):
+        rel = os.path.relpath(p, root).replace(os.sep, "/")
+        if rel.split("/")[0] not in ("kernel", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"): continue
+        txt = open(p, encoding="utf-8", errors="replace").read()
+        n = len(rx.findall(txt))
+        if not n: continue
+        own = any(rel.startswith(o) for o in owners)
+        w = len(WRITE.findall(txt))
+        cls = "owner" if own else ("outside_owner_literal_and_write_primitive_in_file" if w else "outside_owner_literal_only")
+        c[cls] += 1
+        rows.append((st, cls, rel, n, w))
+    summ[st] = dict(c)
+with open(out, "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["state", "class", "file", "literal_occurrences", "write_primitive_occurrences_in_file"]); w.writerows(rows)
+summ["python_files_scanned"] = len(files)
+print(json.dumps(summ, indent=1))

@@ -1,0 +1,66 @@
+finding_id: F-H06a-017
+workstream: H06a answering twenty questions from documentation
+hypotheses: []
+classification: observation
+view: recorded-intent
+prereg:
+  measure: H06a-Q17
+  deviation: "Run-1 independence limit: the session harness placed spec-kitty CLAUDE.md and spec-kitty-events CLAUDE.md in the analyst's context before run 1 (not opened as files); run-1 answers cite only run-1 sources. Scope reading: 'site content' taken as site/**/*.md|mdx; README files under src/ and tests/ included. See workstream report."
+subject:
+  component: "profile and model routing"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "Q17 (What decides which tool and model carry out a work package, and where is that recorded?) Run-1 documentation (2,051 files across five repositories at head) answers: Partly answered. The documentation describes a model-task routing catalog in the charter offering whose evaluate step returns advisory candidates (catalog pick and the profile's preferred_model), and a charter rule to match model strength to the task; the actual profile and model are recorded on each status event, taken from the dispatch invocation, then --profile, then the compact --agent/--actor value, else null. The documentation does not state which component decides the tool (agent harness) for a work package. Analyst-chosen authority: spec-kitty/docs/architecture/status-model.md:524-528. Concurring sources cited: 4; differing sources cited: 2. Run-1 searches: 4."
+evidence:
+  - id: E1
+    kind: document-claim
+    reference: "spec-kitty/docs/architecture/status-model.md:524-528 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+    method: "git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:<path> | sed -n '<lines>p'"
+    sha256: null
+    exit_code: 0
+    environment: "GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)"
+    observed_at: "2026-11-28T09:20:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/H06a/answers-run1.csv"
+    method: "grep searches logged in evidence/H06a/search-log-run1.txt over the run-1 corpus listed in evidence/H06a/corpus-inventory.csv; answers written by script-write-answers-run1.txt"
+    sha256: "4ad3a197aa3c340a35a845afa888a4d3df1cf9393f618aec4a0ab341596c2252"
+    exit_code: 0
+    environment: "GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)"
+    observed_at: "2026-11-28T09:20:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/H06a/search-log-run1.txt"
+    method: "script-search-wrapper.txt (grep -rniE) per question"
+    sha256: "445b1da3d26bd2d4a1cbd50a15f35dcfbe062ce2434263f4546b173adaeb33ad"
+    exit_code: 0
+    environment: "GNU grep 3.11; Python 3.13; git archive at head revisions; spec-kitty-cli 4.0.0rc9 (profile load only)"
+    observed_at: "2026-11-28T09:20:00Z"
+scope:
+  covered: "Run-1 allowed documentation of spec-kitty, spec-kitty-charter, spec-kitty-events, spec-kitty-open-packs, doc-kitty at head; run-2 agent-guidance files for the delta."
+  not_covered: "Source code, tests, build and workflow files, kitty-specs/, changelogs, supplementary repositories, historical revisions; whether the documentation is correct."
+  population: "2,051 run-1 corpus files (evidence/H06a/corpus-inventory.csv)"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: 
+  - "spec-kitty-charter/docs/context/user-journeys/08-resolve-a-step.md:107 (profile comes from the work package's agent_profile frontmatter) versus spec-kitty/docs/architecture/status-model.md:527-528 (planned agent_profile in frontmatter is not copied in)"
+  - "spec-kitty/docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md:212 (agent_profile moves from frontmatter-canonical to event-log authoritative)"
+disconfirmation:
+  search: "Searched the whole run-1 corpus (all five repositories) for alternative wordings and for statements in sibling repositories and older ADRs that answer the question differently; see search-log-run1.txt entries for Q17."
+  result: "Differing sources found: 2 (listed in counterevidence)."
+relations: []
+confidence: low
+analyst:
+  profile: researcher-robbie
+  model: opus
+verification:
+  status: unverified
+  by: null
+quality_attributes: [discoverability, consistency]
+candidate_invariants: []
+open_questions: 
+  - "Run 2 (agent-guidance files allowed): changed (partly answerable): Becomes more answerable: the agent guide names two governed decisions, dispatch/profile routing (invocation/router.py) and model/task routing (src/charter/offering/model_task_routing/), and the charter section on model routing. Where the executed profile and model are recorded is unchanged (status event keys). The decider of the tool harness is still not stated. Sources: spec-kitty/AGENTS.md (CLAUDE.md is a symlink to it):19,119. Differing: None new."
+  - "Correctness against code is not assessed here (assigned to another workstream)."

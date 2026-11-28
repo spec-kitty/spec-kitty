@@ -1,0 +1,21 @@
+diff --git a/src/charter/hasher.py b/src/charter/hasher.py
+index 67adb210c6..36611a4fdf 100644
+--- a/src/charter/hasher.py
++++ b/src/charter/hasher.py
+@@ -6,6 +6,7 @@ from pathlib import Path
+ from ruamel.yaml import YAML
+ 
+ from kernel.text_decode import normalize_newlines
++from specify_cli.core.constants import KITTIFY_DIR
+ 
+ __all__ = [
+     "hash_content",
+@@ -86,3 +87,8 @@ def is_stale(charter_path: Path | None, metadata_path: Path, content: str | None
+     stored_hash = metadata.get("charter_hash", "") if metadata else ""
+ 
+     return current_hash != stored_hash, current_hash, stored_hash
++
++
++def default_metadata_path(repo_root: Path) -> Path:
++    """Return the charter metadata file of the project at *repo_root*."""
++    return repo_root / KITTIFY_DIR / "charter" / "metadata.yaml"

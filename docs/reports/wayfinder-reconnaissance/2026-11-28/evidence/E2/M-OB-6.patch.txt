@@ -1,0 +1,13 @@
+diff --git a/src/specify_cli/policy/audit.py b/src/specify_cli/policy/audit.py
+index 2ee110d8bf..cebf0ac892 100644
+--- a/src/specify_cli/policy/audit.py
++++ b/src/specify_cli/policy/audit.py
+@@ -138,3 +138,8 @@ def read_audit_events(feature_dir: Path) -> list[PolicyAuditEvent]:
+     if not audit_path.exists():
+         return []
+     return read_guarded(audit_path, _parse_audit_lines, errors=(_MalformedAuditLine,), error_cls=PolicyAuditReadError)
++
++
++def mirror_audit_event_to_status_log(feature_dir: Path, event: PolicyAuditEvent) -> None:
++    """Also record a policy audit event in the Mission's status log, for readers of that one file."""
++    append_event_log_lines(feature_dir / "status.events.jsonl", [event.to_json_line()])

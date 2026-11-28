@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# G1 I6 (core): build the wheel from a git-archive copy of head, install into a fresh venv, smoke it, run named check files.
+# Inputs: pyproject.toml (build-system, scripts, extras), README install instructions, names of gates cited in public docs.
+set -u; C=$1; W=$2
+cd $C; uv --version; python3 --version
+echo "== step1 build wheel"; T0=$(date +%s); uv build --wheel --out-dir $W/dist . ; echo "build_exit=$? build_seconds=$(( $(date +%s)-T0 ))"
+ls -la $W/dist
+echo "== step1b sibling-source references in build output dir listing of packs:"; ls $C/packs 2>/dev/null
+echo "== step2 install in fresh venv"; uv venv -q $W/venv --python 3.13; uv pip install -q --python $W/venv/bin/python $W/dist/*.whl; echo "install_exit=$?"
+echo "== step3 smoke (cwd=/, no source tree on path)"; cd /; $W/venv/bin/spec-kitty --version; echo "version_exit=$?"
+$W/venv/bin/python -I -c "import kernel, charter, glossary, runtime, mission_runtime, specify_cli, spec_kitty_events, spec_kitty_tracker; print('import ok', specify_cli.__file__)"; echo "import_exit=$?"
+echo "== step3b installed external contract packages do not require core:"; $W/venv/bin/python -I -c "
+import importlib.metadata as m
+for d in ('spec-kitty-events','spec-kitty-tracker'):
+    print(d, m.version(d), [r for r in (m.requires(d) or []) if 'spec-kitty' in r or 'specify' in r])"
+echo "== step3c any path into sibling checkouts recorded in the installed dist:"; grep -rl "/home/user/spec-kitty-" $W/venv/lib/python3.13/site-packages/spec_kitty_cli-*.dist-info 2>/dev/null | wc -l

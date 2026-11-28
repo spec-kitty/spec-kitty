@@ -1,0 +1,17 @@
+class,module,slice.ring,file,write_primitive_occurrences
+outside_storage_rings,pack-check,packcheck.,service/pack-check/src/main/java/ai/speckitty/charter/packcheck/PackCheckMain.java,3
+outside_storage_rings,packs,packs.application,service/packs/src/main/java/ai/speckitty/charter/packs/application/OwnerOnly.java,8
+storage_or_outbound_adapter,activations,activations.infra.storage,service/activations/src/main/java/ai/speckitty/charter/activations/infra/storage/FileActivationRepository.java,8
+storage_or_outbound_adapter,packs,packs.infra.archive,service/packs/src/main/java/ai/speckitty/charter/packs/infra/archive/PackTree.java,2
+storage_or_outbound_adapter,packs,packs.infra.archive,service/packs/src/main/java/ai/speckitty/charter/packs/infra/archive/ZipReader.java,3
+storage_or_outbound_adapter,packs,packs.infra.fetch,service/packs/src/main/java/ai/speckitty/charter/packs/infra/fetch/LocalSourceReader.java,1
+storage_or_outbound_adapter,packs,packs.infra.fetch,service/packs/src/main/java/ai/speckitty/charter/packs/infra/fetch/git/GitSourceFetcher.java,2
+storage_or_outbound_adapter,packs,packs.infra.fetch,service/packs/src/main/java/ai/speckitty/charter/packs/infra/fetch/git/GitVersionCheck.java,1
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/DomainRoundTrip.java,3
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/FileStagingArea.java,1
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/FilesystemPackStore.java,6
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/ManifestMembership.java,1
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/PackCommitStore.java,19
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/StagingSweeper.java,2
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/VersionHistoryStore.java,5
+storage_or_outbound_adapter,packs,packs.infra.storage,service/packs/src/main/java/ai/speckitty/charter/packs/infra/storage/WholePackStore.java,7

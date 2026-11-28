@@ -1,0 +1,23 @@
+diff --git a/src/specify_cli/mission_brief.py b/src/specify_cli/mission_brief.py
+index 4d7283123e..babe8dd719 100644
+--- a/src/specify_cli/mission_brief.py
++++ b/src/specify_cli/mission_brief.py
+@@ -15,6 +15,7 @@ that composes them.
+ from __future__ import annotations
+ 
+ import hashlib
++import json
+ from pathlib import Path
+ from typing import Any
+ 
+@@ -301,3 +302,10 @@ def clear_intake_artifacts(repo_root: Path) -> list[str]:
+             continue
+         removed.append(filename)
+     return removed
++
++
++def record_brief_claim(feature_dir: Path, wp_id: str, actor: str) -> None:
++    """Mark *wp_id* claimed in the Mission's status log once its brief is written."""
++    row = {"actor": actor, "at": now_utc_iso(), "from_lane": "planned", "to_lane": "claimed", "wp_id": wp_id}
++    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as log:
++        log.write(json.dumps(row, sort_keys=True) + "\n")

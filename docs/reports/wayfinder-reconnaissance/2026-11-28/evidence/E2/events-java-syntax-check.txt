@@ -1,0 +1,9 @@
+javac javac 25.0.5; file with M-OB-5 applied; project classes absent, so only symbol-resolution errors are expected
+     36 cannot find symbol
+      2 package LedgerLineDecoder does not exist
+      7 package does not exist
+      1 package org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault does not exist
+errors mentioning dropTornTail/FileChannel/StandardOpenOption: 0
+> Dependency verification failed for configuration 'detachedConfiguration1'
+  One artifact failed verification: org.springframework.boot.gradle.plugin-4.1.1.pom (org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.1) from repository CentralMirror
+  Open this report for more details: file:///tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-E2/events-compile/build/reports/dependency-verification/at-1795857356652/dependency-verification-report.html

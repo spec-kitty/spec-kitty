@@ -1,0 +1,26 @@
+# H06a run-2 search log. Corpus: agent-guidance files only (corpus2/): CLAUDE.md, AGENTS.md, GEMINI.md, .kittify/**/AGENTS.md, .github/copilot-instructions.md, doc-kitty/.claude/CLAUDE.md at head revisions; src/**/templates/AGENTS.md excluded as product templates. Run-1 corpus remains allowed.
+2026-11-28T09:15:51Z	Q1	grep -rniE  [in all] -- 'kernel <- charter|must not import'	hits=1	files=1
+2026-11-28T09:15:51Z	Q2	grep -rniE  [in all] -- 'wall clock|lamport'	hits=2	files=1
+2026-11-28T09:15:51Z	Q3	grep -rniE  [in all] -- 'sole authority|read door'	hits=2	files=1
+2026-11-28T09:15:51Z	Q4	grep -rniE  [in all] -- 'open-packs|sync-packs'	hits=14	files=5
+2026-11-28T09:15:51Z	Q5	grep -rniE  [in all] -- 'service-v|owns event|events services'	hits=4	files=2
+2026-11-28T09:15:51Z	Q6	grep -rniE  [in all] -- 'authoritative for activation|activation.yaml'	hits=3	files=1
+2026-11-28T09:15:52Z	Q7	grep -rniE  [in all] -- 'charter.offering.api|facade'	hits=4	files=1
+2026-11-28T09:15:52Z	Q8	grep -rniE  [in all] -- 'daemon|never launches|launch'	hits=5	files=1
+2026-11-28T09:15:52Z	Q9	grep -rniE  [in all] -- 'orchestrator-api'	hits=7	files=1
+2026-11-28T09:15:52Z	Q10	grep -rniE  [in all] -- 'mission_id|mid8|mission_number'	hits=11	files=1
+2026-11-28T09:15:52Z	Q11	grep -rniE  [in all] -- 'charter wins|derived view|on conflict|disagree'	hits=4	files=1
+2026-11-28T09:15:52Z	Q12	grep -rniE  [in all] -- 'uv.lock|git-rev|PyPI'	hits=9	files=2
+2026-11-28T09:15:52Z	Q13	grep -rniE  [in all] -- 'wheel'	hits=6	files=1
+2026-11-28T09:15:52Z	Q14	grep -rniE  [in all] -- 'mission type|mission-runtime'	hits=1	files=1
+2026-11-28T09:15:52Z	Q15	grep -rniE  [in all] -- 'adapters.py|no default handler|fire_'	hits=2	files=1
+2026-11-28T09:15:52Z	Q16	grep -rniE  [in all] -- 'doc-kitty|DocKitty|doc-toolkit'	hits=7	files=3
+2026-11-28T09:15:52Z	Q17	grep -rniE  [in all] -- 'model|profile|routing'	hits=55	files=8
+2026-11-28T09:15:52Z	Q18	grep -rniE  [in all] -- 'exception|allowlist|baseline|noqa'	hits=15	files=2
+2026-11-28T09:15:53Z	Q19	grep -rniE  [in all] -- 'resume|interrupt|recover'	hits=17	files=1
+2026-11-28T09:15:53Z	Q20	grep -rniE  [in all] -- 'move|extract|cutover|later|align'	hits=52	files=6
+2026-11-28T09:16:27Z	Q14	grep -rniE  [in all] -- 'software-dev|research|documentation mission|four'	hits=12	files=5
+2026-11-28T09:16:27Z	Q20	grep -rniE  [in all] -- 'align(s)? (on|to)|generated client'	hits=2	files=2
+2026-11-28T09:16:27Z	Q19	grep -rniE  [in all] -- '--recover|implement --recover|in_progress WP is a no-op resume'	hits=0	files=0
+2026-11-28T09:16:27Z	Q9	grep -rniE  [in all] -- 'external|orchestrat'	hits=16	files=3
+2026-11-28T09:16:34Z	Q19	grep -rniE  [in all] -- 'no-op resume'	hits=1	files=1

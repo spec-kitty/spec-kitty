@@ -1,0 +1,33 @@
+uv 0.11.32 (x86_64-unknown-linux-gnu)
+Python 3.13.18
+== step1 build wheel
+Building wheel...
+Successfully built /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/i6core/dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+build_exit=0 build_seconds=3
+total 10168
+drwxr-xr-x 2 root root     4096 Nov 28 09:08 .
+drwxr-xr-x 3 root root     4096 Nov 28 09:08 ..
+-rw-r--r-- 1 root root        1 Nov 28 09:08 .gitignore
+-rw-r--r-- 1 root root 10395981 Nov 28 09:08 spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+== step1b sibling-source references in build output dir listing of packs:
+README.md
+built-in
+built-in.source.yaml
+internal
+internal.source.yaml
+== step2 install in fresh venv
+install_exit=0
+== step3 smoke (cwd=/, no source tree on path)
+spec-kitty-cli version 4.0.0rc9
+version_exit=0
+import ok /tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/i6core/venv/lib/python3.13/site-packages/specify_cli/__init__.py
+import_exit=0
+== step3b installed external contract packages do not require core:
+spec-kitty-events 11.3.0 []
+spec-kitty-tracker 0.5.2 []
+== step3c any path into sibling checkouts recorded in the installed dist:
+0
+
+real	0m10.654s
+user	0m6.795s
+sys	0m1.094s

@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Index every ADR / decision record in the five primary repos + planning.
+
+Heuristic, document-claim only. Reads files at head (core from a git-archive copy).
+Output: decision-timeline-raw.csv
+"""
+import csv, os, re, subprocess, sys
+from pathlib import Path
+
+S = Path(sys.argv[1])
+OUT = Path(sys.argv[2])
+
+SETS = [
+    # repo, root on disk, rel prefix for citation, revision, glob
+    ("spec-kitty", S / "core/docs/adr", "docs/adr", "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"),
+    ("spec-kitty-charter", Path("/home/user/spec-kitty-charter/docs/adr"), "docs/adr", "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"),
+    ("spec-kitty-events", Path("/home/user/spec-kitty-events/docs/adr"), "docs/adr", "646e330b896b96d7a11f53b34aa3d0c0baa69a05"),
+    ("spec-kitty-open-packs", Path("/home/user/spec-kitty-open-packs/docs/architecture/adr"), "docs/architecture/adr", "f9a557510dc7ff04597a0b8aba87f736e25f785e"),
+    ("doc-kitty", Path("/home/user/doc-kitty/docs/adr"), "docs/adr", "1acc49fbe209436d3c1666a86e8b3960ee19e5ac"),
+    ("spec-kitty-planning:decisions", Path("/home/user/spec-kitty-planning/decisions"), "decisions", "89f52a458082b87a5b9e2ca67537f843be53ebfe"),
+    ("spec-kitty-planning:architecture-v0.11", Path("/home/user/spec-kitty-planning/architecture/docs/adr"), "architecture/docs/adr", "89f52a458082b87a5b9e2ca67537f843be53ebfe"),
+]
+
+SKIP = {"README.md", "template.md", "adr-template.md", "index.md"}
+
+COMPONENT_KEYWORDS = [
+    ("events", r"\bevent|spec-kitty-events|cloudevents|ledger publication"),
+    ("read-service", r"read service|read api|mission status read|read-service"),
+    ("write-service", r"write service|write api|canonical event writer|write-service"),
+    ("charter-offering", r"offering|doctrine|drg|pack registry|charter service|charter extraction|charter repository"),
+    ("charter-activation", r"activation|activate|deactivat"),
+    ("packs", r"\bpack|built-in|open-packs"),
+    ("glossary", r"glossary|terminolog|vocabular"),
+    ("status-model", r"status|lane|lifecycle|wp |work package|reducer"),
+    ("runtime-next", r"\bnext\b|runtime|mission discovery|run dir"),
+    ("consolidation-merge", r"merge|consolidat|landing|rollback"),
+    ("coordination-topology", r"coordination|topology|worktree|partition|branch"),
+    ("upgrade-migrations", r"upgrade|migration"),
+    ("tracker", r"tracker"),
+    ("hosted-saas", r"saas|hosted|team kitty|zeitgeist|sync|drain"),
+    ("docs-docsite", r"docsite|docs site|doc-kitty|astro|starlight|frontmatter|sidebar|theme|deck|markua|gherkin|diagram"),
+    ("ci-release", r"\bci\b|release|merge queue|sonar|gradle|pypi|wheel|pin"),
+    ("agents-skills", r"agent|skill|command"),
+    ("kernel", r"kernel"),
+    ("orchestrator-api", r"orchestrator"),
+    ("testing", r"test|acceptance|bdd|conformance"),
+]
+
+def fm_and_body(text):
+    m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+    if m:
+        return m.group(1), text[m.end():]
+    return "", text
+
+def fm_get(fm, key):
+    m = re.search(rf"^{key}:\s*(.+)$", fm, re.M)
+    if not m:
+        return ""
+    return m.group(1).strip().strip("'\"")
+
+def find_status(fm, body):
+    for k in ("status", "decision_status", "adr_status"):
+        v = fm_get(fm, k)
+        if v:
+            return v, f"frontmatter:{k}"
+    m = re.search(r"\*\*Status:?\*\*:?\s*(.+)$", body, re.M)
+    if m:
+        return m.group(1).strip(), "body:**Status**"
+    m = re.search(r"^Status:\s*(.+)$", body, re.M)
+    if m:
+        return m.group(1).strip(), "body:Status:"
+    m = re.search(r"^#+\s*Status\s*\n+(.+)$", body, re.M)
+    if m:
+        return m.group(1).strip(), "body:## Status"
+    m = re.search(r"^\|\s*\*?\*?Status\*?\*?\s*\|\s*(.+?)\|", body, re.M)
+    if m:
+        return m.group(1).strip(), "body:table"
+    return "", ""
+
+def find_date(fm, body, fname):
+    for k in ("date", "decision_date", "decided"):
+        v = fm_get(fm, k)
+        if re.match(r"\d{4}-\d{2}-\d{2}", v):
+            return v[:10], f"frontmatter:{k}"
+    m = re.search(r"^\*\*Date:?\*\*:?\s*(.+)$", body, re.M)
+    if m:
+        d = re.search(r"\d{4}-\d{2}-\d{2}", m.group(1))
+        if d:
+            return d.group(0), "body:**Date**"
+    m = re.search(r"^(?:Date|Decided):\s*(.+)$", body, re.M)
+    if m:
+        d = re.search(r"\d{4}-\d{2}-\d{2}", m.group(1))
+        if d:
+            return d.group(0), "body:Date:"
+    m = re.search(r"^#+\s*Date\s*\n+(.+)$", body, re.M)
+    if m:
+        d = re.search(r"\d{4}-\d{2}-\d{2}", m.group(1))
+        if d:
+            return d.group(0), "body:## Date"
+    m = re.search(r"^#+\s*Status\s*\n+(.+)$", body, re.M)
+    if m:
+        d = re.search(r"\d{4}-\d{2}-\d{2}", m.group(1))
+        if d:
+            return d.group(0), "body:## Status line"
+    d = re.search(r"(\d{4}-\d{2}-\d{2})", fname)
+    if d:
+        return d.group(1), "filename"
+    return "", ""
+
+REF = r"(?:ADR[- ]?\d{1,4}|\d{4}-\d{2}-\d{2}-\d+|\bD\d{1,2}\b|\[[^\]]+\]\([^)]*adr[^)]*\))"
+
+def refs_after(pattern, text):
+    out = []
+    for m in re.finditer(pattern, text, re.I):
+        seg = text[m.end(): m.end() + 300].split("\n\n")[0]
+        for r in re.findall(REF, seg):
+            out.append(r)
+    return out
+
+def norm_ref(r):
+    m = re.search(r"\(([^)]*)\)", r)
+    if m:
+        p = m.group(1)
+        b = os.path.basename(p.rstrip("/")).replace(".md", "")
+        return b[:60]
+    return r
+
+def amendments(text):
+    heads = re.findall(r"^#{1,6}\s*(?:\d+\.\s*)?Amendment[^\n]*", text, re.M | re.I)
+    bold = re.findall(r"\*\*Amendment[^*\n]*\*\*", text, re.I)
+    dates = set(re.findall(r"Amendment[s]?[^\n]{0,20}?(\d{4}-\d{2}-\d{2})", text))
+    return heads, bold, sorted(dates)
+
+def components(title, desc):
+    t = f"{title} {desc}".lower()
+    tags = [name for name, rx in COMPONENT_KEYWORDS if re.search(rx, t)]
+    return ";".join(tags)
+
+rows = []
+for repo, root, prefix, rev in SETS:
+    for p in sorted(root.rglob("*.md")):
+        if p.name in SKIP:
+            continue
+        rel = p.relative_to(root)
+        text = p.read_text(encoding="utf-8", errors="replace")
+        fm, body = fm_and_body(text)
+        title = fm_get(fm, "title")
+        if not title:
+            m = re.search(r"^#\s+(.+)$", body, re.M)
+            title = m.group(1).strip() if m else p.stem
+        desc = fm_get(fm, "description")
+        status, status_src = find_status(fm, body)
+        date, date_src = find_date(fm, body, p.name)
+        if not date:
+            gitroot = subprocess.run(["git","-C",str(p.parent),"rev-parse","--show-toplevel"],capture_output=True,text=True).stdout.strip()
+            if gitroot:
+                out = subprocess.run(["git","-C",gitroot,"log",rev,"--diff-filter=A","--follow","--format=%as","--",str(p.relative_to(gitroot))],capture_output=True,text=True).stdout.split()
+                if out:
+                    date, date_src = out[-1], "git-first-added(history-derived)"
+        sup = sorted(set(norm_ref(r) for r in refs_after(r"\bSupersedes\b:?", body)))
+        supby = sorted(set(norm_ref(r) for r in refs_after(r"\bSuperseded[- ]by\b:?|\bSuperseded\s+\(|status:\s*Superseded", text)))
+        heads, bold, adates = amendments(body)
+        era = rel.parts[0] if len(rel.parts) > 1 else ""
+        rid = p.stem
+        rows.append({
+            "repo": repo,
+            "id": rid,
+            "path": f"{prefix}/{rel}",
+            "revision": rev,
+            "era_folder": era,
+            "date": date,
+            "date_source": date_src,
+            "title": title.replace("\n", " ")[:200],
+            "status_raw": status.replace("|", "/")[:160],
+            "status_source": status_src,
+            "status_class": classify(status) if False else "",
+            "supersedes": "; ".join(sup),
+            "superseded_by": "; ".join(supby),
+            "amended_in_place": "yes" if (heads or bold or adates) else "no",
+            "amendment_headings": len(heads),
+            "amendment_dates": "; ".join(adates),
+            "component_tags_heuristic": components(title, desc),
+            "lines": text.count("\n") + 1,
+        })
+
+def classify(s):
+    raw = s
+    s = s.lower().strip().lstrip("*").strip()
+    if not s:
+        return "unstated"
+    first = re.split(r"[ ,;.(\u2014\-*]", s, 1)[0]
+    partial = ("in part" in s or "superseded by adr" in s and first.startswith("accept")) or ("decision" in s and "supersed" in s and first.startswith("accept"))
+    if first.startswith("supersed"):
+        return "superseded"
+    if first.startswith("accept") or first in ("ratified","resolved","binding","decided","approved","active"):
+        return "accepted;partly-superseded" if ("supersed" in s) else "accepted"
+    if first.startswith("propos") or first.startswith("draft"):
+        return "proposed"
+    if "supersed" in s:
+        return "superseded"
+    if "reject" in s:
+        return "rejected"
+    if "deprecat" in s or "retired" in s or "withdrawn" in s:
+        return "deprecated/retired"
+    if "propos" in s or "draft" in s or "for review" in s:
+        return "proposed"
+    if any(k in s for k in ("accept","ratified","resolved","binding","approved","decided","in force")):
+        return "accepted"
+    return "other"
+
+for r in rows:
+    r["status_class"] = classify(r["status_raw"])
+
+with OUT.open("w", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+    w.writeheader()
+    w.writerows(rows)
+print(len(rows))

@@ -1,0 +1,13 @@
+diff --git a/packs/built-in/pack.yaml b/packs/built-in/pack.yaml
+index f253ce0e..55a34a87 100644
+--- a/packs/built-in/pack.yaml
++++ b/packs/built-in/pack.yaml
+@@ -23,7 +23,7 @@ depends_on:
+   - pack_id: 01M75HSYR9S9KPA372PHGT0EX3  # foundation
+     range: "==3.7.0"
+   - pack_id: 01M75HSYS69RYRFPB4WCC5AC9D  # writing
+-    range: "==3.7.0"
++    range: ">=3.7.0,<4"
+   - pack_id: 01M75PCTC6HS38NX8HJGT26VTP  # testing
+     range: "==3.7.0"
+   - pack_id: 01M75PCTD0V3AFZA9EAXDJ894D  # refactoring

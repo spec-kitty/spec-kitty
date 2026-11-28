@@ -1,0 +1,22 @@
+diff --git a/service/activations/src/main/java/ai/speckitty/charter/activations/domain/Revision.java b/service/activations/src/main/java/ai/speckitty/charter/activations/domain/Revision.java
+index d3afb254d..8dcabc367 100644
+--- a/service/activations/src/main/java/ai/speckitty/charter/activations/domain/Revision.java
++++ b/service/activations/src/main/java/ai/speckitty/charter/activations/domain/Revision.java
+@@ -50,6 +50,17 @@ public record Revision(String token) {
+         return TOKEN_SHAPE.matcher(text).matches() ? Optional.of(new Revision(text)) : Optional.empty();
+     }
+ 
++    /**
++     * Reads a revision a write must name.
++     *
++     * @param text the text
++     * @return the revision
++     */
++    public static Revision require(String text) {
++        return parse(text).orElseThrow(
++                () -> ai.speckitty.charter.activations.application.MalformedPreconditionException.notAWildcard(text));
++    }
++
+     private static MessageDigest sha256() {
+         try {
+             return MessageDigest.getInstance("SHA-256");
