@@ -1242,16 +1242,21 @@ def _claims_default_mission(meta: Mapping[str, Any] | None, branch: str) -> bool
     return default_mission_rule_applies(meta.get("topology_source"), branch, bool(meta.get("merged_at")))
 
 
-def _meta_routes_through_coordination(meta: Mapping[str, Any], feature_dir: Path) -> bool:
+def _meta_routes_through_coordination(meta: Mapping[str, Any]) -> bool:
     """:func:`routes_through_coordination` over *meta*'s stored-or-derived topology (C-004).
 
-    The same check :func:`resolve_topology` feeds for a Mission read from disk
-    (``read_topology`` and ``topology_from_meta`` share the stored-or-derive logic), applied to
-    a ``meta.json`` read off a ref.
+    The same answer :func:`resolve_topology` gives for a Mission read from disk, computed from a
+    ``meta.json`` read off a ref and nothing else: a stored topology decides it, and a derived
+    one routes through coordination exactly when *meta* records a coordination branch (the
+    code-lane signal that derivation also reads never changes this answer). So no working-tree
+    file is read for a ``meta.json`` that came from another branch.
     """
-    from specify_cli.migration.backfill_topology import topology_from_meta
+    from specify_cli.migration.backfill_topology import stored_topology
 
-    return routes_through_coordination(topology_from_meta(meta, feature_dir))
+    stored = stored_topology(meta)
+    if stored is not None:
+        return routes_through_coordination(stored)
+    return bool(meta.get("coordination_branch"))
 
 
 def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBranch | None:
@@ -1280,7 +1285,7 @@ def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBra
             meta = decode_meta(raw) if raw is not None else None
             if not _claims_default_mission(meta, branch):
                 continue
-            coordinated = _meta_routes_through_coordination(meta or {}, repo_root / "kitty-specs" / mission_slug)
+            coordinated = _meta_routes_through_coordination(meta or {})
             claim = _ClaimingBranch(branch=branch, remote=remote, coordinated=coordinated)
             if remote is None:
                 return claim
