@@ -1,0 +1,15 @@
+python files: 45
+syntax error tests/fixtures/test_quality_scan/python/test_unparseable.py
+third-party/unknown top-level imports: {'kernel': 1, 'weasyprint': 1, 'tree_sitter_java': 1, 'tree_sitter': 1, 'ruamel': 8, 'yaml': 11, 'jsonschema': 2, 'pytest': 2}
+local-import scripts/ci -> charter_lock 2
+local-import scripts/ci -> pack_digest 1
+local-import scripts/ci -> release_assets 1
+local-import scripts/ci -> validate_pack_schemas 1
+local-import tests/ci -> charter_lock 2
+local-import tests/ci -> charter_pack_check 1
+local-import tests/ci -> charter_pin 1
+local-import tests/ci -> charter_service_check 1
+local-import tests/ci -> gh_expr 1
+local-import tests/ci -> pack_digest 1
+local-import tests/ci -> release_assets 1
+local-import tests/ci -> validate_pack_schemas 3

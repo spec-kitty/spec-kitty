@@ -1,0 +1,59 @@
+finding_id: F-G1-007
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I4/core"
+  deviation: null
+subject:
+  component: "core Python packages (src/)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "I4 check ran (same 3.8 s walk). In the five layer packages below specify_cli (371 modules), 5 modules hold 9 references to command-line libraries or sys.argv: charter 4 (rich x3 in one module, sys.argv x1), glossary 3 (rich x2, typer x1 deferred), runtime 2 (rich x2 deferred); kernel and mission_runtime 0. Inside specify_cli outside specify_cli/cli (923 modules), 57 modules hold 106 such references (typer 44, rich 42, sys.argv 16, click 4); this second tier cannot be judged pass or fail, because the published model names specify_cli as one 'adapter/application layer' and does not say which of its sub-packages are domain."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/core-head-I4_cli_in_domain.csv"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "d1a96a379b7f695f8df2fff45d3c2660d53fcb459ab40fb2735a2da9d23f5371"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/core-head-summary.json"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Imports of typer, click, rich, readchar, argparse, getopt, optparse and sys.argv attribute use, in every module of the six packages."
+  not_covered: "print/input calls, exit codes, formatted user messages built in domain code, CLI types reached through another module."
+  population: "371 lower-layer modules; 923 specify_cli modules outside specify_cli/cli"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the lower-layer hits are deferred or type-only."
+  result: "3 of the 9 are deferred imports; 6 are module-level (5 rich, 1 sys.argv)."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "modularity"
+  - "testability"
+  - "reusability"
+candidate_invariants: 
+  - "No import of typer, click, rich or readchar in kernel, charter, glossary, runtime or mission_runtime"
+open_questions: 
+  - "Which sub-packages of specify_cli are domain logic and which are command-line presentation? No published document partitions them."

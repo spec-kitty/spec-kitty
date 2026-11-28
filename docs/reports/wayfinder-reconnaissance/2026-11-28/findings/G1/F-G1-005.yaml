@@ -1,0 +1,75 @@
+finding_id: F-G1-005
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I3/core"
+  deviation: null
+subject:
+  component: "core Python packages (src/)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "I3 check ran (same 3.8 s walk, plus 0.2 s for the library repositories). Against the published chain kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli, 312 of 3,547 cross-package import names point from a lower layer to specify_cli: runtime -> specify_cli 193 (88 module-level, 98 deferred, 7 type-only) from 20 modules, and mission_runtime -> specify_cli 119 (1 module-level, 116 deferred, 2 type-only) from 7 modules. kernel, charter and glossary have 0 upward imports. The library repositories at head have 0 references to core: spec-kitty-events (71 Python files, 0 imports, 0 pyproject mentions) and spec-kitty-tracker (41 files, 0, 0); the installed spec-kitty-events 11.3.0 and spec-kitty-tracker 0.5.2 declare 0 requirements on a spec-kitty distribution."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/core-head-I3_reverse_layer.csv"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "c0e81166e81091a398fb5dff147f0c8614dbc434c7e13d7bedbc505316cba2bb"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/core-head-summary.json"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/G1/core-I3-library-repos-output.txt"
+    method: "bash check-core-I3-library-repos.txt"
+    sha256: "1fda623abf76598ed7b20e5dc672fd7b3cca52528f2b84dd27a23ed1eda63615"
+    exit_code: 0
+    environment: "GNU grep; git"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E4
+    kind: executed
+    reference: "evidence/G1/core-I6-build-B-clone-synced.txt"
+    method: "bash check-core-I6-build-install.txt <clone> <workdir> (step 3b)"
+    sha256: "18309b872a0223ab76766b1b9d3c5199d3ba1912d95c0739e56507aa7b2f94c1"
+    exit_code: 0
+    environment: "uv; Python 3.13"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Static imports of the six packages; pyproject and src/ imports of spec-kitty-events (646e330b) and spec-kitty-tracker (658abee7) at head; requirement metadata of the locked wheels."
+  not_covered: "Dynamic imports; subprocess calls to the spec-kitty executable; the two recorded 'outbound ledgers' the published documents mention for runtime and mission_runtime (not readable under the constraint), so the check cannot tell a recorded exception from an unrecorded one. Peer imports between the three middle packages (runtime -> mission_runtime: 64 names) are counted, not judged."
+  population: "3,547 cross-package import names"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Counted module-level imports separately, since deferred imports may be a deliberate late binding."
+  result: "89 of the 312 are module-level runtime imports (88 from runtime, 1 from mission_runtime)."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "modularity"
+  - "modifiability"
+  - "reusability"
+candidate_invariants: 
+  - "No import from kernel, charter, glossary, runtime or mission_runtime to specify_cli"
+open_questions: 
+  - "Are the upward imports from runtime and mission_runtime the content of the published 'shrink-only outbound ledgers'? The check cannot say without reading them."

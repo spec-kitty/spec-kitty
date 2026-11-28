@@ -1,0 +1,122 @@
+E3 frozen gate set
+Frozen at (UTC): 2026-11-28T09:42:16Z
+Frozen BEFORE any evidence/E2/*.patch.txt body was opened. Inputs read at freeze time: evidence/E2/mutations.csv
+(ids, classes, subtlety, repository, files_touched, technique and rule columns), evidence/E1/gates.csv, the CI workflow
+files and gate-selection script of each repository at head. The mutation table was therefore known when the set was
+chosen; the patch bodies were not.
+
+== spec-kitty (core) @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 ==
+(a) Architectural gates. Population: 310 tracked files matching tests/architectural/**/test_*.py at head.
+    Selection rule (file name only): the path matches the regular expression
+      layer|import|boundar|private|public|surface|facade|owner|writer|writes|write_seam|ledger|door|bypass|contract|envelope|packag|pyproject
+    Result: 66 files, listed below. The other 244 files of the battery are NOT run by this workstream
+    (machine memory limit and the brief's "a few dozen files"); per-change CI runs the whole battery for a src diff.
+    Command: env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 .venv/bin/python -m pytest <66 files> -n 2 --dist loadfile -p no:cacheprovider -q
+(b) Lint and types on touched files with repository configuration:
+      .venv/bin/ruff check --force-exclude <touched .py files>
+      .venv/bin/ruff format --check --force-exclude <touched .py files>
+      .venv/bin/mypy <touched .py files>       (configuration from pyproject.toml)
+(c) Selection authority: scripts/ci/gate_selection.py select_gates / select_modules / select_battery_gates (mode="pr")
+    on the patch's changed paths. Records which jobs, module shards and battery gates per-change CI selects.
+(d) Mirror tests: rule in evidence/E3/script-mirror.txt (tests named test_<stem>.py or test_<stem>_*.py, ranked by
+    package-path match, first 5 per patch). Selected files per patch in evidence/E3/mirror.json.
+    Command: .venv/bin/python -m pytest <files> -n 2 --dist loadfile -p no:cacheprovider -q
+
+== spec-kitty-events (Python) @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05 ==
+  uv run ruff check .            uv run ruff format --check .
+  uv run python scripts/check_version_not_amended.py ; scripts/changelog.py check ; scripts/changelog.py guard
+  uv run mypy src/spec_kitty_events --strict
+  uv run pytest --pyargs spec_kitty_events.conformance --no-cov -q        (packaged conformance suite)
+  mirror tests by the same rule as core (d) (extension to the brief, reported in its own column)
+
+== spec-kitty-events (Java / contracts) ==
+  ./gradlew --no-daemon :mission-status-api:test --tests '*architecture*' --tests '*FilesystemMissionEventSourceFileApiTest'
+     --tests '*AllowlistReadmeParityTest' --tests '*ArtifactAllowlistReadmeParityTest'   (ArchUnit rules of the read service)
+  ./gradlew --no-daemon :contracts:check                                       (contract validation)
+  contracts/tools/breaking_check.py, enum_pin_check.py, example_check.py on mission-status (contract compatibility tools;
+     where they run is recorded with the result)
+  One attempt, own GRADLE_USER_HOME in scratch, generous timeout. Blocked build => "not assessable (build blocked)".
+
+== spec-kitty-charter (Java) @ 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a ==
+  ./gradlew --no-daemon :deployable:test --tests '*HexagonalArchitectureTest'   (ArchUnit, compiles every service module)
+  ./gradlew --no-daemon :contracts:lintContract :contracts:checkContractCompatibility :contracts:checkContractChangelogFragments
+     :contracts:checkClosedResponseObjects :contracts:checkRefusalExamples
+  build-logic ModuleDependencyAllowlist (fires at configuration of any invocation)
+  One attempt, own GRADLE_USER_HOME, generous timeout. Blocked build => "not assessable (build blocked)".
+
+== spec-kitty-open-packs @ f9a557510dc7ff04597a0b8aba87f736e25f785e ==
+  (not named in the brief's gate list; set taken from the per-PR workflow validate-packs.yml)
+  scripts/ci/validate-packs.sh ; scripts/ci/check-pack-digests.sh ; python3 scripts/ci/check_vocabulary.py ;
+  python3 scripts/docs/gen_pack_reference.py --check ; python3 -m unittest discover -s tests/{release,vocabulary,ci,docs,assets}
+  The charter-service steps of that workflow (pinned jar download, charter_service_check.py) are attempted once.
+
+Detection rule: a gate detects a mutation only if it passes (or fails differently) at baseline and its failure output
+is attributable to the mutated code. A gate red at baseline with unchanged output does not count.
+
+66 architectural gate files:
+tests/architectural/test_acceptance_matrix_write_seam.py
+tests/architectural/test_anchor_lock_path_single_owner.py
+tests/architectural/test_bootstrap_import_purity.py
+tests/architectural/test_bridge_cores_import_boundary.py
+tests/architectural/test_charter_facades_reexport_offering.py
+tests/architectural/test_charter_no_specify_cli_import.py
+tests/architectural/test_charter_offering_does_not_import_activation.py
+tests/architectural/test_charter_offering_public_surface.py
+tests/architectural/test_charter_sole_door_agent_profile_repository.py
+tests/architectural/test_charter_sole_door_hardcoded_paths.py
+tests/architectural/test_charter_sole_door_inner_reacharound.py
+tests/architectural/test_charter_sole_door_offering_service.py
+tests/architectural/test_charter_sole_door_resolver_imports.py
+tests/architectural/test_cli_error_surface_seam.py
+tests/architectural/test_clock_import_ban.py
+tests/architectural/test_cold_import_status_boundary.py
+tests/architectural/test_commit_scope_owner.py
+tests/architectural/test_coverage_artefact_contract.py
+tests/architectural/test_dead_symbol_allowlist_contract.py
+tests/architectural/test_decisions_lock_single_owner.py
+tests/architectural/test_drg_writer_discovery.py
+tests/architectural/test_dual_mode_contract.py
+tests/architectural/test_egress_consent_boundary.py
+tests/architectural/test_event_log_writes_gate.py
+tests/architectural/test_event_log_writes_gate_budget.py
+tests/architectural/test_events_tracker_public_imports.py
+tests/architectural/test_git_path_listing_owner.py
+tests/architectural/test_glossary_pack_boundary.py
+tests/architectural/test_help_startup_third_party_imports.py
+tests/architectural/test_home_owner_behaviour.py
+tests/architectural/test_home_owner_never_wins.py
+tests/architectural/test_integration_boundary.py
+tests/architectural/test_json_contract_enumeration.py
+tests/architectural/test_kernel_env_expand_no_upward_import.py
+tests/architectural/test_kernel_no_charter_offering_import.py
+tests/architectural/test_layer_rules.py
+tests/architectural/test_ledger_floor.py
+tests/architectural/test_lifted_cli_accept_coord_surface_anchor.py
+tests/architectural/test_lifted_drg_writers_registry_completeness.py
+tests/architectural/test_lifted_mission_v1_import_hygiene.py
+tests/architectural/test_lifted_packaging_windows_keyring.py
+tests/architectural/test_lifted_root_gitignore_contract.py
+tests/architectural/test_lifted_root_no_checklist_surface.py
+tests/architectural/test_lifted_specify_cli_docs_host_surface_inventory.py
+tests/architectural/test_mission_runtime_surface.py
+tests/architectural/test_mutation_ownership_routing.py
+tests/architectural/test_no_op_stable_writes.py
+tests/architectural/test_no_production_worktree_guard_bypass.py
+tests/architectural/test_no_read_side_bypass.py
+tests/architectural/test_no_shipped_layer_label.py
+tests/architectural/test_overwrite_ownership_routing.py
+tests/architectural/test_pack_skill_fixtures_seed_the_ledger.py
+tests/architectural/test_pyproject_shape.py
+tests/architectural/test_read_surface_placement_guard.py
+tests/architectural/test_release_asset_download_owner.py
+tests/architectural/test_remote_contact_owner.py
+tests/architectural/test_runtime_charter_activation_boundary.py
+tests/architectural/test_runtime_charter_doctrine_boundary.py
+tests/architectural/test_safe_commit_import_boundary.py
+tests/architectural/test_scenario_contract.py
+tests/architectural/test_shared_package_boundary.py
+tests/architectural/test_single_mission_surface_resolver.py
+tests/architectural/test_status_events_writes_gate.py
+tests/architectural/test_status_module_boundary.py
+tests/architectural/test_status_read_single_door.py
+tests/architectural/test_write_surface_placement_guard.py

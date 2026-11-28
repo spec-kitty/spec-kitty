@@ -1,0 +1,362 @@
+{
+ "charter->core|ci-workflow": {
+  "lines": 1,
+  "files": 1
+ },
+ "charter->core|config-or-data": {
+  "lines": 45,
+  "files": 35
+ },
+ "charter->core|pin-or-lock": {
+  "lines": 7,
+  "files": 2
+ },
+ "charter->core|script": {
+  "lines": 8,
+  "files": 2
+ },
+ "charter->core|source": {
+  "lines": 19,
+  "files": 9
+ },
+ "charter->core|test": {
+  "lines": 86,
+  "files": 37
+ },
+ "charter->doc-kitty|build-file": {
+  "lines": 5,
+  "files": 1
+ },
+ "charter->doc-kitty|ci-workflow": {
+  "lines": 10,
+  "files": 1
+ },
+ "charter->doc-kitty|config-or-data": {
+  "lines": 28,
+  "files": 12
+ },
+ "charter->doc-kitty|script": {
+  "lines": 6,
+  "files": 2
+ },
+ "charter->doc-kitty|source": {
+  "lines": 10,
+  "files": 6
+ },
+ "charter->doc-kitty|test": {
+  "lines": 4,
+  "files": 2
+ },
+ "charter->events|ci-workflow": {
+  "lines": 2,
+  "files": 2
+ },
+ "charter->open-packs|build-file": {
+  "lines": 25,
+  "files": 5
+ },
+ "charter->open-packs|ci-workflow": {
+  "lines": 54,
+  "files": 6
+ },
+ "charter->open-packs|config-or-data": {
+  "lines": 24,
+  "files": 19
+ },
+ "charter->open-packs|pin-or-lock": {
+  "lines": 3,
+  "files": 2
+ },
+ "charter->open-packs|script": {
+  "lines": 36,
+  "files": 2
+ },
+ "charter->open-packs|source": {
+  "lines": 20,
+  "files": 7
+ },
+ "charter->open-packs|test": {
+  "lines": 24,
+  "files": 12
+ },
+ "core->charter|build-file": {
+  "lines": 4,
+  "files": 2
+ },
+ "core->charter|ci-workflow": {
+  "lines": 3,
+  "files": 2
+ },
+ "core->charter|config-or-data": {
+  "lines": 4,
+  "files": 2
+ },
+ "core->charter|source": {
+  "lines": 154,
+  "files": 44
+ },
+ "core->charter|test": {
+  "lines": 341,
+  "files": 97
+ },
+ "core->doc-kitty|build-file": {
+  "lines": 18,
+  "files": 3
+ },
+ "core->doc-kitty|ci-workflow": {
+  "lines": 42,
+  "files": 3
+ },
+ "core->doc-kitty|config-or-data": {
+  "lines": 7,
+  "files": 5
+ },
+ "core->doc-kitty|pin-or-lock": {
+  "lines": 6,
+  "files": 1
+ },
+ "core->doc-kitty|script": {
+  "lines": 140,
+  "files": 23
+ },
+ "core->doc-kitty|source": {
+  "lines": 29,
+  "files": 4
+ },
+ "core->doc-kitty|test": {
+  "lines": 144,
+  "files": 40
+ },
+ "core->events|build-file": {
+  "lines": 5,
+  "files": 2
+ },
+ "core->events|ci-workflow": {
+  "lines": 86,
+  "files": 10
+ },
+ "core->events|config-or-data": {
+  "lines": 6,
+  "files": 4
+ },
+ "core->events|pin-or-lock": {
+  "lines": 12,
+  "files": 2
+ },
+ "core->events|script": {
+  "lines": 43,
+  "files": 11
+ },
+ "core->events|source": {
+  "lines": 165,
+  "files": 51
+ },
+ "core->events|test": {
+  "lines": 571,
+  "files": 166
+ },
+ "core->open-packs|ci-workflow": {
+  "lines": 48,
+  "files": 11
+ },
+ "core->open-packs|config-or-data": {
+  "lines": 2,
+  "files": 2
+ },
+ "core->open-packs|pin-or-lock": {
+  "lines": 8,
+  "files": 2
+ },
+ "core->open-packs|script": {
+  "lines": 3,
+  "files": 3
+ },
+ "core->open-packs|source": {
+  "lines": 16,
+  "files": 4
+ },
+ "core->open-packs|test": {
+  "lines": 76,
+  "files": 28
+ },
+ "doc-kitty->charter|config-or-data": {
+  "lines": 4,
+  "files": 3
+ },
+ "doc-kitty->charter|script": {
+  "lines": 2,
+  "files": 1
+ },
+ "doc-kitty->charter|source": {
+  "lines": 3,
+  "files": 3
+ },
+ "doc-kitty->charter|test": {
+  "lines": 14,
+  "files": 5
+ },
+ "doc-kitty->core|config-or-data": {
+  "lines": 11,
+  "files": 4
+ },
+ "doc-kitty->core|script": {
+  "lines": 1,
+  "files": 1
+ },
+ "doc-kitty->core|source": {
+  "lines": 2,
+  "files": 2
+ },
+ "doc-kitty->core|test": {
+  "lines": 18,
+  "files": 8
+ },
+ "doc-kitty->events|test": {
+  "lines": 4,
+  "files": 2
+ },
+ "doc-kitty->open-packs|ci-workflow": {
+  "lines": 7,
+  "files": 1
+ },
+ "doc-kitty->open-packs|config-or-data": {
+  "lines": 1,
+  "files": 1
+ },
+ "doc-kitty->open-packs|source": {
+  "lines": 3,
+  "files": 3
+ },
+ "doc-kitty->open-packs|test": {
+  "lines": 14,
+  "files": 5
+ },
+ "events->charter|ci-workflow": {
+  "lines": 2,
+  "files": 2
+ },
+ "events->charter|config-or-data": {
+  "lines": 2,
+  "files": 1
+ },
+ "events->core|ci-workflow": {
+  "lines": 6,
+  "files": 4
+ },
+ "events->core|config-or-data": {
+  "lines": 539,
+  "files": 315
+ },
+ "events->core|pin-or-lock": {
+  "lines": 1,
+  "files": 1
+ },
+ "events->core|script": {
+  "lines": 35,
+  "files": 8
+ },
+ "events->core|source": {
+  "lines": 42,
+  "files": 18
+ },
+ "events->core|test": {
+  "lines": 32,
+  "files": 21
+ },
+ "events->doc-kitty|build-file": {
+  "lines": 4,
+  "files": 1
+ },
+ "events->doc-kitty|ci-workflow": {
+  "lines": 6,
+  "files": 1
+ },
+ "events->doc-kitty|config-or-data": {
+  "lines": 16,
+  "files": 3
+ },
+ "events->doc-kitty|script": {
+  "lines": 1,
+  "files": 1
+ },
+ "events->doc-kitty|source": {
+  "lines": 9,
+  "files": 6
+ },
+ "events->doc-kitty|test": {
+  "lines": 5,
+  "files": 3
+ },
+ "events->open-packs|ci-workflow": {
+  "lines": 3,
+  "files": 1
+ },
+ "open-packs->charter|ci-workflow": {
+  "lines": 46,
+  "files": 3
+ },
+ "open-packs->charter|config-or-data": {
+  "lines": 46,
+  "files": 16
+ },
+ "open-packs->charter|pin-or-lock": {
+  "lines": 7,
+  "files": 1
+ },
+ "open-packs->charter|script": {
+  "lines": 114,
+  "files": 10
+ },
+ "open-packs->charter|test": {
+  "lines": 96,
+  "files": 13
+ },
+ "open-packs->core|ci-workflow": {
+  "lines": 1,
+  "files": 1
+ },
+ "open-packs->core|config-or-data": {
+  "lines": 192,
+  "files": 52
+ },
+ "open-packs->core|pin-or-lock": {
+  "lines": 2,
+  "files": 1
+ },
+ "open-packs->core|script": {
+  "lines": 3,
+  "files": 1
+ },
+ "open-packs->core|source": {
+  "lines": 11,
+  "files": 4
+ },
+ "open-packs->core|test": {
+  "lines": 8,
+  "files": 3
+ },
+ "open-packs->doc-kitty|build-file": {
+  "lines": 4,
+  "files": 1
+ },
+ "open-packs->doc-kitty|ci-workflow": {
+  "lines": 4,
+  "files": 1
+ },
+ "open-packs->doc-kitty|config-or-data": {
+  "lines": 41,
+  "files": 13
+ },
+ "open-packs->doc-kitty|script": {
+  "lines": 1,
+  "files": 1
+ },
+ "open-packs->doc-kitty|source": {
+  "lines": 13,
+  "files": 7
+ },
+ "open-packs->events|config-or-data": {
+  "lines": 2,
+  "files": 1
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "package_edges_considered": 70,
+ "rules": {
+  "1b-internal: domain depends only on domain": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "2b-internal: application depends only on application, domain": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "3: adapter.in.http reaches only application.query.port.in, domain, itself": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "4: adapter.out.filesystem reaches only application.query.port.out, domain, itself": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "5a: adapter.in -> adapter.out": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "5b: adapter.out -> adapter.in": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "6: nothing outside config depends on config": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "12a: codec depends only on domain, codec": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "12c: codec used only by adapter.out.filesystem": {
+   "violating_package_edges": 0,
+   "detail": []
+  },
+  "14: application.query -> application.command": {
+   "violating_package_edges": 0,
+   "detail": []
+  }
+ }
+}

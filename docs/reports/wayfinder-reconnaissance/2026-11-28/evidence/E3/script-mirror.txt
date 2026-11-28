@@ -1,0 +1,30 @@
+"""Mirror-test rule (frozen before any patch body was read).
+For a touched source file src/<top>/<...>/<stem>.py (or src/spec_kitty_events/<stem>.py):
+candidates = tracked files under tests/ named test_<stem>.py or test_<stem>_*.py.
+Rank: (0) path contains every parent package segment below <top> in order,
+(1) path contains the immediate parent segment, (2) other; then exact name before
+prefixed name; then lexicographic. Take the first 5 per patch."""
+import csv, subprocess, sys, json, os
+R='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28'
+clones={'spec-kitty':sys.argv[1]+'/core','spec-kitty-events':sys.argv[1]+'/spec-kitty-events'}
+out={}
+for r in csv.DictReader(open(R+'/evidence/E2/mutations.csv')):
+    repo=r['repository'].split('@')[0].split('/')[1]
+    if repo not in clones: continue
+    tests=[t for t in subprocess.check_output(['git','-C',clones[repo],'ls-files','tests'],text=True).split('\n') if t.endswith('.py')]
+    cands=[]
+    for f in [x.strip() for x in r['files_touched'].split(';')]:
+        if not f.endswith('.py'): continue
+        parts=f.split('/'); stem=parts[-1][:-3]; segs=parts[2:-1]
+        for t in tests:
+            b=os.path.basename(t)
+            if b==f'test_{stem}.py' or b.startswith(f'test_{stem}_'):
+                tp=t.split('/')
+                allseg=bool(segs) and all(s in tp for s in segs)
+                par=bool(segs) and segs[-1] in tp
+                rank=0 if allseg else 1 if par else 2
+                cands.append((rank, 0 if b==f'test_{stem}.py' else 1, t))
+    cands=sorted(set(cands))
+    out[r['id']]={'candidates':len(cands),'selected':[c[2] for c in cands[:5]]}
+json.dump(out,open(sys.argv[1]+'/mirror.json','w'),indent=1)
+for k,v in out.items(): print(k,v['candidates'],v['selected'])

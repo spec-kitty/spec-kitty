@@ -1,0 +1,71 @@
+"""Schemas/contracts defined in more than one repository: same basename and/or same content hash.
+usage: dup_schemas.py <out-prefix>
+Population: tracked files at HEAD of the five repositories that are *.schema.json / *.schema.yaml / openapi*.y(a)ml / *.avsc / *.proto,
+or any .json/.yaml/.yml under a path segment named schemas, schema, contracts, contract or openapi.
+Excluded: node_modules, kitty-specs (mission planning copies are listed separately as scope=kitty-specs).
+Exact = identical sha256 of bytes. Canonical = identical sha256 of json.dumps(sort_keys) for JSON files.
+Similar = same basename in two repositories, difflib ratio over lines.
+"""
+import subprocess, os, re, sys, json, hashlib, csv, collections, difflib
+outp=sys.argv[1]
+REPOS = {"core":"/home/user/spec-kitty","charter":"/home/user/spec-kitty-charter","events":"/home/user/spec-kitty-events","open-packs":"/home/user/spec-kitty-open-packs","doc-kitty":"/home/user/doc-kitty"}
+SEL = re.compile(r"(\.schema\.(json|ya?ml)$|(^|/)openapi[^/]*\.ya?ml$|\.avsc$|\.proto$)")
+SEG = re.compile(r"(^|/)(schemas?|contracts?|openapi)/.*\.(json|ya?ml)$")
+recs=[]
+for r,p in REPOS.items():
+    for f in subprocess.run(["git","-C",p,"ls-files","-z"],capture_output=True,check=True).stdout.decode().split("\0"):
+        if not f or "node_modules/" in f: continue
+        if not (SEL.search(f) or SEG.search(f)): continue
+        full=os.path.join(p,f)
+        try: b=open(full,"rb").read()
+        except (FileNotFoundError,IsADirectoryError): continue
+        canon=""
+        if f.endswith(".json"):
+            try: canon=hashlib.sha256(json.dumps(json.loads(b),sort_keys=True).encode()).hexdigest()
+            except Exception: pass
+        scope="kitty-specs" if f.startswith("kitty-specs/") else ("test-fixture" if re.search(r"(^|/)(tests?|fixtures|testFixtures)/",f) else "main")
+        recs.append(dict(repo=r,file=f,base=os.path.basename(f),sha=hashlib.sha256(b).hexdigest(),canon=canon,size=len(b),scope=scope))
+print("population:",collections.Counter(x["repo"] for x in recs))
+def groups(key):
+    g=collections.defaultdict(list)
+    for x in recs:
+        if x[key]: g[x[key]].append(x)
+    return {k:v for k,v in g.items() if len({x["repo"] for x in v})>1}
+ex=groups("sha"); ca=groups("canon"); bn=groups("base")
+rows=[]
+seen=set()
+for k,v in ex.items():
+    for x in v: rows.append(["exact-bytes",k[:16],x["repo"],x["file"],x["scope"],x["size"],""]); seen.add((x["repo"],x["file"]))
+for k,v in ca.items():
+    if len({x["sha"] for x in v})>1:
+        for x in v: rows.append(["canonical-json",k[:16],x["repo"],x["file"],x["scope"],x["size"],""])
+pairs=[]
+for b,v in bn.items():
+    byrepo=collections.defaultdict(list)
+    for x in v: byrepo[x["repo"]].append(x)
+    rs=sorted(byrepo)
+    for i in range(len(rs)):
+        for j in range(i+1,len(rs)):
+            best=None
+            for a in byrepo[rs[i]][:6]:
+                for c in byrepo[rs[j]][:6]:
+                    if a["sha"]==c["sha"]: ratio=1.0
+                    else:
+                        ta=open(os.path.join(REPOS[a["repo"]],a["file"]),errors="replace").read().splitlines()
+                        tc=open(os.path.join(REPOS[c["repo"]],c["file"]),errors="replace").read().splitlines()
+                        if len(ta)+len(tc)>40000: ratio=-1
+                        else: ratio=difflib.SequenceMatcher(None,ta,tc,autojunk=False).ratio()
+                    if best is None or ratio>best[0]: best=(ratio,a,c)
+            pairs.append([b,rs[i],best[1]["file"],best[1]["scope"],rs[j],best[2]["file"],best[2]["scope"],round(best[0],3),len(byrepo[rs[i]]),len(byrepo[rs[j]])])
+with open(outp+"-identical.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["match","hash_prefix","repo","file","scope","bytes","note"]); w.writerows(sorted(rows))
+with open(outp+"-same-name.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["basename","repo_a","file_a","scope_a","repo_b","file_b","scope_b","best_line_similarity","copies_in_a","copies_in_b"]); w.writerows(sorted(pairs,key=lambda r:(-r[7],r[0])))
+summary={"population_by_repo":collections.Counter(x["repo"] for x in recs),"files_total":len(recs),
+ "exact_groups_cross_repo":len(ex),"canonical_only_groups_cross_repo":sum(1 for v in ca.values() if len({x["sha"] for x in v})>1),
+ "same_basename_cross_repo_pairs":len(pairs),
+ "exact_groups_by_repo_set":collections.Counter("+".join(sorted({x["repo"] for x in v})) for v in ex.values()),
+ "exact_groups_by_repo_set_main_scope_only":collections.Counter("+".join(sorted({x["repo"] for x in v if x["scope"]=="main"})) for v in ex.values() if len({x["repo"] for x in v if x["scope"]=="main"})>1),
+ "same_name_ge_0.9":sum(1 for p in pairs if p[7]>=0.9),"same_name_ge_0.5_lt_0.9":sum(1 for p in pairs if 0.5<=p[7]<0.9),"same_name_lt_0.5":sum(1 for p in pairs if 0<=p[7]<0.5)}
+json.dump(summary,open(outp+"-summary.json","w"),indent=1)
+print(json.dumps(summary,indent=1))

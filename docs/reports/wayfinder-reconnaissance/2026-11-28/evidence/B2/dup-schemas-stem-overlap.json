@@ -1,0 +1,106 @@
+{
+ "agent-profile": {
+  "core": [
+   "src/charter/offering/schemas/agent-profile.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/agent-profile.schema.json"
+  ]
+ },
+ "directive": {
+  "core": [
+   "src/charter/offering/schemas/directive.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/directive.schema.json"
+  ]
+ },
+ "pack-descriptor": {
+  "charter": [
+   "contracts/packs/schemas/pack-descriptor.schema.json"
+  ],
+  "doc-kitty": [
+   "src/lib/packs/contract/schemas/pack-descriptor.schema.json"
+  ]
+ },
+ "pack-document": {
+  "charter": [
+   "contracts/packs/schemas/pack-document.schema.json"
+  ],
+  "doc-kitty": [
+   "src/lib/packs/contract/schemas/pack-document.schema.json"
+  ]
+ },
+ "pack-manifest": {
+  "charter": [
+   "contracts/packs/schemas/pack-manifest.schema.json"
+  ],
+  "doc-kitty": [
+   "src/lib/packs/contract/schemas/pack-manifest.schema.json"
+  ]
+ },
+ "paradigm": {
+  "core": [
+   "src/charter/offering/schemas/paradigm.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/paradigm.schema.json"
+  ]
+ },
+ "policy": {
+  "charter": [
+   "contracts/packs/schemas/policy.schema.json"
+  ],
+  "doc-kitty": [
+   "src/lib/packs/contract/schemas/policy.schema.json"
+  ]
+ },
+ "preset": {
+  "charter": [
+   "contracts/packs/schemas/preset.schema.json"
+  ],
+  "doc-kitty": [
+   "src/lib/packs/contract/schemas/preset.schema.json"
+  ]
+ },
+ "procedure": {
+  "core": [
+   "src/charter/offering/schemas/procedure.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/procedure.schema.json"
+  ]
+ },
+ "skill": {
+  "core": [
+   "src/charter/offering/schemas/skill.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/skill.schema.json"
+  ]
+ },
+ "styleguide": {
+  "core": [
+   "src/charter/offering/schemas/styleguide.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/styleguide.schema.json"
+  ]
+ },
+ "tactic": {
+  "core": [
+   "src/charter/offering/schemas/tactic.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/tactic.schema.json"
+  ]
+ },
+ "toolguide": {
+  "core": [
+   "src/charter/offering/schemas/toolguide.schema.yaml"
+  ],
+  "charter": [
+   "contracts/packs/schemas/toolguide.schema.json"
+  ]
+ }
+}

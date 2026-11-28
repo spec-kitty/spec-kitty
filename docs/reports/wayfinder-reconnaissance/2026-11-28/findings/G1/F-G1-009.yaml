@@ -1,0 +1,58 @@
+finding_id: F-G1-009
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I5/core"
+  deviation: null
+subject:
+  component: "core Python packages (src/)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "I5 check ran (1.1 s) but cannot give pass or fail. It counts Python files that hold a state file's name outside the package the published documents name as owner, and whether the same file also holds a file-write primitive. Status event log (owner specify_cli/status): 128 non-owner files name it, 34 of them also hold a write primitive, against 18 owner files. Activation record (owner charter/activation): 7 non-owner files, 0 with a write primitive, 4 owner files. Migration record (owner specify_cli/upgrade): 2 non-owner files, 1 with a write primitive, 3 owner files. Pins (owners charter/offering/packs and specify_cli/services, inferred): 8 non-owner files, 2 with a write primitive, 2 owner files. Total 145 non-owner files of 1,490, 37 with a write primitive."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/core-head-I5_state_literals.csv"
+    method: "python3 check-core-I5-state-literals.txt <git-archive of 5c4fc5a7>/src <out.csv>"
+    sha256: "b42c0467e01d2cd221241f2de74d72ff90d35ea4ab9e5b68ffdccd748c7f1546"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/core-head-I5-summary.txt"
+    method: "same command, stdout"
+    sha256: "cb8c5c65ea374251bb0dc5243928acd00213d2cf64f62e54c4ebc3da63991233"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "String occurrences of status.events.jsonl, activation.yaml, migration-ledger.jsonl, clone-local.jsonl, .source.yaml in 1,490 Python files."
+  not_covered: "Whether a write primitive in a file targets the named state file; writes through a path built elsewhere; writes through the owner's API (permitted); non-Python writers (Makefile, scripts/, services); reads."
+  population: "1,490 Python files"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Asked whether file-level co-occurrence over-counts: a file can name the log to read it and write some other file."
+  result: "It can; the 37 are candidates, not violations. The check has no way to bind a write call to its target path from public information."
+relations: []
+confidence: low
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "modifiability"
+  - "integrity"
+candidate_invariants: 
+  - "Only modules under the owning package open a state file for writing"
+open_questions: 
+  - "What is each owner's published write interface (function names)? The documents name append_event/emit_status_transition for the status log and charter.activation.api for the activation record; none was found for pins, and for the migration record only the module path."

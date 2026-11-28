@@ -1,0 +1,3 @@
+pack,pack_level,pack_version,requires_core,files,depends_on_count,depended_on_by_count,files_by_dir
+built-in,built-in,1.0.0,,505,0,0,"{""(top-level file)"": 17, ""agent_profiles"": 27, ""assets"": 15, ""directives"": 38, ""glossary_packs"": 1, ""missions"": 181, ""paradigms"": 14, ""presets"": 2, ""procedures"": 23, ""skills"": 1, ""styleguides"": 26, ""tactics"": 121, ""templates"": 2, ""toolguides"": 37}"
+internal,org,1.0.0,,67,0,0,"{""(top-level file)"": 4, ""assets"": 20, ""directives"": 2, ""drg"": 1, ""glossary_packs"": 1, ""procedures"": 13, ""skills"": 10, ""styleguides"": 6, ""tactics"": 4, ""toolguides"": 6}"

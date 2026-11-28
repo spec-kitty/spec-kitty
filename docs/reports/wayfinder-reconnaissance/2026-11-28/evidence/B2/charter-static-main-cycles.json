@@ -1,0 +1,19 @@
+{
+ "scope": "main",
+ "modules": 16,
+ "packages": 83,
+ "module_edges": 37,
+ "package_edges": 203,
+ "module_cycles": [],
+ "package_cycles": [
+  [
+   "ai.speckitty.charter.packs.domain",
+   "ai.speckitty.charter.packs.domain.graph",
+   "ai.speckitty.charter.packs.domain.rules"
+  ],
+  [
+   "ai.speckitty.charter.packs.infra.storage",
+   "ai.speckitty.charter.packs.infra.storage.markdown"
+  ]
+ ]
+}

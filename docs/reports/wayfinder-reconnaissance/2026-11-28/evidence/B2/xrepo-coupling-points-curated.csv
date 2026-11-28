@@ -1,0 +1,26 @@
+from_repo,to_repo,mechanism,what,file_line,value,sampling
+core,open-packs,commit pin + tree digest,built-in pack source,packs/built-in.source.yaml:5-12,a79c36318b7a506ca2ab26d74705c5e3e406004f subtree packs/built-in requires_core >=4.0.0rc7<5,purposive
+core,open-packs,commit pin + tree digest,internal pack source,packs/internal.source.yaml:5-7,ecda7b00c789006bedcec4e2a8aadf75aa5b03f8 subtree packs/internal,purposive
+core,events,release tag + commit + per-asset sha256,read service pin,pins/read-service.source.yaml:4-13,service-v0.1.0-rc.1 2f5e03948b5262185d15e45019fe14fbc473b9b5,purposive
+core,events,PyPI version range,Python package dependency,pyproject.toml:80,spec-kitty-events>=11.3.0<12,purposive
+core,events,Python import,41 import statements in 25 of 1490 src files (13 top-level; 28 submodule paths),evidence core-imports-of-events.txt,,purposive
+core,doc-kitty,git commit ref in npm dependency,docs site toolkit,site/package.json:15,github:spec-kitty/doc-kitty#1042a40792b47df4339b4511e2107c55854adce1&path:/src,purposive
+core,charter,name mapping only (no pin file),charter-service asset name; pins/ holds read-service only,src/kernel/service_pin.py:71; src/specify_cli/services/vendor.py:80,spec-kitty-charter-service,purposive
+charter,open-packs,commit pin + tree digests,packs/internal and packs/qa synced for governance and usability run,gradle.properties:19; packs/open-packs.lock.yaml:11,1692a3b1dde022c871f09dab34637d2f9d6723f3,purposive
+charter,open-packs,sibling checkout path default,open-packs drift test source,build-logic/src/main/kotlin/OpenPacksCheckout.kt:12; service/pack-validation/build.gradle.kts:106-133,../spec-kitty-open-packs,purposive
+charter,open-packs,CI checkout,workflows check out spec-kitty/spec-kitty-open-packs,.github/workflows/service.yml:103; mutation-testing.yml:108; sonar.yml:87; timing-nightly.yml:54,,purposive
+charter,core,commit constant in script,core verdict corpus generator requires installed spec-kitty-cli built from this commit,scripts/packs/core_verdicts.py:36,9554e7b26afe7a61519f7744d0147346ab36f197,purposive
+charter,core,absolute path default in script,path corpus generator reads core src,scripts/packs/path_corpus.py:31,/home/user/spec-kitty/spec-kitty/src (CORE_SRC),purposive
+charter,doc-kitty,npm exact version,docs site toolkit,site/package.json:26,@spec-kitty/doc-toolkit 0.7.0,purposive
+events,core,commit pin (JSON),CI-only peers: lock interop and parity oracles,service/core-pin.json:1; .github/workflows/service.yml:529-530,512567eee71e31bb39f580c4f7acf8b865e9d1b2,purposive
+events,doc-kitty,npm exact version,docs site toolkit,site/package.json:25,@spec-kitty/doc-toolkit 0.6.0,purposive
+events,(end-to-end-testing),CI checkout at commit,cross-repo harness,.github/workflows/cross-repo-harness-tests.yml:71-72,193f5c0eb07c8fdb6943d91d205ab892b98d6dfc,purposive
+open-packs,charter,commit + release tag + two jar sha256,charter the packs are proven against,charter.lock.yaml:31-34,cb9b15426d17c402b06204185a17ebfbc65f22ff service-v0.1.0-rc.3,purposive
+open-packs,charter,HTTPS raw fetch at pinned commit,pack schemas contracts/packs,scripts/ci/validate_pack_schemas.py:56; :203,raw.githubusercontent.com/spec-kitty/spec-kitty-charter/<commit>/contracts/packs,purposive
+open-packs,charter,process + loopback HTTP,service jar started and driven over /api/v1,scripts/ci/charter_service_check.py:71; :221,java -jar <service jar>; PUT /api/v1/packs/{packId},purposive
+open-packs,charter,process (CLI jar),pack-check jar,scripts/ci/charter_pack_check.py:229-242,java -jar pack-check-<version>.jar,purposive
+open-packs,core,provenance record,built-in pack seeded from core,packs/built-in.source.yaml:11,seeded_from spec-kitty/spec-kitty f166339300dfe207ea7635a285e498beb877f1a0,purposive
+open-packs,core,Python import inside pack asset,internal pack debrief script imports core kernel package,packs/internal/assets/debrief/collect-debrief.py:53,from kernel.clock import now_utc,purposive
+open-packs,doc-kitty,npm exact version,docs site toolkit,site/package.json:21,@spec-kitty/doc-toolkit 0.3.0,purposive
+doc-kitty,charter,vendored snapshot + lock (commit; tag; per-file sha256),packs contract (7 files),src/lib/packs/contract/contract.lock.json:2; :14; src/scripts/packs-sync-contract.mjs:28,33f3ad46e9e33e895d4cd3a077d928d91b4f025f contract-packs-v0.1.0-rc.2,purposive
+doc-kitty,open-packs,file path option read at build,consumer's charter.lock.yaml compared with snapshot commit,src/lib/packs/options.mjs:7-9; src/lib/config.ts:362-377,packs.charterLock,purposive

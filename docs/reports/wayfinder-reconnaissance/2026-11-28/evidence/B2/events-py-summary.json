@@ -1,0 +1,119 @@
+{
+ "modules": 71,
+ "units": 45,
+ "module_edges_all": 204,
+ "module_cycles_top_only": [],
+ "module_cycles_all": [
+  [
+   "spec_kitty_events.conformance.validators",
+   "spec_kitty_events.decisionpoint",
+   "spec_kitty_events.persistence"
+  ]
+ ],
+ "unit_cycles_top_only": [
+  [
+   "__init__",
+   "conformance",
+   "strict"
+  ]
+ ],
+ "unit_cycles_all": [
+  [
+   "__init__",
+   "conformance",
+   "decisionpoint",
+   "persistence",
+   "schemas",
+   "strict",
+   "zeitgeist_attrs"
+  ]
+ ],
+ "third_party": [
+  "jsonschema",
+  "pydantic",
+  "pytest"
+ ],
+ "third_party_by_kind": {
+  "jsonschema|deferred": 2,
+  "pydantic|top": 32,
+  "pytest|top": 12
+ },
+ "modules_with___all__": {
+  "spec_kitty_events": 461,
+  "spec_kitty_events.build_lifecycle": 5,
+  "spec_kitty_events.cloudevents": 13,
+  "spec_kitty_events.cloudevents._canonical": 2,
+  "spec_kitty_events.cloudevents._decode": 2,
+  "spec_kitty_events.cloudevents._detect": 2,
+  "spec_kitty_events.cloudevents._types": 5,
+  "spec_kitty_events.cloudevents._upcast": 2,
+  "spec_kitty_events.cloudevents._validate": 2,
+  "spec_kitty_events.conformance": 14,
+  "spec_kitty_events.conformance.timestamp_semantics": 3,
+  "spec_kitty_events.coordination_message": 9,
+  "spec_kitty_events.decision_moment": 12,
+  "spec_kitty_events.decision_significance": 9,
+  "spec_kitty_events.diary": 32,
+  "spec_kitty_events.forbidden_keys": 4,
+  "spec_kitty_events.harness_observation": 8,
+  "spec_kitty_events.ops_invocation": 7,
+  "spec_kitty_events.ordering": 3,
+  "spec_kitty_events.persistence": 6,
+  "spec_kitty_events.producer_contract": 9,
+  "spec_kitty_events.project_lifecycle": 31,
+  "spec_kitty_events.status_log": 8,
+  "spec_kitty_events.strict": 9,
+  "spec_kitty_events.total_order": 7,
+  "spec_kitty_events.validation_errors": 4,
+  "spec_kitty_events.work_observation": 37,
+  "spec_kitty_events.work_replay": 6,
+  "spec_kitty_events.zeitgeist_attrs": 27
+ },
+ "cross_unit_private_imports": [
+  [
+   "spec_kitty_events.conformance.timestamp_semantics",
+   "spec_kitty_events._iso8601.normalize_iso8601_shape",
+   28
+  ],
+  [
+   "spec_kitty_events.persistence",
+   "spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL",
+   82
+  ],
+  [
+   "spec_kitty_events.retrospective",
+   "spec_kitty_events._iso8601.normalize_iso8601_shape",
+   18
+  ],
+  [
+   "spec_kitty_events.schemas.generate",
+   "spec_kitty_events.decisionpoint._DISCUSSING_ADAPTER",
+   123
+  ],
+  [
+   "spec_kitty_events.schemas.generate",
+   "spec_kitty_events.decisionpoint._OPENED_ADAPTER",
+   123
+  ],
+  [
+   "spec_kitty_events.schemas.generate",
+   "spec_kitty_events.decisionpoint._RESOLVED_ADAPTER",
+   123
+  ],
+  [
+   "spec_kitty_events.schemas.generate",
+   "spec_kitty_events.strict._support_matrix_canonical_json",
+   470
+  ],
+  [
+   "spec_kitty_events.status_log",
+   "spec_kitty_events._iso8601.parse_iso8601_datetime",
+   29
+  ],
+  [
+   "spec_kitty_events.strict",
+   "spec_kitty_events._iso8601.normalize_iso8601_shape",
+   26
+  ]
+ ]
+}

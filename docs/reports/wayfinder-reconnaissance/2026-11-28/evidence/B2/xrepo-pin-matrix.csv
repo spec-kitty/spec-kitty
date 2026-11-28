@@ -1,0 +1,10 @@
+pin_holder_and_file,pinned_repo,sha,commit_date,relation_to_origin_main,commits_behind_origin_main
+charter gradle.properties:19 openPacksRef,spec-kitty-open-packs,1692a3b1dde022c871f09dab34637d2f9d6723f3,2026-11-12T22:22:50+01:00,ancestor,344
+open-packs charter.lock.yaml commit (service-v0.1.0-rc.3),spec-kitty-charter,cb9b15426d17c402b06204185a17ebfbc65f22ff,2026-11-20T18:57:05+01:00,ancestor,178
+charter scripts/packs/core_verdicts.py:36 CORE_COMMIT,spec-kitty,9554e7b26afe7a61519f7744d0147346ab36f197,2026-10-19T15:14:45+02:00,ancestor,5111
+events service/core-pin.json sha,spec-kitty,512567eee71e31bb39f580c4f7acf8b865e9d1b2,2026-10-30T07:58:08+01:00,ancestor,4369
+core packs/built-in.source.yaml,spec-kitty-open-packs,a79c36318b7a506ca2ab26d74705c5e3e406004f,2026-10-31T09:32:01+00:00,not-ancestor,665
+core packs/internal.source.yaml,spec-kitty-open-packs,ecda7b00c789006bedcec4e2a8aadf75aa5b03f8,2026-10-21T17:15:50+02:00,ancestor,646
+core pins/read-service.source.yaml (service-v0.1.0-rc.1),spec-kitty-events,2f5e03948b5262185d15e45019fe14fbc473b9b5,2026-10-31T18:37:47+01:00,ancestor,114
+doc-kitty src/lib/packs/contract/contract.lock.json (contract-packs-v0.1.0-rc.2),spec-kitty-charter,33f3ad46e9e33e895d4cd3a077d928d91b4f025f,2026-11-20T16:26:47+01:00,ancestor,182
+core site/package.json:15 doc-toolkit git ref,doc-kitty,1042a40792b47df4339b4511e2107c55854adce1,2026-11-11T07:16:13+00:00,ancestor,144

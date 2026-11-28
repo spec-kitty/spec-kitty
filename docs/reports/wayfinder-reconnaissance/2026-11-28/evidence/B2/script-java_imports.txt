@@ -1,0 +1,95 @@
+"""Static Java import graph at module and package level (main sources only, plus optional test scope).
+usage: java_imports.py <repo> <outprefix> <scope:main|test> module=srcroot [module=srcroot ...]
+An edge exists when a file in module A imports (plain or static, exact or wildcard) a type whose
+source file lies in module B. Same-package and fully-qualified inline references are not seen.
+Outputs <outprefix>-module-edges.csv, -package-edges.csv, -cycles.json, -nodes.csv
+"""
+import sys, os, re, csv, json, collections
+repo, outp, scope = sys.argv[1:4]
+mods = [a.split("=",1) for a in sys.argv[4:]]
+PKG = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.M)
+IMP = re.compile(r"^\s*import\s+(static\s+)?([\w.]+)(\.\*)?\s*;", re.M)
+cls2mod, pkg2mods, files = {}, collections.defaultdict(set), []
+def roots(m, root):
+    base = os.path.join(repo, root)
+    if scope == "main": return [os.path.join(base,"src/main/java")]
+    return [os.path.join(base,"src/main/java"), os.path.join(base,"src/test/java"), os.path.join(base,"src/testFixtures/java")]
+# class ownership is always main (+testFixtures) of each module
+for m, root in mods:
+    for sub in ("src/main/java","src/testFixtures/java"):
+        for d,_,fs in os.walk(os.path.join(repo,root,sub)):
+            for f in fs:
+                if not f.endswith(".java"): continue
+                p = os.path.join(d,f); t = open(p,encoding="utf-8",errors="replace").read()
+                mm = PKG.search(t); pkg = mm.group(1) if mm else ""
+                owner = m if sub=="src/main/java" else m+"[testFixtures]"
+                if f not in ("package-info.java","module-info.java"):
+                    cls2mod[pkg+"."+f[:-5]] = (owner,pkg)
+                pkg2mods[pkg].add(owner)
+srcsub = ["src/main/java"] if scope=="main" else ["src/test/java","src/testFixtures/java"]
+medges = collections.defaultdict(lambda:[0,set()]); pedges = collections.defaultdict(lambda:[0,set()])
+nodes = collections.Counter(); pnodes = collections.Counter(); detail=[]
+for m, root in mods:
+    for sub in srcsub:
+        for d,_,fs in os.walk(os.path.join(repo,root,sub)):
+            for f in fs:
+                if not f.endswith(".java"): continue
+                p = os.path.join(d,f); rel = os.path.relpath(p,repo)
+                t = open(p,encoding="utf-8",errors="replace").read()
+                mm = PKG.search(t); pkg = mm.group(1) if mm else ""
+                nodes[m]+=1; pnodes[(m,pkg)]+=1
+                for im in IMP.finditer(t):
+                    name, wild = im.group(2), im.group(3)
+                    tgt = None
+                    if wild and not im.group(1):
+                        if name in pkg2mods:
+                            for o in pkg2mods[name]: tgt=(o,name)
+                    parts = name.split(".")
+                    if tgt is None:
+                        for i in range(len(parts),0,-1):
+                            k = ".".join(parts[:i])
+                            if k in cls2mod: tgt = cls2mod[k]; break
+                    if tgt is None: continue
+                    tm, tp = tgt
+                    line = t.count("\n",0,im.start())+1
+                    if tm != m:
+                        e = medges[(m,tm)]; e[0]+=1; e[1].add(rel)
+                        detail.append((m,pkg,tm,tp,name,rel,line))
+                    if (tm,tp) != (m,pkg):
+                        e = pedges[(m,pkg,tm,tp)]; e[0]+=1; e[1].add(rel)
+def sccs(graph):
+    idx={}; low={}; st=[]; on=set(); out=[]; c=[0]
+    sys.setrecursionlimit(100000)
+    def visit(v):
+        idx[v]=low[v]=c[0]; c[0]+=1; st.append(v); on.add(v)
+        for w in graph.get(v,()):
+            if w not in idx: visit(w); low[v]=min(low[v],low[w])
+            elif w in on: low[v]=min(low[v],idx[w])
+        if low[v]==idx[v]:
+            comp=[]
+            while True:
+                w=st.pop(); on.discard(w); comp.append(w)
+                if w==v: break
+            if len(comp)>1: out.append(sorted(comp))
+    for v in list(graph):
+        if v not in idx: visit(v)
+    return out
+mg=collections.defaultdict(set)
+for (a,b) in medges: mg[a.replace("[testFixtures]","")].add(b.replace("[testFixtures]","")) if scope=="main" else mg[a].add(b)
+pg=collections.defaultdict(set)
+for (a,ap,b,bp) in pedges: pg[ap].add(bp)
+with open(outp+"-module-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_module","to_module","import_statements","importing_files"])
+    for (a,b),(n,fsx) in sorted(medges.items()): w.writerow([a,b,n,len(fsx)])
+with open(outp+"-package-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_module","from_package","to_module","to_package","import_statements","importing_files"])
+    for (a,ap,b,bp),(n,fsx) in sorted(pedges.items()): w.writerow([a,ap,b,bp,n,len(fsx)])
+with open(outp+"-nodes.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["module","package","java_files"])
+    for (m,p),n in sorted(pnodes.items()): w.writerow([m,p,n])
+with open(outp+"-cross-module-imports.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_module","from_package","to_module","to_package","imported","file","line"])
+    w.writerows(sorted(detail))
+json.dump({"scope":scope,"modules":len(nodes),"packages":len(pnodes),"module_edges":len(medges),"package_edges":len(pedges),
+           "module_cycles":sccs(mg),"package_cycles":sccs(pg)}, open(outp+"-cycles.json","w"), indent=1)
+print(json.dumps({"modules":len(nodes),"files":sum(nodes.values()),"packages":len(pnodes),"module_edges":len(medges),"package_edges":len(pedges),"cross_module_imports":len(detail),"module_cycles":sccs(mg),"package_cycles":[ (len(c),c[:6]) for c in sccs(pg)]},indent=1))

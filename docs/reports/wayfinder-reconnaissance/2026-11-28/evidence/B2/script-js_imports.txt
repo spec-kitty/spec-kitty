@@ -1,0 +1,92 @@
+"""doc-kitty workspace import graph from source text (regex over tracked files).
+usage: js_imports.py <repo> <outprefix>
+Workspace packages: src (@spec-kitty/doc-toolkit), mcp (@spec-kitty/doc-kitty-mcp), example; plus non-package roots.
+Edges: bare specifier naming a workspace package, or a relative specifier that resolves outside the importing package dir.
+Test files (path with /tests/ or /test/ or *.test.* / *.spec.*) are reported as scope=test.
+"""
+import subprocess, sys, os, re, csv, json, collections, fnmatch
+repo, outp = sys.argv[1:3]
+PK = {"src":"@spec-kitty/doc-toolkit","mcp":"@spec-kitty/doc-kitty-mcp","example":"example"}
+NAME2DIR = {v:k for k,v in PK.items()}
+exports = json.load(open(os.path.join(repo,"src/package.json")))["exports"]
+files = [f for f in subprocess.run(["git","-C",repo,"ls-files","-z"],capture_output=True,check=True).stdout.decode().split("\0")
+         if re.search(r"\.(ts|tsx|mts|js|mjs|cjs|astro)$", f) and not f.startswith(("kitty-specs/","docs/"))]
+SPEC = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)(['"])([^'"\n]+)\1""", re.M)
+def owner(f):
+    top=f.split("/")[0]; return PK.get(top, "("+top+")" if "/" in f else "(root)")
+def scope(f): return "test" if re.search(r"(^|/)(tests?|fixtures|__tests__)/",f) or re.search(r"\.(test|spec)\.[a-z]+$",f) else "main"
+def export_ok(sub):
+    key = "." if not sub else "./"+sub
+    for pat in exports:
+        if pat==key or ("*" in pat and fnmatch.fnmatchcase(key,pat)): return pat
+    return None
+edges=collections.Counter(); rows=[]; ext=collections.Counter(); dirg=collections.defaultdict(set); filegraph=collections.defaultdict(set)
+fileset=set(files)
+def resolve(base, spec):
+    p=os.path.normpath(os.path.join(os.path.dirname(base),spec))
+    for c in [p,p+".ts",p+".mjs",p+".js",p+".tsx",p+".astro",p+"/index.ts",p+"/index.mjs",p+"/index.js",re.sub(r"\.js$",".ts",p),re.sub(r"\.mjs$",".mts",p)]:
+        if c in fileset: return c
+    return p
+for f in files:
+    try: t=open(os.path.join(repo,f),encoding="utf-8",errors="replace").read()
+    except FileNotFoundError: continue
+    o=owner(f); sc=scope(f)
+    for m in SPEC.finditer(t):
+        spec=m.group(2); line=t.count("\n",0,m.start())+1
+        if spec.startswith("."):
+            tgt=resolve(f,spec); to=owner(tgt)
+            if to!=o:
+                edges[(o,to,"relative-path",sc)]+=1; rows.append([o,to,"relative-path",sc,spec,"",f,line])
+            elif sc=="main" and tgt in fileset and scope(tgt)=="main":
+                filegraph[f].add(tgt)
+                a="/".join(f.split("/")[:2]) if f.count("/")>1 else f.split("/")[0]+"/(top)"
+                b="/".join(tgt.split("/")[:2]) if tgt.count("/")>1 else tgt.split("/")[0]+"/(top)"
+                if a!=b: dirg[a].add(b)
+        else:
+            parts=spec.split("/"); name="/".join(parts[:2]) if spec.startswith("@") else parts[0]
+            sub="/".join(parts[2:]) if spec.startswith("@") else "/".join(parts[1:])
+            if name in NAME2DIR:
+                to=name
+                if to!=o or True:
+                    exp=export_ok(sub) if name=="@spec-kitty/doc-toolkit" else "(no exports map)"
+                    edges[(o,to,"package-specifier",sc)]+=1; rows.append([o,to,"package-specifier",sc,spec,exp or "NOT-EXPORTED",f,line])
+            elif not spec.startswith(("node:","astro:","virtual:","#","~","/","http")):
+                ext[(o,name,sc)]+=1
+def sccs(g):
+    sys.setrecursionlimit(100000); idx={};low={};st=[];on=set();out=[];c=[0]
+    def v(x):
+        idx[x]=low[x]=c[0];c[0]+=1;st.append(x);on.add(x)
+        for w in g.get(x,()):
+            if w not in idx: v(w);low[x]=min(low[x],low[w])
+            elif w in on: low[x]=min(low[x],idx[w])
+        if low[x]==idx[x]:
+            comp=[]
+            while True:
+                w=st.pop();on.discard(w);comp.append(w)
+                if w==x:break
+            if len(comp)>1: out.append(sorted(comp))
+    for x in list(g):
+        if x not in idx: v(x)
+    return out
+with open(outp+"-package-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from","to","mechanism","scope","import_statements"])
+    for k,n in sorted(edges.items()): w.writerow(list(k)+[n])
+with open(outp+"-cross-package-imports.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from","to","mechanism","scope","specifier","export_pattern","file","line"]); w.writerows(sorted(rows))
+with open(outp+"-external.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["package","external_module","scope","import_statements"])
+    for k,n in sorted(ext.items()): w.writerow(list(k)+[n])
+with open(outp+"-dir-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_dir","to_dir"])
+    for a in sorted(dirg):
+        for b in sorted(dirg[a]): w.writerow([a,b])
+pg=collections.defaultdict(set)
+for (a,b,mech,sc) in edges:
+    if sc=="main" and a!=b: pg[a].add(b)
+fc=sccs(filegraph)
+summary={"files_scanned":len(files),"package_edges":{f"{a} -> {b} [{m},{s}]":n for (a,b,m,s),n in sorted(edges.items())},
+ "package_cycles_main":sccs(pg),"dir_cycles_main":sccs(dirg),"file_cycles_main_count":len(fc),"file_cycles_main":[c for c in fc][:20],
+ "not_exported_specifiers":sorted({(r[4],r[3]) for r in rows if r[5]=="NOT-EXPORTED"}),
+ "relative_cross_package":collections.Counter((r[0],r[1],r[3]) for r in rows if r[2]=="relative-path").most_common()}
+json.dump(summary,open(outp+"-summary.json","w"),indent=1,default=str)
+print(json.dumps(summary,indent=1,default=str)[:7000])

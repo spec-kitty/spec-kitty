@@ -1,0 +1,38 @@
+{
+ "scope": "test",
+ "modules": 16,
+ "packages": 120,
+ "module_edges": 57,
+ "package_edges": 446,
+ "module_cycles": [
+  [
+   "pack-validation",
+   "packs"
+  ]
+ ],
+ "package_cycles": [
+  [
+   "ai.speckitty.charter.kernel.domain",
+   "ai.speckitty.charter.kernel.validation"
+  ],
+  [
+   "ai.speckitty.charter.packs.application",
+   "ai.speckitty.charter.packs.domain",
+   "ai.speckitty.charter.packs.domain.rules",
+   "ai.speckitty.charter.packs.examples",
+   "ai.speckitty.charter.packs.fixtures",
+   "ai.speckitty.charter.packs.infra.storage",
+   "ai.speckitty.charter.packs.infra.storage.markdown",
+   "ai.speckitty.charter.packs.infra.storage.rules",
+   "ai.speckitty.charter.packvalidation",
+   "ai.speckitty.charter.packvalidation.placement",
+   "ai.speckitty.charter.packvalidation.roundtrip"
+  ],
+  [
+   "ai.speckitty.charter.activations.application",
+   "ai.speckitty.charter.activations.domain",
+   "ai.speckitty.charter.activations.infra.packs",
+   "ai.speckitty.charter.activations.infra.storage"
+  ]
+ ]
+}

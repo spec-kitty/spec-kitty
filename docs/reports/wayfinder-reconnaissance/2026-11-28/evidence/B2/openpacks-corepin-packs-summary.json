@@ -1,0 +1,23 @@
+{
+ "rev": "a79c36318b7a506ca2ab26d74705c5e3e406004f",
+ "packs": 2,
+ "by_level": {
+  "built-in": 1,
+  "org": 1
+ },
+ "edges": 0,
+ "exact_pin_edges": 0,
+ "cycles": [],
+ "unresolved": [],
+ "edges_builtin_to_org": [],
+ "fan_in": [
+  [
+   0,
+   "internal"
+  ],
+  [
+   0,
+   "built-in"
+  ]
+ ]
+}

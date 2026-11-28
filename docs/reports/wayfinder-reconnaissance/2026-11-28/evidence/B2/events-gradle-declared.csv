@@ -1,0 +1,8 @@
+module,configuration,target,file,line
+mission-status-api,implementation,domain-model,service/build.gradle.kts,52
+mission-status-api,implementation,event-log,service/build.gradle.kts,53
+mission-status-api,(other-reference),domain-model,service/build.gradle.kts,349
+event-log,api,domain-model,service/event-log/build.gradle.kts,27
+command-cli,implementation,domain-model,service/command-cli/build.gradle.kts,39
+command-cli,implementation,event-log,service/command-cli/build.gradle.kts,40
+command-cli,testImplementation,event-log[testFixtures],service/command-cli/build.gradle.kts,46

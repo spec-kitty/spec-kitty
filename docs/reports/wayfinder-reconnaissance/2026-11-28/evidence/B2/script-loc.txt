@@ -1,0 +1,40 @@
+"""Module inventory and lines of code by language, from tracked files at HEAD.
+usage: loc.py <repo> <name> <out.csv>
+Lines = physical lines; nonblank = lines with a non-whitespace char. No comment stripping.
+Scope: test if path has /test/, /tests/, /testFixtures/, /__tests__/ or file ends .test.* / .spec.*; else main.
+"""
+import subprocess, sys, csv, os, re, collections
+repo, name, out = sys.argv[1:4]
+MODS = {
+ "charter": [("service/%s/" % m, m) for m in ["kernel","packs","profiles","profiles-edge","routing","routing-edge","missions","missions-edge","artifacts-edge","activations","pack-validation","pack-doctor","charter-api","web-transport","deployable","charter-reports"]]
+   + [("contracts/","contracts"),("client-java/","client-java"),("build-logic/","build-logic"),("scripts/","(scripts)"),("tests/","(tests)"),("site/","(site)"),("deploy/","(deploy)"),("packs/","(packs)"),("docs/","(docs)"),("kitty-specs/","(kitty-specs)"),("src/","(src)"),(".github/","(.github)")],
+ "events": [("java/","java-binding"),("service/domain-model/","domain-model"),("service/event-log/","event-log"),("service/command-cli/","command-cli"),("service/","mission-status-api"),("contracts/","contracts"),("build-logic/","build-logic"),("src/spec_kitty_events/","py:spec_kitty_events"),("tests/","(tests)"),("scripts/","(scripts)"),("site/","(site)"),("docs/","(docs)"),("kitty-specs/","(kitty-specs)"),(".github/","(.github)")],
+ "doc-kitty": [("src/","@spec-kitty/doc-toolkit"),("mcp/","@spec-kitty/doc-kitty-mcp"),("example/","example"),("tests/","(tests)"),("agents/","(agents)"),("research/","(research)"),("docs/","(docs)"),("kitty-specs/","(kitty-specs)"),(".github/","(.github)")],
+ "open-packs": [("scripts/","(scripts)"),("tests/","(tests)"),("site/","(site)"),("docs/","(docs)"),("kitty-specs/","(kitty-specs)"),(".github/","(.github)")],
+}
+LANG = {".java":"Java",".kt":"Kotlin",".kts":"Kotlin-script",".gradle":"Groovy",".py":"Python",".ts":"TypeScript",".tsx":"TypeScript",".mts":"TypeScript",".js":"JavaScript",".mjs":"JavaScript",".cjs":"JavaScript",".astro":"Astro",".css":"CSS",".sh":"Shell",".yaml":"YAML",".yml":"YAML",".json":"JSON",".jsonl":"JSONL",".md":"Markdown",".mdx":"Markdown",".feature":"Gherkin",".toml":"TOML",".xml":"XML",".html":"HTML",".properties":"Properties",".sql":"SQL",".puml":"PlantUML"}
+files = subprocess.run(["git","-C",repo,"ls-files","-z"],capture_output=True,check=True).stdout.decode().split("\0")
+agg = collections.defaultdict(lambda:[0,0,0])
+for f in files:
+    if not f: continue
+    mod = "(root/other)"
+    if name == "open-packs" and f.startswith("packs/"):
+        mod = "pack:" + f.split("/")[1]
+    else:
+        for pre, m in MODS[name]:
+            if f.startswith(pre): mod = m; break
+    ext = os.path.splitext(f)[1].lower()
+    lang = LANG.get(ext, "other")
+    p = "/" + f
+    scope = "test" if re.search(r"/(test|tests|testFixtures|__tests__|test-fixtures|fixtures)/", p) or re.search(r"\.(test|spec)\.[a-z]+$", f) or os.path.basename(f).startswith("test_") else "main"
+    try:
+        data = open(os.path.join(repo,f),"rb").read()
+    except (FileNotFoundError, IsADirectoryError):
+        continue
+    if b"\0" in data[:8000]: lang = "binary"; lines = nb = 0
+    else:
+        ls = data.decode("utf-8","replace").splitlines(); lines = len(ls); nb = sum(1 for l in ls if l.strip())
+    a = agg[(mod,lang,scope)]; a[0]+=1; a[1]+=lines; a[2]+=nb
+with open(out,"w",newline="") as fh:
+    w = csv.writer(fh); w.writerow(["repository","module","language","scope","files","lines","nonblank_lines"])
+    for (mod,lang,scope),(n,l,nb) in sorted(agg.items()): w.writerow([name,mod,lang,scope,n,l,nb])

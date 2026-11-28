@@ -1,0 +1,433 @@
+from_repo,to_repo,file_kind,file,line,token,text
+core,events,ci-workflow,.github/CODEOWNERS,14,spec-kitty-events,"# spec-kitty-events, #6915)."
+core,open-packs,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,7,spec-kitty-open-packs,url: https://github.com/spec-kitty/spec-kitty-open-packs/issues
+core,open-packs,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,8,spec-kitty-open-packs,about: Pack content is authored in spec-kitty-open-packs. File content issues there.
+core,charter,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,10,spec-kitty-charter,url: https://github.com/spec-kitty/spec-kitty-charter/issues
+core,charter,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,11,spec-kitty-charter,about: The charter service and pack composition live in spec-kitty-charter.
+core,events,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,13,spec-kitty-events,url: https://github.com/spec-kitty/spec-kitty-events/issues
+core,events,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,14,spec-kitty-events,"about: Event schemas, reducers, the mission-status/mission-write contracts and the Java services live in spec-kitty-events."
+core,open-packs,ci-workflow,.github/actions/restore-open-packs/action.yml,1,open-packs,"name: ""Restore the open-packs cache"""
+core,open-packs,ci-workflow,.github/actions/restore-open-packs/action.yml,3,spec-kitty-open-packs,Restore-only: warms the spec-kitty-open-packs clone cache from the commits
+core,open-packs,ci-workflow,.github/actions/restore-open-packs/action.yml,15,open-packs,- name: Restore the open-packs clone cache
+core,open-packs,ci-workflow,.github/actions/restore-open-packs/action.yml,18,open-packs,path: ~/.cache/spec-kitty/open-packs
+core,open-packs,ci-workflow,.github/actions/restore-open-packs/action.yml,19,open-packs,key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,4,spec-kitty-open-packs,spec-kitty-open-packs commits pinned in packs/*.source.yaml (#6451). Every
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,8,open-packs,placeholder pin exits 1 with a stable PACK_* code. The open-packs clone cache
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,9,open-packs,is restored through the restore-only `.github/actions/restore-open-packs`
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,33,open-packs,- name: Restore the open-packs clone cache
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,34,open-packs,uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/actions/sync-packs/action.yml,36,open-packs,- name: Sync packs from the pinned open-packs commits
+core,events,ci-workflow,.github/actions/warmup/action.yml,7,spec_kitty_events,"authority for the spec_kitty_events revision, so there is no drifting pinned"
+core,events,ci-workflow,.github/actions/warmup/action.yml,26,spec_kitty_events,"Resolution mode. ""pr"" installs exactly the spec_kitty_events revision"
+core,events,ci-workflow,.github/actions/warmup/action.yml,29,spec_kitty_events,spec_kitty_events release — an upstream-drift signal for nightly /
+core,events,ci-workflow,.github/actions/warmup/action.yml,37,spec_kitty_events,The spec_kitty_events version this run resolved: the version uv.lock locks
+core,events,ci-workflow,.github/actions/warmup/action.yml,81,spec_kitty_events,- name: Resolve the spec_kitty_events revision (mode ${{ inputs.mode }})
+core,open-packs,ci-workflow,.github/actions/warmup/action.yml,117,open-packs,- name: Restore the open-packs cache before the build hook can fetch packs
+core,open-packs,ci-workflow,.github/actions/warmup/action.yml,118,open-packs,uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/actions/warmup/action.yml,136,spec-kitty-events,"uv sync --all-extras --upgrade-package ""spec-kitty-events==$rev"""
+core,events,ci-workflow,.github/actions/warmup/action.yml,144,spec-kitty-events,"echo ""warmup-venv-$WARMUP_MODE: synced spec-kitty-events=$rev"""
+core,events,ci-workflow,.github/actions/warmup/action.yml,146,spec_kitty_events,- name: Verify the environment carries the resolved spec_kitty_events revision
+core,events,ci-workflow,.github/actions/warmup/action.yml,156,spec-kitty-events,".venv/bin/python -c 'import importlib.metadata as metadata; print(metadata.version(""spec-kitty-events""))'"
+core,events,ci-workflow,.github/actions/warmup/action.yml,159,spec-kitty-events,"echo ""::error::warmup: the environment has spec-kitty-events $installed but this run resolved $rev (mode $WARMUP_MODE) — a restored cache is not proof of the ex"
+core,events,ci-workflow,.github/actions/warmup/action.yml,162,spec-kitty-events,"echo ""warmup-venv-$WARMUP_MODE: verified spec-kitty-events $installed (expected $rev)"""
+core,open-packs,ci-workflow,.github/actions/warmup/action.yml,164,open-packs,# #6451: packs/built-in and packs/internal are fetched from the pinned open-packs
+core,events,ci-workflow,.github/ci-module-registry.yml,529,spec-kitty-events,"# the pins name the torn-tail repair goldens (the pinned conformance-fixtures of spec-kitty-events,"
+core,events,ci-workflow,.github/ci-module-registry.yml,1205,spec-kitty-events,"tests read from spec-kitty-events (#6915), and what the tests run on). The corpus modules that read the committed corpus (the reality check"
+core,events,ci-workflow,.github/ci-module-registry.yml,1219,spec-kitty-events,"spec-kitty-events consumers no module row owns (#6605, operator ruling 2026-10-25): the"
+core,events,ci-workflow,.github/ci-module-registry.yml,1222,spec-kitty-events,"together with the resolved-version envelope pin, so a spec-kitty-events bump runs them in its"
+core,events,ci-workflow,.github/ci-module-registry.yml,1227,spec_kitty_events,- tests/contract/spec_kitty_events_consumer
+core,events,ci-workflow,.github/workflows/check-spec-kitty-events-alignment.yml,11,spec-kitty-events,- '.github/workflows/check-spec-kitty-events-alignment.yml'
+core,events,ci-workflow,.github/workflows/check-spec-kitty-events-alignment.yml,19,spec-kitty-events,- '.github/workflows/check-spec-kitty-events-alignment.yml'
+core,open-packs,ci-workflow,.github/workflows/ci-aggregate.yml,385,open-packs,uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,150,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,274,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,384,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,468,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,558,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,647,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,727,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,charter,ci-workflow,.github/workflows/ci-nightly.yml,743,charter_service,"uv run --frozen --python ""3.13"" --all-extras pytest -m ""fast or unit"" tests/adversarial tests/architectural tests/ast_analysis tests/consolidation tests/core te"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,803,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,879,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,955,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1148,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1231,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1314,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1397,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1506,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1733,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,open-packs,ci-workflow,.github/workflows/ci-nightly.yml,1831,open-packs,- name: Sync packs from the pinned open-packs commits
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1863,spec-kitty-events,# install_tools.py of the pinned contract-tools extra of spec-kitty-events (#6915;
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1924,spec-kitty-events,"# extra of spec-kitty-events (#6915), fetched, verified and unpacked here (~230 KB, cached on the pin hash)."
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,1972,read-service,"tools=""$(PYTHONPATH=""$GITHUB_WORKSPACE/src"" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2087,read-service,"tools=""$(PYTHONPATH=""$GITHUB_WORKSPACE/src"" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+core,open-packs,ci-workflow,.github/workflows/ci-nightly.yml,2215,open-packs,- uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2309,spec-kitty-events,"# events-latest (#6605, operator ruling 2026-10-22): spec-kitty-events ships reducer"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2311,spec-kitty-events,# This lane resolves the NEWEST spec-kitty-events that range allows into the runner's
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2316,spec_kitty_events,# spec_kitty_events import census finds). The resolved-version envelope pin is left out:
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2325,spec-kitty-events,"name: Events consumers on the newest allowed spec-kitty-events (nightly-only, #6605)"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2344,spec-kitty-events,"- name: Resolve the newest spec-kitty-events the range allows (throwaway lock, never committed)"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2347,spec-kitty-events,pinned=$(uv export --frozen --no-hashes --all-extras --no-emit-project | grep -E '^spec-kitty-events==' || true)
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2348,spec-kitty-events,uv lock --upgrade-package spec-kitty-events
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2349,spec-kitty-events,resolved=$(uv export --locked --no-hashes --all-extras --no-emit-project | grep -E '^spec-kitty-events==' || true)
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2350,spec-kitty-events,"echo ""::notice::spec-kitty-events pinned in uv.lock: ${pinned:-unknown}; newest allowed by pyproject.toml: ${resolved:-unknown}"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2354,spec-kitty-events,"version=""${resolved#spec-kitty-events==}"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2356,spec-kitty-events,"echo ""::error::could not resolve a spec-kitty-events version from the upgraded lock"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2360,spec-kitty-events,"if [ ! -f ""tests/contract/snapshots/spec-kitty-events-${version}.json"" ]; then"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2361,spec-kitty-events,"echo ""::notice::spec-kitty-events ${version} has no envelope snapshot yet; when core bumps to it, run scripts/snapshot_events_envelope.py"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2367,spec-kitty-events,- name: Verify the installed spec-kitty-events is the resolved one
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2370,spec-kitty-events,"installed=$(uv run --no-sync python -c 'import importlib.metadata as m;print(m.version(""spec-kitty-events""))')"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2372,spec-kitty-events,"echo ""::error::installed spec-kitty-events '${installed}' != resolved '${RESOLVED_EVENTS_VERSION:-unknown}'; the lane would test the wrong release"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2375,spec-kitty-events,"echo ""::notice::events-latest tests spec-kitty-events ${installed}"""
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2378,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2385,spec-kitty-events,- name: Run events-consumer tests on the newest allowed spec-kitty-events (run-all-regardless)
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2425,spec-kitty-events,python3 scripts/ci/nightly_xunit.py summarize --suite-key events-latest --xunit out/reports/xunit-nightly-events-latest.xml --log-step 'Run events-consumer test
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2434,read-service,"# (tests/contract/_mission_status_*.py) with the read-service build core pins (pins/read-service.source.yaml,"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2436,spec-kitty-events,"# the retired Mission Status API workflow's `nightly-corpus`, which built the jar from core's copy of the service; spec-kitty-events runs its own"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2444,read-service,"name: Mission status corpus compare (pinned read-service binary vs Python oracle, nightly-only)"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2463,read-service,"# Not extras-only: the host's native read-service build, plus the contract bundle, tools and fixtures."
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2476,read-service,"pin = load_service_pin(pin_file(Path(PINS_DIR), ""read-service""))"
+core,events,ci-workflow,.github/workflows/ci-nightly.yml,2479,read-service,"raise SystemExit(""no native read-service build is pinned for this runner"")"
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,122,doc-kitty,"# Docsite group (#6930): non-src, like docs above; gates only `docs-site` (the doc-kitty build)."
+core,events,ci-workflow,.github/workflows/ci-router.yml,165,spec_kitty_events,"# gate_selection.DEPENDENCY_MODULE_FANOUT to every module the spec_kitty_events import census routes,"
+core,events,ci-workflow,.github/workflows/ci-router.yml,481,spec-kitty-events,"# uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet"
+core,events,ci-workflow,.github/workflows/ci-router.yml,483,spec_kitty_events,"# gate_selection.DEPENDENCY_MODULE_FANOUT, derived from the spec_kitty_events import census"
+core,events,ci-workflow,.github/workflows/ci-router.yml,586,spec-kitty-events,"# Not a src file: the pins name the torn-tail repair goldens (the pinned conformance-fixtures of spec-kitty-events,"
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,704,dockitty,- 'scripts/docs/_dockitty_contract.py'
+core,events,ci-workflow,.github/workflows/ci-router.yml,724,spec-kitty-events,"# fixtures the reality check and its payload helper read are the pinned spec-kitty-events extras, so a pin"
+core,events,ci-workflow,.github/workflows/ci-router.yml,735,spec-kitty-events,# bumped the reducer (spec-kitty-events) through pyproject.toml/uv.lock/the compatibility manifest and
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1280,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1303,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1333,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1363,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1380,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1409,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1442,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1567,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1754,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1783,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1837,open-packs,- uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/ci-router.yml,1844,spec-kitty-events,"# spec-kitty-events (tests/pinned_service_assets.py fails closed without them); ~230 KB, cached on the pin hash."
+core,events,ci-workflow,.github/workflows/ci-router.yml,1869,spec-kitty-events,"# corpus. They read the pinned contract bundle, tools and conformance fixtures of spec-kitty-events (#6915; the"
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1893,open-packs,- name: Sync packs from the pinned open-packs commits
+core,events,ci-workflow,.github/workflows/ci-router.yml,1895,spec-kitty-events,"# #6915: the contract tests read the pinned extras of spec-kitty-events (contract bundles, contract tools,"
+core,events,ci-workflow,.github/workflows/ci-router.yml,1910,spec-kitty-events,# spec-kitty-events consumer tests that no module shard owns -- the reducer-verdict pins
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,1934,open-packs,- uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/ci-router.yml,1944,spec_kitty_events,tests/contract/spec_kitty_events_consumer \
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,2007,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-router.yml,2044,open-packs,- uses: ./.github/actions/restore-open-packs
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2080,doc-kitty,"# docs-site (#6930, required since #6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md"
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2081,doc-kitty,"# D-1, D-2, D-11): the doc-kitty parallel run. Builds the published docs/ corpus with"
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2085,doc-kitty,# Pages deploy (docs-pages.yml) also calls since the cutover (#6938). doc-kitty is a pnpm
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2091,doc-kitty,"# the called job's, `docs site (doc-kitty build) / build`, which router-gate classifies"
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2093,dockitty,# `workflow_run`; Actions has no cross-workflow `needs:`). Every dockitty-* call must pass
+core,doc-kitty,ci-workflow,.github/workflows/ci-router.yml,2097,doc-kitty,name: docs site (doc-kitty build)
+core,open-packs,ci-workflow,.github/workflows/ci-windows.yml,101,open-packs,uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/ci-windows.yml,134,open-packs,"# open-packs commits (NFR-004: the Windows leg must sync too), using the"
+core,doc-kitty,ci-workflow,.github/workflows/docs-pages.yml,2,doc-kitty,# Deploy the docsite to GitHub Pages (ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
+core,doc-kitty,ci-workflow,.github/workflows/docs-pages.yml,5,doc-kitty,"# `build` calls the ONE doc-kitty build definition, .github/workflows/docs-site-build.yml, the"
+core,doc-kitty,ci-workflow,.github/workflows/docs-pages.yml,29,dockitty,- 'scripts/docs/_dockitty_contract.py'
+core,doc-kitty,ci-workflow,.github/workflows/docs-pages.yml,105,doc-kitty,"# The doc-kitty site, built by the shared definition the pull-request gate runs (D-11). It uploads"
+core,doc-kitty,ci-workflow,.github/workflows/docs-pages.yml,116,doc-kitty,"# Publishes only from `main` of the core repository, and only after a successful doc-kitty build."
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,2,doc-kitty,# docs-site-build (#6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,3,doc-kitty,# D-11): the ONE build definition of the doc-kitty docsite. It checks the site's folder
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,4,doc-kitty,"# contract, installs site/ with the frozen lockfile (no token: doc-kitty is public), runs the"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,11,doc-kitty,"# Playwright's Chromium (site/package.json pins playwright 1.62.1, matching doc-kitty's optional,"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,14,doc-kitty,"# remote `!include` cannot reach the network). Before the build, doc-kitty's canary"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,15,dockitty,# (dockitty-assert-plantuml-no-remote-include) proves the running service refuses a remote
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,16,doc-kitty,"# include and runs SANDBOX, and doc-kitty's dockitty-plantuml-guard proves neither the toolkit,"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,17,doc-kitty,"# the server URL nor the site config names plantuml.com. After the build, doc-kitty's"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,18,dockitty,"# dockitty-assert-diagrams proves every built diagram is an SVG figure with no raw, client-mode,"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,20,doc-kitty,# published page has a figure per source diagram fence. External includes stay off (doc-kitty
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,21,doc-kitty,"# #268 unused, operator ruling 2026-11-01 on #6936). This follows doc-kitty's own CI at the"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,22,doc-kitty,"# pinned commit (1042a40 ci.yml, spec-kitty/doc-kitty#314)."
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,29,doc-kitty,#     jobs-API row reads `docs site (doc-kitty build) / build`; router-gate classifies it.
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,66,doc-kitty,"# jetty-v1.2026.9, the one doc-kitty v0.7.0 recommends (docs/guides/consumer-setup.md)."
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,84,dockitty,- name: Check the site's folder contract against scripts/docs/_dockitty_contract.py
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,107,doc-kitty,"- name: Frontmatter gate (doc-kitty, published and draft pages)"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,109,dockitty,run: pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,114,dockitty,run: python3 -m scripts.docs.site_link_gates check-links -- pnpm exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,133,doc-kitty,# Retried with a pause: one 403 from the download host failed a doc-kitty deploy (doc-kitty #117).
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,153,dockitty,"pnpm exec dockitty-assert-plantuml-no-remote-include --service-container ""${{ job.services.plantuml.id }}"" --canary-host ""$GATEWAY"" --astro-config astro.config."
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,154,doc-kitty,- name: Prove no PlantUML diagram can reach plantuml.com (doc-kitty plantuml-guard)
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,155,dockitty,"# dockitty-plantuml-guard (doc-kitty 1042a40, #314): the installed toolkit's lib/ names no"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,159,dockitty,run: pnpm exec dockitty-plantuml-guard --astro-config astro.config.mjs
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,163,doc-kitty,- name: Prove every built diagram was drawn at build time (doc-kitty assert-diagrams)
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,164,dockitty,"# dockitty-assert-diagrams (doc-kitty 1042a40, #314) owns the built-markup rules: every"
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,169,dockitty,run: pnpm exec dockitty-assert-diagrams dist
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,177,dockitty,run: pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.config.mjs
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,180,dockitty,run: pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs
+core,doc-kitty,ci-workflow,.github/workflows/docs-site-build.yml,189,dockitty,run: python3 -m scripts.docs.site_link_gates built-links -- pnpm exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../
+core,events,ci-workflow,.github/workflows/module-tests.yml,143,spec-kitty-events,"# #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance"
+core,open-packs,ci-workflow,.github/workflows/packs.yml,210,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,232,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,254,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,266,spec-kitty-open-packs,"echo ""::error::A pack pin is unresolvable, still a placeholder, or its tree digest does not match. Do not hand-edit packs/. Bump the pin in packs/<pack>.source."
+core,open-packs,ci-workflow,.github/workflows/packs.yml,281,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,326,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,368,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,399,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/packs.yml,417,open-packs,- uses: ./.github/actions/restore-open-packs
+core,open-packs,ci-workflow,.github/workflows/release-readiness.yml,230,open-packs,- name: Sync packs from the pinned open-packs commits
+core,open-packs,ci-workflow,.github/workflows/release.yml,154,open-packs,uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/release.yml,336,read-service,"if ""specify_cli/_pins/read-service.source.yaml"" not in names:"
+core,events,ci-workflow,.github/workflows/release.yml,337,read-service,"raise SystemExit(""::error::the wheel lacks specify_cli/_pins/read-service.source.yaml"")"
+core,events,ci-workflow,.github/workflows/release.yml,338,mission-status-api,"binaries = [n for n in names if any(fnmatch.fnmatch(n.rsplit(""/"", 1)[-1], p) for p in (""mission-status-api-*"", ""command-cli-*"", ""*.jar"", ""*.exe""))]"
+core,events,ci-workflow,.github/workflows/release.yml,341,read-service,"print(""✅ Wheel ships the read-service pin and no service binary"")"
+core,open-packs,ci-workflow,.github/workflows/release.yml,410,open-packs,uses: ./.github/actions/restore-open-packs
+core,events,ci-workflow,.github/workflows/release.yml,418,spec-kitty-events,"# the glibc of the spec-kitty-events native builders (ubuntu-24.04 = glibc 2.39), and the macOS"
+core,events,ci-workflow,.github/workflows/sonar.yml,303,spec-kitty-events,# install_tools.py is the pinned contract-tools extra of spec-kitty-events (#6915): the locked Python
+core,events,ci-workflow,.github/workflows/sonar.yml,361,read-service,"tools=""$(PYTHONPATH=""$GITHUB_WORKSPACE/src"" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+core,doc-kitty,build-file,Makefile,44,doc-kitty,"# doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm."
+core,doc-kitty,build-file,Makefile,45,dockitty,"# Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1), except"
+core,doc-kitty,build-file,Makefile,46,dockitty,"# dockitty-assert-diagrams, which reads only the built HTML and takes no config."
+core,doc-kitty,build-file,Makefile,53,doc-kitty,"# site/package.json, matching doc-kitty's optional exact peer; pnpm warns on drift); on a bare host"
+core,doc-kitty,build-file,Makefile,61,doc-kitty,"docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, PlantUML canary and guard, build, diagram and built-site ch"
+core,doc-kitty,build-file,Makefile,65,dockitty,cd site && pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
+core,doc-kitty,build-file,Makefile,66,dockitty,uv run --frozen python -m scripts.docs.site_link_gates check-links -- pnpm --dir site exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
+core,doc-kitty,build-file,Makefile,73,dockitty,"cd site && pnpm exec dockitty-assert-plantuml-no-remote-include --service-container $(DOCS_SITE_PLANTUML_CONTAINER) --canary-host ""$$($(DOCS_SITE_PLANTUML_GATEW"
+core,doc-kitty,build-file,Makefile,74,dockitty,cd site && pnpm exec dockitty-plantuml-guard --astro-config astro.config.mjs
+core,doc-kitty,build-file,Makefile,76,dockitty,cd site && pnpm exec dockitty-assert-diagrams dist
+core,doc-kitty,build-file,Makefile,78,dockitty,cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.confi
+core,doc-kitty,build-file,Makefile,79,dockitty,cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs
+core,doc-kitty,build-file,Makefile,81,dockitty,uv run --frozen python -m scripts.docs.site_link_gates built-links -- pnpm --dir site exec dockitty-assert-no-broken-links dist --base / --site https://docs.spe
+core,doc-kitty,build-file,Makefile,95,doc-kitty,docs-site-bump: ## Bump the doc-kitty pin and peer ranges (REF=<tag|sha>; ADR D-2 steps 1-2)
+core,doc-kitty,build-file,Makefile,96,doc-kitty,"@test -n ""$(REF)"" || { echo ""Usage: make docs-site-bump REF=<doc-kitty tag or commit>""; exit 2; }"
+core,events,build-file,acceptance-jvm/build.gradle,23,spec-kitty-events,// extra of spec-kitty-events (scripts/sync_services.py --extras-path read-service:contract_tools).
+core,charter,build-file,packages/spec-kitty-services/pyproject.toml,21,charter-service,"charter-service = ""spec_kitty_services:charter_service"""
+core,open-packs,pin-or-lock,packs/built-in.source.yaml,1,spec-kitty-open-packs,# Pin lockfile: which spec-kitty-open-packs commit this pack was taken from.
+core,open-packs,pin-or-lock,packs/built-in.source.yaml,2,open-packs,# Direction: open-packs -> core. (open-packs' own built-in.source.yaml records the
+core,open-packs,pin-or-lock,packs/built-in.source.yaml,3,open-packs,"# OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,"
+core,open-packs,pin-or-lock,packs/built-in.source.yaml,5,spec-kitty-open-packs,repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
+core,open-packs,pin-or-lock,packs/internal.source.yaml,1,spec-kitty-open-packs,# Pin lockfile: which spec-kitty-open-packs commit this pack was taken from.
+core,open-packs,pin-or-lock,packs/internal.source.yaml,2,open-packs,# Direction: open-packs -> core. (open-packs' own built-in.source.yaml records the
+core,open-packs,pin-or-lock,packs/internal.source.yaml,3,open-packs,"# OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,"
+core,open-packs,pin-or-lock,packs/internal.source.yaml,5,spec-kitty-open-packs,repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
+core,events,pin-or-lock,pins/read-service.source.yaml,3,read-service,service: read-service
+core,events,pin-or-lock,pins/read-service.source.yaml,4,spec-kitty-events,repository: https://github.com/spec-kitty/spec-kitty-events
+core,events,pin-or-lock,pins/read-service.source.yaml,12,mission-status-api,name: mission-status-api-0.1.0-rc.1.jar
+core,events,pin-or-lock,pins/read-service.source.yaml,15,mission-status-api,name: mission-status-api-0.1.0-rc.1-linux-arm64
+core,events,pin-or-lock,pins/read-service.source.yaml,18,mission-status-api,name: mission-status-api-0.1.0-rc.1-linux-x64
+core,events,pin-or-lock,pins/read-service.source.yaml,21,mission-status-api,name: mission-status-api-0.1.0-rc.1-macos-arm64
+core,events,pin-or-lock,pins/read-service.source.yaml,24,mission-status-api,name: mission-status-api-0.1.0-rc.1-windows-x64.exe
+core,events,build-file,pyproject.toml,70,spec-kitty-events,# spec-kitty-events / spec-kitty-tracker: public shared-package
+core,events,build-file,pyproject.toml,72,spec_kitty_events,# tests/contract/spec_kitty_events_consumer/ and
+core,events,build-file,pyproject.toml,80,spec-kitty-events,"""spec-kitty-events>=11.3.0,<12"","
+core,doc-kitty,build-file,pyproject.toml,297,doc-kitty,# The doc-kitty docsite source and build output (ADR 2026-10-31-1 D-12) never ship.
+core,charter,build-file,pyproject.toml,1041,charter_service,"""tests/charter/test_active_charter_service_builder_unification.py"","
+core,charter,build-file,pyproject.toml,1042,charter_service,"""tests/charter/test_active_charter_service_lineage_accessor.py"","
+core,charter,build-file,pyproject.toml,1043,charter_service,"""tests/charter/test_active_charter_service_unfiltered_mode.py"","
+core,events,build-file,pyproject.toml,1255,spec_kitty_events,"""tests/contract/spec_kitty_events_consumer/test_consumer_contract.py"","
+core,doc-kitty,build-file,site/package.json,5,doc-kitty,"""description"": ""docs.spec-kitty.ai built with doc-kitty from ../docs (ADR 2026-10-31-1). Bump the toolkit with `make docs-site-bump REF=<tag|sha>`."","
+core,doc-kitty,build-file,site/package.json,15,doc-toolkit,"""@spec-kitty/doc-toolkit"": ""github:spec-kitty/doc-kitty#1042a40792b47df4339b4511e2107c55854adce1&path:/src"","
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,17,doc-toolkit,'@spec-kitty/doc-toolkit':
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,18,doc-kitty,specifier: github:spec-kitty/doc-kitty#1042a40792b47df4339b4511e2107c55854adce1&path:/src
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,19,doc-kitty,version: git+https://github.com/spec-kitty/doc-kitty.git#1042a40792b47df4339b4511e2107c55854adce1&path:/src(@astrojs/markdown-remark@7.3.5)(@astrojs/markdown-sa
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,737,doc-toolkit,'@spec-kitty/doc-toolkit@git+https://github.com/spec-kitty/doc-kitty.git#1042a40792b47df4339b4511e2107c55854adce1&path:/src':
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,738,doc-kitty,"resolution: {commit: 1042a40792b47df4339b4511e2107c55854adce1, path: /src, repo: https://github.com/spec-kitty/doc-kitty.git, type: git}"
+core,doc-kitty,pin-or-lock,site/pnpm-lock.yaml,3433,doc-toolkit,'@spec-kitty/doc-toolkit@git+https://github.com/spec-kitty/doc-kitty.git#1042a40792b47df4339b4511e2107c55854adce1&path:/src(@astrojs/markdown-remark@7.3.5)(@ast
+core,events,pin-or-lock,uv.lock,2201,spec-kitty-events,"{ name = ""spec-kitty-events"" },"
+core,events,pin-or-lock,uv.lock,2295,spec-kitty-events,"{ name = ""spec-kitty-events"", specifier = "">=11.3.0,<12"" },"
+core,events,pin-or-lock,uv.lock,2326,spec-kitty-events,"name = ""spec-kitty-events"""
+core,events,pin-or-lock,uv.lock,2333,spec_kitty_events,"sdist = { url = ""https://files.pythonhosted.org/packages/b0/19/80eb0b6f2c4cfef0901f7d02a9d3a26f23923f1f5a1b99a3834fc2f2231c/spec_kitty_events-11.3.0.tar.gz"", ha"
+core,events,pin-or-lock,uv.lock,2335,spec_kitty_events,"{ url = ""https://files.pythonhosted.org/packages/a3/25/66d2e90850b932e58604bef7ecd542de5ba8818fc942571f779fa855d520/spec_kitty_events-11.3.0-py3-none-any.whl"", "
+charter,events,ci-workflow,.github/CODEOWNERS,2,spec-kitty-events,"# Org policy: spec-kitty/spec-kitty (open-core CLI), spec-kitty/spec-kitty-events,"
+charter,core,ci-workflow,.github/CODEOWNERS,2,spec-kitty/spec-kitty,"# Org policy: spec-kitty/spec-kitty (open-core CLI), spec-kitty/spec-kitty-events,"
+charter,open-packs,ci-workflow,.github/workflows/ci.yml,98,open-packs,service_re='^(contracts/|service/|build-logic/|config/|gradle/|deploy/|scripts/ci/fixtures/|\.gitignore$|(.*/)?\.env|[^/]+\.gradle\.kts$|gradle\.properties$|gra
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,3,doc-kitty,# Builds the doc-kitty docsite from docs/ on every pull request that touches the
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,113,DocKitty,"# Diagrams render at build time (DocKitty 0.7.0): Mermaid through Chromium, PlantUML through the"
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,124,DocKitty,# Pinned by the multi-arch index digest of jetty-v1.2026.9 (the same as DocKitty v0.7.0 deploy.yml).
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,132,doc-toolkit,# @spec-kitty/doc-toolkit is installed from GitHub Packages.
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,153,doc-kitty,# doc-kitty 0.7.0 (Astro 7) requires Node 22.22+.
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,193,DocKitty,# Schematic diagram that DocKitty builds from the schema and renders through this service.
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,205,doc-toolkit,# Bump the 0.7.0 in the key and restore-keys together with the @spec-kitty/doc-toolkit pin in site/package.json.
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,234,DocKitty,# diagram figure DocKitty builds from the schema. The glob matching nothing is a failure. The figure must
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,246,DocKitty,"# DocKitty's own .sha256 covers its published copy, so it always verifies. The real check is that the"
+charter,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,258,doc-kitty,# doc-kitty (since 0.4.0) writes dist/okf/ on every build; re-export from the built
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,24,spec-kitty-open-packs,"# spec-kitty-open-packs is checked out at the pin and synced, as in service.yml, for governance; the tests read the example packs (ADR-0070)."
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,94,openPacksRef,# The pin lives in gradle.properties only (openPacksRef); Gradle reads it too.
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,95,open-packs,- name: Read the open-packs pin
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,96,open-packs,id: open-packs-pin
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,98,openPacksRef,"ref=""$(grep '^openPacksRef=' gradle.properties | cut -d= -f2-)"""
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,100,openPacksRef,"echo ""::error::openPacksRef in gradle.properties must be 40 lowercase hex characters, but is '$ref'"""
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,105,spec-kitty-open-packs,- name: Check out spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,108,spec-kitty-open-packs,repository: spec-kitty/spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,109,open-packs,ref: ${{ steps.open-packs-pin.outputs.ref }}
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,110,open-packs,path: .open-packs
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,123,open-packs,"# against packs/open-packs.lock.yaml, as service.yml does."
+charter,open-packs,ci-workflow,.github/workflows/mutation-testing.yml,125,open-packs,"run: ./gradlew syncPacks -PopenPacksDir=""$GITHUB_WORKSPACE/.open-packs"""
+charter,events,ci-workflow,.github/workflows/service-native.yml,131,spec-kitty-events,"# is off in charter.native-image). The action and the GraalVM release are pinned as spec-kitty-events pins them, so"
+charter,open-packs,ci-workflow,.github/workflows/service-release.yml,29,spec-kitty-open-packs,# The build it calls (service.yml) also checks out spec-kitty-open-packs at the commit pinned in gradle.properties
+charter,open-packs,ci-workflow,.github/workflows/service-release.yml,30,openPacksRef,"# (openPacksRef) to sync packs/internal and packs/qa for governance; no test reads it, and it is never part of an asset."
+charter,open-packs,ci-workflow,.github/workflows/service.yml,40,open-packs,"# The pack sync and its lockfile (packs/internal and packs/qa are synced from open-packs, not committed)."
+charter,open-packs,ci-workflow,.github/workflows/service.yml,42,open-packs,"- ""packs/open-packs.lock.yaml"""
+charter,open-packs,ci-workflow,.github/workflows/service.yml,89,openPacksRef,# The pin lives in gradle.properties only (openPacksRef); Gradle reads it too.
+charter,open-packs,ci-workflow,.github/workflows/service.yml,90,open-packs,- name: Read the open-packs pin
+charter,open-packs,ci-workflow,.github/workflows/service.yml,91,open-packs,id: open-packs-pin
+charter,open-packs,ci-workflow,.github/workflows/service.yml,93,openPacksRef,"ref=""$(grep '^openPacksRef=' gradle.properties | cut -d= -f2-)"""
+charter,open-packs,ci-workflow,.github/workflows/service.yml,95,openPacksRef,"echo ""::error::openPacksRef in gradle.properties must be 40 lowercase hex characters, but is '$ref'"""
+charter,open-packs,ci-workflow,.github/workflows/service.yml,100,spec-kitty-open-packs,- name: Check out spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/service.yml,103,spec-kitty-open-packs,repository: spec-kitty/spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/service.yml,104,open-packs,ref: ${{ steps.open-packs-pin.outputs.ref }}
+charter,open-packs,ci-workflow,.github/workflows/service.yml,105,open-packs,path: .open-packs
+charter,open-packs,ci-workflow,.github/workflows/service.yml,120,open-packs,"# against packs/open-packs.lock.yaml. Fails closed, so a pin bump without the lockfile update is red. The tests"
+charter,open-packs,ci-workflow,.github/workflows/service.yml,123,open-packs,"run: ./gradlew syncPacks -PopenPacksDir=""$GITHUB_WORKSPACE/.open-packs"""
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,68,openPacksRef,# The pin lives in gradle.properties only (openPacksRef); Gradle reads it too.
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,69,open-packs,- name: Read the open-packs pin
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,70,open-packs,id: open-packs-pin
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,74,openPacksRef,"ref=""$(grep '^openPacksRef=' gradle.properties | cut -d= -f2-)"""
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,76,openPacksRef,"echo ""::error::openPacksRef in gradle.properties must be 40 lowercase hex characters, but is '$ref'"""
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,81,spec-kitty-open-packs,- name: Check out spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,82,open-packs,id: open-packs
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,83,open-packs,if: steps.sonar_token.outputs.enabled == 'true' && steps.open-packs-pin.outcome == 'success'
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,87,spec-kitty-open-packs,repository: spec-kitty/spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,88,open-packs,ref: ${{ steps.open-packs-pin.outputs.ref }}
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,89,open-packs,path: .open-packs
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,110,open-packs,steps.sonar_token.outputs.enabled == 'true' && steps.open-packs.outcome == 'success'
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,113,open-packs,"run: ./gradlew syncPacks -PopenPacksDir=""$GITHUB_WORKSPACE/.open-packs"""
+charter,open-packs,ci-workflow,.github/workflows/sonar.yml,118,open-packs,"# The tests read the charter-owned example packs (ADR-0070), not the open-packs checkout, so the build does not"
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,15,spec-kitty-open-packs,"# spec-kitty-open-packs is checked out at the pin and synced, as in service.yml, for governance; the tests read the example packs (ADR-0070)."
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,40,openPacksRef,# The pin lives in gradle.properties only (openPacksRef); Gradle reads it too.
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,41,open-packs,- name: Read the open-packs pin
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,42,open-packs,id: open-packs-pin
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,44,openPacksRef,"ref=""$(grep '^openPacksRef=' gradle.properties | cut -d= -f2-)"""
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,46,openPacksRef,"echo ""::error::openPacksRef in gradle.properties must be 40 lowercase hex characters, but is '$ref'"""
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,51,spec-kitty-open-packs,- name: Check out spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,54,spec-kitty-open-packs,repository: spec-kitty/spec-kitty-open-packs
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,55,open-packs,ref: ${{ steps.open-packs-pin.outputs.ref }}
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,56,open-packs,path: .open-packs
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,69,open-packs,"# against packs/open-packs.lock.yaml, as service.yml does."
+charter,open-packs,ci-workflow,.github/workflows/timing-nightly.yml,71,open-packs,"run: ./gradlew syncPacks -PopenPacksDir=""$GITHUB_WORKSPACE/.open-packs"""
+charter,open-packs,build-file,build-logic/src/main/kotlin/OpenPacksCheckout.kt,4,spec-kitty-open-packs,"* Where the build looks for the spec-kitty-open-packs checkout that the open-packs drift test reads (#322, ADR-0070). The `openPacksDir`"
+charter,open-packs,build-file,build-logic/src/main/kotlin/OpenPacksCheckout.kt,7,spec-kitty-open-packs,"* of the repository root, `../spec-kitty-open-packs`."
+charter,open-packs,build-file,build-logic/src/main/kotlin/OpenPacksCheckout.kt,12,spec-kitty-open-packs,"const val DEFAULT = ""../spec-kitty-open-packs"""
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,7,spec-kitty-open-packs,"/** Where the build looks for the spec-kitty-open-packs checkout (-PopenPacksDir, #322). */"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,18,spec-kitty-open-packs,".isEqualTo(File(workspace, ""spec-kitty-open-packs"").absoluteFile)"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,23,spec-kitty-open-packs,"assertThat(OpenPacksCheckout.resolve(repositoryRoot, ""../spec-kitty-open-packs""))"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,24,spec-kitty-open-packs,".isEqualTo(File(workspace, ""spec-kitty-open-packs"").absoluteFile)"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,29,open-packs,"assertThat(OpenPacksCheckout.resolve(repositoryRoot, "".open-packs""))"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,30,open-packs,".isEqualTo(File(repositoryRoot, "".open-packs"").absoluteFile)"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,35,open-packs,"val elsewhere = File(workspace, ""elsewhere/open-packs"").absoluteFile"
+charter,open-packs,build-file,build-logic/src/test/kotlin/OpenPacksCheckoutTest.kt,51,spec-kitty-open-packs,"for (given in listOf(null, ""../spec-kitty-open-packs"", ""./a/../b"", File(workspace, ""x/../y"").absolutePath)) {"
+charter,open-packs,build-file,build.gradle.kts,46,spec-kitty-open-packs,// Syncs packs/internal and packs/qa from the spec-kitty-open-packs commit pinned by openPacksRef (gradle.properties) and
+charter,open-packs,build-file,build.gradle.kts,47,open-packs,// verifies them against packs/open-packs.lock.yaml. They are not committed: run it once per worktree. The work is
+charter,open-packs,build-file,build.gradle.kts,49,spec-kitty-open-packs,"// the repository root), else the sibling ../spec-kitty-open-packs, read at the pin and never from its working tree."
+charter,open-packs,build-file,build.gradle.kts,55,open-packs,"description = ""Syncs packs/internal and packs/qa from the pinned open-packs commit and verifies their digests."""
+charter,open-packs,build-file,build.gradle.kts,78,open-packs,"openPacksDir.orNull?.let { addAll(listOf(""--open-packs-dir"", it)) }"
+charter,open-packs,build-file,gradle.properties,14,spec-kitty-open-packs,"# The spec-kitty-open-packs commit that packs/internal and packs/qa are synced from (scripts/packs/sync_packs.py), for"
+charter,open-packs,build-file,gradle.properties,16,open-packs,# single source of truth for the pin: Gradle's syncPacks task and CI read it. Raised to the open-packs main tip
+charter,open-packs,build-file,gradle.properties,17,open-packs,"# 1692a3b, which carries open-packs #248 (#241: each pack's README.md is its only document; #242: org-charter.yaml"
+charter,open-packs,build-file,gradle.properties,19,openPacksRef,openPacksRef=1692a3b1dde022c871f09dab34637d2f9d6723f3
+charter,open-packs,pin-or-lock,packs/open-packs.lock.yaml,1,spec-kitty-open-packs,# Digests of the packs synced from spec-kitty-open-packs at the commit pinned by openPacksRef in gradle.properties.
+charter,open-packs,pin-or-lock,packs/open-packs.lock.yaml,3,openPacksRef,"# A pin bump changes openPacksRef, this file's commit and these digests in one commit."
+charter,open-packs,build-file,service/pack-validation/build.gradle.kts,106,open-packs,"// The open-packs drift test (ADR-0070): spec-kitty-open-packs runs it as a gate at its charter pin, and its"
+charter,open-packs,build-file,service/pack-validation/build.gradle.kts,108,spec-kitty-open-packs,// source set runs every pack of a spec-kitty-open-packs checkout through the production round trip and the gate's
+charter,open-packs,build-file,service/pack-validation/build.gradle.kts,111,spec-kitty-open-packs,// ../spec-kitty-open-packs).
+charter,open-packs,build-file,service/pack-validation/build.gradle.kts,128,spec-kitty-open-packs,"description = ""Round-trips every pack of a spec-kitty-open-packs checkout by meaning (open-packs CI); not run by check."""
+charter,open-packs,build-file,service/pack-validation/build.gradle.kts,133,open-packs,"doNotTrackState(""open-packs main moves; a cached pass says nothing about today's tree"")"
+charter,doc-kitty,build-file,site/package.json,6,doc-toolkit,"""description"": ""The spec-kitty-charter documentation site, built from ../docs with the published @spec-kitty/doc-toolkit."","
+charter,doc-kitty,build-file,site/package.json,16,dockitty,"""validate"": ""dockitty-validate-frontmatter ../docs && dockitty-check-links ../docs"","
+charter,doc-kitty,build-file,site/package.json,17,dockitty,"""check:built-links"": ""dockitty-assert-no-broken-links dist --base /spec-kitty-charter --site https://spec-kitty.github.io"","
+charter,doc-kitty,build-file,site/package.json,18,dockitty,"""check:okf"": ""dockitty-export-okf --dist dist --docs ../docs --out okf-export --index-basename README --base /spec-kitty-charter --site-url https://spec-kitty.g"
+charter,doc-kitty,build-file,site/package.json,26,doc-toolkit,"""@spec-kitty/doc-toolkit"": ""0.7.0"","
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,17,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,27,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,36,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,45,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,55,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+charter,core,pin-or-lock,src/test/resources/fixtures/lockfile/charter.lock.yaml,64,requires_core,"requires_core: '>=3.0.0,<4'      # excludes engine 4.0.0rc7 -> PACK_ENGINE_INCOMPATIBLE at resolve"
+charter,open-packs,pin-or-lock,src/test/resources/fixtures/packs/acme-review-pack/acme-review-pack.source.yaml,1,spec-kitty-open-packs,# Per-pack source descriptor (parity with upstream spec-kitty-open-packs/built-in.source.yaml).
+charter,core,pin-or-lock,src/test/resources/fixtures/packs/acme-review-pack/acme-review-pack.source.yaml,14,requires_core,"requires_core: '>=4.0.0rc7,<5'"
+events,core,ci-workflow,.github/CODEOWNERS,2,spec-kitty/spec-kitty,"# Org policy: spec-kitty/spec-kitty (open-core CLI), spec-kitty/spec-kitty-events,"
+events,charter,ci-workflow,.github/CODEOWNERS,3,spec-kitty-charter,# and spec-kitty/spec-kitty-charter are owned by the chief open-core maintainer.
+events,core,ci-workflow,.github/workflows/cross-repo-harness-tests.yml,103,spec-kitty-cli,uv tool install --prerelease=allow --with click 'spec-kitty-cli==3.2.0rc22'
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,3,doc-kitty,# Builds the doc-kitty docsite from docs/ on every pull request that touches the
+events,charter,ci-workflow,.github/workflows/docs-site.yml,4,spec-kitty-charter,"# docs, and publishes it to GitHub Pages from main. Modelled on spec-kitty-charter's"
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,45,DocKitty,"# Diagrams render at build time (DocKitty 0.6.0): Mermaid through Chromium, PlantUML through the"
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,56,DocKitty,# Pinned by the multi-arch index digest of jetty-v1.2026.9 (the same as DocKitty v0.6.0 deploy.yml).
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,71,doc-toolkit,# @spec-kitty/doc-toolkit is installed from GitHub Packages.
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,127,doc-toolkit,# doc-toolkit 0.6.0 (Astro 7) requires Node 22.22+.
+events,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,188,doc-toolkit,# Bump the 0.6.0 in the key and restore-keys together with the @spec-kitty/doc-toolkit pin in site/package.json.
+events,core,ci-workflow,.github/workflows/pr-pause-ci.yml,1,spec-kitty/spec-kitty,# pr:pause-ci -- pause a pull request's CI (ADR 0005 D3; ported from spec-kitty/spec-kitty#6961).
+events,core,ci-workflow,.github/workflows/service.yml,529,spec-kitty/spec-kitty,repository: spec-kitty/spec-kitty
+events,open-packs,ci-workflow,.github/workflows/service.yml,542,open-packs,- name: Sync core's packs from its pinned open-packs commits
+events,core,ci-workflow,.github/workflows/service.yml,621,spec-kitty/spec-kitty,repository: spec-kitty/spec-kitty
+events,open-packs,ci-workflow,.github/workflows/service.yml,635,open-packs,- name: Sync core's packs from its pinned open-packs commits
+events,core,ci-workflow,.github/workflows/service.yml,672,spec-kitty/spec-kitty,repository: spec-kitty/spec-kitty
+events,open-packs,ci-workflow,.github/workflows/service.yml,685,open-packs,- name: Sync core's packs from its pinned open-packs commits
+events,core,pin-or-lock,service/core-pin.json,1,spec-kitty/spec-kitty,"{""repository"": ""spec-kitty/spec-kitty"", ""sha"": ""512567eee71e31bb39f580c4f7acf8b865e9d1b2"", ""purpose"": ""CI-only peers: lock interop, the nightly corpus oracle an"
+events,doc-kitty,build-file,site/package.json,6,doc-toolkit,"""description"": ""The spec-kitty-events documentation site, built from ../docs with the published @spec-kitty/doc-toolkit."","
+events,doc-kitty,build-file,site/package.json,17,dockitty,"""validate"": ""dockitty-validate-frontmatter ../docs --exclude ../docs/changelog/unreleased && dockitty-check-links ../docs --exclude ../docs/changelog/unreleased"
+events,doc-kitty,build-file,site/package.json,18,dockitty,"""check:built-links"": ""dockitty-assert-no-broken-links dist --base /spec-kitty-events --site https://spec-kitty.github.io"""
+events,doc-kitty,build-file,site/package.json,25,doc-toolkit,"""@spec-kitty/doc-toolkit"": ""0.6.0"","
+open-packs,charter,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,6,spec-kitty-charter,- name: 🧠 Charter logic & pack mechanics (spec-kitty-charter)
+open-packs,charter,ci-workflow,.github/ISSUE_TEMPLATE/config.yml,7,spec-kitty-charter,url: https://github.com/spec-kitty/spec-kitty-charter/issues
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,8,charter_service,"# PR gate, the release track, the on-demand track and the nightly main track share every step: charter_service_jar.sh,"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,9,charter_service,"# charter_pack_check_jar.sh with charter_pack_check.py (#252), charter_service_check.py and the schema pass. A called run first moves the pin and"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,14,pack-check,#   runs the checks with that release's service and pack-check jars (each checked against its .sha256 asset) and
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,25,pack-check,"#   runs the same checks, pack-check (built from the same source) included. It reports in the job summary, never bumps the lock and uses"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,44,spec-kitty-charter,"# - the repository secret PR_CREATION_TOKEN, a fine-grained PAT on spec-kitty-charter and spec-kitty-open-packs"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,52,pack-check,"# Provenance (#310). Before a bump, the read-only provenance job checks the release's service jar and pack-check jar:"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,55,spec-kitty-charter,# - its build attestation is verified against spec-kitty-charter's release workflow and the tag (gh attestation
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,306,spec-kitty-charter,CHARTER: spec-kitty/spec-kitty-charter
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,335,spec-kitty-charter,"check service ""spec-kitty-charter-service-$version.jar"" ""$JAR_SHA256"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,336,pack-check,"check pack_check ""pack-check-$version.jar"" ""$PACK_CHECK_SHA256"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,374,pack-check,"python3 scripts/ci/charter_pin.py apply --commit ""$COMMIT"" --release-tag ""$RELEASE_TAG"" --jar-sha256 ""$JAR_SHA256"" --pack-check-sha256 ""$PACK_CHECK_SHA256"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,526,charter.lock.yaml,"[.additions[] | select(.path == ""charter.lock.yaml"")] as $locks"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,543,charter.lock.yaml,"echo ""::error::the derived charter.lock.yaml does not pin exactly $RELEASE_TAG ($COMMIT) with the checked digests; nothing is pushed"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,558,spec-kitty-charter,"verified) echo ""- $1: verified against \`spec-kitty/spec-kitty-charter\`'s release workflow (\`gh attestation verify\`)"" ;;"
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,569,pack-check,"echo ""- \`pack_check_sha256\`: \`$PACK_CHECK_SHA256\` (the release's pack-check \`.sha256\` asset)"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,575,pack-check,"attested ""the pack-check jar"" ""$ATTEST_PACK_CHECK"""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,695,pack-check,"echo ""Run: $RUN_URL (pack-check report artifact: \`charter-pack-check-report\`)."""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,706,charter.lock.yaml,"echo ""migrates the packs and bumps \`charter.lock.yaml\` to the release settles it: the next run closes it."""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,761,charter.lock.yaml,"--comment ""\`charter.lock.yaml\` pins \`$CURRENT\` on \`main\`, at or past \`$tag\`: settled."""
+open-packs,charter,ci-workflow,.github/workflows/charter-track.yml,828,pack-check,"echo ""Run: $RUN_URL (pack-check report artifact: \`charter-pack-check-report\`)."""
+open-packs,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,3,doc-kitty,"# Builds the doc-kitty / Astro docsite from docs/, enforces the generated-content"
+open-packs,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,16,doc-toolkit,#   @spec-kitty/doc-toolkit is a private GitHub Packages dependency. `npm ci`
+open-packs,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,58,doc-toolkit,# @spec-kitty/doc-toolkit is installed from GitHub Packages.
+open-packs,doc-kitty,ci-workflow,.github/workflows/docs-site.yml,81,dockitty,# dockitty-check-links over docs/ (the SOURCE tree) is the gating link
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,23,charter.lock.yaml,"# then moves charter.lock.yaml to that target and re-derives what the pin decides (the pack manifests,"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,41,pack-check,"description: ""The SHA-256 the release's pack-check jar must have; set with charter_release_tag"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,90,pack-check,"python3 scripts/ci/charter_pin.py apply --commit ""$COMMIT"" --release-tag ""$RELEASE_TAG"" --jar-sha256 ""$JAR_SHA256"" --pack-check-sha256 ""$PACK_CHECK_SHA256"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,100,spec-kitty-charter,"# Packs validate against the spec-kitty-charter pack schemas, pinned by commit in"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,101,charter.lock.yaml,"# charter.lock.yaml, not against the spec-kitty core CLI. This is the fast per-pack pre-check;"
+open-packs,core,ci-workflow,.github/workflows/validate-packs.yml,115,spec-kitty/spec-kitty,# pin bump (spec-kitty/spec-kitty#6553); this catches them first.
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,139,charter.lock.yaml,# ADR-0070): this job starts it at the commit pinned in charter.lock.yaml and asks it to compose every
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,141,pack-check,"# expected-code file names. It also gates every pack on the charter's whole-pack check, pack-check (#252):"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,143,pack-check,"# above stays as the fast pre-check, and keeps the rules pack-check is weaker on (the preset checks) and the"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,145,charter-service,charter-service:
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,173,pack-check,"run: python3 scripts/ci/charter_pin.py apply --commit ""$COMMIT"" --release-tag ""$RELEASE_TAG"" --jar-sha256 ""$JAR_SHA256"" --pack-check-sha256 ""$PACK_CHECK_SHA256"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,197,charter_service,"jar=""$(scripts/ci/charter_service_jar.sh ""$RUNNER_TEMP/charter-service"")"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,202,pack-check,"# pinned release's pack-check, checked against pack_check_sha256 (never ""latest""), or, on a commit pin, built from"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,204,pack-check,"# Any exit but 0 fails it, exit 2 included (pack-check crashes with exit 2 on a malformed pack_version,"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,205,spec-kitty-charter,"# spec-kitty-charter#624: a failure, never a skip). So does any warning but file_not_held, a skipped check or a"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,206,pack-check,# pack left out; every invalid fixture must be refused as its expected-code's `pack-check:` line says.
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,207,pack-check,- name: Check every pack with the charter's pack-check
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,211,pack-check,REPORT_DIR: ${{ runner.temp }}/pack-check-report
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,214,charter-service,"jar=""$(scripts/ci/charter_pack_check_jar.sh ""$RUNNER_TEMP/charter-service"")"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,218,pack-check,- name: Upload the pack-check report
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,222,pack-check,name: charter-pack-check-report
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,223,pack-check,path: ${{ runner.temp }}/pack-check-report
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,230,charter_service,"run: python3 scripts/ci/charter_service_check.py --jar ""$SERVICE_JAR"""
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,236,charter-service,"needs: [validate, charter-service]"
+open-packs,charter,ci-workflow,.github/workflows/validate-packs.yml,274,charter-service,CHARTER_SERVICE: ${{ needs.charter-service.result }}
+open-packs,charter,pin-or-lock,charter.lock.yaml,6,charter_service,#     `commit` and asks it to compose and register every pack (scripts/ci/charter_service_check.py).
+open-packs,charter,pin-or-lock,charter.lock.yaml,7,pack-check,"#   - the same job gates every pack on the charter's whole-pack check, pack-check (each pack, the closure and the"
+open-packs,charter,pin-or-lock,charter.lock.yaml,8,pack-check,"#     round trip; #252): the release's pack-check jar on a release pin, built from `commit` on a main pin"
+open-packs,charter,pin-or-lock,charter.lock.yaml,16,spec-kitty-charter,"# commit       the spec-kitty-charter commit, 40 lowercase hex characters. Never a branch or a tag:"
+open-packs,charter,pin-or-lock,charter.lock.yaml,24,spec-kitty-charter,"# jar_sha256   the SHA-256 of `spec-kitty-charter-service-<version>.jar`, 64 lowercase hex characters,"
+open-packs,charter,pin-or-lock,charter.lock.yaml,28,pack-check,"#              the SHA-256 of the same release's `pack-check-<version>.jar` (#252), as its `.sha256` asset"
+open-packs,charter,pin-or-lock,charter.lock.yaml,30,pack-check,"#              digest. Releases before `service-v0.1.0-rc.3` ship no pack-check, so cannot be pinned."
+open-packs,core,pin-or-lock,packs/built-in.source.yaml,4,spec-kitty/spec-kitty,# is authored. Since spec-kitty/spec-kitty#6451 core keeps no copy: it fetches packs/built-in/
+open-packs,core,pin-or-lock,packs/built-in.source.yaml,11,spec-kitty/spec-kitty,repository: https://github.com/spec-kitty/spec-kitty
+open-packs,doc-kitty,build-file,site/package.json,6,doc-toolkit,"""description"": ""The spec-kitty-open-packs documentation site, built from ../docs with the published @spec-kitty/doc-toolkit."","
+open-packs,doc-kitty,build-file,site/package.json,15,dockitty,"""validate"": ""dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs && dockitty-check-links ../docs --astro-config astro.config.mjs"","
+open-packs,doc-kitty,build-file,site/package.json,16,dockitty,"""check:built-links"": ""dockitty-assert-no-broken-links dist --base /spec-kitty-open-packs --site https://spec-kitty.github.io"""
+open-packs,doc-kitty,build-file,site/package.json,21,doc-toolkit,"""@spec-kitty/doc-toolkit"": ""0.3.0"","
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,110,open-packs,# The packs reader against every open-packs pack at a pinned commit (#330).
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,112,open-packs,- name: Packs corpus (open-packs at the pinned commit)
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,114,open-packs,"pin=$(node -p ""require('./src/tests/fixtures/packs-corpus/open-packs.pin.json').commit"")"
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,115,open-packs,"git init -q ""$RUNNER_TEMP/open-packs"""
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,116,open-packs,"git -C ""$RUNNER_TEMP/open-packs"" fetch -q --depth 1 https://github.com/spec-kitty/spec-kitty-open-packs ""$pin"""
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,117,open-packs,"git -C ""$RUNNER_TEMP/open-packs"" checkout -q FETCH_HEAD"
+doc-kitty,open-packs,ci-workflow,.github/workflows/ci.yml,118,open-packs,"DK_OPEN_PACKS_DIR=""$RUNNER_TEMP/open-packs"" pnpm --filter @spec-kitty/doc-toolkit test:packs-corpus"

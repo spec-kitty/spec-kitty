@@ -1,0 +1,27 @@
+"""Inventory of enforced architecture rules in Java test sources (static text scan).
+usage: arch_rule_inventory.py <repo> <out.csv> <exceptions.csv>
+A rule file = a test-source .java file importing com.tngtech.archunit. Counted per file: ArchRule declarations
+(fields, locals, factory methods returning ArchRule), JUnit test methods, allowEmptyShould uses, and named exemptions
+(lines with doNotHaveFullyQualifiedName / doNotHaveSimpleName / 'exempt' / 'ignoreDependency' / resideOutsideOfPackage(s) carve-outs are NOT counted as exemptions).
+"""
+import os,re,sys,csv
+repo,out,exc=sys.argv[1:4]
+rows=[];ex=[]
+for d,_,fs in os.walk(repo):
+    if "/build/" in d+"/" or "/.git" in d or "node_modules" in d or "/src/test" not in d+"/" and "/src/testFixtures" not in d+"/": continue
+    for f in fs:
+        if not f.endswith(".java"): continue
+        p=os.path.join(d,f); t=open(p,encoding="utf-8",errors="replace").read()
+        if "com.tngtech.archunit" not in t: continue
+        rel=os.path.relpath(p,repo)
+        decl=len(re.findall(r"\bArchRule\s+\w+\s*(=|\()",t))
+        tests=len(re.findall(r"@(Test|ArchTest|ParameterizedTest)\b",t))
+        rows.append([rel,rel.split("/src/")[0],decl,tests,t.count("allowEmptyShould"),t.count("\n")+1])
+        for i,l in enumerate(t.splitlines(),1):
+            if re.search(r"doNotHaveFullyQualifiedName|doNotHaveSimpleName\(|ignoreDependency|FreezingArchRule",l) and not l.strip().startswith(("*","//")):
+                ex.append([rel,i,l.strip()[:170]])
+w=csv.writer(open(out,"w",newline="")); w.writerow(["file","module_dir","archrule_declarations","junit_test_methods","allowEmptyShould_uses","lines"]); w.writerows(sorted(rows))
+w=csv.writer(open(exc,"w",newline="")); w.writerow(["file","line","text"]); w.writerows(sorted(ex))
+print("rule files",len(rows),"ArchRule declarations",sum(r[2] for r in rows),"test methods",sum(r[3] for r in rows),"named exemption lines",len(ex))
+for r in sorted(rows): print(r)
+for e in ex: print("  EX",e)

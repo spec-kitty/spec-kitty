@@ -1,0 +1,55 @@
+"""Cross-repository references in code and build files (tracked files at HEAD).
+usage: xrepo_refs.py <out.csv> <summary.json>
+Excluded as prose: docs/, kitty-specs/, kitty-ops/, research/, site/src/content, *.md, *.mdx, CHANGELOG*, LICENSE, NOTICE, and
+lock files of third-party resolvers (uv.lock, pnpm-lock.yaml) except lines naming an ecosystem package.
+A reference is a line matching a token of another repository. Self-references are dropped.
+"""
+import subprocess, re, csv, json, sys, collections, os
+out, summ = sys.argv[1:3]
+REPOS = {"core":"/home/user/spec-kitty","charter":"/home/user/spec-kitty-charter","events":"/home/user/spec-kitty-events","open-packs":"/home/user/spec-kitty-open-packs","doc-kitty":"/home/user/doc-kitty"}
+TOK = {
+ "charter": re.compile(r"spec-kitty-charter|charter\.lock\.yaml|ai\.speckitty\.charter|charter[-_]service|pack-check|pack-doctor"),
+ "events": re.compile(r"spec-kitty-events|spec_kitty_events|org\.speckitty\.(missionstatus|commandcli)|ai\.speckitty\.events|read-service|mission-status-api|command-cli"),
+ "open-packs": re.compile(r"spec-kitty-open-packs|open-packs|openPacksRef|open_packs"),
+ "doc-kitty": re.compile(r"doc-kitty|doc-toolkit|dockitty|DocKitty"),
+ "core": re.compile(r"spec-kitty/spec-kitty(?![-\w])|spec-kitty-cli|specify_cli|requires_core|spec-kitty\.git\b|\bspec-kitty (upgrade|charter|agent|doctor|next|init)\b"),
+}
+# tokens that are too generic inside their home-adjacent repos are still reported; classification happens below
+def kind(path):
+    b=os.path.basename(path)
+    if path.startswith(".github/"): return "ci-workflow"
+    if b in ("pyproject.toml","package.json","settings.gradle.kts","build.gradle.kts","build.gradle","gradle.properties","libs.versions.toml","Makefile","Dockerfile","pnpm-workspace.yaml") or path.startswith("build-logic/"): return "build-file"
+    if b.endswith((".lock.yaml",".source.yaml",".lock")) or b in ("uv.lock","pnpm-lock.yaml","core-pin.json") or "/pins/" in "/"+path or path.startswith("pins/"): return "pin-or-lock"
+    if re.search(r"(^|/)(tests?|fixtures|testFixtures|__tests__)/",path) or re.search(r"\.(test|spec)\.[a-z]+$",path): return "test"
+    if path.startswith("scripts/") or "/scripts/" in path: return "script"
+    if path.endswith((".py",".java",".kt",".ts",".mjs",".js",".astro",".sh")): return "source"
+    return "config-or-data"
+PROSE = re.compile(r"^(docs|kitty-specs|kitty-ops|research|agents|architecture)/|^site/src/content/|\.(md|mdx|txt|feature|svg|png|otf|html|puml|jsonl)$|(^|/)(CHANGELOG|LICENSE|NOTICE|README)")
+rows=[]; agg=collections.Counter(); files_agg=collections.defaultdict(set)
+for r,path in REPOS.items():
+    fl=subprocess.run(["git","-C",path,"ls-files","-z"],capture_output=True,check=True).stdout.decode().split("\0")
+    for f in fl:
+        if not f or PROSE.search(f): continue
+        if r=="core" and (f.startswith(("packs/built-in/","packs/internal/",".claude/",".agents/",".kittify/"))): continue
+        if r=="open-packs" and f.startswith("packs/"): pass
+        full=os.path.join(path,f)
+        try:
+            if os.path.getsize(full)>3_000_000: continue
+            data=open(full,"rb").read()
+        except (FileNotFoundError,IsADirectoryError): continue
+        if b"\0" in data[:4000]: continue
+        k=kind(f)
+        for i,line in enumerate(data.decode("utf-8","replace").splitlines(),1):
+            for t,rx in TOK.items():
+                if t==r: continue
+                m=rx.search(line)
+                if not m: continue
+                rows.append([r,t,k,f,i,m.group(0),line.strip()[:160]])
+                agg[(r,t,k)]+=1; files_agg[(r,t,k)].add(f)
+with open(out,"w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_repo","to_repo","file_kind","file","line","token","text"]); w.writerows(rows)
+s={f"{a}->{b}|{k}":{"lines":n,"files":len(files_agg[(a,b,k)])} for (a,b,k),n in sorted(agg.items())}
+json.dump(s,open(summ,"w"),indent=1)
+tot=collections.Counter()
+for (a,b,k),n in agg.items(): tot[(a,b)]+=n
+for (a,b),n in sorted(tot.items()): print(a,"->",b,n, {k:(agg[(a,b,k)],len(files_agg[(a,b,k)])) for k in ["build-file","pin-or-lock","ci-workflow","script","source","test","config-or-data"] if agg[(a,b,k)]})

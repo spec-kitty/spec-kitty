@@ -1,0 +1,20 @@
+{
+ "scope": "main",
+ "modules": 5,
+ "packages": 39,
+ "module_edges": 5,
+ "package_edges": 127,
+ "module_cycles": [],
+ "package_cycles": [
+  [
+   "org.speckitty.missionstatus.application.query",
+   "org.speckitty.missionstatus.application.query.stream"
+  ],
+  [
+   "org.speckitty.commandcli.domain.authority",
+   "org.speckitty.commandcli.domain.authority.batch",
+   "org.speckitty.commandcli.domain.authority.claim",
+   "org.speckitty.commandcli.domain.authority.dependency"
+  ]
+ ]
+}

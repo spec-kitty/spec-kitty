@@ -1,0 +1,11 @@
+from_dir,to_dir
+src/(top),src/lib
+src/components,src/layouts
+src/components,src/lib
+src/components,src/themes
+src/layouts,src/components
+src/layouts,src/lib
+src/layouts,src/scripts
+src/lib,src/scripts
+src/scripts,src/lib
+src/themes,src/lib

@@ -1,0 +1,82 @@
+package,external_module,scope,import_statements
+(root),@eslint/js,main,1
+(root),@playwright/test,main,1
+(root),typescript-eslint,main,1
+(tests),@astrojs/starlight,test,3
+(tests),@axe-core/playwright,test,8
+(tests),@playwright/test,test,34
+(tests),@spec-kitty/core,test,1
+(tests),@spec-kitty/doc-toolkit-internals,test,1
+(tests),SPEC,test,1
+(tests),astro,test,1
+(tests),mermaid,test,2
+(tests),spec-kitty,test,4
+(tests),spec_kitty,test,1
+(tests),starlight-openapi,test,4
+(tests),vitest,test,5
+@spec-kitty/doc-kitty-mcp,${href},main,1
+@spec-kitty/doc-kitty-mcp,@modelcontextprotocol/server,main,6
+@spec-kitty/doc-kitty-mcp,@modelcontextprotocol/server,test,5
+@spec-kitty/doc-kitty-mcp,vitest,test,24
+@spec-kitty/doc-toolkit, | ,main,1
+@spec-kitty/doc-toolkit, }[section.split(,test,1
+@spec-kitty/doc-toolkit,${from},test,1
+@spec-kitty/doc-toolkit,${relPath},main,2
+@spec-kitty/doc-toolkit,(@spec-kitty\,test,1
+@spec-kitty/doc-toolkit,([^,test,1
+@spec-kitty/doc-toolkit,", ",main,1
+@spec-kitty/doc-toolkit,", ",test,1
+@spec-kitty/doc-toolkit,", repo, ",test,11
+@spec-kitty/doc-toolkit,1,main,2
+@spec-kitty/doc-toolkit,: ,test,1
+@spec-kitty/doc-toolkit,@astrojs/markdown-remark,main,1
+@spec-kitty/doc-toolkit,@astrojs/markdown-remark,test,1
+@spec-kitty/doc-toolkit,@astrojs/sitemap,main,1
+@spec-kitty/doc-toolkit,@astrojs/sitemap,test,1
+@spec-kitty/doc-toolkit,@astrojs/starlight,main,27
+@spec-kitty/doc-toolkit,@astrojs/starlight,test,3
+@spec-kitty/doc-toolkit,@beoe/rehype-mermaid,main,1
+@spec-kitty/doc-toolkit,@cucumber/gherkin,main,4
+@spec-kitty/doc-toolkit,@cucumber/gherkin,test,5
+@spec-kitty/doc-toolkit,@cucumber/messages,main,19
+@spec-kitty/doc-toolkit,@cucumber/messages,test,7
+@spec-kitty/doc-toolkit,@readme/openapi-parser,main,1
+@spec-kitty/doc-toolkit,A **thing**.,test,1
+@spec-kitty/doc-toolkit,\.\,test,1
+@spec-kitty/doc-toolkit,\.\.\,test,1
+@spec-kitty/doc-toolkit,astro,main,40
+@spec-kitty/doc-toolkit,astro,test,15
+@spec-kitty/doc-toolkit,cannot parse,main,1
+@spec-kitty/doc-toolkit,default,test,1
+@spec-kitty/doc-toolkit,exactly one line,test,1
+@spec-kitty/doc-toolkit,file:,test,1
+@spec-kitty/doc-toolkit,github-slugger,main,5
+@spec-kitty/doc-toolkit,gray-matter,main,17
+@spec-kitty/doc-toolkit,gray-matter,test,16
+@spec-kitty/doc-toolkit,links inserted,main,2
+@spec-kitty/doc-toolkit,mdast-util-to-hast,test,4
+@spec-kitty/doc-toolkit,mermaid,main,3
+@spec-kitty/doc-toolkit,never defined,main,2
+@spec-kitty/doc-toolkit,remark-directive,main,3
+@spec-kitty/doc-toolkit,remark-directive,test,8
+@spec-kitty/doc-toolkit,remark-gfm,main,2
+@spec-kitty/doc-toolkit,remark-gfm,test,16
+@spec-kitty/doc-toolkit,remark-parse,main,5
+@spec-kitty/doc-toolkit,remark-parse,test,23
+@spec-kitty/doc-toolkit,remark-smartypants,main,2
+@spec-kitty/doc-toolkit,remark-smartypants,test,3
+@spec-kitty/doc-toolkit,reveal.js,main,5
+@spec-kitty/doc-toolkit,sax,test,1
+@spec-kitty/doc-toolkit,starlight-openapi,main,3
+@spec-kitty/doc-toolkit,starlight-openapi,test,4
+@spec-kitty/doc-toolkit,typescript,test,1
+@spec-kitty/doc-toolkit,unified,main,10
+@spec-kitty/doc-toolkit,unified,test,23
+@spec-kitty/doc-toolkit,vitest,main,2
+@spec-kitty/doc-toolkit,vitest,test,242
+@spec-kitty/doc-toolkit,x,test,2
+@spec-kitty/doc-toolkit,yaml,main,8
+@spec-kitty/doc-toolkit,yaml,test,5
+@spec-kitty/doc-toolkit,zod,test,7
+example,astro,main,2
+example,starlight-openapi,main,1

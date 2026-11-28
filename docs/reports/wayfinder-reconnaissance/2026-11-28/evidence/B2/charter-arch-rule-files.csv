@@ -1,0 +1,11 @@
+file,module_dir,archrule_declarations,junit_test_methods,allowEmptyShould_uses,lines
+service/deployable/src/test/java/ai/speckitty/charter/deployable/GeneratedConstraintTypesTest.java,service/deployable,1,2,1,89
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,service/deployable,82,99,14,2623
+service/deployable/src/test/java/ai/speckitty/charter/deployable/MixInHintsGateTest.java,service/deployable,0,5,0,203
+service/deployable/src/test/java/ai/speckitty/charter/deployable/NoBuildTimeProfilesTest.java,service/deployable,0,3,0,72
+service/deployable/src/test/java/ai/speckitty/charter/deployable/ReservedRefusalCodesTest.java,service/deployable,1,10,0,373
+service/deployable/src/test/java/ai/speckitty/charter/deployable/ServiceClasses.java,service/deployable,0,0,0,34
+service/packs/src/test/java/ai/speckitty/charter/packs/NetworkCodeBoundaryTest.java,service/packs,2,6,1,112
+service/packs/src/test/java/ai/speckitty/charter/packs/OwnerOnlyBoundaryTest.java,service/packs,1,2,0,74
+service/packs/src/test/java/ai/speckitty/charter/packs/PackGraphWalkBoundaryTest.java,service/packs,4,3,0,170
+service/packs/src/test/java/ai/speckitty/charter/packs/domain/OneClosureFaultTypeTest.java,service/packs,1,2,0,58

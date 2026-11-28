@@ -1,0 +1,30 @@
+"""Static approximation of the project-internal package rules of spec-kitty-events' mission-status ArchitectureRules
+(rules 1b, 2b, 3, 4, 5a, 5b, 6, 12a, 12c, 14; project-package part only) over the import-derived package graph
+(main sources of mission-status-api, domain-model, event-log). JDK/framework parts of the rules (7, 8, 9, 10, 13, 1c, 2c)
+are NOT checked: they need class files. usage: events_static_rule_check.py <package-edges.csv> <out.json>
+"""
+import csv, sys, json
+R="org.speckitty.missionstatus"
+def inp(p,*subs): return any(p==R+"."+s or p.startswith(R+"."+s+".") for s in subs)
+edges=[r for r in csv.DictReader(open(sys.argv[1])) if r["from_package"].startswith(R) and r["to_package"].startswith(R)]
+rules={
+ "1b-internal: domain depends only on domain": lambda a,b: inp(a,"domain") and not inp(b,"domain"),
+ "2b-internal: application depends only on application, domain": lambda a,b: inp(a,"application") and not inp(b,"application","domain"),
+ "3: adapter.in.http reaches only application.query.port.in, domain, itself": lambda a,b: inp(a,"adapter.in.http") and not inp(b,"adapter.in.http","application.query.port.in","domain"),
+ "4: adapter.out.filesystem reaches only application.query.port.out, domain, itself": lambda a,b: inp(a,"adapter.out.filesystem") and not inp(b,"adapter.out.filesystem","application.query.port.out","domain"),
+ "5a: adapter.in -> adapter.out": lambda a,b: inp(a,"adapter.in") and inp(b,"adapter.out"),
+ "5b: adapter.out -> adapter.in": lambda a,b: inp(a,"adapter.out") and inp(b,"adapter.in"),
+ "6: nothing outside config depends on config": lambda a,b: not inp(a,"config") and inp(b,"config"),
+ "12a: codec depends only on domain, codec": lambda a,b: inp(a,"adapter.out.filesystem.codec") and not inp(b,"domain","adapter.out.filesystem.codec"),
+ "12c: codec used only by adapter.out.filesystem": lambda a,b: inp(b,"adapter.out.filesystem.codec") and not inp(a,"adapter.out.filesystem"),
+ "14: application.query -> application.command": lambda a,b: inp(a,"application.query") and inp(b,"application.command"),
+}
+out={"package_edges_considered":len(edges),"rules":{}}
+for name,f in rules.items():
+    subj=[e for e in edges]
+    v=[(e["from_package"],e["to_package"],e["import_statements"]) for e in edges if f(e["from_package"],e["to_package"])]
+    out["rules"][name]={"violating_package_edges":len(v),"detail":v}
+json.dump(out,open(sys.argv[2],"w"),indent=1)
+print(json.dumps({k:v["violating_package_edges"] for k,v in out["rules"].items()},indent=1), len(edges))
+for k,v in out["rules"].items():
+    for d in v["detail"]: print("  ",k[:20],d)

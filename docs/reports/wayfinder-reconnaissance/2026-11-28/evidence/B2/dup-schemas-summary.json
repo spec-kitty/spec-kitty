@@ -1,0 +1,26 @@
+{
+ "population_by_repo": {
+  "core": 103,
+  "charter": 686,
+  "events": 1389,
+  "open-packs": 1,
+  "doc-kitty": 49
+ },
+ "files_total": 2228,
+ "exact_groups_cross_repo": 11,
+ "canonical_only_groups_cross_repo": 0,
+ "same_basename_cross_repo_pairs": 23,
+ "exact_groups_by_repo_set": {
+  "core+doc-kitty": 1,
+  "charter+events": 5,
+  "charter+doc-kitty": 4,
+  "doc-kitty+events": 1
+ },
+ "exact_groups_by_repo_set_main_scope_only": {
+  "charter+events": 5,
+  "charter+doc-kitty": 4
+ },
+ "same_name_ge_0.9": 11,
+ "same_name_ge_0.5_lt_0.9": 3,
+ "same_name_lt_0.5": 9
+}

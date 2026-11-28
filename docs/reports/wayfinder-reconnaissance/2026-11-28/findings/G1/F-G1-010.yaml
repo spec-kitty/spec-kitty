@@ -1,0 +1,58 @@
+finding_id: F-G1-010
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I5/charter"
+  deviation: null
+subject:
+  component: "charter Java service (service/)"
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "I5 check ran (1.0 s) with partial meaning. 18 of 1,003 main Java files hold a file-write primitive: 16 in the rings the published model names for storage or outbound work (infra.storage, infra.fetch, infra.archive), 1 in the pack-doctor CLI (whose published 'remediate' command rewrites a pack), and 1 outside those rings, in packs.application (8 occurrences in one file). The check cannot say which stored state (pack store or activation register) each write touches."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/charter-head-I5_file_writes.csv"
+    method: "python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>"
+    sha256: "e684fe350933faaafa67f125af8c796520f70277c6e4242ba037c2e4d699f3b4"
+    exit_code: 0
+    environment: "Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/charter-head-summary.json"
+    method: "python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>"
+    sha256: "00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461"
+    exit_code: 0
+    environment: "Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "java.nio.file.Files mutating calls, FileOutputStream, FileWriter, RandomAccessFile, FileChannel.open, PrintWriter in comment-stripped main sources."
+  not_covered: "Writes through other APIs; which state a write belongs to; whether one slice's storage ring writes another slice's documents; the published statement that the composition root chooses where activation documents are stored."
+  population: "1,003 main Java files"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether any domain ring or the kernel holds a write primitive."
+  result: "None does: all 18 files are in infra rings, the CLI or the one application-ring file."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "integrity"
+  - "modularity"
+candidate_invariants: 
+  - "File-write primitives appear only in infra.storage, infra.fetch, infra.archive and the pack-doctor CLI"
+open_questions: 
+  - "Is a file-system write in an application ring inside the published rule? The rule text forbids YAML, JSON, HTTP and frameworks in the domain, and does not state where java.nio.file writes may sit."

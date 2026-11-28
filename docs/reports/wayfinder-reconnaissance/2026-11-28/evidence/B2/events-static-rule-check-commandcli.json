@@ -1,0 +1,10 @@
+{
+ "edges_from_commandcli": 57,
+ "checks": {
+  "onion: domain -> application|adapter": [],
+  "onion: application -> adapter": [],
+  "onion: adapter -> other adapter": [],
+  "application -> org.speckitty.missionstatus (except domain.model?)": [],
+  "non-config -> config": []
+ }
+}

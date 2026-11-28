@@ -1,0 +1,39 @@
+{
+ "rev": "f9a557510dc7ff04597a0b8aba87f736e25f785e",
+ "packs": 19,
+ "by_level": {
+  "built-in": 7,
+  "org": 12
+ },
+ "edges": 41,
+ "exact_pin_edges": 15,
+ "cycles": [],
+ "unresolved": [],
+ "edges_builtin_to_org": [],
+ "fan_in": [
+  [
+   17,
+   "foundation"
+  ],
+  [
+   10,
+   "testing"
+  ],
+  [
+   4,
+   "writing"
+  ],
+  [
+   4,
+   "architecture"
+  ],
+  [
+   3,
+   "refactoring"
+  ],
+  [
+   3,
+   "planning-analysis"
+  ]
+ ]
+}

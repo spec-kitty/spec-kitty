@@ -1,0 +1,314 @@
+{
+ "charter": {
+  "tracked_files": 7489,
+  "nonblank_lines_all_text": 780551,
+  "code_nonblank_by_language_scope": {
+   "Java|test": 180607,
+   "Java|main": 124725,
+   "Python|main": 5331,
+   "Kotlin-script|main": 3229,
+   "Kotlin|test": 2145,
+   "Shell|main": 2040,
+   "Python|test": 1908,
+   "Kotlin|main": 1678,
+   "CSS|main": 130,
+   "JavaScript|main": 103,
+   "TypeScript|main": 44,
+   "Groovy|main": 27
+  },
+  "code_nonblank_main": 137307,
+  "code_nonblank_test": 184660,
+  "modules_with_code": 23,
+  "by_module_main_test": {
+   "packs": [
+    76970,
+    104608
+   ],
+   "activations": [
+    14026,
+    19123
+   ],
+   "deployable": [
+    1917,
+    22833
+   ],
+   "artifacts-edge": [
+    6128,
+    5877
+   ],
+   "kernel": [
+    6511,
+    3535
+   ],
+   "pack-validation": [
+    2852,
+    6033
+   ],
+   "contracts": [
+    4394,
+    4056
+   ],
+   "pack-doctor": [
+    2632,
+    4918
+   ],
+   "(scripts)": [
+    4910,
+    1141
+   ],
+   "profiles-edge": [
+    2228,
+    3463
+   ],
+   "build-logic": [
+    2572,
+    2145
+   ],
+   "missions-edge": [
+    1980,
+    1542
+   ],
+   "profiles": [
+    2013,
+    1449
+   ],
+   "web-transport": [
+    1541,
+    1258
+   ],
+   "missions": [
+    1697,
+    1074
+   ],
+   "(kitty-specs)": [
+    2461,
+    0
+   ],
+   "routing": [
+    913,
+    722
+   ],
+   "routing-edge": [
+    916,
+    432
+   ],
+   "client-java": [
+    52,
+    451
+   ],
+   "charter-reports": [
+    304,
+    0
+   ],
+   "(site)": [
+    147,
+    0
+   ],
+   "(root/other)": [
+    140,
+    0
+   ],
+   "charter-api": [
+    3,
+    0
+   ]
+  },
+  "content_files": {
+   "YAML": 1375,
+   "Markdown": 2836,
+   "JSON": 639,
+   "JSONL": 213,
+   "Gherkin": 93
+  }
+ },
+ "events": {
+  "tracked_files": 6064,
+  "nonblank_lines_all_text": 427084,
+  "code_nonblank_by_language_scope": {
+   "Python|test": 43473,
+   "Java|test": 38765,
+   "Python|main": 35562,
+   "Java|main": 17131,
+   "Kotlin-script|main": 1196,
+   "Shell|main": 227,
+   "JavaScript|main": 161,
+   "Groovy|main": 64,
+   "CSS|main": 47,
+   "TypeScript|main": 29,
+   "Kotlin|main": 6,
+   "Groovy|test": 6
+  },
+  "code_nonblank_main": 54423,
+  "code_nonblank_test": 82244,
+  "modules_with_code": 13,
+  "by_module_main_test": {
+   "(tests)": [
+    0,
+    42117
+   ],
+   "mission-status-api": [
+    6972,
+    21632
+   ],
+   "py:spec_kitty_events": [
+    18399,
+    1249
+   ],
+   "command-cli": [
+    6659,
+    10986
+   ],
+   "(scripts)": [
+    8720,
+    0
+   ],
+   "event-log": [
+    2605,
+    5520
+   ],
+   "contracts": [
+    6318,
+    66
+   ],
+   "(root/other)": [
+    2103,
+    0
+   ],
+   "java-binding": [
+    1013,
+    300
+   ],
+   "domain-model": [
+    788,
+    374
+   ],
+   "(kitty-specs)": [
+    403,
+    0
+   ],
+   "(site)": [
+    237,
+    0
+   ],
+   "build-logic": [
+    206,
+    0
+   ]
+  },
+  "content_files": {
+   "YAML": 1231,
+   "Markdown": 1184,
+   "JSON": 2156,
+   "JSONL": 261,
+   "Gherkin": 91
+  }
+ },
+ "doc-kitty": {
+  "tracked_files": 3562,
+  "nonblank_lines_all_text": 356779,
+  "code_nonblank_by_language_scope": {
+   "TypeScript|test": 71606,
+   "JavaScript|main": 30562,
+   "TypeScript|main": 23901,
+   "JavaScript|test": 3695,
+   "CSS|main": 3164,
+   "Astro|main": 3086,
+   "Astro|test": 82,
+   "CSS|test": 63,
+   "Shell|test": 4
+  },
+  "code_nonblank_main": 60713,
+  "code_nonblank_test": 75450,
+  "modules_with_code": 7,
+  "by_module_main_test": {
+   "@spec-kitty/doc-toolkit": [
+    57241,
+    57795
+   ],
+   "(tests)": [
+    0,
+    12460
+   ],
+   "@spec-kitty/doc-kitty-mcp": [
+    2291,
+    4864
+   ],
+   "(.github)": [
+    267,
+    331
+   ],
+   "example": [
+    480,
+    0
+   ],
+   "(kitty-specs)": [
+    219,
+    0
+   ],
+   "(root/other)": [
+    215,
+    0
+   ]
+  },
+  "content_files": {
+   "YAML": 147,
+   "Markdown": 1879,
+   "JSON": 542,
+   "JSONL": 63,
+   "Gherkin": 38
+  }
+ },
+ "open-packs": {
+  "tracked_files": 1578,
+  "nonblank_lines_all_text": 142958,
+  "code_nonblank_by_language_scope": {
+   "Python|main": 11669,
+   "Python|test": 6476,
+   "Java|test": 508,
+   "Shell|main": 278,
+   "JavaScript|main": 35,
+   "TypeScript|main": 30,
+   "CSS|main": 28
+  },
+  "code_nonblank_main": 12040,
+  "code_nonblank_test": 6984,
+  "modules_with_code": 7,
+  "by_module_main_test": {
+   "(tests)": [
+    0,
+    6984
+   ],
+   "(scripts)": [
+    4401,
+    0
+   ],
+   "pack:qa": [
+    4114,
+    0
+   ],
+   "pack:internal": [
+    1863,
+    0
+   ],
+   "(kitty-specs)": [
+    813,
+    0
+   ],
+   "pack:writing": [
+    756,
+    0
+   ],
+   "(site)": [
+    93,
+    0
+   ]
+  },
+  "content_files": {
+   "Markdown": 662,
+   "YAML": 617,
+   "JSON": 119,
+   "JSONL": 51,
+   "Gherkin": 1
+  }
+ }
+}

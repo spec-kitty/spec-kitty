@@ -1,0 +1,105 @@
+{
+ "files_scanned": 668,
+ "package_edges": {
+  "(root) -> (tests) [relative-path,main]": 1,
+  "(root) -> @spec-kitty/doc-toolkit [relative-path,main]": 1,
+  "(tests) -> @spec-kitty/doc-toolkit [package-specifier,test]": 14,
+  "(tests) -> @spec-kitty/doc-toolkit [relative-path,test]": 6,
+  "@spec-kitty/doc-kitty-mcp -> @spec-kitty/doc-toolkit [package-specifier,main]": 2,
+  "@spec-kitty/doc-toolkit -> (..) [relative-path,test]": 1,
+  "@spec-kitty/doc-toolkit -> (.github) [relative-path,test]": 1,
+  "@spec-kitty/doc-toolkit -> (root) [relative-path,test]": 1,
+  "@spec-kitty/doc-toolkit -> @spec-kitty/doc-toolkit [package-specifier,main]": 6,
+  "@spec-kitty/doc-toolkit -> @spec-kitty/doc-toolkit [package-specifier,test]": 42,
+  "@spec-kitty/doc-toolkit -> example [relative-path,test]": 3,
+  "example -> @spec-kitty/doc-toolkit [package-specifier,main]": 13
+ },
+ "package_cycles_main": [],
+ "dir_cycles_main": [
+  [
+   "src/lib",
+   "src/scripts"
+  ],
+  [
+   "src/components",
+   "src/layouts"
+  ]
+ ],
+ "file_cycles_main_count": 2,
+ "file_cycles_main": [
+  [
+   "mcp/src/cli.ts",
+   "mcp/src/server.ts",
+   "mcp/src/surface/guards.ts",
+   "mcp/src/surface/optional.ts",
+   "mcp/src/surface/resources.ts",
+   "mcp/src/surface/tools.ts",
+   "mcp/src/surface/uris.ts"
+  ],
+  [
+   "src/lib/openapi/archive.mjs",
+   "src/lib/openapi/bundle.mjs",
+   "src/lib/openapi/materialise.mjs",
+   "src/lib/openapi/remote.mjs"
+  ]
+ ],
+ "not_exported_specifiers": [],
+ "relative_cross_package": [
+  [
+   [
+    "(tests)",
+    "@spec-kitty/doc-toolkit",
+    "test"
+   ],
+   6
+  ],
+  [
+   [
+    "@spec-kitty/doc-toolkit",
+    "example",
+    "test"
+   ],
+   3
+  ],
+  [
+   [
+    "(root)",
+    "(tests)",
+    "main"
+   ],
+   1
+  ],
+  [
+   [
+    "(root)",
+    "@spec-kitty/doc-toolkit",
+    "main"
+   ],
+   1
+  ],
+  [
+   [
+    "@spec-kitty/doc-toolkit",
+    "(root)",
+    "test"
+   ],
+   1
+  ],
+  [
+   [
+    "@spec-kitty/doc-toolkit",
+    "(.github)",
+    "test"
+   ],
+   1
+  ],
+  [
+   [
+    "@spec-kitty/doc-toolkit",
+    "(..)",
+    "test"
+   ],
+   1
+  ]
+ ]
+}

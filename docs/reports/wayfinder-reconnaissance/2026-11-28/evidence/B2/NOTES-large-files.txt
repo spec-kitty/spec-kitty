@@ -1,0 +1,11 @@
+Files kept in scratch only (over the 500 KB evidence limit), with the SHA-256 of the full file and the command that regenerates it.
+
+xrepo-refs-full.csv
+  sha256: 897503273a5a89adfd46ae9ad27bed6a43286e03047489cf916f04c60ee24502
+  regenerate: python3 script-xrepo_refs.txt xrepo-refs-full.csv xrepo-refs-summary.json
+  committed instead: xrepo-refs-summary.json (counts per from->to|file_kind) and xrepo-refs-build-pin-ci.csv (rows of kind build-file, pin-or-lock, ci-workflow)
+
+charter-static-test-cross-module-imports.csv
+  sha256: 5c2d3fd4c743e430c869fbc9d0c0b2b14c3f1c6d023951002f57890258962be4
+  regenerate: python3 script-java_imports.txt /home/user/spec-kitty-charter charter-static-test test <module=dir ...>
+  committed instead: charter-static-test-module-edges.csv, charter-static-test-package-edges.csv, charter-static-test-cycles.json

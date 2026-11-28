@@ -1,0 +1,15 @@
+file,module_dir,archrule_declarations,junit_test_methods,allowEmptyShould_uses,lines
+service/command-cli/src/test/java/org/speckitty/commandcli/architecture/ArchitectureRulesTest.java,service/command-cli,2,7,4,133
+service/command-cli/src/test/java/org/speckitty/commandcli/architecture/AuthorityPurityTest.java,service/command-cli,1,7,0,91
+service/command-cli/src/test/java/org/speckitty/commandcli/architecture/ProcessCreationRuleTest.java,service/command-cli,0,3,0,33
+service/command-cli/src/test/java/org/speckitty/commandcli/architecture/WriteOwnershipRulesTest.java,service/command-cli,1,2,0,37
+service/domain-model/src/test/java/org/speckitty/missionstatus/architecture/DomainModelBoundaryTest.java,service/domain-model,1,4,0,80
+service/event-log/src/test/java/org/speckitty/missionstatus/architecture/EventLogBoundaryTest.java,service/event-log,6,15,0,225
+service/event-log/src/testFixtures/java/org/speckitty/missionstatus/architecture/FileWriteApis.java,service/event-log,0,0,0,42
+service/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSourceFileApiTest.java,service,1,3,0,81
+service/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureControlsTest.java,service,0,5,0,195
+service/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java,service,23,0,1,291
+service/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRulesTest.java,service,0,3,0,87
+service/src/test/java/org/speckitty/missionstatus/architecture/LedgerExemptionScopeTest.java,service,0,1,0,27
+service/src/test/java/org/speckitty/missionstatus/architecture/NoUncappedReadTest.java,service,0,3,0,59
+service/src/test/java/org/speckitty/missionstatus/architecture/PortLevelClassSetTest.java,service,0,6,0,131

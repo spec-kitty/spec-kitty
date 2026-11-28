@@ -1,0 +1,42 @@
+Sat Nov 28 09:41:19 UTC 2026
+cmd: PYTHONPATH=src:. python -m pytest -p no:cacheprovider -q -n0 --noconftest -o addopts= -rA <3 files> -k 'not pytestarch and not MR1'  (dev venv /home/user/spec-kitty/.venv, CPython 3.11.15, pytest 9.0.3)
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_boundary_predicate_has_prohibited_and_compliant_controls
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_external_consumers_add_no_new_activation_internal_reach
+PASSED tests/architectural/test_runtime_charter_activation_boundary.py::test_baseline_entries_are_wellformed_and_sorted
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_counts_ledgered_sites[open-exclusive-checkout-materialization]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_counts_ledgered_sites[os-replace-rewrite]
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_ignores_reads_and_other_files
+PASSED tests/architectural/test_status_events_writes_gate.py::test_writes_gate_reports_unresolved_paths_instead_of_passing
+PASSED tests/architectural/test_status_events_writes_gate.py::test_lock_census_scanner_sees_both_call_shapes
+PASSED tests/architectural/test_status_events_writes_gate.py::test_index_census_is_not_vacuous
+PASSED tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_package_root_cold_imports
+PASSED tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_public_surface_is_exactly_all
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_no_external_internal_imports
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_catches_injected_violation
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_allows_package_root_import
+PASSED tests/architectural/test_mission_runtime_surface.py::test_ast_scan_ignores_type_checking_imports
+ERROR tests/architectural/test_status_events_writes_gate.py::test_no_out_of_store_writes
+ERROR tests/architectural/test_status_events_writes_gate.py::test_store_writes_are_found
+ERROR tests/architectural/test_status_events_writes_gate.py::test_allowed_out_of_store_sites_are_live
+ERROR tests/architectural/test_status_events_writes_gate.py::test_unresolved_write_paths_are_pinned
+ERROR tests/architectural/test_status_events_writes_gate.py::test_lock_composition_census
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[open-append-local-name]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[path-open-ab]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[write-text]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[write-bytes-fstring]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[os-open-flags]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[os-replace-destination]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[shutil-move-keyword]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[events-filename-alias]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[module-constant]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[self-attribute]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[same-module-function-return]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[parameter-via-call-site]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[keyword-only-parameter-via-call-site]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[constructor-parameter-via-self]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_writes_gate_is_not_vacuous[unknown-mode-is-fail-closed]
+ERROR tests/architectural/test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer
+ERROR tests/architectural/test_status_events_writes_gate.py::test_index_census_floor_finds_the_live_writer
+ERROR tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_no_external_submodule_imports
+15 passed, 23 errors in 21.61s
+exit=1

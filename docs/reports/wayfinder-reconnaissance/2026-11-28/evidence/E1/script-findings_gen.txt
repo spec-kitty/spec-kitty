@@ -1,0 +1,344 @@
+import hashlib, os, yaml
+
+R = '/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/'
+EV = R + 'evidence/E1/'
+OUT = R + 'findings/E1/'
+os.makedirs(OUT, exist_ok=True)
+CORE = '5c4fc5a79de1c1c299ab221ca26e5555c68ef533'
+CH = '06cdfbe94856e8d24eca350c63d2a7b47bb9f13a'
+EVN = '646e330b896b96d7a11f53b34aa3d0c0baa69a05'
+OP = 'f9a557510dc7ff04597a0b8aba87f736e25f785e'
+DK = '1acc49fbe209436d3c1666a86e8b3960ee19e5ac'
+PIN = 'a79c36318b7a506ca2ab26d74705c5e3e406004f'
+ENV = 'git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)'
+AT = '2026-11-28T09:40Z'
+
+
+def sha(f):
+    return hashlib.sha256(open(EV + f, 'rb').read()).hexdigest()
+
+
+def ev(i, kind, f, method, exit_code=0):
+    return dict(id=f'E{i}', kind=kind, reference='evidence/E1/' + f, method=method, sha256=sha(f), exit_code=exit_code, environment=ENV, observed_at=AT)
+
+
+def doc(i, ref, what):
+    return dict(id=f'E{i}', kind='document-claim', reference=ref, method=what, sha256=None, exit_code=None, environment='read at the named revision', observed_at=AT)
+
+
+G_GATES = 'python3 script-gates_all.txt <scratch> gates.csv (script in evidence/E1; reads shared clones of the five repositories at head)'
+G_LED = 'python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head)'
+N = [0]
+ALL = []
+
+
+def F(measure, component, repo, rev, claim, evidence, covered, not_covered, dis_search, dis_result, *, cls='observation', view='observed', kind='head', conf='high', pop=None, sample=None, seed=None, deviation=None, counter=None, interp=None, derived=None, rel=None, qa=None, inv=None, oq=None):
+    N[0] += 1
+    fid = f'F-E1-{N[0]:03d}'
+    d = dict(
+        finding_id=fid, workstream='E1 - Assurance inventory, exceptions, and the research-mission experiment', hypotheses=[],
+        classification=cls, view=view, prereg=dict(measure=measure, deviation=deviation),
+        subject=dict(component=component, repository='spec-kitty/' + repo, revision=rev, revision_kind=kind),
+        claim=claim, evidence=evidence,
+        scope=dict(covered=covered, not_covered=not_covered, population=pop, sample=sample, seed=seed),
+        interpretation=interp, derived_from=derived or [], counterevidence=counter or [],
+        disconfirmation=dict(search=dis_search, result=dis_result), relations=rel or [], confidence=conf,
+        analyst=dict(profile='reviewer-renata', model='fable'), verification=dict(status='unverified', by=None),
+        quality_attributes=qa or [], candidate_invariants=inv or [], open_questions=oq or [])
+    ALL.append(d)
+    yaml.safe_dump(d, open(OUT + fid + '.yaml', 'w'), sort_keys=False, allow_unicode=True, width=110)
+    return fid
+
+
+# ---------------------------------------------------------------- 1 gates
+f_inv = F('E1-1 gate inventory', 'automated architecture, contract and boundary checks', 'spec-kitty', CORE,
+  'The gate inventory holds 481 rows across the five primary repositories: spec-kitty 347 (310 generated, one per tests/architectural/**/test_*.py file, plus 37 curated rows for checks outside that directory), spec-kitty-charter 62, spec-kitty-events 55, spec-kitty-open-packs 8, doc-kitty 9. Of the 310 core architectural gate files a keyword rule over the file name assigns 135 to boundary (single owner / seam / routing), 47 to CI integrity, 32 to test hygiene, 21 to contract, 20 to docs and records, 18 to import direction, 15 to terminology, 12 to packaging and 10 to other.',
+  [ev(1, 'static-derived', 'gates.csv', G_GATES), ev(2, 'static-derived', 'script-gates_all.txt', 'the generating script; the keyword rule is the RULES table in it')],
+  'Every test_*.py under tests/architectural in core (310 of 310). Outside it and in the other four repositories: rows curated by hand from workflow files, Gradle build scripts and test file names.',
+  'Curated rows are not exhaustive: a functional test that also pins a boundary is not listed unless its name matches the patterns in the script. Charter rows are one per matching test file, so the 59 ArchUnit rules of HexagonalArchitectureTest are one row. The protects column for generated rows is a keyword rule, not a reading of each test.',
+  'Looked for architecture checks outside the inventory by searching the four other repositories for ArchUnit, allow-list, parity, conformance and closure tests and for lint or dependency rules in build scripts.',
+  'Found and added: charter ModuleDependencyAllowlist (Gradle), Checkstyle register, contract lint and oasdiff compatibility; events ArchUnit tests in four modules. No import-linter or dependency-cruiser configuration exists in any of the five repositories.',
+  conf='medium', pop='310 architectural gate files in core; curated rows elsewhere', qa=['maintainability', 'analysability'])
+
+f_bat = F('E1-1 gate inventory', 'architectural battery execution', 'spec-kitty', CORE,
+  '39 of the 310 core architectural gate files (12.6%) run on every pull request (4 in three always-on jobs, 35 in the fast roster). The other 271 (87.4%) run in the job architectural-heavy, which runs only when a code path group or a declared scan scope of the gate changed, and again in a nightly backstop; 103 of those 271 declare a scan scope beyond src/** and tests/architectural/**. All of these jobs are in the needs list of the job router-gate, whose check "router gate" is a required status check on main.',
+  [ev(1, 'static-derived', 'gates.csv', G_GATES), doc(2, f'.github/ci-module-registry.yml:1348-1416 and .github/workflows/ci-router.yml:1293-1516,2107 at {CORE[:10]}', 'registry roster, deselect list and scan_scopes; router job definitions'), ev(3, 'executed', 'rulesets-live-2026-11-28.json', 'gh api repos/spec-kitty/spec-kitty/rulesets/<id> (read-only), reduced')],
+  'Where each of the 310 files runs, derived from the registry roster, the base deselect list and the scan_scopes list.',
+  'Whether the selection logic selects every gate a given diff can affect was not tested (no run was made); the repository has its own gates for that (test_gate_scan_scope_completeness.py, test_battery_scan_scope_routing.py).',
+  'Looked for an architectural gate file that no job runs: compared the 310 files with the roster, the deselect list and the base path of the heavy job.',
+  'None found: the heavy job base path is the whole directory, so every file not on the roster or the deselect list is in a heavy shard.',
+  qa=['testability'])
+
+f_exc = F('E1-1 gate inventory', 'exception files read by gates', 'spec-kitty', CORE,
+  '65 of the 310 core architectural gate files (21.0%) reference at least one exceptions file or in-code allowlist with a size cap: an allowlist, baseline, exemption list, census or registry file, or a leaf of tests/architectural/_baselines.yaml.',
+  [ev(1, 'static-derived', 'gates.csv', G_GATES + '; column exceptions_file')],
+  'Regex detection over the test source: quoted file names containing allowlist, baseline, exempt, ledger, ratchet, membership, census, registry, public_surface or shim; helper modules named *_exempt*/*_allowlist*/*_baseline*; a matching section in _baselines.yaml; references to the _exemptions and global_state_allowlist folders.',
+  'An allowlist built as an unnamed inline literal inside a test, or read through a helper with another name, is not detected, so 65 is a lower bound.',
+  'Checked the detection against the 19 non-empty ledger files under tests/architectural found by the ledger census.',
+  'Each of the 19 is referenced by at least one gate row.',
+  conf='medium')
+
+# ---------------------------------------------------------------- 2 CI
+f_req = F('E1-2 CI as an assurance surface', 'required status checks on main', 'spec-kitty', CORE,
+  'Live rulesets on 2026-11-28 require these status checks to land a change on main: spec-kitty 3 contexts ("Clean install verification", "router gate", "CI Modules gate"); spec-kitty-charter 1 ("gate"); spec-kitty-events 4 ("acceptance", "service-gate", "cross-repo-harness-tests", "docs-build"); spec-kitty-open-packs 2 ("Validate packs gate", "Charter service validation"); doc-kitty 1 ("ci-ok"). In all five the pull-request rule requires 0 approving reviews; only charter requires code-owner review; only doc-kitty sets the strict (up to date) policy and a merge queue. Every ruleset on a main branch lists at least one bypass actor with mode "always" (a user, a repository role, or both).',
+  [ev(1, 'executed', 'rulesets-live-2026-11-28.json', 'gh api repos/spec-kitty/<repo>/rulesets, /rulesets/<id>, /branches/main/protection for the five repositories; reduced to names, rules and bypass actor types'), ev(2, 'static-derived', 'ci-required-checks.csv', 'each required context mapped by hand to the workflow job that produces it')],
+  'All rulesets the API returned for the five repositories (10 rulesets) and the classic branch protection endpoint.',
+  'Organisation-level rulesets, if any, and the identity of the bypass actors were not read. What the repository roles in the bypass lists map to was not resolved. Environment protection rules were not read.',
+  'Checked whether classic branch protection adds or removes requirements: queried /branches/main/protection for each repository.',
+  'Four of five return "Branch not protected" (rulesets only). spec-kitty-events also has classic protection requiring "cross-repo-harness-tests", already in its ruleset.',
+  kind='head', qa=['security', 'reliability'], oq=['Which accounts or roles do the bypass entries name, and how often is the bypass used?'])
+
+F('E1-2 CI as an assurance surface', 'per-PR checks that are not required', 'spec-kitty', CORE,
+  'In core, 11 curated per-PR checks post a result that is not among the three required contexts: the packs gate and its jobs (pin check of both pack trees, pack regeneration and graph checks, plugin validation, internal org-pack validation, the negative packaging guard that the internal pack never ships), the CI Aggregate gate (diff-cover of changed lines), the shared-package drift check, the Windows-critical tests and the release-readiness check; the SonarCloud report and the built-in corpus suite are continue-on-error. The packaging guard test file sits in a directory the registry lists as outside the per-PR matrix, and the one job that runs it runs only when the internal pack path group changed.',
+  [ev(1, 'static-derived', 'gates.csv', G_GATES + '; rows with where_runs starting "per-PR reported"'), ev(2, 'executed', 'rulesets-live-2026-11-28.json', 'gh api (read-only), reduced'), doc(3, f'.github/workflows/packs.yml:406-430 and .github/ci-module-registry.yml:1328 at {CORE[:10]}', 'job internal-packaging-safety and the out-of-matrix record for tests/cross_cutting/packaging')],
+  'Workflows triggered by pull_request in core, compared with the required contexts of ruleset main-2.',
+  'Whether maintainers treat a red non-required check as blocking in practice (merge history was not sampled).',
+  'Looked for a required aggregate that depends on these workflows (a job in router gate, CI Modules gate or Clean install verification that waits on them).',
+  'None: the three required jobs have no needs or workflow_run link to packs.yml, ci-aggregate.yml, check-spec-kitty-events-alignment.yml, ci-windows.yml or release-readiness.yml.',
+  rel=[dict(type='refines', target=f_req)], qa=['reliability'])
+
+F('E1-2 CI as an assurance surface', 'charter statement about enforcement on GitHub', 'spec-kitty', CORE,
+  'The core charter at head states that nothing on GitHub enforces the pull-request workflow ("there is no branch protection or required review ... nothing requires them to pass"), while three active rulesets exist on the repository, two on main, created 2026-11-01, requiring a pull request, linear history and three status checks.',
+  [doc(1, f'.kittify/charter/charter.md:536-540 at {CORE[:10]}', 'section "Programme PR Workflow"; quoted in static-searches.txt'), ev(2, 'executed', 'rulesets-live-2026-11-28.json', 'gh api (read-only), reduced'), ev(3, 'static-derived', 'static-searches.txt', 'sed -n 532,540p .kittify/charter/charter.md at head')],
+  'The one charter section and the live rulesets of spec-kitty/spec-kitty.',
+  'Other documents that describe enforcement (CLAUDE.md describes branch protection and required checks) were not reconciled line by line.',
+  'Looked in the same charter for a later statement that corrects the section.',
+  'None in the charter; CLAUDE.md at the same revision says GitHub branch protection and review requirements enforce the workflow, which agrees with the rulesets and disagrees with the charter section.',
+  counter=['CLAUDE.md "Branches and CI" at the same revision describes enforcement as live.'], qa=['analysability'])
+
+f_oom = F('E1-2 CI as an assurance surface', 'test directories outside the per-change matrix', 'spec-kitty', CORE,
+  'The module registry lists 107 test directories in 32 out-of-matrix records; 4 of them name a per-PR home, 103 do not. 1,383 of the 4,369 tracked test files (31.7%) sit directly in one of those 103 directories; the largest are tests/specify_cli/cli/commands (242 files), tests/integration (150) and tests/specify_cli (97). The registry and the nightly workflow give them a nightly home.',
+  [ev(1, 'static-derived', 'static-searches.txt', 'last block: python over .github/ci-module-registry.yml out_of_matrix_test_dirs and git ls-files tests'), doc(2, f'.github/ci-module-registry.yml:898-1340 at {CORE[:10]}', 'the out-of-matrix inventory with its reasons')],
+  'Tracked files matching tests/**/test_*.py, attributed by their own directory.',
+  'Some files in these directories are also selected per PR by a marker-routed job (corpus, contract tools, one packaging test); that overlap was not measured per file, so 31.7% is an upper bound for "never run per PR".',
+  'Looked for per-PR jobs that run out-of-matrix directories by path.',
+  'Found three by path (tests/docs, tests/e2e, tests/architectural, all recorded with per_pr_home) and marker-routed jobs that can select files inside directories listed without one.',
+  conf='medium', qa=['testability'])
+
+f_x = F('E1-2 CI as an assurance surface', 'cross-repository checks', 'spec-kitty', CORE,
+  '15 cross-repository check relations were found in the workflows of the five repositories. Two are required on every pull request (events: the end-to-end harness at a pinned commit; open-packs: the pinned charter release composes every pack). Five are required only when a path group selects them (core consumer tests of the events package and the docs-site build; events lock-interop and write-core-parity against a pinned core commit; charter verifyAll and whole-pack round trip against a pinned open-packs commit; doc-kitty packs corpus against a pinned open-packs commit). Two run per PR without being required (core: shared-package drift; core: pack pin and regeneration checks). Five run on a schedule. For one relation, core against the charter service, no check exists: core holds no charter pin and no core workflow names the charter repository.',
+  [ev(1, 'static-derived', 'cross-repo-checks.csv', 'curated from workflow files of the five repositories at head, with line references'), ev(2, 'static-derived', 'static-searches.txt', 'git grep -n -i spec-kitty-charter -- .github/workflows; ls pins (core)')],
+  'Every workflow step in the five repositories that checks out, installs or downloads another ecosystem repository or its release.',
+  'Checks that live in the supplementary repositories (tracker, orchestrator, planning) and anything run outside GitHub Actions.',
+  'Searched each repository\'s workflows for "repository:" checkouts, git fetch of ecosystem URLs and pin files.',
+  'All hits are in the table; core has no checkout of another ecosystem repository in a per-PR workflow (it consumes pins and PyPI packages).',
+  counter=['The absence of a core-to-charter check matches recorded intent at head: the charter states the charter-service pin is still pending.'], qa=['interoperability'])
+
+F('exploratory', 'pins used by cross-repository checks', 'spec-kitty', CORE,
+  'The cross-repository checks validate against pinned revisions, not heads. Commits between each pin and the pinned repository\'s head on 2026-11-28: events harness pin (2026-05-21) 599; core\'s built-in pack pin 665 and internal pack pin 646; charter\'s open-packs pin 344; open-packs\' charter pin 178; core\'s read-service pin 114; doc-kitty\'s open-packs pin 53; the core commit pinned by the events service checks (2026-10-30) 4,369.',
+  [ev(1, 'history-derived', 'cross-repo-pins.csv', 'git rev-list --count <pin>..<head> in the local clones under /home/user; pin values read from the pin files at head')],
+  'Eight pins read by the checks of the previous finding.',
+  'Whether the commits between pin and head change anything the check exercises. The count includes all reachable commits, not only first-parent ones.',
+  'Checked whether any check runs against the head of the other repository instead of a pin.',
+  'Three do, all scheduled or unpinned: core events-latest (newest PyPI version in range), open-packs charter-track (newer charter releases or main), events suite (planning default branch).',
+  conf='medium', rel=[dict(type='refines', target=f_x)])
+
+F('E1-2 CI as an assurance surface', 'events cross-repository harness', 'spec-kitty-events', EVN,
+  'The required check cross-repo-harness-tests in spec-kitty-events runs the identity-boundary unit tests of the end-to-end testing repository at commit 193f5c0e (2026-05-21), with the pull request\'s copy of the events package and spec-kitty-cli==3.2.0rc22 installed from PyPI. On a pull request from a fork the job is skipped, which GitHub reports as success for the required check; a second job posts a notice.',
+  [doc(1, f'.github/workflows/cross-repo-harness-tests.yml:13-24,39-108,121-140 at {EVN[:10]}', 'workflow header comment and steps; quoted in static-searches.txt'), ev(2, 'static-derived', 'static-searches.txt', 'sed over the workflow file'), ev(3, 'history-derived', 'cross-repo-pins.csv', 'git rev-list --count')],
+  'The one workflow file and the pin distance.',
+  'The harness tests themselves were not run; what they assert was not reviewed.',
+  'Looked for a second run of the harness against a current CLI (4.x) or the harness head.',
+  'None in the events workflows.',
+  qa=['interoperability'])
+
+F('exploratory', 'events suite job', 'spec-kitty-events', EVN,
+  'The job suite of the events workflow ci.yml clones spec-kitty-planning at its default branch without a pin and runs bin/ci-run.sh from it; the job is not among the four required checks.',
+  [doc(1, f'.github/workflows/ci.yml:118-129 at {EVN[:10]}', 'steps "Sibling checkouts" and "Run the suite"'), ev(2, 'static-derived', 'static-searches.txt', 'sed -n 122,129p .github/workflows/ci.yml'), ev(3, 'executed', 'rulesets-live-2026-11-28.json', 'gh api (read-only), reduced')],
+  'The workflow file.', 'What the script selects for this repository was not traced.',
+  'Looked for a pinned ref on the planning clone.', 'None: git clone -q of the default branch.', conf='high')
+
+F('E1-1 gate inventory', 'events packaged conformance suite', 'spec-kitty-events', EVN,
+  'No workflow, Makefile target or pytest setting in spec-kitty-events invokes the packaged conformance suite by "pytest --pyargs spec_kitty_events.conformance"; pytest testpaths is ["tests"], and the suite lives under src/. The repository\'s agent guide names that command as the conformance gate for every pull request.',
+  [ev(1, 'static-derived', 'static-searches.txt', 'grep -rn pyargs .github Makefile pyproject.toml; grep -n testpaths pyproject.toml'), doc(2, f'AGENTS.md Commands table at {EVN[:10]}', '"Packaged conformance gate — every PR"')],
+  'Tracked workflow files, Makefile and pyproject.toml.',
+  'The script bin/ci-run.sh in spec-kitty-planning, which the non-required suite job runs, was searched only for the string "pyargs" (no hit). Tests under tests/ named *_conformance* run in the required acceptance job and may cover the same fixtures.',
+  'Looked for an indirect invocation: a test under tests/ that imports the packaged suite, a conftest that adds it, or a Gradle task.',
+  'tests/ holds 17 test files with "conformance" in the name that run per PR; no step runs the packaged entry point itself.',
+  conf='medium', counter=['The acceptance job installs the conformance extra and runs the whole tests/ tree, which includes conformance tests.'])
+
+F('exploratory', 'type checking in CI', 'spec-kitty', CORE,
+  'No core workflow file contains the string "mypy". Strict type checking runs through the Makefile target typecheck and inside two pytest files that shell out to mypy for named modules.',
+  [ev(1, 'static-derived', 'static-searches.txt', 'grep -rn mypy .github/workflows/'), doc(2, f'Makefile:103-104 at {CORE[:10]}', 'target typecheck')],
+  'All 20 workflow files of core.', 'Composite actions and scripts called by workflows were not searched.',
+  'Looked for mypy run through pytest.', 'tests/cross_cutting/test_mypy_strict_mission_step_contracts.py and tests/architectural/test_mypy_scoped_typing_debt.py run it for named modules.', conf='medium')
+
+# ---------------------------------------------------------------- 3 chain
+f_chain = F('E1-3 chain from governance to gate', 'rule-to-gate chains', 'spec-kitty', CORE,
+  'Of 12 rules sampled by seed (6 of 39 list items in the charter\'s two Architecture sections, 6 of the 50 directives bound for the review action), 4 chains reach a recorded exception path, 1 ends at an automated gate with no exception path found, 6 end at the step instruction with no gate that checks the rule, and 1 rule grants a permission and has nothing to gate. Of the 6 that end at the instruction, 2 have a gate on the same topic that does not cite the rule.',
+  [ev(1, 'static-derived', 'governance-chain.csv', 'traced by hand per rule: charter text, charter context output per action, action index files of the pinned built-in pack, step prompts, git grep of tests, src and workflows for the rule id'), ev(2, 'static-derived', 'chain-sample.json', 'python random.Random(20261128).sample over each frame; frames and draws recorded in the file')],
+  'The 12 sampled rules.', 'The other 77 rules of the two frames. Review practice (whether reviewers check ungated rules) is not observable from the repository.',
+  'For each rule with no gate found, searched tests/, src/ and .github/ for the rule id in both spellings and for a gate on the same topic.',
+  'Two topic-level gates found and recorded (pack schema validation for DIRECTIVE_018; nightly security scans for DIR-008); neither cites the rule.',
+  pop='89 rules: 39 list items in charter.md lines 378-567 and 50 directives', sample='12 (6 + 6, stratified)', seed=20261128, conf='medium', qa=['analysability'])
+
+f_ctx = F('E1-3 chain from governance to gate', 'what a step is told to apply', 'spec-kitty', CORE,
+  'The charter context for the actions specify, plan, implement and review lists all 50 directives by id and summary for every action. The action index files of the pinned built-in pack name 2 (specify), 3 (plan), 3 (tasks), 12 (implement) and 6 (review) directives. None of the 6 sampled Architecture-section rule texts occurs in the context text of the four actions; that text carries the one-line governing principle "Architectural alignment" and pointers to charter.md and docs/adr/.',
+  [ev(1, 'executed', 'static-searches.txt', 'spec-kitty charter context --action <a> --json for six actions in the PX-01 clone; presence of phrases checked with python; last two blocks before the out-of-matrix census'), doc(2, f'packs/built-in/missions/software-dev/actions/*/index.yaml at open-packs {PIN[:10]} (core-pin)', 'directives lists')],
+  'Six actions (specify, plan, tasks, implement, review, accept) on one checkout with packs synced at the pins.',
+  'The context an agent receives through spec-kitty next prompts beyond the charter block; the tasks and accept contexts were in compact mode (4,992 characters) because of load order, so their phrase checks are not comparable.',
+  'Searched the full context text of each action for a distinctive phrase of each sampled rule.',
+  'No phrase found in any of the four bootstrap-mode texts.',
+  rel=[dict(type='supports', target=f_chain)], conf='medium')
+
+# ---------------------------------------------------------------- 4-6 ledgers
+f_pop = F('M05a', 'population of transitional constructs', 'spec-kitty', CORE,
+  'Machine-readable sources at head hold 75 ledgers: 57 file ledgers (55 in core, 1 in charter, 1 in doc-kitty) with 3,357 entries, of which 28 are non-empty, and 18 marker scans with 1,612 inline markers. Two lint baselines account for 2,265 of the file-ledger entries (formatter exclude list 1,929; per-file lint ignores 336); the other 55 file ledgers hold 1,092. The largest of those: charter.activation boundary baseline 231, dead-symbol allowlist 225 plus 80 widened, built-in pack provenance baseline 104, out-of-matrix test directories 103, mypy quarantine 46, charter path-literal allowlist 40. In addition tests/architectural/_baselines.yaml caps 30 in-code allowlists (24 non-zero).',
+  [ev(1, 'static-derived', 'ledgers.csv', G_LED), ev(2, 'static-derived', 'ledger-totals.json', 'aggregation of ledgers.csv and the full entry file (sha256 07b7ce4f86b56bb229fa91c409f938744f291a95008143fa4eba8010134831a0, kept in scratch; regenerate with the script)'), ev(3, 'static-derived', 'ledger-entries-compact.csv', 'entries without the two largest ledgers (formatter exclude list and src noqa scan), truncated keys')],
+  'Files read by architectural tests (allowlist, baseline, exemption, census files), the superseded-migrations table, the shim registry, the lint, format and typing baselines in ruff.toml and pyproject.toml, the coverage baseline, the out-of-matrix list, the two layer-rule ledgers declared in code, and marker scans for expected-failure, quarantine, inline suppression and deprecated or hidden CLI options.',
+  'In-code allowlists other than the two layer-rule ledgers are counted only through their cap in _baselines.yaml, not entry by entry. Six leaves of that file duplicate file ledgers and are not added to the totals. Compatibility aliases are covered only by a scan for deprecated=True / hidden=True (49 hits) and by a file-name scan for legacy/compat/shim modules (13 files); a name match does not prove a construct is transitional.',
+  'Looked for ledgers the census missed by listing every non-Python data file under tests/architectural and every file whose name contains allowlist, baseline, exempt, suppress or ratchet in the other four repositories.',
+  'Not included by decision: census tombstones, hash pins, fixture folders and charter mutation floors (thresholds, not exceptions). No further exception file found in events or open-packs.',
+  conf='medium', pop='all tracked files of the five repositories at head')
+
+f_eq = F('M05a', 'equivalents in the other four repositories', 'spec-kitty-charter', CH,
+  'Outside core, the machine-readable exception surface is small and mostly inline: spec-kitty-charter has one suppressions register with 0 entries, 59 @SuppressWarnings annotations, 2 NOSONAR comments and 0 @Disabled tests; spec-kitty-events has 53 @SuppressWarnings, 6 @Disabled tests, 1 xfail marker and 16 type-ignore or noqa comments; spec-kitty-open-packs has 36 noqa or type-ignore comments; doc-kitty has 15 eslint-disable comments, 6 ts-ignore or ts-expect-error comments, 13 skipped, fixme or todo tests and a URL baseline of 29 entries.',
+  [ev(1, 'static-derived', 'ledgers.csv', G_LED + '; rows of the four repositories')],
+  'git grep for the listed markers over tracked files at each head.', 'Suppressions expressed in tool configuration files of these repositories (for example Error Prone or ESLint rule overrides) were not parsed.',
+  'Read the charter suppressions register header to see whether inline suppressions are meant to exist.',
+  'The header says exceptions to the hand-written gates live in the register and "those gates are never relaxed in source"; 59 @SuppressWarnings annotations exist in Java sources. Which of them relax a gate the register covers was not determined.',
+  conf='medium', oq=['Which of the 59 @SuppressWarnings annotations in charter concern checks the register is meant to hold?'])
+
+f_chg = F('M05b', 'change of ledgers between 2026-09-07 and 2026-11-28', 'spec-kitty', CORE,
+  'Of the 57 file ledgers, 27 existed on 2026-09-07 and 30 were created after it. The 27 existing ones went from 3,261 to 2,530 entries (6 shrinking, 18 flat, 3 growing); without the two lint baselines, 25 ledgers went from 279 to 265. The 30 new ones hold 827 entries at head (16 non-empty). Shrinking: formatter exclude list 2,691 to 1,929, inert schema slots 47 to 36, mypy quarantine 55 to 46, charter path literals 49 to 40, inline meta reads 7 to 2, shim registry 1 to 0. Growing: per-file lint ignores 291 to 336, doc-kitty URL baseline 9 to 29, mission-type reader exemptions 3 to 4. Flat: both layer-rule outbound ledgers (22 and 10 subpackages). Marker scans excluding noqa went from 247 to 429.',
+  [ev(1, 'history-derived', 'ledgers.csv', G_LED + '; per-commit entry sets on first-parent history of each file'), ev(2, 'history-derived', 'ledger-totals.json', 'aggregation')],
+  'First-parent history of each ledger file on origin/main between the last commit before 2026-09-07T00:00Z (core 3a4f92b414) and head.',
+  'A ledger that moved from code into a file, or from one file to another, appears as created with its full size (16 non-empty new ledgers); how many of their 827 entries describe constructs that already existed before 2026-09-07 was not measured. Charter has no commit before the start date. For the runtime layer ledger the added and removed counts are a parsing artefact and were set aside; its cap went 23 to 22.',
+  'Compared the per-file counts with the independent caps in _baselines.yaml where both exist.',
+  'Consistent for inert slots (47 to 36), layer ledgers (10 to 10, 23 to 22) and the charter.activation baseline (231); the dead-symbol cap is 231 while the file holds 225 entries (the gate fails on growth only).',
+  conf='medium', deviation='Gross additions and removals are reported per ledger in ledgers.csv; the claim gives net change because 30 ledgers were created inside the range and their initial fill would be counted as additions.')
+
+f_leaf = F('M05b', 'ratchet baseline leaves', 'spec-kitty', CORE,
+  'tests/architectural/_baselines.yaml had 21 leaves on 2026-09-07 and has 30 at head: 13 were added, 4 removed. On the 17 leaves present at both dates the summed caps went from 316 to 295. Over the range caps were raised by 44 in total and lowered by 164. Leaves added in the range include the charter.activation boundary (231), dead symbols (231 and 83), retired-surface burn-down (70), destructive-operation allowlist (61) and the status read door legacy allowlist (33, lowered from 45).',
+  [ev(1, 'history-derived', 'ratchet-baseline-leaves.csv', G_LED + '; leaf values per commit of _baselines.yaml (137 commits)')],
+  'Every commit to the file on first-parent history.', 'Whether a raised cap was accompanied by the justification comment in the same commit was not checked per commit.',
+  'Looked for leaves whose cap rose without ever falling.', 'test_doctrine_census.orphan_reached_exceptions rose 2 to 10; test_mutation_ownership_routing.destructive_op_allowlist rose by 6 since it was added; test_cli_error_surface_seam rose by 1.',
+  rel=[dict(type='refines', target=f_chg)])
+
+f_ref = F('M05c', 'tracking references on ledger entries', 'spec-kitty', CORE,
+  '420 of 3,357 file-ledger entries (12.5%) carry an issue reference, an ADR reference or a retirement condition in their own text or attached comment; without the two lint baselines it is 336 of 1,092 (30.8%: 308 with an issue, 47 with an ADR, 49 with a retirement condition). Per ledger the share ranges from 0% (charter.activation boundary baseline, built-in pack provenance baseline, coverage baselines, mypy quarantine, global-state allowlists) to 100% (inline meta reads, mission-type reader exemptions, widened dead symbols, deferred OS-detection exemptions). At ledger level, the header of 17 of the 28 non-empty file ledgers names an issue, 5 name an owner and 4 a retirement condition. Inline markers: 44 of 429 (10.3%) outside the noqa scan.',
+  [ev(1, 'static-derived', 'ledgers.csv', G_LED + '; columns share_with_ref, with_issue, with_adr, with_retirement_condition, header_*'), ev(2, 'static-derived', 'ledger-totals.json', 'aggregation')],
+  'Keyword and pattern matching on each entry\'s own fields, its attached comment block and, for the dead-symbol allowlist, its category record.',
+  'A reference held only in the ledger header or in _baselines.yaml is counted at ledger level, not per entry. The patterns can miss a reference written in another form and can match a number that is not an issue.',
+  'Read 60 sampled entries by hand (the two samples of the exception-governance finding) and compared with the automatic flags.',
+  'Three automatic flags were wrong in the 60 (two rationale misses on exemption lines, one false retirement match on a test name); the hand reading is used for the sample finding.',
+  conf='medium')
+
+F('M05d', 'age of ledger entries', 'spec-kitty', CORE,
+  'Age of the 3,357 file-ledger entries, measured from their first appearance in the history of the ledger file to 2026-11-28: median 84 days, 90th percentile 117, maximum 279; 23 are at most 30 days old, 822 are 31 to 60, 2,075 are 61 to 90, 159 are 91 to 180 and 278 are older. Without the two lint baselines (1,092 entries): median 58, 23 / 568 / 304 / 156 / 41 in the same bands. For 429 inline markers dated by git blame: median 55 days, 90th percentile 235, maximum 382.',
+  [ev(1, 'history-derived', 'ledger-totals.json', G_LED + '; age_* keys'), ev(2, 'history-derived', 'ledger-entries-compact.csv', 'first_seen per entry')],
+  'First appearance of each entry key on first-parent history of its ledger file; git blame date of the marker line for scans with at most 400 hits.',
+  'Age is a lower bound: an entry carried over from another file or from code starts at the creation date of the present file (16 non-empty ledgers were created inside the range), and the convergence of 2026-09-05 rewrote several files. A reworded marker line gets the date of the rewording. The noqa scan (1,183 hits) has no dates.',
+  'Checked the oldest entries to see whether the method can see across the convergence.',
+  'It can for files that kept their path: the mypy quarantine and per-file lint ignores show entries up to 279 and 211 days old.',
+  conf='low', deviation='First appearance is taken per ledger file path, not per construct; a rename map for ledger files was not built.')
+
+f_rule = F('E1-7 exception governance', 'ratchet leaves against the recorded burn-down rule', 'spec-kitty', CORE,
+  'The charter\'s burn-down policy says a baseline entry "names a tracker issue, an owner and a drain date". Of the 24 non-zero leaves of _baselines.yaml, the justification text of 16 names an issue, 5 name an owner, 3 name a drain date or target, and 2 name all three (the charter.activation boundary baseline and the status read door legacy allowlist).',
+  [ev(1, 'static-derived', 'ratchet-baseline-leaves.csv', G_LED + '; pattern match on the justification comment of each leaf'), doc(2, f'.kittify/charter/charter.md:763-768 at {CORE[:10]}', 'Burn-down Policy (a); quoted in static-searches.txt'), doc(3, f'docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md:77-84 at {CORE[:10]}', '"A transient allowlist needs a tracker issue, a named owner and an exit date"; "A ratchet with no owner or exit date is a finding"')],
+  'The comment attached to each leaf and the comment block directly above it.', 'Owner or date recorded elsewhere (in the gate module or an issue) is not counted.',
+  'Read the six leaves flagged as naming an owner or a date to confirm the match.', 'Confirmed; one more leaf (category_7_grandfathered_orphans) names a target without an owner.',
+  qa=['maintainability'], inv=['Every non-zero ratchet leaf names an issue, an owner and an exit date.'])
+
+F('E1-7 exception governance', 'allowlist files without a baseline leaf', 'spec-kitty', CORE,
+  'The same policy says every mutable architectural allowlist is governed by a baseline in _baselines.yaml. Of the 19 non-empty ledger files under tests/architectural, 6 have a leaf there (two dead-symbol lists, the charter.activation boundary, inert slots, two layer-rule ledgers) and 13 do not; of those 13, 2 carry a cap inside their own file (charter path literals, inline meta reads), 3 are generated census files, and 8 are allowlists or exemption lists described as shrink-only in their header (mission-type reader exemptions, built-in pack provenance, three OS-detection exemption lists, root-vacuous denial exemptions, two global-state allowlist shards).',
+  [ev(1, 'static-derived', 'ledgers.csv', G_LED), ev(2, 'static-derived', 'ratchet-baseline-leaves.csv', G_LED), doc(3, f'.kittify/charter/charter.md:765-768 at {CORE[:10]}', 'Burn-down Policy (a)')],
+  'File ledgers with at least one entry whose path is under tests/architectural.', 'Whether each of the 8 has its own growth check inside its gate (their headers say so) was read from headers, not tested.',
+  'Read the header of each of the 13 for another growth control.', 'All 13 state shrink-only or generated semantics in their header or gate docstring.',
+  conf='medium', rel=[dict(type='refines', target=f_rule)])
+
+F('E1-7 exception governance', 'how an exception is meant to be handled', 'spec-kitty', CORE,
+  'Recorded rules differ by repository. Core: "Exceptions discussed case-by-case. Strong justification required"; a baseline entry names an issue, an owner and a drain date; growing a cap needs a justification comment on the changed line in the same pull request; an ADR adds that a transient allowlist needs an issue, a named owner and an exit date. Charter: exceptions to hand-written gates live in one suppressions register with rule, file, reason and sunset; a risk exception names scope, reason, approver and sunset or review date. Events: exceptions need explicit maintainer approval and a documented follow-up. doc-kitty: a genuine exception to a gate is recorded as an ADR. open-packs: no rule found. No repository records who approves an allowlist entry other than through review of the pull request.',
+  [doc(1, f'.kittify/charter/charter.md:702-706,763-774 at {CORE[:10]}', 'Exception Handling; Burn-down Policy'), doc(2, f'tests/architectural/_baselines.yaml:1-16 at {CORE[:10]}', 'per-PR edit policy'), doc(3, f'docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md at {CORE[:10]}', 'decision'), doc(4, f'spec-kitty-charter config/checkstyle/suppressions.xml:5-16 and .kittify/charter-packs/directive/002-risk-appetite-directive.directive.yaml at {CH[:10]}', 'register rules'), doc(5, f'spec-kitty-events .kittify/charter/charter.md:115 at {EVN[:10]}; doc-kitty .kittify/charter/charter.md:90-93 at {DK[:10]}', 'exception sentences'), ev(6, 'static-derived', 'static-searches.txt', 'sed and grep of the cited lines')],
+  'Charters, the ratchet file header, one ADR, and a keyword search of the four other repositories.', 'ADRs of the other repositories were searched by keyword only.',
+  'Searched open-packs for any sentence on exceptions, suppressions or sunsets.', 'No hit outside pack content.',
+  view='recorded-intent', conf='medium')
+
+F('E1-7 exception governance', 'owner, rationale, approval and retirement on sampled entries', 'spec-kitty', CORE,
+  'In a seeded sample of 30 of 3,357 file-ledger entries, read by hand: a rationale is present for 30 (6 on the entry, the rest only in the ledger header); a retirement condition for 22 (1 on the entry); an owner for 2 (both in the header of the charter.activation baseline); an approval record for 1; all four for 0. 18 of the 30 fell in the formatter exclude list. In a second seeded sample of 30 drawn from the 1,092 entries outside the two lint baselines: rationale 30 (17 on the entry), retirement condition 16 with 4 more partial, owner 6, approval 7, all four 0.',
+  [ev(1, 'static-derived', 'ledger-sample-30.csv', 'python random.Random(20261128).sample(range(N), 30) over entries sorted by repository, ledger and key; each row read by hand against the entry text and the ledger header')],
+  'Entry text, attached comments, group or category records and the ledger file header or its _baselines.yaml leaf.', 'Approval or ownership recorded in the pull request that added the entry was not read.',
+  'Looked for an entry in either sample that names its own owner.', 'None; the inert-slots baseline parser refuses an owner key by design.',
+  pop='3,357 file-ledger entries (primary); 1,092 (secondary)', sample='30 + 30', seed=20261128, conf='medium',
+  rel=[dict(type='supports', target=f_rule)])
+
+F('M05a', 'superseded-migrations table', 'spec-kitty', CORE,
+  'The superseded-migrations table holds 12 entries at head; all 12 were added between 2026-10-25 and 2026-11-28 (7 in the first two days, the latest on 2026-11-28), none was removed, and 10 carry an issue reference in their comment.',
+  [ev(1, 'history-derived', 'ledgers.csv', G_LED + '; row superseded-migrations'), ev(2, 'history-derived', 'ledger-entries-compact.csv', 'first_seen of the 12 entries'), doc(3, f'src/specify_cli/upgrade/supersession.py:29-64 at {CORE[:10]}', 'the table')],
+  'History of the one file.', 'Whether each successor migration covers all effects of the migration it replaces.',
+  'Checked whether the table existed in another file before 2026-10-25.', 'The module docstring dates the mechanism to an ADR amendment of 2026-10-25; no earlier table found.')
+
+F('M05a', 'expected-failure and quarantine markers', 'spec-kitty', CORE,
+  'Core has 20 xfail markers on tests at head (6 on 2026-09-07 by the same scan): 18 are strict, 11 carry an issue reference, 9 are both. 10 of the 20 are in tests/consolidation. 6 tests carry the quarantine marker (7 on 2026-09-07). No product test carries the p0_repro marker; the 7 hits of the scan are in the marker\'s own support module and self-test.',
+  [ev(1, 'static-derived', 'ledgers.csv', G_LED + '; rows py-xfail-markers, py-p0-repro-markers, py-quarantine-markers'), ev(2, 'static-derived', 'ledger-entries-compact.csv', 'per-marker rows')],
+  'git grep for pytest.mark.xfail(, pytest.xfail(, p0_repro(issue and mark.quarantine in tests/*.py; 3 of 23 xfail hits are documentation or scanner fixtures and are excluded.',
+  'Expected failures expressed as skip with a reason (155 skip sites) were not classified.',
+  'Looked for p0_repro used in another form (pytestmark, positional argument).', 'Only prose mentions and converted tests whose docstrings say the marker was removed.',
+  conf='medium')
+
+# ---------------------------------------------------------------- 8 PX-01
+f_px = F('PX-01', 'research mission type, runtime guard of step gathering', 'spec-kitty', CORE,
+  'PX-01 outcome: stalls at a guard with no documented producer. A research Mission created with the documented command and advanced with spec-kitty next passed scoping and methodology and stopped at gathering, the third of six steps: after the source register and evidence log were authored and committed, next returned kind "blocked", exit 1, with two guard failures: "Required artifact missing: source-register.csv" and "Insufficient sources documented (need >=3)".',
+  [ev(1, 'executed', 'px01-command-log.txt', '21 commands in a disposable clone at core head with a scratch HOME; wrapper script-px01-run.txt logs command, output and exit code', exit_code=1), ev(2, 'executed', 'px01-summary.txt', 'summary of the run with the sequence and exit codes')],
+  'One run, one Mission, topology single_branch, agent name claude, packs synced at core\'s pins.',
+  'The steps synthesis, output and accept were not reached. No workaround was tried, by instruction. Other mission types and topologies were not run.',
+  'Looked for a documented way to pass the guard before recording the stall: the step prompt, the step contract, the CLI help tree, docs/ and the source tree.',
+  'None found; see the two findings that refine this one.',
+  qa=['functional suitability', 'operability'])
+
+F('PX-01', 'producer of the source_documented event', 'spec-kitty', CORE,
+  'The gathering guard counts rows of type "source_documented" in the Mission\'s mission-events.jsonl. In src/ at head that string occurs only in the reader and the guard. The one call site of the mission event writer writes MissionNextInvoked. The tests that pass this guard write the rows into the file by hand. The step prompt tells the agent to "follow your harness\'s event-emission mechanism" and names no command; no document under docs/ outside reports and archive names one. The guard of the later step output waits in the same way for a gate_passed row named publication_approved, and no writer of it was found either.',
+  [ev(1, 'static-derived', 'static-searches.txt', 'git grep -n source_documented -- src; git grep -n "emit_event(" -- src; git grep for gate_passed / publication_approved; git grep of tests and docs'), doc(2, f'src/runtime/next/runtime_bridge_composition.py:347-409 and runtime_bridge_cores.py:576-587 at {CORE[:10]}', 'reader functions and guards'), doc(3, f'packs/built-in/missions/mission-steps/research/gathering/prompt.md at open-packs {PIN[:10]} (core-pin)', 'the instruction text')],
+  'The whole src/ tree, tests/, docs/ and the pinned built-in pack.', 'A producer outside this repository (an agent harness or another package) was not searched; the supplementary repositories were not searched.',
+  'Searched history for a producer that existed earlier: git log -S of the string in src/.', '12 commits touch the string; the hits at head are readers only. Whether an earlier revision had a writer was not traced.',
+  rel=[dict(type='refines', target=f_px)], inv=['Every event type a runtime guard waits for has a producer reachable through a documented command.'],
+  oq=['Was a producer removed with the mission-DSL v1 runtime on 2026-09-07, or did none ever exist?'])
+
+F('PX-01', 'location of the source register', 'spec-kitty', CORE,
+  'The gathering guard looks for source-register.csv directly in the Mission directory (the expected-artifacts manifest gives the path pattern "source-register.csv", and the blocked decision reports kitty-specs/<mission>/source-register.csv), while the gathering prompt, the research spec and plan templates and the mission-types glossary page name research/source-register.csv. A register written where the prompt says does not satisfy the guard.',
+  [ev(1, 'executed', 'px01-command-log.txt', 'the blocked decision: guard_failure_paths', exit_code=1), ev(2, 'static-derived', 'static-searches.txt', 'grep of expected-artifacts.yaml and the gathering prompt in the pinned pack; git grep source-register in src/runtime and docs/context')],
+  'The run and the pinned pack text.', 'Whether a file at the Mission root would clear this half of the guard was not tried (no workaround, by instruction).',
+  'Looked for code that also accepts the research/ subfolder.', 'gather_artifact_presence checks (read_dir / tag).is_file() for the bare tag; no subfolder lookup found.',
+  rel=[dict(type='refines', target=f_px)])
+
+F('exploratory', 'consistency of research-step checks and texts', 'spec-kitty', CORE,
+  'Two further observations from the PX-01 run. (1) spec-kitty next advanced from scoping to methodology on a committed spec that spec-kitty agent mission setup-plan then refused as SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED, because three requirement lines still equalled template lines: the two commands apply different tests to the same file. (2) The research step prompts and README cite guard expressions as being in mission.yaml (artifact_exists("spec.md"), event_count("source_documented", 3)); mission.yaml and mission-runtime.yaml of the pinned pack contain no such expression (0 matches), and the guards are Python functions.',
+  [ev(1, 'executed', 'px01-command-log.txt', 'commands 6 to 10 of the log'), ev(2, 'static-derived', 'static-searches.txt', 'grep -c of the guard expressions in the pinned pack')],
+  'One run and the pinned pack.', 'Whether the difference in (1) is intended (the prompt says the machine gate is necessary but not sufficient).',
+  'Read the scoping prompt for a statement about the difference.', 'It says a scaffold with unfilled placeholders "does not satisfy this step\'s intent even if it satisfies the machine gate"; my spec had no unfilled placeholder but kept template requirement lines.',
+  conf='medium', rel=[dict(type='refines', target=f_px)])
+
+# ---------------------------------------------------------------- 9 acceptance
+f_acc = F('E1-9 acceptance at Mission level', 'checks of accept', 'spec-kitty', CORE,
+  'The 13 checks found in the accept path (origin freshness, owned-file evidence and review independence, dirty tree, work-package endings, readiness and metadata, unchecked tasks, clarification markers, required artifacts, path conventions, branch agreement, acceptance matrix with negative invariants, non-work-package facts, and the re-judging of deferred invariants after consolidation) all read the Mission\'s own artifacts, its status events, or the tree and remote of the same repository. 0 of 13 read another repository, a pin file, a lockfile, a contract of another component or an architectural gate result.',
+  [ev(1, 'static-derived', 'acceptance-checks.csv', 'read of src/specify_cli/acceptance/*.py and src/specify_cli/cli/commands/accept.py at head, with file:line per check'), ev(2, 'static-derived', 'static-searches.txt', 'supporting searches')],
+  'src/specify_cli/acceptance/ (6 modules), cli/commands/accept.py and consolidation/wp_evidence.py.',
+  'The orchestrator-api accept path was not traced separately. Negative invariants are authored per Mission and could in principle name any path in the repository; their content across Missions was not surveyed.',
+  'Searched the acceptance and review code for pins/, source.yaml, uv.lock, tests/architectural, spec_kitty_events, spec_kitty_tracker, pytest, ruff, mypy and contract paths.',
+  'Hits are comments, a contracts/ artifact waiver for the Mission\'s own contracts folder, and a warning-level check of installed typer/click versions against uv.lock in mission review.',
+  qa=['functional suitability'])
+
+F('E1-9 acceptance at Mission level', 'gates of mission review and step contracts', 'spec-kitty', CORE,
+  'The mission review command runs four gates (work-package lane consistency, a dead-code scan of symbols the Mission diff added, a BLE001 audit scoped to auth/storage paths, issue-matrix validation) and two environment warnings; its own source states "The review gates run no Python tests". The pinned built-in pack has 21 step contract files and none for the software-dev or research accept step; the software-dev accept and review prompts (123 and 323 lines) contain no reference to another repository, a pin, a lockfile, a contract bundle or an architectural gate.',
+  [ev(1, 'static-derived', 'acceptance-checks.csv', 'rows "mission review", "step contract", "step prompt"'), doc(2, f'src/specify_cli/cli/commands/review/__init__.py:1-13,66-70,215-300 at {CORE[:10]}', 'module docstring and gate runners'), ev(3, 'static-derived', 'static-searches.txt', 'ls and grep of the pinned pack')],
+  'The review command package and the software-dev accept, review, specify and plan prompts of the pinned pack.',
+  'Skills under src/charter/offering/skills (for example the mission-review skill text) were not read; they may tell an agent to run more.',
+  'Searched the four prompts for: other repo, cross-repo, sibling repo, the names of the sibling packages, pins/, source.yaml, contract bundle or version, tests/architectural, architectural gate, layer rule, uv.lock, compatib.',
+  'No hit in accept, review or plan; two unrelated hits in specify (.kittify/brief-source.yaml).',
+  rel=[dict(type='supports', target=f_acc)], conf='medium')
+
+# ---------------------------------------------------------------- interpretations
+F('exploratory', 'reach of ungated rules', 'spec-kitty', CORE, None, [], 'The 12 sampled rules and the four action contexts.', 'See the cited findings.',
+  'See the cited findings.', 'See the cited findings.', cls='interpretation', interp='For the sampled rules that have no automated gate, the remaining mechanism is the step instruction, and that instruction reaches an agent as an id in a list of 50 for most of them, not as rule text scoped to the action. Whether such rules are applied then depends on the agent following a pointer; the repository gives no way to observe that.',
+  derived=[f_chain, f_ctx], conf='low')
+ALL[-1]['claim'] = 'Interpretation of F-E1-0%d and F-E1-0%d; no new observation.' % (int(f_chain[-3:]), int(f_ctx[-3:]))
+
+F('exploratory', 'direction of the exception population', 'spec-kitty', CORE, None, [], 'The ledgers of the census.', 'See the cited findings.',
+  'See the cited findings.', 'See the cited findings.', cls='interpretation', interp='The count of recorded exceptions rose over the range mainly because new gates registered existing constructs in new ledgers (30 ledgers created, 827 entries), while the ledgers that existed at the start shrank or stayed flat with three exceptions. The census cannot tell a newly recorded old construct from a newly created one, so "growing" at ledger level does not by itself mean that more transitional code was written.',
+  derived=[f_chg, f_leaf, f_pop], conf='low')
+ALL[-1]['claim'] = 'Interpretation of the M05b findings; no new observation.'
+for d in ALL[-2:]:
+    yaml.safe_dump(d, open(OUT + d['finding_id'] + '.yaml', 'w'), sort_keys=False, allow_unicode=True, width=110)
+print(len(ALL), 'findings')
+import collections
+print(collections.Counter(d['classification'] for d in ALL))

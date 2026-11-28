@@ -1,0 +1,10 @@
+file,line,text
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,150,.doNotHaveFullyQualifiedName(PACK_DOCTOR_MAIN)
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,411,.doNotHaveFullyQualifiedName(PACK_DOCTOR_MAIN)
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,931,".doNotHaveSimpleName(""package-info"")"
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,1079,.doNotHaveFullyQualifiedName(Relationship.class.getName())
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,1081,.doNotHaveFullyQualifiedName(EndpointRule.class.getName())
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,1195,.doNotHaveFullyQualifiedName(PACK_DOCTOR_MAIN)
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,2104,.doNotHaveFullyQualifiedName(RefusalCode.class.getName())
+service/deployable/src/test/java/ai/speckitty/charter/deployable/HexagonalArchitectureTest.java,2220,.doNotHaveFullyQualifiedName(ROUND_TRIP_RULE)
+service/packs/src/test/java/ai/speckitty/charter/packs/PackGraphWalkBoundaryTest.java,68,".doNotHaveFullyQualifiedName(ROOT + "".application.OwnerOnly"")"

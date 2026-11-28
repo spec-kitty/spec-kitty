@@ -1,0 +1,15 @@
+core src python files scanned: 1490 ; files importing spec_kitty_events: 25
+import statements by events module ( 41 ):
+   spec_kitty_events 13
+   spec_kitty_events.decisionpoint 5
+   spec_kitty_events.mission_next 4
+   spec_kitty_events.status 4
+   spec_kitty_events.project_lifecycle 4
+   spec_kitty_events.persistence 3
+   spec_kitty_events.lifecycle 3
+   spec_kitty_events.decision_moment 2
+   spec_kitty_events.conformance 1
+   spec_kitty_events.zeitgeist_attrs 1
+   spec_kitty_events.diary 1
+distinct (module,name) pairs: 75
+underscore-prefixed module or name: 0

@@ -1,0 +1,62 @@
+finding_id: F-G1-003
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I2/core"
+  deviation: null
+subject:
+  component: "core Python packages (src/)"
+  repository: spec-kitty/spec-kitty
+  revision: "5c4fc5a79de1c1c299ab221ca26e5555c68ef533"
+  revision_kind: head
+claim: "I2 check ran (same 3.8 s walk). Of 3,547 cross-package import names between the six wheel packages, 593 distinct (module, line, name) entries break at least one of four public-surface rules (656 rule hits). R1, underscore-private module or name imported across packages: 135 hits in 59 modules. R2, specify_cli importing charter.offering other than charter.offering.api: 36 of 36 such import names (9 modules). R3, specify_cli importing charter.activation other than charter.activation.api: 416 of 525 such import names (75 modules). R4, name imported from a module that declares __all__ without listing it: 69 hits in 42 modules (780 of 1,490 modules declare __all__)."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/core-head-I2_private_access.csv"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "8be0655b51ecc760d4282dc542ee6a77806cbdaa9c43bade60e168a6deafbccb"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/core-head-summary.json"
+    method: "python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>"
+    sha256: "e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640"
+    exit_code: 0
+    environment: "Python 3.13 (ast stdlib), Linux 6.18"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Static imports across the six wheel packages; imports of spec_kitty_events and spec_kitty_tracker checked for underscore-private segments (0 hits)."
+  not_covered: "Attribute access to private members after a public import; dynamic imports; whether an underscore name is re-exported on purpose; __all__ of the external packages; intra-package (sub-package to sub-package) access."
+  population: "3,547 cross-package import names; 1,490 modules"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Checked whether the documented seam modules are used at all, which would show the rules R2 and R3 are aimed at the right surface."
+  result: "charter.activation.api carries 109 of 525 specify_cli import names; charter.offering.api carries 0 of 36. The published guidance states the specify_cli to charter import move onto the seam is done; this check, as written from the public statement, reports the opposite for charter.offering. The check may be reading the statement more broadly than its authors intend."
+relations: []
+confidence: medium
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "modularity"
+  - "modifiability"
+  - "analysability"
+candidate_invariants: 
+  - "specify_cli imports charter.offering only through charter.offering.api"
+  - "No cross-package import of an underscore-prefixed module or name"
+  - "A name imported across packages is listed in the exporting module's __all__"
+open_questions: 
+  - "What is the declared public surface of each of the six packages? Only two seams (charter.offering.api, charter.activation.api) and runtime's _internal_runtime naming are published; for kernel, glossary, mission_runtime and specify_cli none was found."
+  - "Does the charter.activation.api rule apply to every charter.activation import or only to activation-record access?"

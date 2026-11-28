@@ -1,0 +1,150 @@
+{
+ "M-PI-1": {
+  "candidates": 7,
+  "selected": [
+   "tests/status/test_reducer.py",
+   "tests/specify_cli/status/test_reducer_projection_sentinel.py",
+   "tests/status/test_reducer_recovery_integrity.py",
+   "tests/ci/test_reducer_lock_census.py",
+   "tests/ci/test_reducer_lock_routing.py"
+  ]
+ },
+ "M-PI-2": {
+  "candidates": 6,
+  "selected": [
+   "tests/cli/test_charter_activate_warning.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py",
+   "tests/specify_cli/test_charter_activate_cli.py"
+  ]
+ },
+ "M-PI-3": {
+  "candidates": 3,
+  "selected": [
+   "tests/specify_cli/events/test_decision_log.py",
+   "tests/specify_cli/events/test_decision_log_coord.py",
+   "tests/specify_cli/events/test_decision_log_locked_append.py"
+  ]
+ },
+ "M-PI-5": {
+  "candidates": 15,
+  "selected": [
+   "tests/specify_cli/drg_writers/test_registry_completeness.py",
+   "tests/specify_cli/compat/test_registry.py",
+   "tests/specify_cli/contracts/test_registry.py",
+   "tests/specify_cli/invocation/test_registry.py",
+   "tests/specify_cli/shims/test_registry.py"
+  ]
+ },
+ "M-RD-1": {
+  "candidates": 1,
+  "selected": [
+   "tests/kernel/test_site_urls.py"
+  ]
+ },
+ "M-RD-2": {
+  "candidates": 2,
+  "selected": [
+   "tests/charter/test_hasher.py",
+   "tests/dossier/test_hasher.py"
+  ]
+ },
+ "M-RD-3": {
+  "candidates": 3,
+  "selected": [
+   "tests/next/test_prompt_builder_review_base.py",
+   "tests/next/test_prompt_builder_unit.py",
+   "tests/integration/test_prompt_builder_owned_arms.py"
+  ]
+ },
+ "M-RD-4": {
+  "candidates": 1,
+  "selected": [
+   "tests/test_status_log.py"
+  ]
+ },
+ "M-RD-5": {
+  "candidates": 1,
+  "selected": [
+   "tests/kernel/test_glossary_runner.py"
+  ]
+ },
+ "M-OB-1": {
+  "candidates": 4,
+  "selected": [
+   "tests/cli/test_mission_brief.py",
+   "tests/specify_cli/test_mission_brief_missing_vs_corrupt.py",
+   "tests/specify_cli/test_mission_brief_overwrite_chokepoint.py",
+   "tests/specify_cli/test_mission_brief_resilient_write.py"
+  ]
+ },
+ "M-OB-2": {
+  "candidates": 6,
+  "selected": [
+   "tests/cli/test_charter_activate_warning.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py",
+   "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py",
+   "tests/specify_cli/test_charter_activate_cli.py"
+  ]
+ },
+ "M-OB-3": {
+  "candidates": 32,
+  "selected": [
+   "tests/_support/test_finalize_source.py",
+   "tests/agent/test_finalize_tasks_owned_files_validation.py",
+   "tests/architectural/test_finalize_refresh_pin_authority.py",
+   "tests/cli/commands/test_finalize_kind_normalisation_helpers.py",
+   "tests/coordination/test_finalize_commits_coord_writes_7792.py"
+  ]
+ },
+ "M-OB-4": {
+  "candidates": 9,
+  "selected": [
+   "tests/specify_cli/services/test_resolution.py",
+   "tests/agent/glossary/test_resolution.py",
+   "tests/kernel/test_resolution.py",
+   "tests/charter/test_resolution_overhead.py",
+   "tests/consolidation/test_resolution_merge_unreviewed.py"
+  ]
+ },
+ "M-OB-5": {
+  "candidates": 0,
+  "selected": []
+ },
+ "M-OB-6": {
+  "candidates": 12,
+  "selected": [
+   "tests/policy/test_audit.py",
+   "tests/policy/test_audit_locked_append.py",
+   "tests/audit/test_audit_architecture.py",
+   "tests/audit/test_audit_classifiers.py",
+   "tests/audit/test_audit_cli.py"
+  ]
+ },
+ "M-IC-1": {
+  "candidates": 2,
+  "selected": [
+   "tests/unit/test_gates.py",
+   "tests/property/test_gates_determinism.py"
+  ]
+ },
+ "M-IC-3": {
+  "candidates": 0,
+  "selected": []
+ },
+ "M-IC-4": {
+  "candidates": 1,
+  "selected": [
+   "tests/agent/test_envelope_unit.py"
+  ]
+ },
+ "M-IC-6": {
+  "candidates": 2,
+  "selected": [
+   "tests/status/test_wp_window_capture.py",
+   "tests/consolidation/test_wp_window_round_trip.py"
+  ]
+ }
+}

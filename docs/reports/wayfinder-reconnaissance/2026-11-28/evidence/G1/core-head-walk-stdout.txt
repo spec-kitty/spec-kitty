@@ -1,0 +1,119 @@
+{
+ "src_root": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/core/src",
+ "modules": 1490,
+ "parse_failures": [],
+ "import_statements_names": 27563,
+ "intra_tree_edges": 19224,
+ "cross_package_import_counts": {
+  "charter->kernel": 208,
+  "glossary->charter": 7,
+  "glossary->kernel": 11,
+  "mission_runtime->kernel": 13,
+  "mission_runtime->specify_cli": 119,
+  "runtime->charter": 30,
+  "runtime->kernel": 31,
+  "runtime->mission_runtime": 64,
+  "runtime->specify_cli": 193,
+  "specify_cli->charter": 935,
+  "specify_cli->glossary": 36,
+  "specify_cli->kernel": 1074,
+  "specify_cli->mission_runtime": 735,
+  "specify_cli->runtime": 91
+ },
+ "I1": {
+  "L1_top_package|all_imports": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "L1_top_package|module_level_runtime": {
+   "components": 6,
+   "edges": 14,
+   "scc_count": 1,
+   "scc_sizes": [
+    3
+   ]
+  },
+  "L2_second_level|all_imports": {
+   "components": 191,
+   "edges": 1280,
+   "scc_count": 3,
+   "scc_sizes": [
+    2,
+    4,
+    86
+   ]
+  },
+  "L2_second_level|module_level_runtime": {
+   "components": 191,
+   "edges": 971,
+   "scc_count": 1,
+   "scc_sizes": [
+    65
+   ]
+  }
+ },
+ "I2": {
+  "by_rule": {
+   "R4_not_in___all__": 69,
+   "R1_underscore_private": 135,
+   "R3_activation_api_bypass": 416,
+   "R2_offering_seam_bypass": 36
+  },
+  "by_rule_distinct_importer_modules": {
+   "R4_not_in___all__": 42,
+   "R1_underscore_private": 59,
+   "R3_activation_api_bypass": 75,
+   "R2_offering_seam_bypass": 9
+  },
+  "cross_package_import_names_total": 3547,
+  "modules_declaring___all__": 780,
+  "modules_total": 1490
+ },
+ "I3": {
+  "violations": 312,
+  "by_pair_kind": {
+   "mission_runtime->specify_cli|deferred": 116,
+   "mission_runtime->specify_cli|module": 1,
+   "mission_runtime->specify_cli|type_checking": 2,
+   "runtime->specify_cli|deferred": 98,
+   "runtime->specify_cli|module": 88,
+   "runtime->specify_cli|type_checking": 7
+  },
+  "same_rank_peer_imports": {
+   "runtime->mission_runtime|deferred": 34,
+   "runtime->mission_runtime|module": 28,
+   "runtime->mission_runtime|type_checking": 2
+  }
+ },
+ "I4": {
+  "by_tier": {
+   "A_layer_package": 9,
+   "cli_surface": 296,
+   "B_specify_cli_non_cli": 106
+  },
+  "distinct_modules_by_tier": {
+   "cli_surface": 148,
+   "A_layer_package": 5,
+   "B_specify_cli_non_cli": 57
+  },
+  "modules_by_tier_population": {
+   "A_layer_package": 371,
+   "B_specify_cli_non_cli": 923
+  },
+  "tierA_by_pkg_lib": {
+   "charter|rich": 3,
+   "charter|sys.argv": 1,
+   "glossary|rich": 2,
+   "glossary|typer": 1,
+   "runtime|rich": 2
+  }
+ }
+}
+
+real	0m3.793s
+user	0m3.080s
+sys	0m0.141s

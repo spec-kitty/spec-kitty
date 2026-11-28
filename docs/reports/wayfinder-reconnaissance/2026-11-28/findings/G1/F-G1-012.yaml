@@ -1,0 +1,50 @@
+finding_id: F-G1-012
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I6/charter"
+  deviation: null
+subject:
+  component: "charter Java service (service/)"
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "I6 check could not be completed in this environment. Two assemble attempts and one named-gate attempt from a clean clone all ended without a compile or test verdict: attempt 1 failed after 714 s on a lock timeout in the shared per-user Gradle cache held by another process; the named gate (:deployable:test --tests '*HexagonalArchitectureTest') and the single retry of assemble (357 s) both ended with 'Gradle build daemon disappeared unexpectedly' while the container's memory limit was killing java and python processes. Before the retry's daemon was killed, 7 of 18 projects (charter-reports, client-java, contracts, kernel, missions, profiles, routing) had completed their assemble task with no compile error reported. Statically, settings.gradle.kts includes one build (build-logic) and no path outside the repository, and 0 build files name the core CLI."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/charter-I6-build.txt"
+    method: "git clone --shared; git checkout --detach 06cdfbe9; bash check-charter-I6-build.txt <clone>"
+    sha256: "1f8ca9c744b65793b712fc5183d4a3a77a3002c466a0a4c7e95e1be6f5174e8b"
+    exit_code: 1
+    environment: "Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Gradle assemble of every module in settings.gradle.kts and one named gate (HexagonalArchitectureTest in :deployable)."
+  not_covered: "Every other test task; verifyAll; native image; contracts bundle checks; the conformance corpus, which the ADR list says runs over the core CLI."
+  population: "16 service modules plus contracts and client-java"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Searched settings.gradle.kts and build-logic for includeBuild or parent-directory paths that would pull another repository's sources."
+  result: "Only includeBuild(\"build-logic\") and ../gradle/libs.versions.toml, both inside the repository."
+relations: []
+confidence: low
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "buildability"
+  - "deployability"
+candidate_invariants: 
+  - "The charter service assembles from its own repository and Maven artifacts only"
+open_questions: 
+  - "Does the charter service assemble and pass its named architecture gate from a clean clone on a machine with a private Gradle cache and enough memory? Not established here."

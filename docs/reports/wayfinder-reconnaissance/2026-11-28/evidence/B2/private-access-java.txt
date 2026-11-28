@@ -1,0 +1,21 @@
+== charter: cross-module import statements (main sources) = 1928; by target ring: {'domain': 1409, 'other(top-level/shared)': 406, 'application': 69, 'infra/adapter': 35, 'config': 9}
+   strict private (segment internal|impl): 0/1928
+    ('deployable', 'packs', 'other(top-level/shared)', 'infra/adapter') 30
+    ('activations', 'packs', 'infra/adapter', 'application') 19
+    ('deployable', 'packs', 'other(top-level/shared)', 'application') 18
+    ('artifacts-edge', 'packs', 'infra/adapter', 'application') 12
+    ('deployable', 'kernel', 'other(top-level/shared)', 'config') 8
+    ('profiles-edge', 'activations', 'infra/adapter', 'application') 5
+    ('artifacts-edge', 'activations', 'infra/adapter', 'application') 4
+    ('profiles-edge', 'packs', 'infra/adapter', 'application') 4
+    ('missions-edge', 'packs', 'infra/adapter', 'application') 3
+    ('pack-doctor', 'packs', 'other(top-level/shared)', 'infra/adapter') 3
+    ('deployable', 'activations', 'other(top-level/shared)', 'infra/adapter') 2
+    ('missions-edge', 'activations', 'infra/adapter', 'application') 2
+    ('routing-edge', 'activations', 'infra/adapter', 'application') 2
+    ('packs', 'kernel', 'infra/adapter', 'config') 1
+== events: cross-module import statements (main sources) = 140; by target ring: {'domain': 129, 'infra/adapter': 11}
+   strict private (segment internal|impl): 0/140
+    ('command-cli', 'event-log', 'infra/adapter', 'infra/adapter') 9
+    ('command-cli', 'event-log', 'config', 'infra/adapter') 1
+    ('mission-status-api', 'event-log', 'infra/adapter', 'infra/adapter') 1

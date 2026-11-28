@@ -1,0 +1,78 @@
+# I6 core (spec-kitty @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533), uv 0.11.32, hatchling via uv build, CPython 3.13.18 (venv) / 3.11.15 (build backend, dev venv)
+## step 1: non-git source copy (git archive), no packs/built-in tree: cd core_archive && uv build --wheel --out-dir ../dist_archive
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Building wheel...
+Traceback (most recent call last):
+  File "<string>", line 11, in <module>
+  File "/root/.cache/uv/builds-v0/.tmp4QwnBI/lib/python3.11/site-packages/hatchling/build.py", line 58, in build_wheel
+    return os.path.basename(next(builder.build(directory=wheel_directory, versions=["standard"])))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.cache/uv/builds-v0/.tmp4QwnBI/lib/python3.11/site-packages/hatchling/builders/plugin/interface.py", line 149, in build
+    build_hook.initialize(version, build_data)
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G2/i6/core_archive/hatch_build.py", line 92, in initialize
+    ensure_built_in_tree(root)
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G2/i6/core_archive/hatch_build.py", line 73, in ensure_built_in_tree
+    raise pack_fetch.PackSyncError(
+charter.offering.packs.pack_fetch.PackSyncError: PACK_TREE_STALE: packs/built-in is missing or does not match the digest pinned in packs/built-in.source.yaml; an sdist build verifies only and never fetches; rebuild from a git checkout after `make sync-packs`
+error: Failed to build `/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G2/i6/core_archive`
+  Caused by: The build backend returned an error
+  Caused by: Call to `hatchling.build.build_wheel` failed (exit status: 1)
+
+hint: Build failures usually indicate a problem with the package or the build environment
+
+real	0m4.574s
+user	0m0.788s
+sys	0m0.272s
+## exit: build failed (uv build non-zero; recorded wrapper exit 0 is the subshell)
+
+## step 2: git clone --shared at 5c4fc5a, XDG_CACHE_HOME=<scratch>: uv build --wheel (hook fetched packs/built-in from https://github.com/spec-kitty/spec-kitty-open-packs.git at a79c36318b, digest-verified)
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Building wheel...
+Successfully built ../dist_git/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+
+real	0m22.773s
+user	0m3.031s
+sys	0m1.378s
+
+## step 3: uv venv -p 3.13 venv_wheel; uv pip install dist_git/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+
+real	0m3.072s
+user	0m0.249s
+sys	0m0.207s
+installed: spec-kitty-cli 4.0.0rc9, spec-kitty-events 11.3.0 (PyPI), spec-kitty-tracker 0.5.2 (PyPI); spec-kitty --version -> 'spec-kitty-cli version 4.0.0rc9' exit 0; python -c 'import specify_cli, charter, kernel, glossary, runtime, mission_runtime' -> ok; site-packages/packs/built-in present
+
+## step 4: smoke in a fresh git repo under scratch, HOME=<scratch>: spec-kitty init --ai claude --non-interactive; spec-kitty charter context --action review --json
+Saved agent configuration
+Wrote orientation for claude
+Created 39 tool surface(s)
+  2 surface(s) not applicable, skipped.
+Committed 10 spec-kitty project files (`chore: initialize spec-kitty project`; 
+pass --no-commit to skip)
+init_exit=0
+ctx True missing
+ctx_exit=0
+agent_profiles_manifest.json
+canonical-events.jsonl
+charter
+config.yaml
+memory
+metadata.yaml
+migration-ledger.jsonl
+migrations
+skills-manifest.json
+
+## step 5: own check, named test file, --noconftest (conftest collection hook killed by OOM twice under host memory pressure, exit 137)
+== core_git packs/built-in present: yes start 09:40:36
+exit=0 end 09:40:42
+....                                                                     [100%]
+4 passed in 4.02s
+== core_archive packs/built-in present: no start 09:40:42
+exit=1 end 09:40:44
+
+src/charter/offering/pack_paths.py:265: BuiltInPackMissing
+=========================== short test summary info ============================
+FAILED tests/charter_offering/drg/test_builtin_graph_seam.py::test_source_points_at_built_in_pack_root_directory
+FAILED tests/charter_offering/drg/test_builtin_graph_seam.py::test_seam_returns_a_populated_graph
+FAILED tests/charter_offering/drg/test_builtin_graph_seam.py::test_repeat_loads_parse_once_and_return_independent_copies
+FAILED tests/charter_offering/drg/test_builtin_graph_seam.py::test_an_edited_fragment_is_reparsed
+4 failed in 0.54s

@@ -1,0 +1,117 @@
+"""Python import graph of one package from source (ast), module level and first-level-unit level.
+usage: py_imports.py <src_root> <package> <outprefix>
+Counts every Import/ImportFrom node anywhere in a module (function-local and TYPE_CHECKING included; flagged).
+Unit = first path component under the package (a .py module or a subpackage).
+"""
+import ast, os, sys, csv, json, collections
+src, pkg, outp = sys.argv[1:4]
+STD = set(sys.stdlib_module_names)
+mods = {}
+for d,_,fs in os.walk(os.path.join(src,pkg)):
+    for f in fs:
+        if f.endswith(".py"):
+            p = os.path.join(d,f); rel = os.path.relpath(p,src)[:-3].replace(os.sep,".")
+            if rel.endswith(".__init__"): rel = rel[:-9]; ispkg=True
+            else: ispkg=False
+            mods[rel]=(p,ispkg)
+def unit(m):
+    parts=m.split("."); return parts[1] if len(parts)>1 else "__init__"
+edges=collections.Counter(); ext=collections.Counter(); extdetail=collections.defaultdict(set); flags=collections.Counter()
+private=[]; allmap={}
+class V(ast.NodeVisitor):
+    def __init__(s,m,ispkg): s.m=m; s.ispkg=ispkg; s.depth=0; s.tc=0
+    def visit_FunctionDef(s,n): s.depth+=1; s.generic_visit(n); s.depth-=1
+    visit_AsyncFunctionDef=visit_FunctionDef
+    def visit_If(s,n):
+        t=ast.unparse(n.test)
+        if "TYPE_CHECKING" in t:
+            s.tc+=1
+            for b in n.body: s.visit(b)
+            s.tc-=1
+            for b in n.orelse: s.visit(b)
+        else: s.generic_visit(n)
+    def add(s,target,names,node):
+        kind = "type_checking" if s.tc else ("deferred" if s.depth else "top")
+        top=target.split(".")[0]
+        if top==pkg:
+            cands=[target+"."+n for n in names]+[target]
+            for c in cands:
+                t=c
+                while t and t not in mods: t=t.rpartition(".")[0]
+                if t:
+                    edges[(s.m,t,kind)]+=1
+                    for seg in c.split(".")[1:]:
+                        if seg.startswith("_") and not seg.startswith("__") and unit(t)!=unit(s.m): private.append((s.m,c,node.lineno))
+                    break
+        else:
+            ext[(top, "stdlib" if top in STD else "third-party", kind)]+=1; extdetail[top].add(s.m)
+    def visit_Import(s,n):
+        for a in n.names: s.add(a.name,[],n)
+    def visit_ImportFrom(s,n):
+        if n.level:
+            base=s.m.split(".") if s.ispkg else s.m.split(".")[:-1]
+            base=base[:len(base)-(n.level-1)]
+            target=".".join(base+([n.module] if n.module else []))
+        else: target=n.module
+        names=[a.name for a in n.names if a.name!="*"]
+        if target.split(".")[0]==pkg:
+            for nm in names: s.add(target,[nm],n)
+            if not names: s.add(target,[],n)
+        else: s.add(target,names,n)
+for m,(p,ispkg) in sorted(mods.items()):
+    tree=ast.parse(open(p,encoding="utf-8").read())
+    V(m,ispkg).visit(tree)
+    for n in tree.body:
+        if isinstance(n,(ast.Assign,ast.AnnAssign)):
+            tg=[n.target] if isinstance(n,ast.AnnAssign) else n.targets
+            if any(isinstance(t,ast.Name) and t.id=="__all__" for t in tg) and n.value is not None:
+                try: allmap[m]=len(ast.literal_eval(n.value))
+                except Exception: allmap[m]=-1
+def sccs(g):
+    sys.setrecursionlimit(100000); idx={};low={};st=[];on=set();out=[];c=[0]
+    def v(x):
+        idx[x]=low[x]=c[0];c[0]+=1;st.append(x);on.add(x)
+        for w in g.get(x,()):
+            if w not in idx: v(w);low[x]=min(low[x],low[w])
+            elif w in on: low[x]=min(low[x],idx[w])
+        if low[x]==idx[x]:
+            comp=[]
+            while True:
+                w=st.pop();on.discard(w);comp.append(w)
+                if w==x:break
+            if len(comp)>1: out.append(sorted(comp))
+    for x in list(g):
+        if x not in idx: v(x)
+    return out
+def graph(kinds, key=lambda x:x):
+    g=collections.defaultdict(set)
+    for (a,b,k),n in edges.items():
+        if k in kinds and key(a)!=key(b): g[key(a)].add(key(b))
+    return g
+with open(outp+"-module-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_module","to_module","kind","import_names"])
+    for (a,b,k),n in sorted(edges.items()):
+        if a!=b: w.writerow([a,b,k,n])
+ue=collections.Counter()
+for (a,b,k),n in edges.items():
+    if unit(a)!=unit(b): ue[(unit(a),unit(b),k)]+=n
+with open(outp+"-unit-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_unit","to_unit","kind","import_names"])
+    for (a,b,k),n in sorted(ue.items()): w.writerow([a,b,k,n])
+with open(outp+"-external.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["top_level","class","kind","import_statements","importing_modules"])
+    for (t,c,k),n in sorted(ext.items()): w.writerow([t,c,k,n,len(extdetail[t])])
+ALLK=("top","deferred","type_checking")
+summary={"modules":len(mods),"units":len({unit(m) for m in mods}),
+ "module_edges_all":len({(a,b) for (a,b,k) in edges if a!=b}),
+ "module_cycles_top_only":sccs(graph(("top",))),
+ "module_cycles_all":sccs(graph(ALLK)),
+ "unit_cycles_top_only":sccs(graph(("top",),unit)),
+ "unit_cycles_all":sccs(graph(ALLK,unit)),
+ "third_party":sorted({t for (t,c,k) in ext if c=="third-party"}),
+ "third_party_by_kind":{f"{t}|{k}":n for (t,c,k),n in sorted(ext.items()) if c=="third-party"},
+ "modules_with___all__":allmap,
+ "cross_unit_private_imports":sorted(set(private))}
+json.dump(summary,open(outp+"-summary.json","w"),indent=1)
+s=dict(summary); s["modules_with___all__"]={k:v for k,v in allmap.items()}
+print(json.dumps(s,indent=1)[:6000])

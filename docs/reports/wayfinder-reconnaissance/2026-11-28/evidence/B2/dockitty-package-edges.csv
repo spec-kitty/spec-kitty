@@ -1,0 +1,13 @@
+from,to,mechanism,scope,import_statements
+(root),(tests),relative-path,main,1
+(root),@spec-kitty/doc-toolkit,relative-path,main,1
+(tests),@spec-kitty/doc-toolkit,package-specifier,test,14
+(tests),@spec-kitty/doc-toolkit,relative-path,test,6
+@spec-kitty/doc-kitty-mcp,@spec-kitty/doc-toolkit,package-specifier,main,2
+@spec-kitty/doc-toolkit,(..),relative-path,test,1
+@spec-kitty/doc-toolkit,(.github),relative-path,test,1
+@spec-kitty/doc-toolkit,(root),relative-path,test,1
+@spec-kitty/doc-toolkit,@spec-kitty/doc-toolkit,package-specifier,main,6
+@spec-kitty/doc-toolkit,@spec-kitty/doc-toolkit,package-specifier,test,42
+@spec-kitty/doc-toolkit,example,relative-path,test,3
+example,@spec-kitty/doc-toolkit,package-specifier,main,13

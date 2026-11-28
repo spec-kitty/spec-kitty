@@ -1,0 +1,151 @@
+{
+ "repo_root": "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/ws-G1/charter-src",
+ "main_java_files": 1003,
+ "modules_with_main_sources": 14,
+ "slices_seen": [
+  "activations",
+  "artifacts",
+  "deployable",
+  "kernel",
+  "missions",
+  "packdoctor",
+  "packs",
+  "packvalidation",
+  "profiles",
+  "routing",
+  "web"
+ ],
+ "module_top_packages": {
+  "activations": [
+   "ai.speckitty.charter.activations"
+  ],
+  "artifacts-edge": [
+   "ai.speckitty.charter.artifacts"
+  ],
+  "deployable": [
+   "ai.speckitty.charter.deployable"
+  ],
+  "kernel": [
+   "ai.speckitty.charter.kernel"
+  ],
+  "missions": [
+   "ai.speckitty.charter.missions"
+  ],
+  "missions-edge": [
+   "ai.speckitty.charter.missions"
+  ],
+  "pack-doctor": [
+   "ai.speckitty.charter.packdoctor"
+  ],
+  "pack-validation": [
+   "ai.speckitty.charter.packvalidation"
+  ],
+  "packs": [
+   "ai.speckitty.charter.packs"
+  ],
+  "profiles": [
+   "ai.speckitty.charter.profiles"
+  ],
+  "profiles-edge": [
+   "ai.speckitty.charter.profiles"
+  ],
+  "routing": [
+   "ai.speckitty.charter.routing"
+  ],
+  "routing-edge": [
+   "ai.speckitty.charter.routing"
+  ],
+  "web-transport": [
+   "ai.speckitty.charter.web"
+  ]
+ },
+ "unknown_base_targets": {
+  "api": 441
+ },
+ "I1": {
+  "module_edges_all_configurations": 53,
+  "module_edges_production_configurations": 50,
+  "module_sccs_all": [
+   [
+    "pack-validation",
+    "packs"
+   ]
+  ],
+  "module_sccs_production": [],
+  "slice_nodes": 11,
+  "slice_edges": 38,
+  "slice_sccs": [
+   [
+    "activations",
+    "missions",
+    "packs",
+    "profiles",
+    "routing"
+   ]
+  ],
+  "ring_nodes": 45,
+  "ring_edges": 160,
+  "ring_sccs": [],
+  "ring_cyclic_edges": 0
+ },
+ "I2": {
+  "violations_distinct": 6,
+  "by_rule": {
+   "cross_slice_outside_designated_adapter": 6
+  },
+  "distinct_files": 1,
+  "by_rule_importer_ring": {
+   "cross_slice_outside_designated_adapter|artifacts.infra.packs": 6
+  }
+ },
+ "I3": {
+  "violations_distinct": 59,
+  "by_rule": {
+   "kernel_imports_non_jdk": 18,
+   "domain_imports_external_library": 41
+  },
+  "distinct_files": 59,
+  "external_libs_in_domain": {
+   "org.jspecify.annotations": 59
+  }
+ },
+ "I4": {
+  "file_population_by_tier": {
+   "other": 424,
+   "B_application": 185,
+   "A_kernel_or_domain": 382,
+   "cli_module": 12
+  },
+  "matches_by_tier": {
+   "other": 4,
+   "cli_module": 11
+  },
+  "distinct_files_by_tier": {
+   "cli_module": 2,
+   "other": 1
+  },
+  "matches_by_tier_token": {
+   "other|String[] args": 2,
+   "other|System.err": 1,
+   "other|System.exit": 1,
+   "cli_module|String[] args": 8,
+   "cli_module|System.exit": 1,
+   "cli_module|System.out": 1,
+   "cli_module|System.err": 1
+  }
+ },
+ "I5": {
+  "files_with_write_primitives_by_class": {
+   "storage_or_outbound_adapter": 16,
+   "cli_module_packdoctor": 1,
+   "outside_storage_rings": 1
+  },
+  "outside_by_ring": {
+   "packs.application": 1
+  }
+ }
+}
+
+real	0m0.987s
+user	0m0.319s
+sys	0m0.032s

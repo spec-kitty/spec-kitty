@@ -1,0 +1,50 @@
+"""open-packs: pack inventory and pack-to-pack dependency graph from packs/*/pack.yaml (depends_on) at a git revision.
+usage: pack_graph.py <repo> <rev> <outprefix>
+"""
+import subprocess, sys, yaml, csv, json, collections
+repo, rev, outp = sys.argv[1:4]
+def git(*a): return subprocess.run(["git","-C",repo,*a],capture_output=True,text=True,check=True).stdout
+files=git("ls-tree","-r","--name-only",rev,"packs/").splitlines()
+packs={}
+for f in files:
+    parts=f.split("/")
+    if len(parts)==3 and parts[2]=="pack.yaml":
+        packs[parts[1]]=yaml.safe_load(git("show",f"{rev}:{f}"))
+id2name={d.get("pack_id"):n for n,d in packs.items()}
+cnt=collections.defaultdict(collections.Counter)
+for f in files:
+    parts=f.split("/")
+    if len(parts)>=3 and parts[1] in packs: cnt[parts[1]][parts[2] if len(parts)>3 else "(top-level file)"]+=1
+edges=[]; g=collections.defaultdict(set)
+for n,d in packs.items():
+    for dep in d.get("depends_on") or []:
+        t=id2name.get(dep.get("pack_id"),"UNRESOLVED:"+str(dep.get("pack_id")))
+        edges.append([n,t,dep.get("range"),"exact" if str(dep.get("range","")).startswith("==") else "range"]); g[n].add(t)
+def sccs(g):
+    idx={};low={};st=[];on=set();out=[];c=[0]
+    def v(x):
+        idx[x]=low[x]=c[0];c[0]+=1;st.append(x);on.add(x)
+        for w in g.get(x,()):
+            if w not in idx: v(w);low[x]=min(low[x],low[w])
+            elif w in on: low[x]=min(low[x],idx[w])
+        if low[x]==idx[x]:
+            comp=[]
+            while True:
+                w=st.pop();on.discard(w);comp.append(w)
+                if w==x:break
+            if len(comp)>1: out.append(sorted(comp))
+    for x in list(g):
+        if x not in idx: v(x)
+    return out
+with open(outp+"-nodes.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["pack","pack_level","pack_version","requires_core","files","depends_on_count","depended_on_by_count","files_by_dir"])
+    for n,d in sorted(packs.items()):
+        w.writerow([n,d.get("pack_level"),d.get("pack_version"),d.get("requires_core"),sum(cnt[n].values()),len(g[n]),sum(1 for a in g if n in g[a]),json.dumps(dict(sorted(cnt[n].items())))])
+with open(outp+"-edges.csv","w",newline="") as fh:
+    w=csv.writer(fh); w.writerow(["from_pack","to_pack","range","kind"]); w.writerows(sorted(edges))
+lv={n:d.get("pack_level") for n,d in packs.items()}
+s={"rev":rev,"packs":len(packs),"by_level":collections.Counter(lv.values()),"edges":len(edges),"exact_pin_edges":sum(1 for e in edges if e[3]=="exact"),
+   "cycles":sccs(g),"unresolved":[e for e in edges if e[1].startswith("UNRESOLVED")],
+   "edges_builtin_to_org":[e[:2] for e in edges if lv.get(e[0])=="built-in" and lv.get(e[1])=="org"],
+   "fan_in":sorted(((sum(1 for a in g if n in g[a]),n) for n in packs),reverse=True)[:6]}
+json.dump(s,open(outp+"-summary.json","w"),indent=1); print(json.dumps(s,indent=1))

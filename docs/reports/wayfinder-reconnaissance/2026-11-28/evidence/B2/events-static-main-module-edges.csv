@@ -1,0 +1,6 @@
+from_module,to_module,import_statements,importing_files
+command-cli,domain-model,29,19
+command-cli,event-log,10,4
+event-log,domain-model,27,9
+mission-status-api,domain-model,69,30
+mission-status-api,event-log,5,3

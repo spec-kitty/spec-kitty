@@ -1,0 +1,67 @@
+finding_id: F-G1-006
+workstream: "G1 - Expressing invariants as checks (public information only)"
+hypotheses: []
+classification: observation
+view: observed
+prereg:
+  measure: "I3/charter"
+  deviation: null
+subject:
+  component: "charter Java service (service/)"
+  repository: spec-kitty/spec-kitty-charter
+  revision: "06cdfbe94856e8d24eca350c63d2a7b47bb9f13a"
+  revision_kind: head
+claim: "I3 check ran (1.0 s walk, 0.1 s grep). Dependency on core: 0 mentions of the core CLI distribution in Gradle build files and the version catalog, 0 of 1,039 main files name it, 0 main Java files hold a \"spec-kitty\" process literal. Inward rule: 0 imports from a domain ring to its own application or infra ring, 0 from an application ring to its own infra ring, 0 from kernel to any slice, 0 from a domain ring to another slice. Purity rule as published ('kernel depends on nothing outside the JDK', 'the domain is plain Java'): 59 of 382 kernel and domain files import a non-JDK package (18 kernel, 41 domain); all 59 imports are org.jspecify.annotations."
+evidence:
+  - id: E1
+    kind: executed
+    reference: "evidence/G1/charter-head-I3_reverse_and_inward.csv"
+    method: "python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>"
+    sha256: "c9a3a883a2ab0dcaec1d8ea40368f8e1be0519ad625add1c724233c3aa96f520"
+    exit_code: 0
+    environment: "Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E2
+    kind: executed
+    reference: "evidence/G1/charter-I3-core-dependency-output.txt"
+    method: "bash check-charter-I3-core-dependency.txt <git-archive of 06cdfbe9>"
+    sha256: "4c135a0d72430c20624a726b46ec91d65598d0874ece1fe594242209ff3a81b6"
+    exit_code: 0
+    environment: "GNU grep"
+    observed_at: "2026-11-28T09:40:00Z"
+  - id: E3
+    kind: executed
+    reference: "evidence/G1/charter-head-summary.json"
+    method: "python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>"
+    sha256: "00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461"
+    exit_code: 0
+    environment: "Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1"
+    observed_at: "2026-11-28T09:40:00Z"
+scope:
+  covered: "Gradle build files, version catalog, main sources of service/, client-java/, contracts/."
+  not_covered: "Runtime calls to core over HTTP or files; scripts/, tests/, kitty-ops/, deploy/; the conformance harness that the ADR list says runs over the core CLI."
+  population: "1,039 main files; 382 kernel and domain Java files"
+  sample: null
+  seed: null
+interpretation: null
+derived_from: []
+counterevidence: []
+disconfirmation:
+  search: "Searched for any non-JDK import in kernel and domain other than annotations."
+  result: "None: the only external package is org.jspecify.annotations."
+relations: []
+confidence: high
+analyst:
+  profile: architect-alphonso
+  model: fable
+verification:
+  status: unverified
+  by: null
+quality_attributes: 
+  - "modularity"
+  - "reusability"
+candidate_invariants: 
+  - "No main source or build file of the charter service names the core CLI"
+  - "A domain ring imports only the JDK, the kernel and itself"
+open_questions: 
+  - "Does the published purity rule admit a nullness-annotation library?"

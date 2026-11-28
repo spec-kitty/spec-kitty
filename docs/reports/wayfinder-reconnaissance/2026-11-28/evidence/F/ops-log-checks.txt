@@ -1,0 +1,47 @@
+# Checks behind evidence/F/ops-log-corroboration.csv (executed 2026-11-28T09:42:50Z)
+$ for r in spec-kitty spec-kitty-charter spec-kitty-events spec-kitty-open-packs doc-kitty; do git -C /home/user/$r rev-parse --is-shallow-repository; done
+spec-kitty false
+spec-kitty-charter false
+spec-kitty-events false
+spec-kitty-open-packs false
+doc-kitty false
+$ ls -l <report folder> (modes only)
+-rw-r--r-- root 00-rulings-and-deviations.md
+-rw-r--r-- root 01-pre-registration.md
+-rw-r--r-- root 02-prediction-packet.md
+-rw-r--r-- root 03-access-requirements.md
+-rw-r--r-- root 04-approval-and-dispatch.md
+-rw-r--r-- root README.md
+drwxr-xr-x root dispatch
+drwxr-xr-x root evidence
+drwxr-xr-x root findings
+drwxr-xr-x root grounding
+-rw-r--r-- root operations-log.txt
+drwxr-xr-x root workstream-reports
+$ id -u
+0
+$ cat kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/meta.json | grep mission_type/topology
+  "mission_type": "research",
+  "topology": "single_branch",
+  "topology_source": "explicit"
+$ event types in its status.events.jsonl
+MissionCreated 0
+SpecifyStarted 
+$ ls kitty-specs/wayfinder-ecosystem-reconnaissance-01M8GNWM/tasks
+README.md
+$ ls .kittify/runtime
+charter
+$ Op records in root checkout kitty-ops: total / started_at on 2026-11-28
+3963 / 1
+{'invocation_id': '01M8G12BMY0W4N265XFRR7A1FG', 'profile_id': 'python-pedro', 'action': 'generate', 'started_at': '2026-11-28T02:52:11.167158+00:00'}
+$ git worktree list
+/home/user/spec-kitty  c54e8f130c [claude/spec-kitty-arch-reconnaissance-fdeicj]
+$ git log --format='%h %s' ab118801fd^..4388800275
+4388800275 docs(reports): record Wayfinder pre-registration approval, Mission spec and dispatch briefs
+d0b07dcaf6 Add scaffold for mission wayfinder-ecosystem-reconnaissance-01M8GNWM
+ab118801fd docs(reports): Wayfinder reconnaissance pre-registration for approval
+$ grep -n 'Add scaffold for mission' src/specify_cli/core/mission_creation_scaffold.py
+277:            message=f"Add scaffold for mission {mission_slug_formatted}",
+$ ls src/specify_cli/provisioning
+__init__.py
+default_charter.py
