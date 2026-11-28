@@ -26,7 +26,7 @@ from specify_cli.consolidation.reconciliation_verifier import VerifyResult, Veri
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane
 from tests.consolidation.reconciliation_family import setattr_reconciliation_family
-from tests.consolidation.test_planning_lane_authorship_7860 import (
+from tests.consolidation.test_planning_lane_walk import (
     _MISSION_BRANCH,
     _PKG,
     _SAME_PATH,

@@ -23,7 +23,7 @@ remedy (ruling "guidance only": no migration).
   coordination worktree gone, both claim verbs refuse at Mission lookup; nothing falls back.
 
 The finer cases (hollow, sibling, pre-existing, target-only, explicit topology) are pinned on the
-evidence window itself in ``tests/consolidation/test_planning_evidence_window_7860.py``.
+evidence window itself in ``tests/consolidation/test_wp_evidence_planning_window.py``.
 
 Drives the REAL CLI end to end in an isolated HOME. The bookkeeping helper stages only the files
 the CLI writes (never an owned file), so a status-residue commit can never fake the evidence.
@@ -239,14 +239,14 @@ def _write_and_commit(checkout: Path, relpath: str, text: str, message: str) -> 
 
 
 def _claim_planning_wp(mission: _Mission) -> str:
-    """Claim WP02 of a settled default Mission and return its owned path (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    """Claim WP02 of a settled default Mission and return its owned path (kept for ``tests/lanes/test_planning_claim_base.py``)."""
     _assert_default_mission(mission)
     _implement_planning_wp(mission)
     return mission.owned
 
 
 def _commit_owned(checkout: Path, relpath: str) -> None:
-    """Commit WP02's owned file in *checkout* (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    """Commit WP02's owned file in *checkout* (kept for ``tests/lanes/test_planning_claim_base.py``)."""
     _write_and_commit(checkout, relpath, "# WP02 research\n", "feat(WP02): research notes")
 
 

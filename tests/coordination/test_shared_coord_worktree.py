@@ -21,7 +21,7 @@ from specify_cli.coordination.status_transition import emit_status_transition_tr
 from specify_cli.status import TransitionRequest
 from specify_cli.workspace.context import clear_workspace_resolution_caches
 from tests._support.git_cli import git_out
-from tests.lanes.test_planning_claim_base_7860 import PLANNING_WP, SIBLING_WP, SLUG, owned_path, settled_default_mission
+from tests.lanes.test_planning_claim_base import PLANNING_WP, SIBLING_WP, SLUG, owned_path, settled_default_mission
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
