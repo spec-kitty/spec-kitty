@@ -1,0 +1,35 @@
+finding_id: F-E2-007
+workstream: E2
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: ambiguous rule
+  deviation: null
+subject:
+  component: charter context --json payload contract
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: src/charter/activation/context_contract.py:14-32 at 5c4fc5a7 (module docstring)
+  method: read at 5c4fc5a7
+  sha256: null
+  exit_code: 0
+  environment: git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/E2/ambiguity-counts.txt
+  method: bash evidence/E2/script-ambiguity_counts.txt (run against a --shared clone of core at 5c4fc5a7)
+  sha256: a323d5711d11d5c4b868a58688fb067674913bb4a7e1ce5869c9937f521f5570
+  exit_code: 0
+  environment: git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux
+scope:
+  covered: the contract module's docstring and constant
+  not_covered: docs/ pages on the context JSON beyond a grep; tests; the nested org_charter schema version
+  population: null
+  sample: null
+  seed: null
+derived_from: []

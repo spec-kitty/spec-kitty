@@ -1,0 +1,36 @@
+finding_id: F-E1-004
+workstream: E1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: E1-2 CI as an assurance surface
+  deviation: null
+subject:
+  component: required status checks on main
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E1/rulesets-live-2026-11-28.json
+  method: gh api repos/spec-kitty/<repo>/rulesets, /rulesets/<id>, /branches/main/protection for the five repositories; reduced to names, rules and bypass actor types
+  sha256: 675449c5d4c48162f2be940f1b7d2ac9546d0f2b8197c3a35de0a8ab073d706f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+- id: E2
+  kind: static-derived
+  reference: evidence/E1/ci-required-checks.csv
+  method: each required context mapped by hand to the workflow job that produces it
+  sha256: 7fead9842fbb5bfb02c8276cc233bf24ba3b5699a479a8b10dddd5ba914efa91
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: All rulesets the API returned for the five repositories (10 rulesets) and the classic branch protection endpoint.
+  not_covered: Organisation-level rulesets, if any, and the identity of the bypass actors were not read. What the repository roles in the bypass lists map to was not resolved. Environment protection rules
+    were not read.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

@@ -1,0 +1,42 @@
+finding_id: F-B2-015
+workstream: B2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: spec_kitty_events import graph and cycles
+  deviation: null
+subject:
+  component: Python package spec_kitty_events
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-py-summary.json
+  method: python3 script-py_imports.txt /home/user/spec-kitty-events/src spec_kitty_events events-py
+  sha256: 8af0ad09bc253c84a897432dfc68cf7f51242735bd6300f1f79e4a3640c50117
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-py-unit-edges.csv
+  method: same
+  sha256: c2895e427e355e69a4398b4ad64de106e937e3c50255a2d5086151bc59fe3295
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E3
+  kind: static-derived
+  reference: evidence/B2/events-py-module-edges.csv
+  method: same
+  sha256: 8b2dd4098f852ed9c6edb52cf0ad9cf250074c9513b8fd891e96732c06a06303
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+scope:
+  covered: Every Import and ImportFrom node of the 71 modules, classified as import-time, function-local or TYPE_CHECKING.
+  not_covered: Dynamic imports (importlib); the installed package.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

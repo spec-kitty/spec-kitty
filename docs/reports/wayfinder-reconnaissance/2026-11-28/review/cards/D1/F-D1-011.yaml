@@ -1,0 +1,49 @@
+finding_id: F-D1-011
+workstream: D1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M04c
+  deviation: null
+subject:
+  component: core internal file ownership
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/D1/m04c-file-literal-census.json
+  method: python evidence/D1/m04c_file_literal_census.txt <core>/src
+  sha256: 7b4823872dba5ec7cbb980ce8f7dadcbb587fd4698393ce11ee8b57e2d03d6fd
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+- id: E2
+  kind: static-derived
+  reference: evidence/D1/m04c-sample-lines.txt
+  method: random.Random(20261128).sample(outside_file_list, n); matching lines printed
+  sha256: d3d0675932b853b92fdc87d4da91fbbb24be410ea919b9bf5b58c55410654496
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+- id: E3
+  kind: static-derived
+  reference: evidence/D1/m04c-sample-classification.csv
+  method: manual reading of E2, one row per sampled file
+  sha256: 47fd364cbdf1be8433471a54ae15d12eaa2e290737c7c2d75ea0ff848b4b6d79
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+- id: E4
+  kind: static-derived
+  reference: evidence/D1/m04c_file_literal_census.txt
+  method: script source
+  sha256: 4f6c4b5d36be844c27119e3bc0c7d3d152312356ada1abf596854cf03182be82
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+scope:
+  covered: string constants < 200 chars in src/*.py
+  not_covered: paths built from imported constants without the literal; non-Python files; the packs regex over-matches (see sample)
+  population: 65 / 30 / 26 files outside the owner package per surface
+  sample: 20 / 15 / 13 files
+  seed: 20261128
+derived_from: []

@@ -1,0 +1,36 @@
+finding_id: F-B3-012
+workstream: B3
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It
+    was used only to confirm the unit of the weight column. No other non-permitted input was read.
+subject:
+  component: mission_runtime package root and specify_cli.status package root as import doors
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B3/module-level-contract-checks-summary.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>
+  sha256: 22714b3e75bcd0d95229e4891df5a55a1bdd7ca87fb1775e66ce431632fb1a1d
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B3/module-level-contract-checks.csv
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 src | tar -x -C <scratch>/head; python3 -I script-modcheck.txt <scratch>/head/src <out>
+  sha256: 0850b7025492167cea88008a841b6d1b213daa7df71230ab30f4b44dc0aee753
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+scope:
+  covered: Every import statement in 1490 modules under src/ at head.
+  not_covered: Attribute access through the package root to private names; the status read-door call-site rule (a call, not an import).
+  population: 213 importing modules; 245 module pairs
+  sample: null
+  seed: null
+derived_from: []

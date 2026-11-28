@@ -1,0 +1,38 @@
+finding_id: F-C2-014
+workstream: C2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: Edge set taken per changed file (file, target component) rather than a whole-repository graph diff; a second count of component pairs new to the whole src graph at the parent is added. Method
+    limits stated in scope.
+subject:
+  component: core (cross-component import edges)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/C2/M01f-import-edges-aggregate.csv
+  method: python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt
+  sha256: 3de4c097cc4ea85efd5bfaca52d187761470337b2b1aaa8dca3874c7bf86adf9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E2
+  kind: static-derived
+  reference: evidence/C2/M01f-import-edges-sample.csv
+  method: python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt
+  sha256: 711273e2a48441f46479ab09326ae7824981c1e87ad5242c856dff6124a4761e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: AST walk (Python ast) of changed files at parent and commit; Edges are read only from changed .py files under src/ (before vs after); import targets resolved to the longest src/ directory prefix;
+    relative imports resolved; imports inside functions and TYPE_CHECKING blocks count like top-level imports; dynamic imports (importlib) are not seen; an edge removed in one file but kept elsewhere still
+    counts as removed at file level; 'new to tree' compares component pairs against the full src import graph at the parent.
+  not_covered: Non-Python dependencies (YAML references, entry points), edges in unchanged files.
+  population: code commits per period (947 / 1,809 / 3,026)
+  sample: 150 per period, stratified by class (min(10, stratum) then proportional)
+  seed: '20261128'
+derived_from: []

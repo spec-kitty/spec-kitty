@@ -1,0 +1,35 @@
+finding_id: F-G1-004
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I2/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-head-I2_private_access.csv
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: d4da95491f751cddcb3f5dd5853c3a872445838949ee12068f761cb74908515c
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-summary.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: Import statements of main sources in 14 service modules; 441 imports of the generated contract package (ai.speckitty.charter.api) were counted and not judged.
+  not_covered: Java visibility modifiers (package-private use); who may import the generated contract types; test sources; fully qualified references without import.
+  population: 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []

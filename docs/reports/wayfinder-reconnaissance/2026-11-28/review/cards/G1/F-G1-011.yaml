@@ -1,0 +1,49 @@
+finding_id: F-G1-011
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I6/core
+  deviation: null
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/core-I6-build-A-archive-copy.txt
+  method: bash check-core-I6-build-install.txt <git-archive copy> <workdir>
+  sha256: e6d4c0a25f3e7e73fdb7adefb1bc59d929c2e6c118e82c577e3615f375868923
+  exit_code: 2
+  environment: uv; hatchling 1.31.0; Python 3.11/3.13
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-I6-build-B-clone-synced.txt
+  method: git clone --shared; git checkout --detach 5c4fc5a7; make sync-packs; bash check-core-I6-build-install.txt <clone> <workdir>
+  sha256: 18309b872a0223ab76766b1b9d3c5199d3ba1912d95c0739e56507aa7b2f94c1
+  exit_code: 0
+  environment: uv; hatchling 1.31.0; Python 3.11/3.13
+- id: E3
+  kind: executed
+  reference: evidence/G1/core-I6-sync-packs.txt
+  method: make sync-packs
+  sha256: 72a790a1981db09391467d15589debc1e9de00a9fe05b887f3554f4a018fbeef
+  exit_code: 0
+  environment: uv; Python 3.11.15
+- id: E4
+  kind: executed
+  reference: evidence/G1/core-I6-named-checks.txt
+  method: uv sync --frozen --all-extras; python -m pytest <file> -q
+  sha256: 8047df3b43b514059e212c4a8e23361c1bd201c400f8f4ac88f58314bdf85944
+  exit_code: 0
+  environment: pytest 9.0.3; Python 3.11.15
+scope:
+  covered: Wheel build, install, entry point, package imports, three named gate files.
+  not_covered: The whole test suite (excluded by the brief); the companion spec-kitty-services wheel; first-use fetch of pinned service binaries; a build with an empty pack cache and no network; the sdist.
+  population: 1 wheel; 3 named test files
+  sample: null
+  seed: null
+derived_from: []

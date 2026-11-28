@@ -1,0 +1,42 @@
+finding_id: F-A2-002
+workstream: A2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: vocabulary (harness)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/static-verifications.txt
+  method: 'section V4: grep of glossary yaml and git show of capability_matrix.py / status/models.py at core head'
+  sha256: 9cd95a57316d1e14d6a65c16ea9157057dce3b69cfe6f038de8f874afdb374be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/code-identifiers.txt
+  method: git grep -o identifier counts, core src and events src
+  sha256: dadd3af209601126abe5edf0149b24e9f648d469e18876c6c3f7eb18a124787e
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+- id: E3
+  kind: document-claim
+  reference: spec-kitty-events@646e330:src/spec_kitty_events/harness_observation.py:1
+  method: read module docstring
+  sha256: null
+  exit_code: null
+  environment: null
+scope:
+  covered: Glossaries of all five repos; core and events source identifiers.
+  not_covered: Planning and fleet-kitty usage (fleet-kitty also uses 'harnesses' for factory tools).
+  population: null
+  sample: null
+  seed: null
+derived_from: []

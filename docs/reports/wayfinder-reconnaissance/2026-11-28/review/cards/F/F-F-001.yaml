@@ -1,0 +1,49 @@
+finding_id: F-F-001
+workstream: F
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M07a
+  deviation: null
+subject:
+  component: execution responsibilities (15)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/m07a-execution-responsibilities.csv
+  method: classification table; evidence per row
+  sha256: 7e4ed5ee53cbb28cd8d77ed1bd0be956bd60bcb0f6db5df800c7a51b3cf0e265
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+- id: E2
+  kind: executed
+  reference: evidence/F/core-tests-summary.txt
+  method: 14 batches of named core test files; 1182 passed, 0 failed
+  sha256: a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c
+  exit_code: 0
+  environment: core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src
+- id: E3
+  kind: executed
+  reference: evidence/F/timeout-probe.txt
+  method: orchestrator timeout probe
+  sha256: 56ec6cc0ab0a66cd978b61f3cede936c9e1ce7c86a4687833940ab049ef614af
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+- id: E4
+  kind: executed
+  reference: evidence/F/dispatch-op-lifecycle.json
+  method: dispatch/doctor ops/complete in a disposable clone
+  sha256: 99b8e1d7871de43f24bc8fb1ada8ce155963d539e846e1c44213d44359360a03
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+scope:
+  covered: core 5c4fc5a, spec-kitty-orchestrator 8be32b1, spec-kitty-events 646e330, mcp/container/fleet-kitty READMEs
+  not_covered: Agent CLIs' internals; fleet-kitty runtime
+  population: 15 responsibilities (fixed by the brief)
+  sample: null
+  seed: null
+derived_from: []

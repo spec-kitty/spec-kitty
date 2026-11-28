@@ -1,0 +1,28 @@
+finding_id: F-G1-012
+workstream: G1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: I6/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-I6-build.txt
+  method: git clone --shared; git checkout --detach 06cdfbe9; bash check-charter-I6-build.txt <clone>
+  sha256: 1f8ca9c744b65793b712fc5183d4a3a77a3002c466a0a4c7e95e1be6f5174e8b
+  exit_code: 1
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: Gradle assemble of every module in settings.gradle.kts and one named gate (HexagonalArchitectureTest in :deployable).
+  not_covered: Every other test task; verifyAll; native image; contracts bundle checks; the conformance corpus, which the ADR list says runs over the core CLI.
+  population: 16 service modules plus contracts and client-java
+  sample: null
+  seed: null
+derived_from: []

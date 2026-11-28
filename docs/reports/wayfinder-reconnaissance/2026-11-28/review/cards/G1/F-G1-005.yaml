@@ -1,0 +1,50 @@
+finding_id: F-G1-005
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I3/core
+  deviation: null
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/core-head-I3_reverse_layer.csv
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: c0e81166e81091a398fb5dff147f0c8614dbc434c7e13d7bedbc505316cba2bb
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-head-summary.json
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E3
+  kind: executed
+  reference: evidence/G1/core-I3-library-repos-output.txt
+  method: bash check-core-I3-library-repos.txt
+  sha256: 1fda623abf76598ed7b20e5dc672fd7b3cca52528f2b84dd27a23ed1eda63615
+  exit_code: 0
+  environment: GNU grep; git
+- id: E4
+  kind: executed
+  reference: evidence/G1/core-I6-build-B-clone-synced.txt
+  method: bash check-core-I6-build-install.txt <clone> <workdir> (step 3b)
+  sha256: 18309b872a0223ab76766b1b9d3c5199d3ba1912d95c0739e56507aa7b2f94c1
+  exit_code: 0
+  environment: uv; Python 3.13
+scope:
+  covered: Static imports of the six packages; pyproject and src/ imports of spec-kitty-events (646e330b) and spec-kitty-tracker (658abee7) at head; requirement metadata of the locked wheels.
+  not_covered: 'Dynamic imports; subprocess calls to the spec-kitty executable; the two recorded ''outbound ledgers'' the published documents mention for runtime and mission_runtime (not readable under
+    the constraint), so the check cannot tell a recorded exception from an unrecorded one. Peer imports between the three middle packages (runtime -> mission_runtime: 64 names) are counted, not judged.'
+  population: 3,547 cross-package import names
+  sample: null
+  seed: null
+derived_from: []

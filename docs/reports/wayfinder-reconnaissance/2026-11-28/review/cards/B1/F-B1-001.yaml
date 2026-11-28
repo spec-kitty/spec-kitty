@@ -1,0 +1,53 @@
+finding_id: F-B1-001
+workstream: B1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M01a
+  deviation: The brief asks for both lines in the 2026-09 monthly point. Both lines end before the month does (public 2026-09-04, EXPERIMENTAL 2026-09-05), so the 2026-09 public and EXPERIMENTAL rows are
+    P3a and P3b, and a third row (M2026-09-merged, f4dc26694c) carries the month end of the merged line.
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/series.csv
+  method: python3 series.py
+  sha256: 6b2e93e8941005b7078c6f5f8e9b041b70a4214565e2214ad7fb99d166049f29
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/rename-map.csv
+  method: curated by the analyst from rename-detection.csv and the component-set differences
+  sha256: c2217953bb5963e3c0d1f5cfcd220555cf6c9bc5e093ee7096a9ed623792acb6
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/points.csv
+  method: git rev-list --first-parent -1 --before='<month end> 23:59:59 +0000' <line tip>; git log -1 --format=%H <point>
+  sha256: 32094e0e12bada059375e0eac02df5a5ca1b9e05675ea8fc193de378f75e6da2
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/script-extract.txt
+  method: authored by the analyst (copy of scratch scripts/extract.py)
+  sha256: 36d6230e3d58c7ec0f84ffd2bd777b245001d2a8609ae187b34a98026ea9c25c
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+scope:
+  covered: 'P0..P7 (nine revisions incl. P3a and P3b), the convergence merge result, and 14 monthly rows 2026-01..2026-11 (2026-08 and 2026-09 on both lines, 2026-09 also merged); 21 distinct revisions.
+    Unit as applied: modules that sit directly in the root of specify_cli or charter form one component each, named ''specify_cli'' and ''charter''. Test exclusion as applied: files under a tests/ or test/
+    directory and conftest.py; a test_*.py file elsewhere is kept.'
+  not_covered: Dynamic imports (importlib with a string; 0 to 8 literal sites per revision are listed in series.csv, computed names are invisible), attribute access after `import pkg`, and implicit execution
+    of parent packages are not edges. Non-Python assets are not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

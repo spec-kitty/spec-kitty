@@ -1,0 +1,42 @@
+finding_id: F-B2-029
+workstream: B2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: shared schemas or contracts duplicated between repositories
+  deviation: null
+subject:
+  component: vendored packs contract
+  repository: spec-kitty/doc-kitty
+  revision: 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-identical.csv
+  method: python3 script-dup_schemas.txt dup-schemas
+  sha256: f908a7ad5b083bca15dfb3556a6cd4d292a5983d911f2654f9a6e618989830e6
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-same-name.csv
+  method: same
+  sha256: 976131d49fa40016a62bfb577ec77f1956adde1d00ee8159c50fca51c122457a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E3
+  kind: document-claim
+  reference: doc-kitty src/lib/packs/contract/contract.lock.json:1-15
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+scope:
+  covered: 2,228 schema and contract files across the five repositories, matched by SHA-256, canonical JSON hash and basename.
+  not_covered: Schemas embedded in source code (Pydantic models, Java records) and files renamed between repositories.
+  population: 2,228 tracked files selected by name or path (events 1,389, charter 686, core 103, doc-kitty 49, open-packs 1)
+  sample: null
+  seed: null
+derived_from: []

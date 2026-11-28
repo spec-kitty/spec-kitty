@@ -1,0 +1,58 @@
+finding_id: F-E3-003
+workstream: E3
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: E3 detection count, class RD
+  deviation: Core runs after the first were batched (13 file-disjoint mutations applied together, failures attributed by the file each message names; the three with no failure re-run alone) and used -n
+    4 instead of -n 2, because of machine load; see evidence/E3/gate-set-addendum.txt.
+subject:
+  component: mutation class RD (reversed dependency direction)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/detection.csv
+  method: see evidence/E3/script-*.txt drivers; rows filtered on class RD
+  sha256: 03f998275495744b04d38db44f85ce6814f4acdd45b37181345cba495d4c701b
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/E3/detection-counts.txt
+  method: python tally over detection.csv
+  sha256: f1add3603ff7d30ede1b154c63b54ff20262b9bd0e02178ab7a98225202c9893
+  exit_code: 0
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+- id: E3
+  kind: executed
+  reference: evidence/E3/runs-batchA.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 62e0c44b5c28ffd3ce09520b06253635a8b57183a00d639a688c9ee7df76b8d8
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+- id: E4
+  kind: executed
+  reference: evidence/E3/runs-charter-gradle.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: c63e1c95661a5db4bd19282e41521fd5354be135b512adea6af571ffa2f9c194
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+- id: E5
+  kind: executed
+  reference: evidence/E3/runs-ev-M-RD-4.txt
+  method: driver logs, trimmed by script-assemble.txt
+  sha256: 57e4f3ad177888d533cd2a370b703620c781b89c6a46375a400064ced29d5e2b
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+scope:
+  covered: The 6 class-RD mutations of E2 against the frozen gate set, across the repositories they touch.
+  not_covered: 244 of the 310 tests/architectural test files are outside the frozen 66-file set and were not run, although scripts/ci/gate_selection.py selects the whole battery for every one of the 15
+    core diffs; module shards other than the mirror files; nightly lanes.
+  population: 24 mutations written by workstream E2 (6 per class PI, RD, OB, IC; 8 per subtlety level); purposive, not a random sample of possible violations
+  sample: 6 class-RD mutations
+  seed: null
+derived_from: []

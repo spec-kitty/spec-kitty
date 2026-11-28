@@ -1,0 +1,35 @@
+finding_id: F-E1-028
+workstream: E1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: PX-01
+  deviation: null
+subject:
+  component: research mission type, runtime guard of step gathering
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E1/px01-command-log.txt
+  method: 21 commands in a disposable clone at core head with a scratch HOME; wrapper script-px01-run.txt logs command, output and exit code
+  sha256: 66d59f638723e7c1de0db02158cab4c59d5c78cb0e917f06204d84830452b92e
+  exit_code: 1
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+- id: E2
+  kind: executed
+  reference: evidence/E1/px01-summary.txt
+  method: summary of the run with the sequence and exit codes
+  sha256: 484d34bdab1674d06857abd09e944f599aa5dd823e5ad6faa744aecedbfb226c
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: One run, one Mission, topology single_branch, agent name claude, packs synced at core's pins.
+  not_covered: The steps synthesis, output and accept were not reached. No workaround was tried, by instruction. Other mission types and topologies were not run.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

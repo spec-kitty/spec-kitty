@@ -1,0 +1,24 @@
+finding_id: F-F-028
+workstream: F
+selected_as: seeded
+classification: interpretation
+view: observed
+prereg:
+  measure: orchestrator-api contract
+  deviation: null
+subject:
+  component: contract versioning as a compatibility signal
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence: []
+scope:
+  covered: Derived
+  not_covered: Consumers outside attached repositories
+  population: null
+  sample: null
+  seed: null
+derived_from:
+- F-F-007
+- F-F-008
+- F-F-018

@@ -1,0 +1,28 @@
+finding_id: F-E1-025
+workstream: E1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: E1-7 exception governance
+  deviation: null
+subject:
+  component: owner, rationale, approval and retirement on sampled entries
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ledger-sample-30.csv
+  method: python random.Random(20261128).sample(range(N), 30) over entries sorted by repository, ledger and key; each row read by hand against the entry text and the ledger header
+  sha256: f050dd7616a276a4a991fbf2524bdb0cf22be59d8e57781a3c35121540fc87d5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: Entry text, attached comments, group or category records and the ledger file header or its _baselines.yaml leaf.
+  not_covered: Approval or ownership recorded in the pull request that added the entry was not read.
+  population: 3,357 file-ledger entries (primary); 1,092 (secondary)
+  sample: 30 + 30
+  seed: 20261128
+derived_from: []

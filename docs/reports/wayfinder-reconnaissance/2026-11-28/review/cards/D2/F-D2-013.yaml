@@ -1,0 +1,42 @@
+finding_id: F-D2-013
+workstream: D2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M04d
+  deviation: null
+subject:
+  component: charter service version compatibility
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04a-openpacks-charter-service-check-rc3.txt
+  method: CHARTER_CONTRACT_DIR=<charter contracts/packs at cb9b1542> python scripts/ci/charter_service_check.py --jar spec-kitty-charter-service-0.1.0-rc.3.jar
+  sha256: aac78c1e9b3b4608a292434a462d98dfa5fe9e8f38e54eb3c05cfde5185cdaa5
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Temurin JDK 25.0.5; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04d-openpacks-charter-service-check-rc1.txt
+  method: same script, --jar spec-kitty-charter-service-0.1.0-rc.1.jar
+  sha256: 8829b605ccf731a3a994ef4aa57bea3c1267a499cfcec7c4c63755cb2f68de20
+  exit_code: 1
+  environment: Python 3.11 (core .venv), python3 3.13; Temurin JDK 25.0.5; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04a-charter-rc1-sha256sums-check.txt
+  method: sha256sum -c SHA256SUMS --ignore-missing
+  sha256: 1f5fa1d13ee95267c9b85fa44ed272a6d2553e33283ab3c60d1cf764b2702161
+  exit_code: 0
+  environment: sha256sum; Linux x86_64, 4 cores, 16 GiB shared host
+scope:
+  covered: open-packs head against the two released service jars that exist (rc.1, rc.3).
+  not_covered: No release newer than the pinned one exists, so forward compatibility could not be tried. A service-v0.1.0-rc.2 tag exists without release assets.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

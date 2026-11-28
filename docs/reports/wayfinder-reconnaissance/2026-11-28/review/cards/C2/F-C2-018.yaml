@@ -1,0 +1,43 @@
+finding_id: F-C2-018
+workstream: C2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M02a
+  deviation: Detection categories (a)/(b)/(c) kept as written; a 'not determinable' bucket was added for fixes whose message and linked issue name no detection mechanism. Untraceable introducers stay in
+    the denominator.
+subject:
+  component: core (fix commits)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/M02-tracing.csv
+  method: python3 script-m02_enrich.txt ...; coding in M02-coding-decisions.txt
+  sha256: 083d8c998e5a20e564ecca7b54787ec71643f9668287c6935063141257b05981
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E2
+  kind: executed
+  reference: evidence/C2/M02-enriched-traces.json
+  method: gh api read-only + git blame --porcelain at the fix parent
+  sha256: 38e52d905f284e538001d504c290dadff2e3106a6cfa0f3250fa805208f4ca32
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (read-only GET)
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/M02-coding-decisions.txt
+  method: analyst coding
+  sha256: fe7a98c2756e291a0ff46b223cd905614b7421bc0f8d59a80f32557bd2325e0b
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: Introducer = most-blamed commit over the fix's modified/removed src lines at its parent; pull request via gh; issue text qualified to spec-kitty/spec-kitty by creation date before the fix.
+  not_covered: Introducers outside src/; defects whose introducing change was a missing guard (blame cannot see absence).
+  population: '698'
+  sample: '30'
+  seed: '20261128'
+derived_from: []

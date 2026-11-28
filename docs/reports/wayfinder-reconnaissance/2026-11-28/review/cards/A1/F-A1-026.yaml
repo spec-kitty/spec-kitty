@@ -1,0 +1,28 @@
+finding_id: F-A1-026
+workstream: A1
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M3 decision timeline (index)
+  deviation: null
+subject:
+  component: decision records
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/decision-timeline.csv
+  method: python3 evidence/A1/script-index-adrs.txt <scratch> <out> (indexes every ADR/decision file of the five repos + planning at head)
+  sha256: 98f525172cec2f99837a443c6f233bc680ac510fb5ea73a59e63b0adcdc105f7
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+scope:
+  covered: all ADR trees of five repos, planning decisions/ and architecture/docs/adr
+  not_covered: ADR-like records outside ADR folders (e.g. charter repo plans/open-questions)
+  population: 521 records
+  sample: null
+  seed: null
+derived_from: []

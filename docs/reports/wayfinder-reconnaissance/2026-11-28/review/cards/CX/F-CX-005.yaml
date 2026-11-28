@@ -1,0 +1,36 @@
+finding_id: F-CX-005
+workstream: CX
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: co-change matrix top pairs
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+- id: E2
+  kind: executed
+  reference: evidence/CX/cochange-pairs-compared.csv
+  method: 'python3 inline: union of pairs with >=10 joint commits per slice from both pair files'
+  sha256: 49d0b305e4b84efd614ece54504d9de21a32bcb4523b70600b3cdcc9ac15ce71
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+scope:
+  covered: T1, T2 pooled, T2 EXPERIMENTAL, T3; the T2 public line (C2 pooled 1,106 commits) compared against the sum of C pre-fork and fork-window pair counts, which is a lower bound because C applies the
+    >=3 threshold per segment (14 of 15 top pairs shared; 54 of 78 frequent pairs within 10%).
+  not_covered: Pair confidence and Jaccard values were not tabulated separately; they follow from the same counts.
+  population: 'pairs with >=3 joint commits: T1 874 (C) / 857 (C2); T3 491 / 488'
+  sample: null
+  seed: null
+derived_from: []

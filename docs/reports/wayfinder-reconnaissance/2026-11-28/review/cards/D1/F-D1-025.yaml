@@ -1,0 +1,35 @@
+finding_id: F-D1-025
+workstream: D1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: state-machines
+  deviation: null
+subject:
+  component: extension cost in history
+  repository: spec-kitty/spec-kitty
+  revision: 329e6fae11f7859f0199c267a8bc75532ac0b8b1 and 94114bf296
+  revision_kind: historical
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/D1/history-additions.csv
+  method: git log --reverse -S<agent key> -- src/specify_cli; git log --diff-filter=A -- <mission yaml paths>; git show --name-status <commit>
+  sha256: 2a88c87ca64068fc720ec7d793e07e0718d34b6a5b31173ac7214e9cac2c13f6
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+- id: E2
+  kind: history-derived
+  reference: evidence/D1/history-additions-raw.txt
+  method: raw name-status listing
+  sha256: f8b278ab769dfef7752435602554dd614d275c82f3066edae2de921e0d680eca
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+scope:
+  covered: the single most recent addition of each kind
+  not_covered: follow-up commits fixing the addition; agents added by rename
+  population: null
+  sample: null
+  seed: null
+derived_from: []

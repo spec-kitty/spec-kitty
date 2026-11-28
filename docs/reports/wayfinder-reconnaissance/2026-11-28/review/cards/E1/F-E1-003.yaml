@@ -1,0 +1,29 @@
+finding_id: F-E1-003
+workstream: E1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: E1-1 gate inventory
+  deviation: null
+subject:
+  component: exception files read by gates
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/gates.csv
+  method: python3 script-gates_all.txt <scratch> gates.csv (script in evidence/E1; reads shared clones of the five repositories at head); column exceptions_file
+  sha256: 3a271e2cbe8dcde839fcdcf00dcf437b6bd0697243301a808f3313742ba66a2d
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: 'Regex detection over the test source: quoted file names containing allowlist, baseline, exempt, ledger, ratchet, membership, census, registry, public_surface or shim; helper modules named *_exempt*/*_allowlist*/*_baseline*;
+    a matching section in _baselines.yaml; references to the _exemptions and global_state_allowlist folders.'
+  not_covered: An allowlist built as an unnamed inline literal inside a test, or read through a helper with another name, is not detected, so 65 is a lower bound.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

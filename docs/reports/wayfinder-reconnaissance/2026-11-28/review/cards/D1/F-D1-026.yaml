@@ -1,0 +1,35 @@
+finding_id: F-D1-026
+workstream: D1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: reconstruct-derived-state
+  deviation: null
+subject:
+  component: status snapshot
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D1/reconstruct-results.csv
+  method: 'disposable clone at 5c4fc5a7; per Mission: sha256sum; rm status.json; spec-kitty agent status materialize --mission <slug> --json; sha256sum; repeat'
+  sha256: bd7cde74b87d1d72c80320c7cf4436496b3cbf34616b98ed83899219dac0215a
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+- id: E2
+  kind: executed
+  reference: evidence/D1/reconstruct-diff-detail.json
+  method: JSON comparison of committed vs rebuilt snapshot
+  sha256: 35b96fd1c8f0de954c5bdb25f1a8af5388989edf5e87e20496fa2e4912959c1f
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 (venvs), 3.13.18 (scripts); git 2.43.0; pytest 9.0.3; Linux x86_64
+scope:
+  covered: status.json only
+  not_covered: other derived views (lifecycle.json, dashboards, decisions index); Missions on coordination branches
+  population: 816 Missions with status.json and a non-empty status.events.jsonl at core head
+  sample: '12'
+  seed: 20261128
+derived_from: []

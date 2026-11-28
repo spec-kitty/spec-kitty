@@ -1,0 +1,29 @@
+finding_id: F-C-007
+workstream: C
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M01d
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled.
+    Written in classification-rules.txt before measurement.
+subject:
+  component: core components
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/m01c-m01d-components-per-commit.csv
+  method: python3 script-analyze.txt
+  sha256: 66b8208ced9e603fcd9468f9f44920cf34756ac028253bb09584326c24d84363
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

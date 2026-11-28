@@ -1,0 +1,64 @@
+finding_id: F-B1-016
+workstream: B1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: shared mutable state and filesystem conventions
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/shared-paths-summary-head.json
+  method: python3 shared_state.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 20268b40a59f6ddb6b3386cfa281d18caab80b7ba9efc8d88bf2897e5e5e11b0
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/shared-paths-summary-head.csv
+  method: python3 shared_state.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 95383b94ceb477973892c78d1dbd1cdf54944626dbdbaeac09d90cd92557f4fd
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E3
+  kind: static-derived
+  reference: evidence/B1/shared-paths-by-component-head.csv
+  method: python3 shared_state.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 81f94461d726ac241afea4f1f86f33689acf2f1831a6ab690022ae001b771c96
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E4
+  kind: static-derived
+  reference: evidence/B1/shared-paths-sites-head.csv
+  method: python3 shared_state.py extracts/5c4fc5a79de1c1c299ab221ca26e5555c68ef533 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head
+  sha256: 48e414e5bdd4274a064cc5ae1574e6f6350ba4538b89bedf33cf3c62dcaa94b6
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E5
+  kind: static-derived
+  reference: evidence/B1/shared-paths-w-sample-judged.csv
+  method: random.Random(20261128).sample(W/RW rows of shared-paths-sites-head.csv, 12) + manual reading of each function
+  sha256: de279a3e4d06971572462088b56b56d697676a9fbacc3f9c756b5c4e8c6ecef3
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E6
+  kind: static-derived
+  reference: evidence/B1/script-shared_state.txt
+  method: authored by the analyst (copy of scratch scripts/shared_state.py)
+  sha256: 7183be8ed23e1727a1e46e0746d13f3e983a431c480cf2c0a3a978502b73fa5f
+  exit_code: null
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+scope:
+  covered: '`/` chains, Path(...), joinpath and os.path.join calls and string literals containing an anchor, in all modules at head; string constants resolved one import hop.'
+  not_covered: Paths obtained from accessor functions, dataclass fields or parameters are attributed to the component that builds them, not to the one that opens the file. Mission directories are recognised
+    only under the variable names feature_dir, mission_dir, spec_dir, kitty_specs*. Read or write is co-occurrence in the same function, not data flow.
+  population: 139 path sites classified as write or read-write
+  sample: 12
+  seed: 20261128
+derived_from: []

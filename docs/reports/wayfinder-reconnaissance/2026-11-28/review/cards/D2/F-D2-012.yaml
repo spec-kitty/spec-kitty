@@ -1,0 +1,49 @@
+finding_id: F-D2-012
+workstream: D2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M04d
+  deviation: The pin was created in a disposable clone as a rehearsal; core at head has none.
+subject:
+  component: events write service version compatibility
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.2 (commit 14682f94bc2ade4e5d3a6a3b285161150f7f4014)
+  revision_kind: released
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04d-core-vendor-check-and-bump.txt
+  method: spec-kitty service vendor --service read-service --check; service vendor --service write-service --tag service-v0.1.0-rc.2 [--no-attestation] (in the disposable core clone)
+  sha256: ebc1bbd4647ed317c66959d11af2aad4c5271f84bda296bb7762a347594f37ff
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; gh attestation; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04d-core-launches-write-service-rc2.txt
+  method: python launch_write_service.py; spec-kitty service status; spec-kitty service stop
+  sha256: 3ecc12c71c34ebbe3a46b1586e5d6ea7b7a90fe8c7dc0514d6d3c367c35c0f17
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; native binary sha256 257f1bce...; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E3
+  kind: static-derived
+  reference: evidence/D2/script-launch_write_service.py.txt
+  method: (script written by D2)
+  sha256: 1d8c2b708b5af7c4d08aa013a930c61e4c14f759e04a79eae07907f0333cab8e
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E4
+  kind: executed
+  reference: evidence/D2/m04d-events-rc2-sha256sums-check.txt
+  method: sha256sum -c SHA256SUMS --ignore-missing
+  sha256: def6ac1bd358fdb51b8d1f0b0406e177560d55018f4ed69ca80f798ba97b2c6a
+  exit_code: 0
+  environment: sha256sum; Linux x86_64, 4 cores, 16 GiB shared host
+scope:
+  covered: Start, ready check, reuse and stop of the linux-x64 binary through core code at head.
+  not_covered: 'No status write was sent through the service: core has no transport for it (F-D2-017). The jar fallback was not started.'
+  population: null
+  sample: null
+  seed: null
+derived_from: []

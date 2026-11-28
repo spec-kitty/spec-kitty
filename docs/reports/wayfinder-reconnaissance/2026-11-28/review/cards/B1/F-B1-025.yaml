@@ -1,0 +1,28 @@
+finding_id: F-B1-025
+workstream: B1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/B1/boot-00-sequence.txt
+  method: 'written by the analyst: summary of the boot-* sequence'
+  sha256: 9563edbf72c1b82011783ebf7426f4757667d448771d38415f9780f2198b92f0
+  exit_code: null
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+scope:
+  covered: One sequence of five read-style commands in one clone.
+  not_covered: Which of the five commands performed the writes was not isolated; the content written was not inventoried.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

@@ -1,0 +1,27 @@
+finding_id: F-B2-034
+workstream: B2
+selected_as: seeded
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: where the Java structure is enforced
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence: []
+scope:
+  covered: Derived from the cited observations only.
+  not_covered: Whether a different enforcement point would be better; that is not assessed.
+  population: null
+  sample: null
+  seed: null
+derived_from:
+- F-B2-005
+- F-B2-006
+- F-B2-007
+- F-B2-011
+- F-B2-012
+- F-B2-013

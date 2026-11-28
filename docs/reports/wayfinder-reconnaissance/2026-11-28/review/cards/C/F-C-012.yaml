@@ -1,0 +1,35 @@
+finding_id: F-C-012
+workstream: C
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: convergence-merge-effect
+  deviation: null
+subject:
+  component: convergence merge 2554bd13ad
+  repository: spec-kitty/spec-kitty
+  revision: 2554bd13adc289d3457681308645fe52619bca0e
+  revision_kind: historical
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/convergence-merge-effect-by-component.csv
+  method: inline-steps.txt step 5
+  sha256: c42dacad3b59a781ab16ad18ea012c4bf6e462f71e747d886e2ffed5d6f30ed6
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+- id: E2
+  kind: history-derived
+  reference: evidence/C/source-lines-at-points.csv
+  method: inline-steps.txt step 4
+  sha256: dd6906ed7e91c3bb4ab697494878c1c429223bbea246c81560497e4a8ad24dba
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+scope:
+  covered: Tree comparison of the merge commit with both parents and of each parent with the fork point 38090b6493.
+  not_covered: Which public-line changes were ported to the experimental line before the merge by cherry-pick (348 experimental-line commits carry a cherry-pick trailer).
+  population: null
+  sample: null
+  seed: null
+derived_from: []

@@ -1,0 +1,29 @@
+finding_id: F-E3-016
+workstream: E3
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: tests/architectural/test_no_dead_symbols.py
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-supp.txt
+  method: 'drive_supp2.sh <scratch>: pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_no_write_side_rederivation.py -n0 at baseline
+    and per mutation'
+  sha256: 3b46536b3f662afb985c044cc33248fcdc52fea232f7883fbd50a3280e82e326
+  exit_code: 1
+  environment: Python 3.11.15 (clone venv, uv 0.11.32), pytest 9.0.3, ruff 0.15.12, mypy 1.20.2, git apply; Linux 6.18
+scope:
+  covered: 4 mutations, 3 gate files outside the frozen set.
+  not_covered: The other 11 core mutations against this gate (7 of them add an uncalled function).
+  population: null
+  sample: null
+  seed: null
+derived_from: []

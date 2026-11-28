@@ -1,0 +1,43 @@
+finding_id: F-E1-022
+workstream: E1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: E1-7 exception governance
+  deviation: null
+subject:
+  component: ratchet leaves against the recorded burn-down rule
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/ratchet-baseline-leaves.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head); pattern match on the justification comment
+    of each leaf
+  sha256: deb89d3e2653e1090f869a7643e5e122f8e35ddcf7913baf96cfc1101d09f6f9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+- id: E2
+  kind: document-claim
+  reference: .kittify/charter/charter.md:763-768 at 5c4fc5a79d
+  method: Burn-down Policy (a); quoted in static-searches.txt
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+- id: E3
+  kind: document-claim
+  reference: docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md:77-84 at 5c4fc5a79d
+  method: '"A transient allowlist needs a tracker issue, a named owner and an exit date"; "A ratchet with no owner or exit date is a finding"'
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+scope:
+  covered: The comment attached to each leaf and the comment block directly above it.
+  not_covered: Owner or date recorded elsewhere (in the gate module or an issue) is not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

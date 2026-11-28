@@ -1,0 +1,38 @@
+finding_id: F-E1-018
+workstream: E1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M05b
+  deviation: Gross additions and removals are reported per ledger in ledgers.csv; the claim gives net change because 30 ledgers were created inside the range and their initial fill would be counted as additions.
+subject:
+  component: change of ledgers between 2026-09-07 and 2026-11-28
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/E1/ledgers.csv
+  method: python3 script-ledgers.txt <scratch> <out> (script in evidence/E1; git show / git log --first-parent / git grep / git blame over shared clones at head); per-commit entry sets on first-parent history
+    of each file
+  sha256: 59ff5314b467eb89d9ca4119499583623fb4ee1d0687763255172211cb4f290a
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+- id: E2
+  kind: history-derived
+  reference: evidence/E1/ledger-totals.json
+  method: aggregation
+  sha256: 212ac343335d6a1bc7b6fb21c7e834c50d21d0ee688ba17a12122dcd54eeced2
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: First-parent history of each ledger file on origin/main between the last commit before 2026-09-07T00:00Z (core 3a4f92b414) and head.
+  not_covered: A ledger that moved from code into a file, or from one file to another, appears as created with its full size (16 non-empty new ledgers); how many of their 827 entries describe constructs
+    that already existed before 2026-09-07 was not measured. Charter has no commit before the start date. For the runtime layer ledger the added and removed counts are a parsing artefact and were set aside;
+    its cap went 23 to 22.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

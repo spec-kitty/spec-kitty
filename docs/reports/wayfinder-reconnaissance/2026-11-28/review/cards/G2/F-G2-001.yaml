@@ -1,0 +1,51 @@
+finding_id: F-G2-001
+workstream: G2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I1
+  deviation: null
+subject:
+  component: core Python top-level packages (kernel, charter, glossary, runtime, mission_runtime, specify_cli)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/core_checks.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json
+  sha256: 43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_core.txt
+  method: check script (stored as .txt)
+  sha256: aebddcfbbb17ddb4ba624d387017001b8bdeef53ff4f1c4b5e47a811046898c9
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+- id: E3
+  kind: executed
+  reference: evidence/G2/core_L1_edge_counts.csv
+  method: aggregation of core_imports.csv (full table kept in scratch, sha256 5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006)
+  sha256: 84b7bbdcff9bba3bd3397f1ea9eaefe5c27f466c976d77eb7525cce8b66ec24e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+- id: E4
+  kind: executed
+  reference: evidence/G2/core_existing_gates_full_run.txt
+  method: PYTHONPATH=src:. pytest -n0 -rA on five named architectural gate files in the scratch copy at head (command at the top of the file)
+  sha256: 3053814a5d596164510a7ab6791f3785fc568aa8bde6e86e64acfd2cd33327e8
+  exit_code: 1
+  environment: pytest 9.0.3, CPython 3.11.15 (dev venv)
+scope:
+  covered: All 1,490 .py files under src/ (1,468 with at least one import), static, module-level and function-local imports, relative imports resolved, literal-string import_module/__import__/find_spec
+    calls.
+  not_covered: Computed dynamic imports, imports executed through plugin entry points, tests/ and scripts/; historical revisions (no comparison with an earlier revision was made; 'new' is relative to the
+    recorded ledgers only).
+  population: 1,490 source files; 304 upward import rows; 190 second-level packages
+  sample: null
+  seed: null
+derived_from: []

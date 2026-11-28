@@ -1,0 +1,36 @@
+finding_id: F-G1-010
+workstream: G1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: I5/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-head-I5_file_writes.csv
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: e684fe350933faaafa67f125af8c796520f70277c6e4242ba037c2e4d699f3b4
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-summary.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: java.nio.file.Files mutating calls, FileOutputStream, FileWriter, RandomAccessFile, FileChannel.open, PrintWriter in comment-stripped main sources.
+  not_covered: Writes through other APIs; which state a write belongs to; whether one slice's storage ring writes another slice's documents; the published statement that the composition root chooses where
+    activation documents are stored.
+  population: 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []

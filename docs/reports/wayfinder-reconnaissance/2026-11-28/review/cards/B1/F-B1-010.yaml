@@ -1,0 +1,62 @@
+finding_id: F-B1-010
+workstream: B1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M03a
+  deviation: 'The permitted single run of tests/architectural/test_layer_rules.py did not complete: the process was killed by the sandbox memory cgroup (exit 137) at about 2.0 GB RSS, on the first run,
+    on one retry, and on a run restricted to the tests that do not build the pytestarch graph (killed during collection). Instead, the gate''s own helper functions were imported from the test module and
+    executed directly in the disposable clone. The five pytestarch LayerRule assertions (kernel and charter and glossary rules) were therefore not executed; they are compared against the extractor''s graph
+    only.'
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/m03a-enforced-model-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 4edd5985dae32fba53e57efa3eb6d37c64cfe707758a391c636c538d56a3aa30
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: executed
+  reference: evidence/B1/boot-33-gate-helper-functions.txt
+  method: '.venv/bin/python gate_helpers.py   (cwd: clone at 5c4fc5a; calls the helper functions of tests/architectural/test_layer_rules.py)'
+  sha256: 7ed02c22d96982abd14b9c63676ae89ea6376eaf529fae7722f8e9f29d3eb7d1
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+- id: E3
+  kind: executed
+  reference: evidence/B1/boot-30-test-layer-rules-attempt1-oom.txt
+  method: .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -q -n0 -p no:cacheprovider
+  sha256: 64d5ffeecf1e4aa2666176d3eb08231c1f00aa0fdc8f8b6e71d925c7c8a8d1e8
+  exit_code: 137
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+- id: E4
+  kind: executed
+  reference: evidence/B1/boot-31-test-layer-rules-attempt2-oom.txt
+  method: .venv/bin/python -m pytest tests/architectural/test_layer_rules.py -q -n0 -p no:cacheprovider   (retry; attempt 1 was OOM-killed by the shared sandbox with exit 137; an intermediate launch failed
+    before pytest started because /usr/bin/time is absent)
+  sha256: b2af63896202f72c56b215c9883bd954161e2c74bfa1e26d8fb8d44ac465f668
+  exit_code: 137
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+- id: E5
+  kind: static-derived
+  reference: evidence/B1/enforced-inventory-head.json
+  method: 'python3 (inline): pyproject.toml [tool.hatch.build.targets.wheel].packages vs directories under src/ with __init__.py'
+  sha256: f2f40a9bf45a1d1d93075e3a6b504b5a6f7a3fa3f45d146f52b1bbaf5fb8e4f6
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+scope:
+  covered: 'The enforced model as defined in the brief: pyproject.toml wheel package list, the landscape fixture, tests/architectural/test_layer_rules.py and the ledgers and baseline rows it names. Wheel
+    packages, src/ packages and landscape layers are the same six names.'
+  not_covered: The pytestarch LayerRule assertions were not executed (blocked, see deviation). Rules stated in other files under tests/architectural/ are outside the model as defined by the brief and were
+    not evaluated. TestUnifiedMissionStepBoundary (object identity of step models) was not evaluated statically.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

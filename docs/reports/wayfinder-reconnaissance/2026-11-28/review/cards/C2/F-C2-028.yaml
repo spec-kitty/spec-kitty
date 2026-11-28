@@ -1,0 +1,28 @@
+finding_id: F-C2-028
+workstream: C2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: core (fine components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/component-touch-counts-per-period.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: c58eea4d88f2e6ba94149ae30b84f38a086251ead62fbb7d3cff1bc35f2fcce5
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: Touch counts per component and period.
+  not_covered: Content moved out of src/ (built-in doctrine moved to packs/ after T1 is no longer a code change).
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []

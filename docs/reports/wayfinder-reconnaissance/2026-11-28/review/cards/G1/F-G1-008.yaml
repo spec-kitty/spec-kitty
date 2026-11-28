@@ -1,0 +1,36 @@
+finding_id: F-G1-008
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I4/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-head-I4_cli_in_domain.csv
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 37fdff381a486b51195292ec5fe6138c6722426f17236513477d1f010720459b
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-summary.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: Comment-stripped text of 1,003 main Java files.
+  not_covered: Logging frameworks used for user-facing output; exit-code decisions modelled as domain types; infra rings other than those listed (424 files in tier 'other', 4 matches, all in the composition
+    root).
+  population: 382 kernel and domain files; 185 application files
+  sample: null
+  seed: null
+derived_from: []

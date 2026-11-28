@@ -1,0 +1,35 @@
+finding_id: F-F-008
+workstream: F
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: orchestrator-api contract
+  deviation: null
+subject:
+  component: orchestrator-api consumers
+  repository: spec-kitty/spec-kitty-orchestrator
+  revision: 8be32b14d15a48bb035a436cf13d49c8fa231c2f
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/F/oa-rename-history.txt
+  method: git -C <repo> show <rev>:<path> | grep -n merge-mission
+  sha256: 8a85e96c5530afb8ed536ef392fdcdf4698c7b7a39f33924a6ab05004afd301f
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+- id: E2
+  kind: static-derived
+  reference: evidence/F/external-loci-survey.txt
+  method: grep in spec-kitty-orchestrator host/client.py and spec-kitty-mcp README
+  sha256: 9638416451d6da4d2848159c6882af594382a97f76526e469a9a9f89ab044fea
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+scope:
+  covered: spec-kitty-orchestrator 8be32b1, spec-kitty-mcp a6bdf6b, core docs
+  not_covered: Consumers outside the attached repositories (for example Kitty Desktop named in host-boundary-rules.md)
+  population: 3 consumer codebases read
+  sample: null
+  seed: null
+derived_from: []

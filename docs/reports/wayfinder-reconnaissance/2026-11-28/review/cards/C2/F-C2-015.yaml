@@ -1,0 +1,28 @@
+finding_id: F-C2-015
+workstream: C2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: null
+subject:
+  component: core (cross-component import edges)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/C2/M01f-import-edges-aggregate.csv
+  method: python3 script-m01f.txt <core clone> commits.jsonl out script-extract.txt
+  sha256: 3de4c097cc4ea85efd5bfaca52d187761470337b2b1aaa8dca3874c7bf86adf9
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: As F-C2-014.
+  not_covered: Strata of 12-24 commits give unstable per-kloc rates; denominators are in the CSV.
+  population: as F-C2-014
+  sample: 150 per period stratified
+  seed: '20261128'
+derived_from: []

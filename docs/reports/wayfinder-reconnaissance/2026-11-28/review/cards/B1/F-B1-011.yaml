@@ -1,0 +1,38 @@
+finding_id: F-B1-011
+workstream: B1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M03a
+  deviation: 'The permitted single run of tests/architectural/test_layer_rules.py did not complete: the process was killed by the sandbox memory cgroup (exit 137) at about 2.0 GB RSS, on the first run,
+    on one retry, and on a run restricted to the tests that do not build the pytestarch graph (killed during collection). Instead, the gate''s own helper functions were imported from the test module and
+    executed directly in the disposable clone. The five pytestarch LayerRule assertions (kernel and charter and glossary rules) were therefore not executed; they are compared against the extractor''s graph
+    only.'
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/m03a-enforced-model-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 4edd5985dae32fba53e57efa3eb6d37c64cfe707758a391c636c538d56a3aa30
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: executed
+  reference: evidence/B1/boot-33-gate-helper-functions.txt
+  method: '.venv/bin/python gate_helpers.py   (cwd: clone at 5c4fc5a; calls the helper functions of tests/architectural/test_layer_rules.py)'
+  sha256: 7ed02c22d96982abd14b9c63676ae89ea6376eaf529fae7722f8e9f29d3eb7d1
+  exit_code: 0
+  environment: uv 0.11.32; CPython 3.11.15 in the clone .venv; spec-kitty-cli 4.0.0rc9 editable in a disposable clone; Linux 6.18
+scope:
+  covered: The four ledgers and two baseline rows that tests/architectural/test_layer_rules.py reads at head.
+  not_covered: Ledgers and baselines of other architectural test files (the baseline file has rows for 20 other test modules) are outside the enforced model as defined by the brief.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

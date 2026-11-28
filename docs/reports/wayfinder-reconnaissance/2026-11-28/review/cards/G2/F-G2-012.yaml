@@ -1,0 +1,31 @@
+finding_id: F-G2-012
+workstream: G2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: I6
+  deviation: 'Four attempts: two lost to the Gradle daemon being killed (host memory pressure, then session interruption), one failed because a source archive has no .git; the fourth used a git clone with
+    --max-workers=2 and a 1536 MB heap.'
+subject:
+  component: charter service build (spec-kitty-charter, Gradle verifyAll)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/I6_charter_gradle.txt
+  method: git clone --shared /home/user/spec-kitty-charter; git checkout 06cdfbe9; ./gradlew verifyAll --continue --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=512m';
+    JUnit XML aggregation
+  sha256: e84127fbca59c7e5fd9abe9b36636f5b08eaae004a7a57e06818c61caeef99aa
+  exit_code: 0
+  environment: Gradle 9.8.1 (wrapper), Temurin 25.0.5, CPython 3.13.18 (XML aggregation)
+scope:
+  covered: verifyAll over all subprojects and build-logic, in one checkout form.
+  not_covered: Release tasks (service-release assets, native images), the deployable boot jar, starting the service, mutation testing (excluded from verifyAll by design), packs/internal and packs/qa trees
+    (not synced).
+  population: null
+  sample: null
+  seed: null
+derived_from: []

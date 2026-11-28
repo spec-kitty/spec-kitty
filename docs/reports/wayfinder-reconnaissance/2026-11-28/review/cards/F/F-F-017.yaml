@@ -1,0 +1,49 @@
+finding_id: F-F-017
+workstream: F
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: interruption and recovery
+  deviation: null
+subject:
+  component: interruption knowledge per holder
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/core-tests-summary.txt
+  method: named core tests
+  sha256: a3dbad34cc2c261423ce46ce91fcc3ea007415fe45756705ab150b2892a89a6c
+  exit_code: 0
+  environment: core 5c4fc5a disposable clone; Python 3.11.15; pytest 9.0.3; PYTHONPATH=<clone>/src
+- id: E2
+  kind: executed
+  reference: evidence/F/orch-unit-tests.txt
+  method: orchestrator unit tests (90 passed)
+  sha256: c97f8eaadf3de928431b867a288bb3c084f0fe5ec4d16430b8dae9891e269154
+  exit_code: 0
+  environment: spec-kitty-orchestrator 8be32b1; uv venv; Python 3.11; pytest 9.2.0
+- id: E3
+  kind: executed
+  reference: evidence/F/orch-e2e-summary.txt
+  method: orchestrator e2e vs core head
+  sha256: e765f16de3f9c717e089616d11b8ae147d596ca341eb820b245bf47da6bc1e0c
+  exit_code: 1
+  environment: spec-kitty-orchestrator 8be32b1 + core 5c4fc5a
+- id: E4
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+scope:
+  covered: Four holders with code and tests
+  not_covered: next run interruption (run_lock, StaleAdvancePlan) not tested here; agent tool session recovery
+  population: null
+  sample: null
+  seed: null
+derived_from: []

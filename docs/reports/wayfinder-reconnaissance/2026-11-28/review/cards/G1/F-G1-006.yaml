@@ -1,0 +1,42 @@
+finding_id: F-G1-006
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I3/charter
+  deviation: null
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/charter-head-I3_reverse_and_inward.csv
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: c9a3a883a2ab0dcaec1d8ea40368f8e1be0519ad625add1c724233c3aa96f520
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-I3-core-dependency-output.txt
+  method: bash check-charter-I3-core-dependency.txt <git-archive of 06cdfbe9>
+  sha256: 4c135a0d72430c20624a726b46ec91d65598d0874ece1fe594242209ff3a81b6
+  exit_code: 0
+  environment: GNU grep
+- id: E3
+  kind: executed
+  reference: evidence/G1/charter-head-summary.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: 00f72cd3f21832bd889b9ce215d3fe2f59dfcb554380be568f07727a41334461
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: Gradle build files, version catalog, main sources of service/, client-java/, contracts/.
+  not_covered: Runtime calls to core over HTTP or files; scripts/, tests/, kitty-ops/, deploy/; the conformance harness that the ADR list says runs over the core CLI.
+  population: 1,039 main files; 382 kernel and domain Java files
+  sample: null
+  seed: null
+derived_from: []

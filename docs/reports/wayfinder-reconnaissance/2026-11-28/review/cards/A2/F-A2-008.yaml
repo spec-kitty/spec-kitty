@@ -1,0 +1,42 @@
+finding_id: F-A2-008
+workstream: A2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: A2-2 multi-sense terms
+  deviation: null
+subject:
+  component: pack tier / level / layer
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/drg-tier-names.csv
+  method: see phrase-count-commands.txt
+  sha256: c1325c041051517e950dac2aa98405ba9889329ab20109a932d5333b47ba89b4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+- id: E2
+  kind: static-derived
+  reference: evidence/A2/drift.csv
+  method: rows D05, D06, D22
+  sha256: 3c6ca580431600d2e7994664cc8b858737a854d1f095a70472b93239237218aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+- id: E3
+  kind: document-claim
+  reference: spec-kitty@5c4fc5a:.kittify/charter/charter.md:452
+  method: read section
+  sha256: null
+  exit_code: null
+  environment: null
+scope:
+  covered: Glossaries, binding charter, kernel module docstring.
+  not_covered: ''
+  population: null
+  sample: null
+  seed: null
+derived_from: []

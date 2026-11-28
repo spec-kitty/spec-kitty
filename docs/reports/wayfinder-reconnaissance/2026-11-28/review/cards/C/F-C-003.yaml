@@ -1,0 +1,35 @@
+finding_id: F-C-003
+workstream: C
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: volume-denominators
+  deviation: Source lines cannot be split by commit class; they are given per point and per component instead.
+subject:
+  component: src/ (Python files)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/source-lines-at-points.csv
+  method: inline-steps.txt step 4
+  sha256: dd6906ed7e91c3bb4ab697494878c1c429223bbea246c81560497e4a8ad24dba
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+- id: E2
+  kind: history-derived
+  reference: evidence/C/source-lines-by-component.csv
+  method: inline-steps.txt step 4
+  sha256: 8ea21698bb1a8be1363c737f2a18867f2b2b6c318fd93485c8833e24e2759a83
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+scope:
+  covered: Non-merge commits reachable from core origin/main 5c4fc5a7, committer date (UTC) 2026-01-01..2026-11-28; code commit = changes >=1 path under src/; commits over 500 files excluded.
+  not_covered: Non-Python files under src/; blank and comment lines are not separated.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

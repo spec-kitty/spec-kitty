@@ -1,0 +1,58 @@
+finding_id: F-H06b-013
+workstream: H06b
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: H06b counts (answered; single authoritative source; correct against code; contradicting source; meets all three; run 1 and run 2)
+  deviation: The brief gives the 20 answers but not the question texts, and the files that hold them are outside the permitted inputs. Each question was inferred from its answer. The check therefore tests
+    the answer's claims, not whether the answer addresses the question asked.
+subject:
+  component: documentation answers checked against code
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/H06b/checks.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: 838e697f9d33e7d5d73c0b994b12cae0be7611f3e6b4b07cf3edae47aea6fd62
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+- id: E2
+  kind: static-derived
+  reference: evidence/H06b/checks-run2.csv
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: bb875fb6d58fabeeef7f977f107520ab8f5c93e3dc39b0b542d1b98586b2991c
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+- id: E3
+  kind: static-derived
+  reference: evidence/H06b/counts.json
+  method: python3 evidence/H06b/script-write-checks.txt evidence/H06b
+  sha256: 36afe4018a47a678723ca6b9c564cc429ad29709d71cc54f33e0fe6c20570d2f
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+- id: E4
+  kind: static-derived
+  reference: evidence/H06b/code-checks-log.txt
+  method: bash evidence/H06b/script-code-checks.txt <dir holding `git archive 5c4fc5a79d` of spec-kitty> > code-checks-log.txt
+  sha256: 903bf91a4bf36adf41d93d13c573242c3b236977bfda2fb2634f09fefacc501f
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+- id: E5
+  kind: static-derived
+  reference: evidence/H06b/contradiction-searches-log.txt
+  method: 'bash evidence/H06b/script-contradiction-searches.txt <same dir> > contradiction-searches-log.txt (frame: 1365 markdown files in docs/ trees, root READMEs and charters of the five primary repositories
+    at head)'
+  sha256: 32a44a0a65ef8830962436f681daf84dccead76a1b9ccb44662db7c8bc5ee211
+  exit_code: 0
+  environment: Python 3.13.18; git 2.43.0; GNU grep/sed (Ubuntu); uv 0.11.32; spec-kitty-cli 4.0.0rc9 (editable); spec-kitty-events 11.3.0 (core .venv, Python 3.11)
+scope:
+  covered: All 20 run-1 answers and the 12 run-2 changes in evidence/H06a/answers-run1.csv and answers-run2.csv.
+  not_covered: Whether each answer addresses its question (question texts were not an input); plan clauses; documentation outside the search frame.
+  population: 20 answers
+  sample: 20 (census)
+  seed: null
+derived_from: []

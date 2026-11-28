@@ -1,0 +1,57 @@
+finding_id: F-A1-001
+workstream: A1
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M4 source-authority map
+  deviation: null
+subject:
+  component: core governance records
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/source-authority-map.csv
+  method: hand-compiled from the cited records; see source column
+  sha256: f27d669111a03760eb5b290519cfff298fca01605ee332b21ad33ba492331155
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+- id: E2
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:313-314 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '313,314p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:docs/architecture/README.md:32-52 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/README.md | sed -n '32,52p'
+  sha256: 3cc1892dace7d452bfea342bfbef36f65c74277e42d4e394a348ff670a9c865e
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E4
+  kind: document-claim
+  reference: spec-kitty:docs/architecture/06_unified_charter_bundle.md:206-219 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/06_unified_charter_bundle.md | sed -n '206,219p'
+  sha256: 2afbafd8c1f355d1060e5ca8eb2bc4cfce75940a06b1aaeb9702af895189e9e0
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E5
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:670-672 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '670,672p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+scope:
+  covered: core charter.md, docs/architecture/README.md, 00_landscape, 05_ownership_map, 06_unified_charter_bundle, docs/context/glossary-conventions.md and governance.md, roadmap; CLAUDE.md as tagged secondary
+    source
+  not_covered: docs/development/**, docs/guides/** authority statements; code-level authority (e.g. bundle.py)
+  population: null
+  sample: null
+  seed: null
+derived_from: []

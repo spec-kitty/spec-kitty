@@ -1,0 +1,42 @@
+finding_id: F-G1-002
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I1/charter
+  deviation: No recorded baseline readable under the constraint; the previous service release tag was used as the baseline.
+subject:
+  component: charter Java service (service/)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/I1_charter_head_vs_rc3.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out> ; same on git-archive of service-v0.1.0-rc.3; set difference
+  sha256: 5d3e7925c0aa1951e413c273ae4b7ae90d00db34ea67bd9820989e1161822275
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E2
+  kind: executed
+  reference: evidence/G1/charter-head-I1_cycles.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of 06cdfbe9> <out>
+  sha256: abf23292e4583175486a3bbc9b9b1a31ea46ab0e659bb0883f0837744033317e
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+- id: E3
+  kind: executed
+  reference: evidence/G1/charter-rc3-I1_cycles.json
+  method: python3 check-charter-I1-I2-I3-I4-I5-javawalk.txt <git-archive of service-v0.1.0-rc.3> <out>
+  sha256: f869e611fc8b8e0b6322cdf10d6716ee0e22de94bb00a946b860fd8896841e31
+  exit_code: 0
+  environment: Python 3.13 regex walker; JDK Temurin 25.0.5; Gradle 9.8.1
+scope:
+  covered: service/* build.gradle.kts project() dependencies; import statements of 1,003 main Java files in 14 modules with main sources.
+  not_covered: Test sources; reflection; Spring wiring by type; contracts/ and client-java/ modules; class-level cycles; fully qualified names used without import.
+  population: 16 Gradle modules; 1,003 main Java files
+  sample: null
+  seed: null
+derived_from: []

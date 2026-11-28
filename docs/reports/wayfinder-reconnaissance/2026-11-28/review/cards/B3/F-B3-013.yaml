@@ -1,0 +1,26 @@
+finding_id: F-B3-013
+workstream: B3
+selected_as: seeded
+classification: interpretation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: granularity of the recorded relationships
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence: []
+scope:
+  covered: Derived from the cited observations only.
+  not_covered: No judgement on whether rules below top-level packages are needed.
+  population: null
+  sample: null
+  seed: null
+derived_from:
+- F-B3-001
+- F-B3-002
+- F-B3-006
+- F-B3-007
+- F-B3-009

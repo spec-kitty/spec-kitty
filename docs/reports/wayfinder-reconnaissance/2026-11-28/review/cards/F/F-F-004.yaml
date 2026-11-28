@@ -1,0 +1,35 @@
+finding_id: F-F-004
+workstream: F
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: dispatch-vs-context-preparation
+  deviation: null
+subject:
+  component: Op record (kitty-ops)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/F/dispatch-op-lifecycle.json
+  method: dispatch; doctor ops --json; profile-invocation complete (disposable clone)
+  sha256: 99b8e1d7871de43f24bc8fb1ada8ce155963d539e846e1c44213d44359360a03
+  exit_code: 0
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+- id: E2
+  kind: static-derived
+  reference: evidence/F/static-anchors-core.txt
+  method: git show 5c4fc5a:<path> | grep -n -E <pattern> (script reproduced in evidence/F/static-anchors-core.txt headers)
+  sha256: 0f35db0407aeb59c18c8c414edc5c38b8ad3e6da2fc4b9ccc5be725663aa58de
+  exit_code: null
+  environment: spec-kitty-cli 4.0.0rc9 (editable, core 5c4fc5a via PYTHONPATH clone); Python 3.11.15; git 2.x; GNU grep
+scope:
+  covered: One Op opened and closed in a disposable clone; writer.py EVENTS_DIR
+  not_covered: Op records written into owned checkouts (--owned-checkout)
+  population: null
+  sample: purposive, 1 Op
+  seed: null
+derived_from: []

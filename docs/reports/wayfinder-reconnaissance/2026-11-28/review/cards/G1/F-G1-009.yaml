@@ -1,0 +1,36 @@
+finding_id: F-G1-009
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I5/core
+  deviation: null
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/core-head-I5_state_literals.csv
+  method: python3 check-core-I5-state-literals.txt <git-archive of 5c4fc5a7>/src <out.csv>
+  sha256: b42c0467e01d2cd221241f2de74d72ff90d35ea4ab9e5b68ffdccd748c7f1546
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-head-I5-summary.txt
+  method: same command, stdout
+  sha256: cb8c5c65ea374251bb0dc5243928acd00213d2cf64f62e54c4ebc3da63991233
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+scope:
+  covered: String occurrences of status.events.jsonl, activation.yaml, migration-ledger.jsonl, clone-local.jsonl, .source.yaml in 1,490 Python files.
+  not_covered: Whether a write primitive in a file targets the named state file; writes through a path built elsewhere; writes through the owner's API (permitted); non-Python writers (Makefile, scripts/,
+    services); reads.
+  population: 1,490 Python files
+  sample: null
+  seed: null
+derived_from: []

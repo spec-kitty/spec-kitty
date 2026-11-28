@@ -1,0 +1,42 @@
+finding_id: F-C2-005
+workstream: C2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: commit-class-validation
+  deviation: null
+subject:
+  component: core (classification rule set)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/classification-rules.txt
+  method: written and saved before any classification
+  sha256: 0f17f30d893e06d005abb30be1c89187f9bd821b60fac6f12fe702f729360bb1
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/classification-validation.csv
+  method: seeded sample + reading; confusion table at the end of the file
+  sha256: db6f0c4a1b4285a915e501c2d1dcc4f883c7d5597c79787c6f47484eb461f7aa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/classification-validation-readings.txt
+  method: analyst reading notes
+  sha256: cbdc2ab561785de0fa45923a68858df5836e6528e27f9e358c13c09231757ca3
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: Rule-vs-reading agreement on 50 commits.
+  not_covered: Inter-rater agreement (single reader); the reading was done with the rule label withheld in the review file but by the same analyst who wrote the rules.
+  population: 6,345 non-merge non-bulk code commits
+  sample: '50'
+  seed: '20261128'
+derived_from: []

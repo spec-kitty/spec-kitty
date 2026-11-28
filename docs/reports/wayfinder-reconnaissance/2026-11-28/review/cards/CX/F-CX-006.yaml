@@ -1,0 +1,42 @@
+finding_id: F-CX-006
+workstream: CX
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M01f
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+- id: E2
+  kind: executed
+  reference: evidence/CX/m01f-sensitivity.csv
+  method: 'python3 inline: per-period largest-commit sensitivity from both sample files'
+  sha256: 4cc590df95898af6d68b47aaa1905a3354331252f28f4b92f519ac190d50a92c
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+- id: E3
+  kind: executed
+  reference: evidence/CX/samples-output.txt
+  method: python3 script-samples.txt
+  sha256: ca1efe13ec839514b6cdce2541c29491d27f73c5501ccd386fa01f03052bd1b1
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+scope:
+  covered: All three periods, estimator variants recomputed from the two published samples, sample overlap, per-commit edge agreement on shared commits.
+  not_covered: No CX re-run of either AST walker on the repository; by-class rates compared only through the CSV (strata differ).
+  population: code commits per period 947 / 1,809 / 3,026
+  sample: 150 per period per run; overlap 40 / 15 / 11
+  seed: 20261128
+derived_from: []

@@ -1,0 +1,37 @@
+finding_id: F-G2-011
+workstream: G2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I6
+  deviation: Own-check run used --noconftest -o addopts= because the conftest collection hook was killed twice by the host out-of-memory killer; the full gate-level conftest behaviour is not exercised.
+subject:
+  component: core Python distribution spec-kitty-cli 4.0.0rc9 (wheel)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/I6_core_build_install_test.txt
+  method: uv build --wheel (archive copy, then git clone --shared at head with XDG_CACHE_HOME in scratch); uv venv -p 3.13; uv pip install <wheel>; spec-kitty init/charter context; pytest -n0 --noconftest
+    -o addopts= tests/charter_offering/drg/test_builtin_graph_seam.py in both copies
+  sha256: 679cf4d90860480ac99b211a89ba00bf2300e86fcba31b399015a5ef2ba22ebf
+  exit_code: 0
+  environment: uv 0.11.32; hatchling (uv build isolation, CPython 3.11.15); CPython 3.13.18 venv; pytest 9.0.3 (dev venv CPython 3.11.15)
+- id: E2
+  kind: executed
+  reference: evidence/G2/core_existing_gates_full_run.txt
+  method: pytest -n0 -rA on five architectural gate files in the non-git copy
+  sha256: 3053814a5d596164510a7ab6791f3785fc568aa8bde6e86e64acfd2cd33327e8
+  exit_code: 1
+  environment: pytest 9.0.3, CPython 3.11.15
+scope:
+  covered: One build path per source form, one install, one smoke, one named test file in two copies.
+  not_covered: The full core test suite (not run, per envelope); conftest-level hooks (disabled with --noconftest after two out-of-memory kills, exit 137, under host memory pressure); packs/internal (not
+    needed by the wheel); sdist build.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

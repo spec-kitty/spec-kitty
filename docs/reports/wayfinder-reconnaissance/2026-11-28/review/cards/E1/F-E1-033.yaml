@@ -1,0 +1,42 @@
+finding_id: F-E1-033
+workstream: E1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: E1-9 acceptance at Mission level
+  deviation: null
+subject:
+  component: gates of mission review and step contracts
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/E1/acceptance-checks.csv
+  method: rows "mission review", "step contract", "step prompt"
+  sha256: 7360df4acce8d8694fbd680307ebb61060410021d86ba88b7e59231b4d0e3406
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+- id: E2
+  kind: document-claim
+  reference: src/specify_cli/cli/commands/review/__init__.py:1-13,66-70,215-300 at 5c4fc5a79d
+  method: module docstring and gate runners
+  sha256: null
+  exit_code: null
+  environment: read at the named revision
+- id: E3
+  kind: static-derived
+  reference: evidence/E1/static-searches.txt
+  method: ls and grep of the pinned pack
+  sha256: 7a83a1302d467ca06522b38198461ca8e31113fd899e5b32609c0f5276ab64e4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; PyYAML; gh 2.89.0; spec-kitty-cli 4.0.0rc9 (editable install of core head)
+scope:
+  covered: The review command package and the software-dev accept, review, specify and plan prompts of the pinned pack.
+  not_covered: Skills under src/charter/offering/skills (for example the mission-review skill text) were not read; they may tell an agent to run more.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

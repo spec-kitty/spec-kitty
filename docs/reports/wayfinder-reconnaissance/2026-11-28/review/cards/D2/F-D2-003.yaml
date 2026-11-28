@@ -1,0 +1,65 @@
+finding_id: F-D2-003
+workstream: D2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M04a
+  deviation: null
+subject:
+  component: events read service (released artefact)
+  repository: spec-kitty/spec-kitty-events
+  revision: service-v0.1.0-rc.1 (commit 2f5e03948b5262185d15e45019fe14fbc473b9b5)
+  revision_kind: released
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/D2/m04a-read-service-pin-verify.txt
+  method: 'python3: sha256 of each downloaded service-v0.1.0-rc.1 asset vs core pins/read-service.source.yaml and vs SHA256SUMS'
+  sha256: ad7642780d521375c42e6401319add3fd706af9736356ecb4424423888528b8c
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E2
+  kind: executed
+  reference: evidence/D2/m04a-core-sync-services-check.txt
+  method: PYTHONPATH=src python scripts/sync_services.py --service all --check (cache filled with --offline from the downloaded assets)
+  sha256: 82739c2b7b7e5d8e347466f42d88f0ef8f5d23d336b5207a159bcf12f98478fa
+  exit_code: 0
+  environment: Python 3.11 (core .venv), python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E3
+  kind: executed
+  reference: evidence/D2/m04a-replay-rc1-native.json
+  method: python3 replay_smoke.py <fixtures rc.1> <smoke goldens at 2f5e0394> <bundle mission-status/openapi.yaml> out -- mission-status-api-0.1.0-rc.1-linux-x64
+  sha256: 1582048a305af9e598eda412f06ec10440064e9dd14d45d3bf6175a0b655da14
+  exit_code: 0
+  environment: python3 3.13; native binary sha256 e78c8311...; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E4
+  kind: static-derived
+  reference: evidence/D2/script-replay_smoke.py.txt
+  method: (script written by D2)
+  sha256: 2fadcd34e638363b396f6d8f76f93ca647244d57e9e429cbb16bf466633d06fa
+  exit_code: 0
+  environment: python3 3.13; Linux x86_64, 4 cores, 16 GiB shared host
+- id: E5
+  kind: executed
+  reference: evidence/D2/release-assets-events.json
+  method: gh api "repos/spec-kitty/spec-kitty-events/releases?per_page=50" --jq (tag, prerelease, assets name/size/digest)
+  sha256: 6fe2d69f37f71d9f2ff492190d8088135f0b9d73c8b4d726e588582d6adcf90e
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+- id: E6
+  kind: executed
+  reference: evidence/D2/download-log.txt
+  method: 'python3 dl.py <repo> <tag> <pattern> (gh api releases/assets/{id}, Accept: application/octet-stream), compares size and API digest'
+  sha256: e4eb45f2e2dd512ce5936abbec5f8847dc1ac744c217436e06f1a9b361fa9d20
+  exit_code: 0
+  environment: gh CLI REST (gh api); Linux x86_64, 4 cores, 16 GiB shared host
+scope:
+  covered: All 8 pinned assets; the linux-x64 native binary; the 53 requests of nativesmoke/requests.json over 14 fixture trees, replayed by a client written for this workstream that follows the rules of
+    the repository replay test.
+  not_covered: The jar, and the arm64, macOS and Windows binaries, were verified by digest only and not started. Build attestation could not be verified (the attestation store host was unreachable from
+    here). The remaining 28 fixture trees were not replayed against the binary.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

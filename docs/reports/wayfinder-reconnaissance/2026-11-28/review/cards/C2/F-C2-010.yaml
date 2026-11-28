@@ -1,0 +1,28 @@
+finding_id: F-C2-010
+workstream: C2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: M01c/M01d monthly series
+  deviation: null
+subject:
+  component: core (fine components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/M01c-M01d-components-per-code-commit.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: d85422382ca9e6c723e64365526d5a8952ccdb7e43ca2c6814e286206c0912fa
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: Month by committer date (UTC), per line; 2026-08 and 2026-09 measured on both lines; no trend is drawn across the convergence merge.
+  not_covered: Monthly values are not size-weighted.
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []

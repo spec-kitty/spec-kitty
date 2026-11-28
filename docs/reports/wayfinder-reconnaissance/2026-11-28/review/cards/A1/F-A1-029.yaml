@@ -1,0 +1,28 @@
+finding_id: F-A1-029
+workstream: A1
+selected_as: decisive
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M1 component catalogue
+  deviation: Value 'contested' added beside claimed / explicitly-not-pursued / silent where two records disagree (3 cells); counted separately.
+subject:
+  component: component catalogue
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/component-catalogue.csv
+  method: hand-compiled; script-build-catalogue.txt
+  sha256: 916370f2ebea94d2f609d85a3188f1ba39ecc4c71654d86378cdaf43d04e0f51
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+scope:
+  covered: components named in records of the five repos and planning
+  not_covered: components only named in code
+  population: 40 catalogued components
+  sample: null
+  seed: null
+derived_from: []

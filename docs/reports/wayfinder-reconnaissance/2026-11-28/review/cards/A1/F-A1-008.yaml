@@ -1,0 +1,49 @@
+finding_id: F-A1-008
+workstream: A1
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: Team Kitty / hosted surfaces
+  repository: spec-kitty/spec-kitty-planning; spec-kitty/spec-kitty
+  revision: 89f52a458082b87a5b9e2ca67537f843be53ebfe; 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-planning:PROGRAM.md:5-9 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:PROGRAM.md | sed -n '5,9p'
+  sha256: 4391f668ce1f1be1b2f59384764cd44bc4cf92a1c63f5d02b399cf469cfd94ec
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-planning:GOAL.md:1-6 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:GOAL.md | sed -n '1,6p'
+  sha256: 1e90aba4aea3c127a121d869e632249d7a26f16091b8d2fe70681660888dfce9
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md:20-35 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md | sed -n '20,35p'
+  sha256: 0d3ca9d320c5fab8fdd86833c705d7f0ab4fa390cb1721e06733e6c2b3c6bf12
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E4
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:521-521 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '521,521p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+scope:
+  covered: PROGRAM.md, GOAL.md, core ADR 2026-10-06-1, core charter
+  not_covered: spec-kitty-saas repository (not in scope)
+  population: null
+  sample: null
+  seed: null
+derived_from: []

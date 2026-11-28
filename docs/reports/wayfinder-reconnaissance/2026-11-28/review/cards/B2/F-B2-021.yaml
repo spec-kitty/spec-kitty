@@ -1,0 +1,49 @@
+finding_id: F-B2-021
+workstream: B2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: what doc-kitty reads from other repositories and through which interface
+  deviation: null
+subject:
+  component: packs reader and vendored contract
+  repository: spec-kitty/doc-kitty
+  revision: 1acc49fbe209436d3c1666a86e8b3960ee19e5ac
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: src/lib/packs/contract/contract.lock.json:1-15; src/scripts/packs-sync-contract.mjs:1-45; src/lib/packs/read.mjs:1-14; src/lib/packs/options.mjs:7-9
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/dup-schemas-same-name.csv
+  method: python3 script-dup_schemas.txt dup-schemas
+  sha256: 976131d49fa40016a62bfb577ec77f1956adde1d00ee8159c50fca51c122457a
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E3
+  kind: history-derived
+  reference: evidence/B2/xrepo-pin-matrix.csv
+  method: git rev-list --count 33f3ad46..origin/main in spec-kitty-charter
+  sha256: f903a248d871efa8e0e3bd7a614d5c5b75dc19c66f1bfb65697e8c481c513720
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E4
+  kind: static-derived
+  reference: evidence/B2/xrepo-coupling-points-curated.csv
+  method: hand-verified list
+  sha256: a5c71c42da688c020bfa939938b77c04de8cba7bbfb1b4349460dfe46aa69c41
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+scope:
+  covered: src/lib, src/scripts, mcp/src and the build and CI files.
+  not_covered: What a consumer's site build passes at run time.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

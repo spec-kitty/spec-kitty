@@ -1,0 +1,36 @@
+finding_id: F-B3-004
+workstream: B3
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M03b
+  deviation: The analyst read evidence/B1/layer-edges-head.csv (a 14-row top-level aggregate of the permitted edge table), which is not on the permitted input list, before writing the mapping rules. It
+    was used only to confirm the unit of the weight column. No other non-permitted input was read.
+subject:
+  component: runtime -> specify_cli
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B3/category-c-pairs.csv
+  method: python3 -I script-join.txt <report folder>  (reads evidence/A1-derived rules in mapping-rules.txt and evidence/B1/component-edges-head.csv)
+  sha256: da89dc5c629aa61399ed601aa72e83b73f1a9bc69fd84640f67b5378cb833e6e
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+- id: E2
+  kind: document-claim
+  reference: docs/architecture/04_implementation_mapping/README.md:87-92 at 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:docs/architecture/04_implementation_mapping/README.md | sed -n 87,92p
+  sha256: null
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib csv, ast, json); git 2.43.0; Linux
+scope:
+  covered: The pair at both granularities, all and load-time imports.
+  not_covered: 'Whether each observed import is a named entry of the ledger: the ledger is in a test file, outside this workstream inputs.'
+  population: 14 top-level pairs; 656 edges
+  sample: null
+  seed: null
+derived_from: []

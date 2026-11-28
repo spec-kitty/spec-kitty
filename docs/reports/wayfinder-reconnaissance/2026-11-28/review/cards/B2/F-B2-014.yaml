@@ -1,0 +1,42 @@
+finding_id: F-B2-014
+workstream: B2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: spec_kitty_events public surface
+  deviation: null
+subject:
+  component: Python package spec_kitty_events
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/events-py-public-surface.json
+  method: 'inline Python: ast of __init__.py + git grep over docs'
+  sha256: e16f8cc2665542dc807e966ff1aa5246fdb64ab775ac4bc72136a21c88429860
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/events-py-summary.json
+  method: python3 script-py_imports.txt /home/user/spec-kitty-events/src spec_kitty_events events-py
+  sha256: 8af0ad09bc253c84a897432dfc68cf7f51242735bd6300f1f79e4a3640c50117
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E3
+  kind: document-claim
+  reference: docs/api/python-package.md:16-19
+  method: 'read at head: ''Everything a consumer needs is re-exported from the top-level package (__all__); the producer_contract and total_order sub-surfaces are reached by their own module paths.'''
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+scope:
+  covered: The package source at head and the tracked documentation.
+  not_covered: Whether each exported name is documented individually; the built wheel was not inspected.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

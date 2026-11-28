@@ -1,0 +1,36 @@
+finding_id: F-B1-020
+workstream: B1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: CLI leakage
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/cli-library-imports-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: a73f238db5d7b9dbb2f09f27d85a932a4c4815719c8a4cee596f794e607e56cd
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/cli-library-imports-summary-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 0e6d9fead7ad9196bfb165eddf2bbf323cfa34dd69138b355c395e5d7c7efa4a
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+scope:
+  covered: Every static import of the top-level names typer, rich, click in the 1,490 modules; the CLI adapter layer is taken to be the component specify_cli.cli.
+  not_covered: specify_cli/__init__.py and other root modules of specify_cli (the Typer application assembly) are counted outside the adapter because they are not under specify_cli/cli/. Use of a console
+    object received as a parameter is not counted.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

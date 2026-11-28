@@ -1,0 +1,36 @@
+finding_id: F-G1-003
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I2/core
+  deviation: null
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/core-head-I2_private_access.csv
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: 8be0655b51ecc760d4282dc542ee6a77806cbdaa9c43bade60e168a6deafbccb
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-head-summary.json
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+scope:
+  covered: Static imports across the six wheel packages; imports of spec_kitty_events and spec_kitty_tracker checked for underscore-private segments (0 hits).
+  not_covered: Attribute access to private members after a public import; dynamic imports; whether an underscore name is re-exported on purpose; __all__ of the external packages; intra-package (sub-package
+    to sub-package) access.
+  population: 3,547 cross-package import names; 1,490 modules
+  sample: null
+  seed: null
+derived_from: []

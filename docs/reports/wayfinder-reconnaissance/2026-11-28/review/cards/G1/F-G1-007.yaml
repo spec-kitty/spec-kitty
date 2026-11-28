@@ -1,0 +1,35 @@
+finding_id: F-G1-007
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I4/core
+  deviation: null
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/core-head-I4_cli_in_domain.csv
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: d1a96a379b7f695f8df2fff45d3c2660d53fcb459ab40fb2735a2da9d23f5371
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-head-summary.json
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: e72472bb75fe13e6720f6d7f29d203be9d233643bcc6e6332ea93f96f7c32640
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+scope:
+  covered: Imports of typer, click, rich, readchar, argparse, getopt, optparse and sys.argv attribute use, in every module of the six packages.
+  not_covered: print/input calls, exit codes, formatted user messages built in domain code, CLI types reached through another module.
+  population: 371 lower-layer modules; 923 specify_cli modules outside specify_cli/cli
+  sample: null
+  seed: null
+derived_from: []

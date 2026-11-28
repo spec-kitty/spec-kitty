@@ -1,0 +1,36 @@
+finding_id: F-C-027
+workstream: C
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: narrative-chains
+  deviation: Period T3 is taken as the converged line from the merge on 2026-09-05 (4 converged-line commits carry that date) instead of starting on 2026-09-06; T2 is reported per line segment and pooled.
+    Written in classification-rules.txt before measurement.
+subject:
+  component: T3 change chains (purposive)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C/narrative-chains-summary.csv
+  method: same
+  sha256: 98005cc29a8468f6e7470cc317ba08f623db2a14617cb25a2fcd35f23bbbb2be
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+- id: E2
+  kind: history-derived
+  reference: evidence/C/narrative-chains.csv
+  method: inline selection by reference number over commits.csv and commit bodies (purposive)
+  sha256: 8e86839b7bcb378cf70720abfc919174ba15abe155a6bfadde655cadd5c740fb
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; gh 2.89.0 (REST); Linux 6.18
+scope:
+  covered: Code commits whose subject or body cites the reference number.
+  not_covered: Content introduced inside merge commits (except the convergence merge); history outside core; anything before 2026-01.
+  population: null
+  sample: purposive, 4 chains
+  seed: null
+derived_from: []

@@ -1,0 +1,35 @@
+finding_id: F-E3-019
+workstream: E3
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: open-packs content-drift checks
+  repository: spec-kitty/spec-kitty-open-packs
+  revision: f9a557510dc7ff04597a0b8aba87f736e25f785e
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/E3/runs-op-M-IC-5.txt
+  method: git apply M-IC-5; run_packs.sh <scratch> op-M-IC-5
+  sha256: 611827f112dd02c9b7b81e2f9173352dd028f738bdb90a3463380c0f5258f446
+  exit_code: 1
+  environment: Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest
+- id: E2
+  kind: executed
+  reference: evidence/E3/runs-op-M-IC-5-regenerated.txt
+  method: git apply M-IC-5; python3 scripts/ci/pack_digest.py --update built-in; python3 scripts/docs/gen_pack_reference.py; run_packs.sh
+  sha256: 7e76e487ea7110a22bf8fd00b4c72c1905a003e10f43683cdb865150659aac08
+  exit_code: 1
+  environment: Python 3.13, pyyaml 6.0.3, jsonschema 4.26.0, unittest
+scope:
+  covered: The validate job steps of validate-packs.yml that run without the charter service.
+  not_covered: The charter-service job (composition and registration by the pinned charter jar).
+  population: null
+  sample: null
+  seed: null
+derived_from: []

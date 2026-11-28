@@ -1,0 +1,36 @@
+finding_id: F-B1-013
+workstream: B1
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: M03c
+  deviation: null
+subject:
+  component: core Python source (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B1/m03c-no-intended-model-head.json
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: b5f835b7474cfdfdb8ac55e7407b6186addc2705e93959e0066f041bc4f230c6
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+- id: E2
+  kind: static-derived
+  reference: evidence/B1/component-edges-head.csv
+  method: python3 head.py 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 out/head <site-packages with spec_kitty_events 11.3.0 and spec_kitty_tracker 0.5.2>
+  sha256: 04031e7fae6178c8afb35adcc3e0b899354d5f44d171e1bf5f4bafad0c8cb7f2
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast; analyst extractor script-extract.txt); git 2.43.0
+scope:
+  covered: Enforced model as defined in the brief; physical lines of non-test Python under src/.
+  not_covered: Other files under tests/architectural/ state further intra-layer rules (for example the charter.offering / charter.activation boundary named in test_layer_rules.py comments). They are outside
+    the model as defined by the brief and were not inventoried.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

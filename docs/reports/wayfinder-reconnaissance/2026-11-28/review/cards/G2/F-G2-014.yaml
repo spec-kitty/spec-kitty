@@ -1,0 +1,35 @@
+finding_id: F-G2-014
+workstream: G2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: status event log write access (core)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/core_checks.json
+  method: git archive 5c4fc5a79de1c1c299ab221ca26e5555c68ef533 | tar -x -C core; python3 -I check_g2_pyimports.txt core/src core_imports.csv; python3 -I check_g2_core.txt core core_imports.csv core_checks.json
+  sha256: 43dbbc1ace24b5eb5cb08765a764a0bbaff596744ce28b171adfe116b670bbf7
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+- id: E2
+  kind: executed
+  reference: evidence/G2/core_i5.json
+  method: python3 -I check_g2_core_i5.txt core/src core_i5.json
+  sha256: ed2c057710f9ca6b6591a3af5b46c5e1ecc3cef55373814d89c14e171834008f
+  exit_code: 0
+  environment: CPython 3.13.18 (stdlib ast/csv/json), run with python3 -I
+scope:
+  covered: Static reading of the two allowlists at head; my import table confirms the 7 out-of-package _unsafe importers.
+  not_covered: Whether each listed site writes in production paths; runtime behaviour.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

@@ -1,0 +1,50 @@
+finding_id: F-G2-006
+workstream: G2
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I3
+  deviation: null
+subject:
+  component: spec-kitty-charter repository (build, service sources, scripts)
+  repository: spec-kitty/spec-kitty-charter
+  revision: 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G2/charter_java_checks.json
+  method: git archive 06cdfbe94856e8d24eca350c63d2a7b47bb9f13a | tar -x -C charter; python3 -I check_g2_java.txt charter out
+  sha256: 0a0e045f2082908a0cb91daa46c588f55446a0b7e8aeaa2fa5b38bbb8a42fc8b
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+- id: E2
+  kind: static-derived
+  reference: evidence/G2/check_g2_java.txt
+  method: check script (stored as .txt)
+  sha256: ad07924738e9396f6dee4f0d414882b24db1f2a61cedeacea814cf0639d0e92c
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+- id: E3
+  kind: executed
+  reference: evidence/G2/charter_cross_slice_package_edges.csv
+  method: aggregation of charter_java_edges.csv (full file kept in scratch, sha256 c047e12775e7c818f223fcee7ff42412e8a8691fd016bb9047644467d24a4436)
+  sha256: be05232047b98ddc4261d23ba6585cb95653be035818b922b92bc86d6ffd06d9
+  exit_code: 0
+  environment: CPython 3.13.18 regex/AST-free source scan of Java 25 sources
+- id: E4
+  kind: static-derived
+  reference: evidence/G2/charter_I3_crossrepo_grep.txt
+  method: two grep commands recorded at the top of the file (per-file hit counts; hits in contracts/examples, contracts/scenarios, test sources and testFixtures name CLI commands as data)
+  sha256: d3fbba95fd00a596bba74c8a4f9ffb5ce18a8b17be38a7ea44b0af78ed1022b0
+  exit_code: 0
+  environment: GNU grep 3.x
+scope:
+  covered: All tracked text files except documentation folders; service main sources for the intra-repository part.
+  not_covered: Documentation and mission artefacts (excluded), test fixture text that names CLI commands as data (counted as data, not dependency), runtime discovery of a core installation by the deployed
+    service.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

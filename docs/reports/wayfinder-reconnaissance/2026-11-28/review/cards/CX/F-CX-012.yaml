@@ -1,0 +1,28 @@
+finding_id: F-CX-012
+workstream: CX
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: between-period directions
+  deviation: null
+subject:
+  component: core change-history measures (workstream C and C2 outputs)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/CX/comparison.csv
+  method: python3 script-build.txt && python3 script-build2.txt (reads evidence/C and evidence/C2 only)
+  sha256: f87917649a9d4320f39d97480c4ea179da6860318074ce2e26da3e9df914992b
+  exit_code: 0
+  environment: Python 3.13.18, PyYAML 6.0.3, git 2.43.0 (git used only for component-count-differences.csv)
+scope:
+  covered: Rows of comparison.csv with a previous slice (T2 vs T1, T3 vs T2, line segments vs T1, consecutive months).
+  not_covered: An equal value in both periods counts as the same direction.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

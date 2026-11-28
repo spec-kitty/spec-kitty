@@ -1,0 +1,24 @@
+finding_id: F-A1-038
+workstream: A1
+selected_as: seeded
+classification: interpretation
+view: recorded-intent
+prereg:
+  measure: exploratory
+  deviation: null
+subject:
+  component: charter activation
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+evidence: []
+scope:
+  covered: ''
+  not_covered: ''
+  population: null
+  sample: null
+  seed: null
+derived_from:
+- F-A1-011
+- F-A1-012
+- F-A1-013

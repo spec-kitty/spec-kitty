@@ -1,0 +1,42 @@
+finding_id: F-E2-006
+workstream: E2
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: ambiguous rule
+  deviation: null
+subject:
+  component: direction between the spec-kitty-events Python package and core
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-events docs/adr/0002-events-domain-owns-its-services.md:98 and :137
+  method: read at 646e330b
+  sha256: null
+  exit_code: 0
+  environment: git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux
+- id: E2
+  kind: document-claim
+  reference: spec-kitty .kittify/charter/charter.md:382
+  method: read at 5c4fc5a7
+  sha256: null
+  exit_code: 0
+  environment: git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux
+- id: E3
+  kind: static-derived
+  reference: 'spec-kitty-events pyproject.toml [project].dependencies at 646e330b: pydantic, python-ulid'
+  method: sed -n '/^dependencies/,/^]/p' pyproject.toml
+  sha256: null
+  exit_code: 0
+  environment: git 2.43.0; GNU grep 3.11; Python 3.11.15 (core venv) and 3.13.18; javac 25.0.5; Linux
+scope:
+  covered: events docs/adr, contracts/versioning-and-compatibility.md, COMPATIBILITY.md, pyproject.toml; core charter
+  not_covered: events docs/guides and docs/context; spec-kitty-tracker; tests
+  population: null
+  sample: null
+  seed: null
+derived_from: []

@@ -1,0 +1,42 @@
+finding_id: F-B2-008
+workstream: B2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: module inventory with lines of code by language
+  deviation: null
+subject:
+  component: Gradle build (6 projects + build-logic) and Python package
+  repository: spec-kitty/spec-kitty-events
+  revision: 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/B2/loc-events.csv
+  method: python3 script-loc.txt /home/user/spec-kitty-events events loc-events.csv
+  sha256: 824bdae161e0ef054bd252a00db248454fd0bdc3e94d10a999eb98d9c13c98d1
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E2
+  kind: static-derived
+  reference: evidence/B2/loc-summary.json
+  method: aggregation
+  sha256: 3fc4a77f99240c22fc1185a2048d2566d0771edac7a7f3586e5407daffa11d79
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+- id: E3
+  kind: document-claim
+  reference: settings.gradle.kts:19-43
+  method: read at head
+  sha256: n/a (repository file at the stated revision)
+  exit_code: 0
+  environment: Python 3.13.18, git 2.43.0, Linux
+scope:
+  covered: All 6,064 tracked files at head.
+  not_covered: Generated sources; comment lines are not separated.
+  population: null
+  sample: null
+  seed: null
+derived_from: []

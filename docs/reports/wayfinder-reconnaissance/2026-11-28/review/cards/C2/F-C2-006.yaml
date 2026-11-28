@@ -1,0 +1,43 @@
+finding_id: F-C2-006
+workstream: C2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: commit-class-distribution
+  deviation: 'Period assignment by line: every commit on the post-convergence line (2554bd13ad..head) is T3, including 7 commits whose committer date is 2026-09-05; public and EXPERIMENTAL commits are assigned
+    by committer date (UTC). T2 therefore contains public-line commits 2026-07-01..2026-08-18 (pre-fork) plus both lines 2026-08-19..2026-09-05.'
+subject:
+  component: core (all src components)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: history-derived
+  reference: evidence/C2/summary.json
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: e069718f54718de4335b6db7feba5eb717cbb4e8ed9cd0871e1d19f14ec8a3a8
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E2
+  kind: history-derived
+  reference: evidence/C2/class-by-month-line.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: 32dfb07c536261f7d629a322a0ff7182fb852ef65676d09e256b8e745e8379c4
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+- id: E3
+  kind: history-derived
+  reference: evidence/C2/code-commits-classified.csv
+  method: python3 script-extract.txt <core clone> commits.jsonl; python3 script-analyze.txt commits.jsonl out
+  sha256: bdf4de9201ebe8ca9ebaa63bf46abdd0a42ccabcfdc368e80f14db2170469684
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18
+scope:
+  covered: Classes from the fixed rules (subject prefix, paths, trailers).
+  not_covered: Size weighting (see F-C2-002 for changed lines by class); rule accuracy is bounded by F-C2-005 (76% agreement).
+  population: All 20,963 commits reachable from core head 5c4fc5a with committer date on or after 2025-12-31 (UTC); non-merge, non-bulk code commits = 6,345.
+  sample: null
+  seed: null
+derived_from: []

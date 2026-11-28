@@ -1,0 +1,49 @@
+finding_id: F-A1-007
+workstream: A1
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M6 recorded contradictions
+  deviation: null
+subject:
+  component: events/tracker package distribution
+  repository: spec-kitty/spec-kitty-planning; spec-kitty/spec-kitty-events; spec-kitty/spec-kitty
+  revision: heads per COMMON
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: spec-kitty-planning:PROGRAM.md:42-55 @ 89f52a458082b87a5b9e2ca67537f843be53ebfe
+  method: git -C /home/user/spec-kitty-planning show 89f52a458082b87a5b9e2ca67537f843be53ebfe:PROGRAM.md | sed -n '42,55p'
+  sha256: 4391f668ce1f1be1b2f59384764cd44bc4cf92a1c63f5d02b399cf469cfd94ec
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E2
+  kind: document-claim
+  reference: spec-kitty-events:.kittify/charter/charter.md:72-72 @ 646e330b896b96d7a11f53b34aa3d0c0baa69a05
+  method: git -C /home/user/spec-kitty-events show 646e330b896b96d7a11f53b34aa3d0c0baa69a05:.kittify/charter/charter.md | sed -n '72,72p'
+  sha256: 69d9449added9e55c732ba8c49fc7939000ddb081ce6e9bc941684b243769c28
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E3
+  kind: document-claim
+  reference: spec-kitty:.kittify/charter/charter.md:382-388 @ 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  method: git -C /home/user/spec-kitty show 5c4fc5a79de1c1c299ab221ca26e5555c68ef533:.kittify/charter/charter.md | sed -n '382,388p'
+  sha256: 2f2e4c931bfc08f6096b167d85f14fbacab59696513099809e692394d187050c
+  exit_code: 0
+  environment: git 2.43.0 (git show <rev>:<path>), GNU grep 3.11, Python 3.13.18
+- id: E4
+  kind: document-claim
+  reference: evidence/A1/supersession-chains.csv
+  method: hand-compiled; chain CH1
+  sha256: c13a43c28056ced63884290e29a47a7db009826a3cb308f745909672428311d7
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+scope:
+  covered: PROGRAM.md, events charter, core charter, core ADRs of chain CH1
+  not_covered: actual lockfiles (workstream D)
+  population: null
+  sample: null
+  seed: null
+derived_from: []

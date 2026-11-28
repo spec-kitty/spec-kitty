@@ -1,0 +1,28 @@
+finding_id: F-A2-018
+workstream: A2
+selected_as: seeded
+classification: observation
+view: observed
+prereg:
+  measure: A2-1 term inventory
+  deviation: null
+subject:
+  component: glossary applicability scope
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: static-derived
+  reference: evidence/A2/core-glossary-index.txt
+  method: python tally of Applicable-to rows (in file)
+  sha256: dc5f63f393b2fded317fe466875558c9eed2583f0c8e97f1b851d099b3e0e40f
+  exit_code: 0
+  environment: git 2.43.0; Python 3.13.18; GNU grep; spec-kitty CLI editable install (core head read via git grep/git archive)
+scope:
+  covered: Applicable-to rows on docs/context pages.
+  not_covered: What maintainers intend the row to mean for still-current terms.
+  population: 287 entries
+  sample: null
+  seed: null
+derived_from: []

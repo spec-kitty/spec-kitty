@@ -1,0 +1,35 @@
+finding_id: F-A1-031
+workstream: A1
+selected_as: seeded
+classification: observation
+view: recorded-intent
+prereg:
+  measure: M2 documented dependency model
+  deviation: Relation vocabulary extended with must-not-ship, oracle-parity and qualified variants in parentheses where a record's rule did not fit the five listed values.
+subject:
+  component: documented relationships
+  repository: ecosystem
+  revision: heads per COMMON
+  revision_kind: head
+evidence:
+- id: E1
+  kind: document-claim
+  reference: evidence/A1/documented-relationships.csv
+  method: hand-compiled; script-build-relationships.txt
+  sha256: 6e8cccfbfca9bb64ce92e3379b496fb535c0bfb877cf83252a36dc7360039dec
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+- id: E2
+  kind: document-claim
+  reference: evidence/A1/units-without-recorded-internal-structure.csv
+  method: hand-compiled with the sources_searched column
+  sha256: 72626193cd50eab40b87306f929a73a5dd2e8b608a267d9cce8f45e49d51ff42
+  exit_code: 0
+  environment: Python 3.13.18 scripts in evidence/A1/script-*.txt; git 2.43.0
+scope:
+  covered: records listed in the source column
+  not_covered: observed graph (not consulted by design)
+  population: 72 relationship rows
+  sample: null
+  seed: null
+derived_from: []

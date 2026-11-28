@@ -1,0 +1,44 @@
+finding_id: F-G1-001
+workstream: G1
+selected_as: decisive
+classification: observation
+view: observed
+prereg:
+  measure: I1/core
+  deviation: The brief says 'relative to a recorded baseline'. No recorded baseline could be read under the public-information constraint (baselines and allowlists are excluded). The previous published
+    wheel (4.0.0rc8) was used as the baseline instead.
+subject:
+  component: core Python packages (src/)
+  repository: spec-kitty/spec-kitty
+  revision: 5c4fc5a79de1c1c299ab221ca26e5555c68ef533
+  revision_kind: head
+evidence:
+- id: E1
+  kind: executed
+  reference: evidence/G1/I1_core_head_vs_rc8.json
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out> ; same on unpacked 4.0.0rc8 wheel; set difference of cyclic edges
+  sha256: 385c1f31b9dc3e3b8779e582f57e8db5c489bd6ce63b0c73fcc868c7b9b12c18
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E2
+  kind: executed
+  reference: evidence/G1/core-head-I1_cycles.json
+  method: python3 check-core-I1-I2-I3-I4-pywalk.txt <git-archive of 5c4fc5a7>/src <out>
+  sha256: 7c1441c656d38979b1bc9a0281365d9fcd2c6dec4e4553a6404b548777d64d71
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+- id: E3
+  kind: executed
+  reference: evidence/G1/core-rc8-I1_cycles.json
+  method: pip download --no-deps --pre spec-kitty-cli==4.0.0rc8; unzip; python3 check-core-I1-I2-I3-I4-pywalk.txt <wheel root> <out>
+  sha256: ea35568621a0e856a3cfed56feba49669e377ae3d0925ece5a0f92d6df7601f3
+  exit_code: 0
+  environment: Python 3.13 (ast stdlib), Linux 6.18
+scope:
+  covered: All 1,490 .py files under the six wheel packages; import, from-import, relative imports; deferred and TYPE_CHECKING imports classified separately.
+  not_covered: Dynamic imports (importlib, __import__), string-based plugin loading, non-Python coupling. Component granularity below second level. The repository's own recorded baseline or ledger (not
+    readable under the constraint).
+  population: 1,490 modules; 191 second-level components; 1,280 component edges (all imports)
+  sample: null
+  seed: null
+derived_from: []
