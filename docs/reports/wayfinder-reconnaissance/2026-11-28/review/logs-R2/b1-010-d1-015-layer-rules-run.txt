@@ -1,0 +1,5 @@
+$ (clone at 5c4fc5a, interpreter of the existing synced environment, packs/built-in copied in) python -m pytest -q -p no:cacheprovider -o addopts= -n0 tests/architectural/test_layer_rules.py
+........................................................................ [ 90%]
+........                                                                 [100%]
+80 passed in 204.65s (0:03:24)
+exit 0

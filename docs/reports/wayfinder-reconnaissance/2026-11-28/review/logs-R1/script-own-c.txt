@@ -1,0 +1,56 @@
+import re,sys,csv,collections,datetime,fnmatch,subprocess,random,json
+S=sys.argv[1]
+pub=set(open(S+'/pub.txt').read().split()); exp=set(open(S+'/exp.txt').read().split()); pre=set(open(S+'/pre.txt').read().split())
+DIRMAP=[l.split(',')[1:3] for l in open('/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/C/rename-map.csv') if l.startswith('directory,')]
+def norm(p):
+    # numstat rename syntax
+    m=re.match(r'^(.*)\{(.*) => (.*)\}(.*)$',p)
+    if m: return [ (m.group(1)+m.group(2)+m.group(4)).replace('//','/'), (m.group(1)+m.group(3)+m.group(4)).replace('//','/')]
+    if ' => ' in p: return p.split(' => ')
+    return [p]
+def comp(p):
+    for a,b in DIRMAP:
+        if p.startswith(a): p=b+p[len(a):]; break
+    parts=p.split('/')
+    if len(parts)<3: return '(src root)'
+    top=parts[1]
+    if top in('specify_cli','charter'):
+        return top+'/'+parts[2] if len(parts)>=4 else top+'/(root)'
+    return top
+commits=[];cur=None
+for l in open(S+'/raw.txt',errors='replace'):
+    l=l.rstrip('\n')
+    if l.startswith('@@@'):
+        h,p,d,s=l[3:].split('|',3); cur=dict(sha=h,date=d,subject=s,files=[]); commits.append(cur)
+    elif l.strip():
+        a,dl,path=l.split('\t',2); cur['files'].append((a,dl,path))
+FIXP={'fix','hotfix','bugfix','revert','fix+refactor'}; FIXW={'fix','fixes','fixed','revert'}
+def isfix(s):
+    s=re.sub(r'^(\s*\[[^\]]*\]\s*)+','',s).strip().lower()
+    m=re.match(r'^([a-z_+-]+)(\(.*?\))?!?:',s)
+    if m: return m.group(1) in FIXP
+    w=re.split(r'[\s:]',s)[0] if s else ''
+    return w in FIXW
+out=[]
+for c in commits:
+    dt=datetime.datetime.fromisoformat(c['date']).astimezone(datetime.timezone.utc); day=dt.strftime('%Y-%m-%d')
+    line='pre-fork' if c['sha'] in pre else 'public' if c['sha'] in pub else 'experimental' if c['sha'] in exp else 'converged'
+    paths=[]; 
+    for a,d,p in c['files']: paths+=norm(p)
+    if len(c['files'])>500: bulk=1
+    else: bulk=0
+    srcp=[p for p in paths if p.startswith('src/')]
+    comps={comp(p) for p in srcp}
+    if line=='converged': per='T3'
+    elif '2026-04-01'<=day<='2026-06-30': per='T1'
+    elif '2026-07-01'<=day<='2026-09-05': per='T2'
+    else: per=''
+    out.append(dict(sha=c['sha'],day=day,line=line,per=per,code=bool(srcp),bulk=bulk,n=len(comps),fix=isfix(c['subject']),paths=paths,subject=c['subject']))
+json.dump(out,open(S+'/own_commits.json','w'))
+print('non-merge commits',len(out),'code',sum(o['code'] for o in out),'bulk',sum(o['bulk'] for o in out))
+for per in ('T1','T2','T3'):
+    x=[o for o in out if o['per']==per and o['code'] and not o['bulk'] and '2026-01-01'<=o['day']]
+    g=sum(o['n']>=2 for o in x); print(per,len(x),g,round(g/len(x),4), 'mean',round(sum(o['n'] for o in x)/len(x),3))
+for ln in ('pre-fork','public','experimental'):
+    x=[o for o in out if o['per']=='T2' and o['line']==ln and o['code'] and not o['bulk']]
+    g=sum(o['n']>=2 for o in x); print('T2',ln,len(x),g,round(g/len(x),4))

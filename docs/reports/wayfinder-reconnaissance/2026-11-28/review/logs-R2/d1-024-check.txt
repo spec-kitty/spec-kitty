@@ -1,0 +1,42 @@
+README.md
+built_in_step_contracts
+documentation
+mission-steps
+mission_types
+plan
+research
+software-dev
+documentation.yaml
+plan.yaml
+research.yaml
+software-dev.yaml
+883 specify_cli/status/wp_state.py
+12
+114:class TransitionInputs(Protocol):
+136:class InvalidTransitionError(Exception):
+150:class WPState(ABC):
+351:class GenesisState(WPState):
+377:class UninitializedState(WPState):
+414:class PlannedState(WPState):
+444:class ClaimedState(WPState):
+471:class InProgressState(WPState):
+524:class ForReviewState(WPState):
+549:class InReviewState(WPState):
+587:class ApprovedState(WPState):
+622:class DoneState(WPState):
+644:class BlockedState(WPState):
+666:class CanceledState(WPState):
+research or documentation: 45
+specify_cli/missions/plan:
+__init__.py
+interview_questions.py
+mission.yaml
+plan_interview.py
+specify_interview.py
+templates
+
+specify_cli/missions/software-dev:
+mission.yaml
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/x/spec-kitty-events/src/spec_kitty_events/status.py:156:``512567eee71e31bb39f580c4f7acf8b865e9d1b2``). ``for_review -> in
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/x/spec-kitty-events/src/spec_kitty_events/status.py:601:# 512567eee71e31bb39f580c4f7acf8b865e9d1b2, plus the package-only
+/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/x/spec-kitty-events/src/spec_kitty_events/status_log.py:4:as ``serialize_event_line`` at pin ``512567ee``) and

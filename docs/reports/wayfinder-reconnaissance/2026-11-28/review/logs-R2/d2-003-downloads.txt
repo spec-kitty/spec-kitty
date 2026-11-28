@@ -1,0 +1,4 @@
+mission-status-api-0.1.0-rc.1-linux-x64 exit 0 size 95815944 sha e78c83111803c5ae43baf310d695a8e2a6fba3e79913ea282c10cd2781bbb112
+conformance-fixtures-0.1.0-rc.1.tar.gz exit 0 size 38787 sha 30b1a462b64b28fa608ec4af0ab0924ee0e71c98e79d959ab5d7426f34d84563
+contract-bundles-0.1.0-rc.1.tar.gz exit 0 size 95095 sha fbfa6f97dea2acd39858598f17756f225870f65cfdbda6493eecca62fe66b275
+mission-status-api-0.1.0-rc.2-linux-x64 exit 0 size 95815944 sha 2c2a5d830f30ef85a9075dd2a7eb6ae454883bb8b51facbb2ef3fb75f34d39a0

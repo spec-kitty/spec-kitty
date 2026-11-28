@@ -1,0 +1,22 @@
+$ (committed status.json restored) spec-kitty agent status validate --mission mission-base-window-bound-01M78XB4
+  - Materialization drift: WP03 state differs between status.json and reducer 
+output
+  - Materialization drift: WP04 state differs between status.json and reducer 
+output
+  - Materialization drift: WP05 state differs between status.json and reducer 
+output
+
+Result: FAIL
+exit 1
+## check_pack callers at head
+src/charter/offering/packs/pack_pin.py:58:    "# not vendored; tree_digest = clean_tree_digest(<subtree>, level=<tree_digest.level>).\n"
+src/charter/offering/packs/pack_pin.py:175:    actual: str = clean_tree_digest(pack_root, level=cast(PackTier, pin.tree_digest.level))
+src/specify_cli/cli/commands/charter/pack_vendor.py:85:        status = check_pack(pin, dest)
+src/specify_cli/cli/commands/charter/pack_vendor.py:154:        digest: str = clean_tree_digest(fetched, level=cast(PackTier, level))
+src/specify_cli/cli/commands/charter/pack_vendor.py:162:        if check_pack(new_pin, fetched) is not PackTreeStatus.OK:
+src/specify_cli/analysis_inputs.py:392:            if pin.subtree != relative or check_pack(pin, candidates[relative]) is not PackTreeStatus.OK:
+scripts/sync_packs.py:61:        status = check_pack(pin, dest)
+hatch_build.py:70:    if pack_fetch.check_pack(pin, dest) is pack_fetch.PackTreeStatus.OK:
+7:$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)
+10:$ unshare -n spec-kitty agent status validate --mission mission-base-window-bound-01M78XB4
+32:$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json | (summary)

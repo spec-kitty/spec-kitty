@@ -1,0 +1,17 @@
+services wheel installed in the interpreter used: 1
+$ unshare -n spec-kitty agent tasks status --mission mission-base-window-bound-01M78XB4 --json
+exit 0
+{
+  "mission_slug": "mission-base-window-bound-01M78XB4",
+  "mission_number": 258,
+  "mission_type": "software-dev",
+  "total_wps": 5,
+  "by_lane": {
+    "done": 5
+  },
+  "work_packages": [
+    {
+      "id": "WP01",
+      "title": "Red acceptance on the fork shapes",
+      "lane": "done",
+      "pha

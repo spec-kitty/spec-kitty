@@ -1,0 +1,17 @@
+$ charter pack path built-in
+/home/user/spec-kitty/packs/built-in
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks charter pack path built-in
+<scratch>/altpacks/built-in
+exit 0
+# tamper: append a comment line to 001-architectural-integrity-standard.directive.yaml, delete one tactic file
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks charter pack list
+└──────────┴──────────┴──────────────────┘
+
+Apply a preset with `spec-kitty charter activate [--pack <pack>] --preset 
+<preset>`.
+exit 0
+$ SPEC_KITTY_PACKS_ROOT=<scratch>/altpacks doctor charter-packs --json (grep healthy / error)
+exit 1
+      1 "healthy": false
+      3 "healthy": true
+UNHEALTHY at /profile_health {'healthy': False, 'packs': [{'pack_id': 'built-in', 'layer': 'built-in', 'discovered_count': 26, 'valid_count': 26, 'healthy': True, 'invalid_profiles': []}], 'org_drg': '{\'configured_packs\': [], \'collision_warnings\': [], \'dangling_endpoints\': [], \'body_path_escapes\': [], \'asset_path_escapes\': [], \'errors\': ["Org pack \'internal\' configured at \'/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R2/core/packs/internal\' not found. Either fetch t', 'glossary_packs': {'pack_count': 1, 'term_count': 129, 'healthy': True, 'invalid_packs': []}, 'skills': {'skill_count': 0, 'loaded': 0, 'skipped': 0, 'healthy': True, 'invalid_skills': []}}

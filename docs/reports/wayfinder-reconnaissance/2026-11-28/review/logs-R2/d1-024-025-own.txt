@@ -1,0 +1,66 @@
+## 329e6fae11
+329e6fae11f7859f0199c267a8bc75532ac0b8b1 2026-09-04 feat: add LLxprt Code agent support
+files 35
+  src/specify_cli/runtime 1
+  src/specify_cli/core 1
+  src/specify_cli/agent_utils 1
+  src/specify_cli/_completion_manifest.json 1
+  src/specify_cli/cli 3
+  docs 8
+  src/specify_cli/tool_surface 1
+  tests 12
+  README.md 1
+  src/specify_cli/gitignore_manager.py 1
+  src/charter/offering 3
+  src/specify_cli/session_presence 1
+  src/specify_cli/upgrade 1
+## 94114bf296
+94114bf29607683b751c0b15127779ff24bec12d 2026-02-09 feat(WP07): define research and plan v1 mission YAMLs
+
+A	src/specify_cli/missions/plan/command-templates/.gitkeep
+A	src/specify_cli/missions/plan/mission.yaml
+A	src/specify_cli/missions/plan/templates/.gitkeep
+M	src/specify_cli/missions/research/mission.yaml
+A	tests/integration/test_research_plan_missions.py
+## mission.yaml additions on origin/main (first-parent irrelevant), newest first
+0ccd9055cb 2026-04-27 Phase 6 WP6.4: documentation mission composition rewrite (#502)
+src/doctrine/missions/documentation/mission-runtime.yaml
+src/specify_cli/missions/documentation/mission-runtime.yaml
+5828ac4783 2026-04-26 research mission: v2 reroll closes v1 P0
+src/doctrine/missions/research/mission-runtime.yaml
+src/specify_cli/missions/research/mission-runtime.yaml
+7bf4fae1e1 2026-02-22 feat(doctrine): implement doctrine-lite constitution generator
+src/doctrine/missions/plan/mission-runtime.yaml
+e4adfd7c8f 2026-02-22 feat(doctrine): add deferred doctrine framework track on 2.x
+src/doctrine/missions/documentation/mission.yaml
+src/doctrine/missions/plan/mission.yaml
+src/doctrine/missions/research/mission.yaml
+src/doctrine/missions/software-dev/mission-runtime.yaml
+src/doctrine/missions/software-dev/mission.yaml
+7605f1577b 2026-02-22 feat(WP01): create runtime schema foundation for plan mission
+src/specify_cli/missions/plan/mission-runtime.yaml
+5309e264e8 2026-02-18 feat(next): mission-next runtime bridge, --answer flow, replay parity
+src/specify_cli/missions/software-dev/mission-runtime.yaml
+94114bf296 2026-02-09 feat(WP07): define research and plan v1 mission YAMLs
+src/specify_cli/missions/plan/mission.yaml
+c2c6cb1e49 2026-01-12 feat: Implement WP01 - Documentation mission infrastructure
+src/specify_cli/missions/documentation/mission.yaml
+21f7c7121c 2026-01-12 fix: Replace POSIX-only signal handling with cross-platform psutil in dashboard
+src/specify_cli/missions/research/mission.yaml
+src/specify_cli/missions/software-dev/mission.yaml
+4da144c642 2025-10-30 chore: sync mission assets into package
+src/specify_cli/.kittify/missions/research/mission.yaml
+src/specify_cli/.kittify/missions/software-dev/mission.yaml
+## agent additions after 2026-09-15: commits whose subject says add ... agent
+329e6fae11 2026-09-04 feat: add LLxprt Code agent support
+## head: mission type literals in src python
+software-dev: 80 files of 1490
+research: 37 files of 1490
+documentation: 19 files of 1490
+./specify_cli/missions/software-dev/mission.yaml
+./specify_cli/missions/research/mission.yaml
+./specify_cli/missions/plan/mission.yaml
+./specify_cli/missions/documentation/mission.yaml
+9:``ALLOWED_TRANSITIONS`` is retained ONLY as a non-authoritative derived
+26:    "ALLOWED_TRANSITIONS",
+53:ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = _derive_allowed_transitions()

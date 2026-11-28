@@ -1,0 +1,9 @@
+{'packs_tree': {'owner_files': 7, 'outside_files': 26, 'outside_files_with_io_calls': 18, 'literals_owner': 16, 'literals_outside': 35, 'owner_prefixes': ['charter/offering/', 'charter/pack_paths.py', 'charter/packs.py', 'kernel/pack']}, 'charter_bundle': {'owner_files': 16, 'outside_files': 30, 'outside_files_with_io_calls': 23, 'literals_owner': 32, 'literals_outside': 70, 'owner_prefixes': ['charter/']}, 'status_files': {'owner_files': 7, 'outside_files': 65, 'outside_files_with_io_calls': 49, 'literals_owner': 9, 'literals_outside': 140, 'owner_prefixes': ['specify_cli/status/']}, 'activation_file': {'owner_files': 1, 'outside_files': 1, 'outside_files_with_io_calls': 0, 'literals_owner': 1, 'literals_outside': 1, 'owner_prefixes': ['charter/activation/', 'kernel/']}, 'lanes_manifest': {'owner_files': 9, 'outside_files': 27, 'outside_files_with_io_calls': 14, 'literals_owner': 20, 'literals_outside': 60, 'owner_prefixes': ['specify_cli/lanes/']}, 'mission_meta': {'owner_files': 8, 'outside_files': 73, 'outside_files_with_io_calls': 62, 'literals_owner': 12, 'literals_outside': 117, 'owner_prefixes': ['specify_cli/mission_metadata', 'specify_cli/core/', 'mission_runtime/']}}
+own: files with status file literals 83 outside specify_cli/status/ 71
+packs_tree population 26 sample 13 equals seeded draw: True {'not_a_path': 10, 'direct_path': 3}
+charter_bundle population 30 sample 15 equals seeded draw: True {'direct_fs': 9, 'name_only': 6}
+status_files population 65 sample 20 equals seeded draw: True {'name_only': 8, 'direct_fs': 10, 'git_path': 2}
+activation_file population 1 sample 0 equals seeded draw: True {}
+lanes_manifest population 27 sample 0 equals seeded draw: True {}
+mission_meta population 73 sample 0 equals seeded draw: True {}
+own vs artefact status list equal: False 6

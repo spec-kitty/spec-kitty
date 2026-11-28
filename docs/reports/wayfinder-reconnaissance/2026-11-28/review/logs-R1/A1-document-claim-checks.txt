@@ -1,0 +1,185 @@
+===== F-A1-001 observation recorded-intent {'measure': 'M4 source-authority map', 'deviation': None} | core governance records | derived []
+scope {'covered': 'core charter.md, docs/architecture/README.md, 00_landscape, 05_ownership_map, 06_unified_charter_bundle, docs/context/glossary-conventions.md and governance.md, roadmap; CLAUDE.md as tagged secondary source', 'not_covered': 'docs/development/**, docs/guides/** authority statements; code-level authority (e.g. bundle.py)', 'population': None, 'sample': None, 'seed': None}
+   E1 document-claim evidence/A1/source-authority-map.csv | hand-compiled from the cited records; see source column
+   E2 spec-kitty:.kittify/charter/charter.md:313-314 file-sha OK
+      |   as stale); code is the source of truth and docs mirror *shipped* behaviour (a
+      |   doc/code disagreement is a doc defect). → `divio-type-discipline`,
+   E3 spec-kitty:docs/architecture/README.md:32-52 file-sha OK
+      | ## Boundary rule (single source of truth)
+      | 
+      | Two surfaces, two jobs. They never duplicate each other:
+      | 
+      | | Surface | Holds | Authority |
+      | |---|---|---|
+      | | `docs/architecture/` + `docs/adr/` | **Decisions & models**: ADRs, C4 diagrams, vision, audits, calibration | Authoritative; changes are deliberate and reviewed |
+      | | The rest of `docs/` | **Consumption**: tutorials, how-tos, reference, context | Reader-facing; narrates and links *up* to architecture |
+      | 
+      | - **Architecture = decisions & models.** ADRs (under `docs/adr/`), the C4 model, vision,
+      |   audits and calibration are the deliberately changed source of truth.
+      | - **Reader-facing docs link up; they never duplicate architecture narrative.** When the
+      |   two overlap, architecture wins.
+      | - **Vision is an architecture concern.** There is no `docs/vision/`; forward intent lives
+      |   in `docs/architecture/vision/`.
+      | - **Terminology canon lives in the glossary context pages** (see
+   E4 spec-kitty:docs/architecture/06_unified_charter_bundle.md:206-219 file-sha OK
+      | ## charter.yaml precedence over charter.md
+      | 
+      | The charter has two surfaces with a strict precedence (operator decision, 2026-08-02):
+      | 
+      | - **`.kittify/charter/charter.yaml`** is the deterministic, schema-guarded **resolution
+      |   authority** — it takes precedence for any resolving decision (governance policy,
+      |   presence gates, activated sets).
+      | - **`.kittify/charter/charter.md`** is a **secondary** read point that carries rationale
+      |   and prose. It stays human-readable but **never overrides** `charter.yaml` and is never
+      |   the authoritative resolving source.
+      | 
+      | When a surface must decide "does a charter exist / what does it say", resolve from
+      | `charter.yaml` first and treat `charter.md` only as secondary rationale. Route reads
+      | through the charter-layer authority (`charter.bundle` constants + the charter-yaml IO),
+   E5 spec-kitty:.kittify/charter/charter.md:670-672 file-sha OK
+      | - The published current-state CLI↔SaaS contract lives at `../spec-kitty-saas/contracts/cli-saas-current-api.yaml`.
+      | - Any CLI change that alters hosted routes, request/response bodies, auth headers, websocket behavior, sync payloads, or tracker control-plane semantics must update that contract in the same change.
+      | - ADRs, PRDs, and roadmap notes may describe future APIs, but the authoritative reference for what the CLI actually speaks to SaaS today is that contract file.
+===== F-A1-007 observation recorded-intent {'measure': 'M6 recorded contradictions', 'deviation': None} | events/tracker package distribution | derived []
+scope {'covered': 'PROGRAM.md, events charter, core charter, core ADRs of chain CH1', 'not_covered': 'actual lockfiles (workstream D)', 'population': None, 'sample': None, 'seed': None}
+   E1 spec-kitty-planning:PROGRAM.md:42-55 file-sha OK
+      | **Cross-repo Python dependencies resolve from the EXPERIMENTAL repos at a pinned git rev, never from PyPI, for the duration of this programme** (Robert, 2026-08-25). Nothing is published; Actions are off. A consumer that needs a n
+      | 
+      | ```toml
+      | [tool.uv.sources]
+      | spec-kitty-events = { git = "https://github.com/spec-kitty/spec-kitty-events", rev = "<exact commit>" }
+      | ```
+      | 
+      | with the version constraint unchanged, pins the exact commit (never a branch) so `uv.lock` is reproducible, and bumps the rev in a PR like any other change. **This rule binds `spec-kitty-tracker` exactly as it binds `spec-kitty-ev
+      | 
+      | **Two rules follow from the pin being a commit rather than a version.** First, all consumers of one shared package pin the *same* commit: a PR that bumps a rev in one consumer names, in its Blast radius section, every other consum
+      | 
+      | All private. **No branch protection. No required reviews. No CODEOWNERS.** Nothing on GitHub enforces anything; the discipline below is held by the agents' charters and by the merge agent's authority. GitHub Actions exist for exac
+      | 
+      | **Amendment (Robert, 2026-08-31 — planning#1715 "D4 ratified", `decisions/HIC-PUBLIC-326-RELEASES-2026-08-31.md`):** the public v3.2.6/rc5 of `spec-kitty-cli` ships from Priivacy-ai/spec-kitty via its `release.yml` + PyPI Trusted 
+   E2 spec-kitty-events:.kittify/charter/charter.md:72-72 file-sha OK
+      | - **Programme exception (temporary, `EXPERIMENTAL-spec-kitty-*` only):** for the duration of that programme, `PROGRAM.md` §2 governs instead of the PyPI rule above — every consumer pins an exact, immutable git SHA to this package 
+   E3 spec-kitty:.kittify/charter/charter.md:382-388 file-sha OK
+      | `spec-kitty-events` and `spec-kitty-tracker` are true external package dependencies for the Spec Kitty CLI. Treat them like normal third-party Python libraries with Spec Kitty-owned governance:
+      | 
+      | - Consume released PyPI packages through the normal dependency graph.
+      | - Do not vendor their source into the CLI package.
+      | - Do not commit path dependencies, editable installs, or moving branch refs for production or release builds.
+      | - Use SemVer-compatible dependency ranges in library/package metadata where compatibility allows; keep exact artifact resolution in lockfiles and release records.
+      | - Validate cross-repo behavior with consumer tests and compatibility fixtures rather than forcing every sibling package to release in lockstep.
+   E4 document-claim evidence/A1/supersession-chains.csv | hand-compiled; chain CH1
+===== F-A1-008 observation recorded-intent {'measure': 'M6 recorded contradictions', 'deviation': None} | Team Kitty / hosted surfaces | derived []
+scope {'covered': 'PROGRAM.md, GOAL.md, core ADR 2026-10-06-1, core charter', 'not_covered': 'spec-kitty-saas repository (not in scope)', 'population': None, 'sample': None, 'seed': None}
+   E1 spec-kitty-planning:PROGRAM.md:5-9 file-sha OK
+      | ## 1. What we are building
+      | 
+      | Team Kitty + Spec Kitty as decided on 2026-08-25 — two design pages, both in `design/` — plus the Live Work programme added 2026-09-13 and amended 2026-09-14:
+      | 
+      | - **Ephemeral Team Status** (2026-08-25; recorded-work posture restored 2026-09-14) — mission/WP status flows through each team's own Zeitgeist relay within its recent live window. Presence stays ephemeral. Work beyond that window
+   E2 spec-kitty-planning:GOAL.md:1-6 file-sha OK
+      | # GOAL.md — the one goal (set by Robert, 2026-08-26, session goal hook and this file identical)
+      | 
+      | THE GOAL is the MVP: a human can run this end to end, on hosted infrastructure, and it passes:
+      | 
+      | 1. Team Kitty runs at https://team.spec-kitty.ai (sk-teamkitty on exe.dev). A team exists, GitHub is connected through the Team Kitty App, the admitted-repo list shows what the installation covers, and the team has its own Zeitgei
+      | 2. On a laptop, a team member installs the exact stable CLI from the public PyPI/GitHub **4.x launch release** recorded in planning#1999 (Robert reaffirmed the 4.x target on 2026-09-13; the old v3.2.6 and conflicting 3.3.0 directi
+   E3 spec-kitty:docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md:20-35 file-sha OK
+      | - docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
+      | ---
+      | 
+      | **Status:** Accepted. **Amended 2026-10-12** — the "do not build toward Team Kitty" rule is
+      | **scoped-lifted**: consumer-side UI/multiplayer built on the Mission Status Read API, and the
+      | event-dispatch / produce-drain adapter seam (`status/adapters.py`), are no longer blocked.
+      | Everything else hosted (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen
+      | unless the operator asks. The original decision below (hidden hosted CLI surfaces, retired
+      | `spk-team-*` skills) is unchanged. See "Amendment 2026-10-12" at the end.
+      | 
+      | **Date:** 2026-10-06 (amended 2026-10-12)
+      | 
+      | **Deciders:** <name removed> (repository owner).
+      | 
+      | **Technical Story:** the 4.0.0 [direction amendment](../../changelog/4.0.0.md) (2026-10-01) froze Team Kitty / SaaS work; this record takes the step from "frozen" to "no longer actively supported" for the surfaces the CLI ships.
+      | 
+   E4 spec-kitty:.kittify/charter/charter.md:521-521 file-sha OK
+      | - **4.x** — Current active line: governed delivery from agreed intent to a verified result. **4.0.0 GA ships "done when done" — it is not date-gated.** Release candidates keep shipping to early adopters off `main` in the meantime,
+===== F-A1-012 observation recorded-intent {'measure': 'M6 recorded contradictions', 'deviation': None} | owner of activation logic | derived []
+scope {'covered': 'three charters/ADRs', 'not_covered': 'any record of the 2026-11-16 ruling in core or charter repos', 'population': None, 'sample': None, 'seed': None}
+   E1 spec-kitty-open-packs:.kittify/charter/charter.md:15-20 file-sha OK
+      | **Ownership (operator ruling, 2026-11-16).** Packs and their schema, structure
+      | and validation are no longer a concern of the core repository. Core
+      | ([`spec-kitty/spec-kitty`](https://github.com/spec-kitty/spec-kitty)) is the
+      | deployable, assembler surface; the canonical owner of the logic (the pack
+      | schemas, validation, resolution, the DRG, activation) is the charter repository
+      | ([`spec-kitty/spec-kitty-charter`](https://github.com/spec-kitty/spec-kitty-charter)).
+   E2 spec-kitty:.kittify/charter/charter.md:425-433 file-sha OK
+      | **Charter (direction; a 4.0.0 GA-gating precondition).** The charter is **not** a third
+      | external contract package, and nothing Python moves to `spec-kitty-charter`. The Python
+      | charter stays in core until it is retired: the offering's reads cut over to the
+      | `spec-kitty-charter` service through `charter.offering.api` (core's frozen seam), and the
+      | Python offering is replaced in place, not extracted; `charter.activation` stays in core, and
+      | its switch to the charter surface is a 4.0 deliverable, no longer post-GA: after the charter
+      | contract's 1.0.0 remote cutover the charter service is authoritative for activation and the
+      | activation ledger is its mapped local copy (ADR `2026-10-16-1`, Amendments 2026-10-19 and
+      | 2026-10-20). The 4.0.0 GA leg is that frozen
+   E3 spec-kitty-charter:docs/adr/0010-cutover-scope-and-seam-boundary.md:73-90 file-sha OK
+      | ## Decision
+      | 
+      | 1. **ADR-0008 stands.** Nothing Python moves to this repository. The Python charter stays in
+      |    core behind the seam until its reads are retired. Core is asked to amend P4 (below).
+      | 2. **Cutover scope.** At the cutover, every read of Charter Pack or offering data goes
+      |    through this repository's API:
+      |    - the offering's own read paths;
+      |    - the reads that `charter.activation` makes of offering data. Activation's own state
+      |      logic stays in core.
+      | 3. **Compile is the one exemption.** Compile keeps a Python read path for its inputs. A
+      |    ratchet test in core stops any other caller from using it. It retires when compile
+      |    becomes the first write migrated to Java (stage 5).
+      | 4. **Stages 3 and 4 ship together.** There is no period in which Java answers with Python
+      |    behind it. The release that routes reads to Java also stops calling Python for reads
+      |    ([ADR-0011](/adr/0011-seam-runtime-fail-closed-daemon-and-freshness/): fail closed).
+      | 5. **The conformance corpus alone gates the switch-over.** A divergence on the supported
+===== F-A1-025 observation recorded-intent {'measure': 'M6 recorded contradictions', 'deviation': None} | mission-status contract owner | derived []
+scope {'covered': 'doc-kitty ADR-0082, events charter and ADR-0002', 'not_covered': "doc-kitty's vendored contract snapshot", 'population': None, 'sample': None, 'seed': None}
+   E1 doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:36-80 file-sha OK
+      | ## Context
+      | 
+      | A kittified repository keeps its Spec Kitty **missions** in `kitty-specs/` and
+      | its **Ops** in `kitty-ops/`. Core moved its docs to doc-kitty and dropped the
+      | DocFX mission dashboards (spec-kitty/spec-kitty#6941), so nothing renders that
+      | status any more. Core's scale shapes the design: 835 missions (271 MB) and about
+      | 3,900 Ops, with about 1,000 new Ops a week.
+      | 
+      | Core owns the status. `status.events.jsonl` is the authority, and `status.json`
+      | is a snapshot that core's reducer derives from it. Some missions use a
+      | coordination topology, and their live status can sit on another branch, so a
+      | read of the checkout misreports them while they are in flight. Core's ADR
+      | 2026-10-01-2 defines a **Mission Status Read API**, with an overview of many
+      | missions, a detail view of one mission, and canonical conformance fixtures. It
+      | is core's public contract for mission status. No command lists or exports every
+      | mission yet.
+   E2 doc-kitty:docs/adr/0082-missions-and-ops-through-a-mission-status-contract-reader.md:300-306 file-sha OK
+      | ## Versioning and pinning
+      | 
+      | | What | Pinned by | Moves when |
+      | |---|---|---|
+      | | Core's mission-status contract | doc-kitty's vendored snapshot and `contract.lock.json`: a core commit, then a contract release tag (spec-kitty/spec-kitty#7627). `missions.contract` overrides it | A doc-kitty release refreshes i
+      | | The export | Its own `schema_version` and cursor, written by the consumer's pinned core | The consumer upgrades core. An unknown major is a warning and facts-only pages |
+      | | The file-adapter sources | The consumer's checkout | Each build. Pages are labelled "snapshot, unverified" |
+   E3 spec-kitty-events:.kittify/charter/charter.md:86-93 file-sha OK
+      | ## Services
+      | 
+      | Amendment of 2026-10-29 (spec-kitty/spec-kitty-events#147; [ADR 0002](../../docs/adr/0002-events-domain-owns-its-services.md), [ADR 0003](../../docs/adr/0003-gradle-build-and-service-release-line.md), [ADR 0004](../../docs/adr/000
+      | 
+      | - This repository owns the events-domain services: the Mission Status Read API and the Mission Write API / event-log write core, their OpenAPI contracts under `contracts/`, and their `service-v*` release line (ADR 0002). The servi
+      | - Core and every other consumer pin released `service-v*` assets by tag and sha256 only (ADR 0002, ADR 0004). No consumer builds the services from source or fetches an asset by a moving reference.
+      | - The services must not depend on core (`spec-kitty/spec-kitty`) at build time or at run time. The only allowed coupling is the test-only core pin in Package Boundary.
+      | - The services are Java 25, built in the same Gradle build as the Java binding, and ship as GraalVM native images plus a JVM jar (ADR 0003). The rules in Testing Standards and Quality Gates apply to them.
+===== F-A1-026 observation recorded-intent {'measure': 'M3 decision timeline (index)', 'deviation': None} | decision records | derived []
+scope {'covered': 'all ADR trees of five repos, planning decisions/ and architecture/docs/adr', 'not_covered': 'ADR-like records outside ADR folders (e.g. charter repo plans/open-questions)', 'population': '521 records', 'sample': None, 'seed': None}
+   E1 document-claim evidence/A1/decision-timeline.csv | python3 evidence/A1/script-index-adrs.txt <scratch> <out> (indexes every ADR/decision file of the five repos + planning at head)
+===== F-A1-031 observation recorded-intent {'measure': 'M2 documented dependency model', 'deviation': "Relation vocabulary extended with must-not-ship, oracle-parity and qualified variants in parentheses where a record's rule did not fit the five listed values."} | documented relationships | derived []
+scope {'covered': 'records listed in the source column', 'not_covered': 'observed graph (not consulted by design)', 'population': '72 relationship rows', 'sample': None, 'seed': None}
+   E1 document-claim evidence/A1/documented-relationships.csv | hand-compiled; script-build-relationships.txt
+   E2 document-claim evidence/A1/units-without-recorded-internal-structure.csv | hand-compiled with the sources_searched column
+===== F-A1-038 interpretation recorded-intent {'measure': 'exploratory', 'deviation': None} | charter activation | derived ['F-A1-011', 'F-A1-012', 'F-A1-013']
+scope {'covered': '', 'not_covered': '', 'population': None, 'sample': None, 'seed': None}

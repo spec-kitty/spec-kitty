@@ -1,0 +1,4 @@
+sha256 values in pin file: 8
+release assets whose API digest equals a pinned value: 8 ['conformance-fixtures-0.1.0-rc.1.tar.gz', 'contract-bundles-0.1.0-rc.1.tar.gz', 'contract-tools-0.1.0-rc.1.tar.gz', 'mission-status-api-0.1.0-rc.1-linux-arm64', 'mission-status-api-0.1.0-rc.1-linux-x64', 'mission-status-api-0.1.0-rc.1-macos-arm64', 'mission-status-api-0.1.0-rc.1-windows-x64.exe', 'mission-status-api-0.1.0-rc.1.jar']
+pinned values with no release asset: 0
+['tag', 'commit'] ['# Bump only with `spec-kitty service vendor --service <name> --tag <tag>`; never edit by hand.', 'tag: service-v0.1.0-rc.1', 'commit: 2f5e03948b5262185d15e45019fe14fbc473b9b5']

@@ -1,0 +1,14 @@
+population 816 of 857 directories
+seeded sample equals artefact sample: True
+019-autonomous-multi-agent-orchestration-research exit 0 identical False wps 8 8 lane differences 0 top keys differing ['schema_version']
+artifact-none-single-meaning-01M5365S exit 0 identical False wps 3 3 lane differences 0 top keys differing ['mission_number', 'mission_type', 'schema_version']
+built-in-pack-from-open-packs-01M59V4T exit 0 identical False wps 9 9 lane differences 0 top keys differing ['mission_number', 'mission_type', 'schema_version']
+gate-scan-scope-completeness-01M6BTVM exit 0 identical False wps 2 2 lane differences 0 top keys differing ['mission_number', 'mission_type', 'schema_version']
+implement-review-retrospect-reliability-01KQQSCW exit 0 identical False wps 6 6 lane differences 0 top keys differing ['schema_version']
+integration-boundary-01KW0PBE exit 0 identical False wps 5 5 lane differences 0 top keys differing ['schema_version']
+mission-base-window-bound-01M78XB4 exit 0 identical False wps 5 5 lane differences 0 top keys differing ['mission_number', 'mission_type', 'schema_version']
+per-project-sync-consent-ledgers-01KZKMQZ exit 0 identical False wps 11 11 lane differences 0 top keys differing ['schema_version']
+review-merge-gate-hardening-3-2-x-01KRC57C exit 0 identical False wps 8 8 lane differences 0 top keys differing ['schema_version']
+stability-and-hygiene-hardening-2026-04-01KQ4ARB exit 0 identical False wps 8 8 lane differences 0 top keys differing ['schema_version']
+terminus-reconciliation-attribution-integrity-01M3D4RW exit 0 identical False wps 2 2 lane differences 0 top keys differing ['mission_type', 'schema_version']
+verification-trust-3115-01KYVYWM exit 0 identical False wps 13 13 lane differences 0 top keys differing ['schema_version']

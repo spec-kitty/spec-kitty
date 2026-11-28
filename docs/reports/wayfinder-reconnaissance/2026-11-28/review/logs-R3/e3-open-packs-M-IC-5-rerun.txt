@@ -1,0 +1,108 @@
+## baseline (head f9a557510d)
+$ scripts/ci/check-pack-digests.sh
+exit=0
+$ python3 scripts/docs/gen_pack_reference.py --check
+No drift: 19 pack page(s) up to date.
+exit=0
+$ python3 -m unittest discover -s tests/ci
+    _CONTRACT_CACHE[key] = load_contract(fetch_contract(Path(scratch)))
+                                         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R3/co-spec-kitty-open-packs/scripts/ci/validate_pack_schemas.py", line 217, in fetch_contract
+    table_bytes = get("file-kinds.yaml")
+  File "/tmp/claude-0/-home-user/8e7878bc-ed16-58f9-9a0e-caec07f98b23/scratchpad/rv-R3/co-spec-kitty-open-packs/scripts/ci/validate_pack_schemas.py", line 214, in get
+    raise GateError(f"cannot fetch {base}/{relative}: {exc!r}") from exc
+validate_pack_schemas.GateError: cannot fetch https://raw.githubusercontent.com/spec-kitty/spec-kitty-charter/cb9b15426d17c402b06204185a17ebfbc65f22ff/contracts/packs/file-kinds.yaml: <HTTPError 404: 'Not Found'>
+
+----------------------------------------------------------------------
+Ran 315 tests in 21.120s
+
+FAILED (errors=4, skipped=2)
+exit=1
+## M-IC-5 applied
+$ scripts/ci/check-pack-digests.sh
+::error file=packs/built-in.source.yaml::packs/built-in/ digest 131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c != recorded 39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d; run `python3 scripts/ci/pack_digest.py --update built-in`
+exit=1
+$ python3 scripts/docs/gen_pack_reference.py --check
+Drift detected in generated pack pages: built-in
+exit=1
+$ python3 -m unittest discover -s tests/ci
+
+First differing element 1:
+'131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c\n'
+'39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d\n'
+
+- (0, '131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c\n')
++ (0, '39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d\n')
+
+----------------------------------------------------------------------
+Ran 315 tests in 18.907s
+
+FAILED (failures=4, errors=4, skipped=2)
+exit=1
+$ python3 scripts/ci/check_vocabulary.py
+vocabulary: 758 pack file(s) scanned, 0 finding(s)
+exit=0
+## M-IC-5 + regenerated digest and pages
+$ python3 scripts/ci/pack_digest.py --update built-in
+updated: packs/built-in.source.yaml
+exit=0
+$ python3 scripts/docs/gen_pack_reference.py
+wrote docs/packs/built-in.md
+Generated 19 pack page(s) (1 written, 18 unchanged).
+exit=0
+$ scripts/ci/check-pack-digests.sh
+exit=0
+$ python3 scripts/docs/gen_pack_reference.py --check
+No drift: 19 pack page(s) up to date.
+exit=0
+$ python3 -m unittest discover -s tests/ci
+
+First differing element 1:
+'131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c\n'
+'39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d\n'
+
+- (0, '131a7d2cf77222b67baf90cce7da8d9ecd1c49e23abe08d6da23500db4b8792c\n')
++ (0, '39b79575672c97c0562ac2751cc754defbda387a3509e8ace214953a76169e3d\n')
+
+----------------------------------------------------------------------
+Ran 315 tests in 20.314s
+
+FAILED (failures=3, errors=4, skipped=2)
+exit=1
+$ python3 scripts/ci/check_vocabulary.py
+vocabulary: 758 pack file(s) scanned, 0 finding(s)
+exit=0
+$ python3 -m unittest discover -s tests/release
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 2.352s
+
+OK
+exit=0
+$ python3 -m unittest discover -s tests/vocabulary
+......................................
+----------------------------------------------------------------------
+Ran 38 tests in 0.161s
+
+OK
+exit=0
+$ python3 -m unittest discover -s tests/docs
+.........................wrote docs/packs/built-in.md
+Generated 1 pack page(s) (1 written, 0 unchanged).
+No drift: 1 pack page(s) up to date.
+No drift: 1 pack page(s) up to date.
+Orphaned generated pack pages (pack no longer exists): docs/packs/removed-pack.md
+........................
+----------------------------------------------------------------------
+Ran 49 tests in 2.856s
+
+OK
+exit=0
+$ python3 -m unittest discover -s tests/assets
+ssssssssssssssscanned 1 files, 1 tests; 0 flagged; 0 new ledgers; wrote out
+.......
+----------------------------------------------------------------------
+Ran 21 tests in 0.019s
+
+OK (skipped=14)
+exit=0

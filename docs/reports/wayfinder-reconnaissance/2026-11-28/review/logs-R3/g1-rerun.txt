@@ -1,0 +1,44 @@
+core head walk exit=0
+charter head walk exit=0
+charter rc3 walk exit=0
+core I5 exit=0
+spec_kitty_cli-4.0.0rc8-py3-none-any.whl
+core-head I1_cycles.json rerun=7c1441c656d3 committed=7c1441c656d3 SAME
+core-head I2_private_access.csv rerun=8be0655b51ec committed=8be0655b51ec SAME
+core-head I3_reverse_layer.csv rerun=c0e81166e810 committed=c0e81166e810 SAME
+core-head I4_cli_in_domain.csv rerun=d1a96a379b7f committed=d1a96a379b7f SAME
+core-head I5-summary.txt rerun=84886f1c5c47 committed=cb8c5c65ea37 DIFF
+core-head I5_state_literals.csv rerun=b42c0467e01d committed=b42c0467e01d SAME
+core-head stdout.txt (no committed counterpart)
+core-head summary.json rerun=774e5d80d7ee committed=e72472bb75fe DIFF
+charter-head I1_cycles.json rerun=abf23292e458 committed=abf23292e458 SAME
+charter-head I2_private_access.csv rerun=d4da95491f75 committed=d4da95491f75 SAME
+charter-head I3_reverse_and_inward.csv rerun=c9a3a883a2ab committed=c9a3a883a2ab SAME
+charter-head I4_cli_in_domain.csv rerun=37fdff381a48 committed=37fdff381a48 SAME
+charter-head I5_file_writes.csv rerun=e684fe350933 committed=e684fe350933 SAME
+charter-head stdout.txt (no committed counterpart)
+charter-head summary.json rerun=a37f182d3a0f committed=00f72cd3f218 DIFF
+charter-rc3 I1_cycles.json rerun=f869e611fc8b committed=f869e611fc8b SAME
+charter-rc3 I2_private_access.csv rerun=40422465f433 committed=40422465f433 SAME
+charter-rc3 I3_reverse_and_inward.csv rerun=9ff43f6d5263 committed=9ff43f6d5263 SAME
+charter-rc3 I4_cli_in_domain.csv rerun=33e237bdbc85 committed=33e237bdbc85 SAME
+charter-rc3 I5_file_writes.csv rerun=796a496ebcc4 committed=796a496ebcc4 SAME
+charter-rc3 stdout.txt (no committed counterpart)
+charter-rc3 summary.json rerun=56f667b036d9 committed=c2903b614d3d DIFF
+core-rc8 I1_cycles.json rerun=ea35568621a0 committed=ea35568621a0 SAME
+core-rc8 I2_private_access.csv rerun=fa171da743c0 committed=fa171da743c0 SAME
+core-rc8 I3_reverse_layer.csv rerun=94b42a07dbfc committed=94b42a07dbfc SAME
+core-rc8 I4_cli_in_domain.csv rerun=16d4dbb7647c committed=16d4dbb7647c SAME
+{"L1_top_package|all_imports": {"baseline_rc8": {"components": 6, "edges": 14, "scc_count": 1, "scc_sizes": [3]}, "head": {"components": 6, "edges": 14, "scc_count": 1, "scc_sizes": [3]}, "cyclic_edges_baseline": 5, "cyclic_edges_head": 5, "new_cyclic_edges": [], "removed_cyclic_edges_count": 0, "components_newly_in_a_cycle": [], "components_no_longer_in_a_cycle": [], "head_sccs_small": [["mission_runtime", "runtime", "specify_cli"]]}, "L1_top_package|module_level_runtime": {"baseline_rc8": {"components": 6, "edges": 14, "scc_count": 1, "scc_sizes": [3]}, "head": {"components": 6, "edges": 14, "scc_count": 1, "scc_sizes": [3]}, "cyclic_edges_baseline": 5, "cyclic_edges_head": 5, "new_cyclic_edges": [], "removed_cyclic_edges_count": 0, "components_newly_in_a_cycle": [], "components_no_longer_in_a_cycle": [], "head_sccs_small": [["mission_runtime", "runtime", "specify_cli"]]}, "L2_second_level|all_imports": {"baseline_rc8": {"components": 189, "edges": 1243, "scc_count": 3, "scc_sizes": [2, 4, 85]}, "head": {"components": 191, "edges": 1280, "scc_count": 3, "scc_sizes": [2, 4, 86]}, "cyclic_edges_baseline": 626, "cyclic_edges_head": 642, "new_cyclic_edges": ["runtime.next -> specify_cli.mission_v1", "specify_cli.cli -> specify_cli.analysis_inputs", "specify_cli.cli -> specify_cli.mission_v1", "specify_cli.config -> specify_cli.cli", "specify_cli.consolidation -> specify_cli.invocation", "specify_cli.coordination -> specify_cli.invocation", "specify_cli.mission_v1 -> mission_runtime.__init__", "specify_cli.mission_v1 -> runtime.next", "specify_cli.mission_v1 -> specify_cli.core", "specify_cli.mission_v1 -> specify_cli.git", "specify_cli.missions -> specify_cli.consolidation", "specify_cli.orchestrator_api -> specify_cli.mission_v1", "specify_cli.review -> specify_cli.lanes
+<class 'dict'> ['L1_top_package|all_imports', 'L1_top_package|module_level_runtime', 'L2_second_level|all_imports', 'L2_second_level|module_level_runtime']
+L1_top_package|all_imports {'components': 6, 'edges': 14, 'scc_count': 1, 'scc_sizes': 1, 'sccs': 1, 'cyclic_edges': 5}
+L1_top_package|module_level_runtime {'components': 6, 'edges': 14, 'scc_count': 1, 'scc_sizes': 1, 'sccs': 1, 'cyclic_edges': 5}
+L2_second_level|all_imports {'components': 191, 'edges': 1280, 'scc_count': 3, 'scc_sizes': 3, 'sccs': 3, 'cyclic_edges': 642}
+L2_second_level|module_level_runtime {'components': 191, 'edges': 971, 'scc_count': 1, 'scc_sizes': 1, 'sccs': 1, 'cyclic_edges': 347}
+core L1_top_package|all_imports cyclic head 5 base 5 new 0 removed 0 newly in cycle []
+core L1_top_package|module_level_runtime cyclic head 5 base 5 new 0 removed 0 newly in cycle []
+core L2_second_level|all_imports cyclic head 642 base 626 new 16 removed 0 newly in cycle ['specify_cli.mission_v1']
+core L2_second_level|module_level_runtime cyclic head 347 base 338 new 9 removed 0 newly in cycle []
+charter head keys {'gradle_modules': 16, 'module_edges_all_configurations': 53, 'module_edges_production_configurations': 50, 'module_sccs_all': 1, 'module_sccs_production': 0, 'slice_nodes': 11, 'slice_edges': 38, 'slice_sccs': 1, 'ring_nodes': 45, 'ring_edges': 160, 'ring_sccs': 0, 'ring_cyclic_edges': 0}
+{"gradle_modules": ["activations", "artifacts-edge", "charter-api", "charter-reports", "deployable", "kernel", "missions", "missions-edge", "pack-doctor", "pack-validation", "packs", "profiles", "profiles-edge", "routing", "routing-edge", "web-transport"], "module_edges_all_configurations": ["activations -> charter-api", "activations -> kernel", "activations -> packs", "activations -> web-transport", "artifacts-edge -> activations", "artifacts-edge -> charter-api", "artifacts-edge -> kernel", "artifacts-edge -> packs", "artifacts-edge -> routing", "artifacts-edge -> web-transport", "deployable -> activations", "deployable -> artifacts-edge", "deployable -> kernel", "deployable -> missions-edge", "deployable -> pack-doctor", "deployable -> pack-validation", "deployable -> packs", "deployable -> profiles-edge", "deployable -> routing", "deployable -> routing-edge", "deployable -> web-transport", "missions -> kernel", "missions-edge -> activations", "missions-edge -> charter-api", "missions-edge -> missions", "missions-edge -> packs", "missions-edge -> web-transport", "pack-doctor -> pack-validation", "pack-doctor -> packs", "pack-validation -> kernel", "pack-validation -> missions", "pack-validation -> packs", "pack-validation -> profiles", "packs -> charter-api", "packs -> kernel", "packs -> missions", "packs -> pack-validation", "packs -> profiles", "packs -> routing", "packs -> web-transport", "profiles -> kernel", "profiles-edge -> activations", "profiles-edge -> charter-ap
+{"module_sccs_all": {"baseline_rc3": [["pack-validation", "packs"]], "head": [["pack-validation", "packs"]], "newly_in_cycle": [], "no_longer_in_cycle": []}, "module_sccs_production": {"baseline_rc3": [], "head": [], "newly_in_cycle": [], "no_longer_in_cycle": []}, "slice_sccs": {"baseline_rc3": [["activations", "missions", "packs", "profiles", "routing"]], "head": [["activations", "missions", "packs", "profiles", "routing"]], "newly_in_cycle": [], "no_longer_in_cycle": []}, "ring_sccs": {"baseline_rc3": [], "head": [], "newly_in_cycle": [], "no_longer_in_cycle": []}, "modules": {"baseline": 16, "head": 16, "added": ["pack-doctor"]}, "pack_validation_packs_edges_head": ["pack-validation -> packs", "packs -> pack-validation"]}

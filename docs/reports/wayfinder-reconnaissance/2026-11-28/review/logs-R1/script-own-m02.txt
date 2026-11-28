@@ -1,0 +1,32 @@
+import json,sys,re,fnmatch,subprocess,random,csv,collections
+S=sys.argv[1]; out=json.load(open(S+'/own_commits.json'))
+REQ=re.compile(r'^[+-]\s*"?[A-Za-z0-9_.-]+(\[[^\]]*\])?\s*(==|>=|<=|~=|<|>)')
+def pin(paths,sha):
+    for p in paths:
+        if fnmatch.fnmatch(p,'packs/*.source.yaml') or p.startswith('pins/') or p=='uv.lock': return True
+        if p=='pyproject.toml':
+            d=subprocess.run(['git','-C','/home/user/spec-kitty','show','--format=','-U0',sha,'--','pyproject.toml'],capture_output=True,text=True).stdout
+            if any(REQ.match(l) for l in d.splitlines() if not l.startswith(('+++','---'))): return True
+    return False
+def contract(paths):
+    for p in paths:
+        if p.startswith(('kitty-specs/','tests/')): continue
+        segs=p.split('/'); b=segs[-1]
+        if any(s in('contracts','contract','schemas','schema') for s in segs[:-1]) or fnmatch.fnmatch(b,'*.schema.json') or fnmatch.fnmatch(b,'*schema*.yaml') or fnmatch.fnmatch(b,'*schema*.yml') or fnmatch.fnmatch(b,'openapi*'): return True
+    return False
+A=[];B=[];nei=0;win=0
+for o in out:
+    if not(o['line']=='converged' and '2026-09-07'<=o['day']<='2026-11-28' and o['fix'] and not o['bulk']): continue
+    win+=1
+    if o['n']>=2 or pin(o['paths'],o['sha']) or contract(o['paths']): A.append(o['sha'])
+    elif o['n']==1: B.append(o['sha'])
+    else: nei+=1
+print('window fix commits',win,'A',len(A),'B',len(B),'neither',nei)
+E_=S.rsplit('/rv-R1',1)[0]
+ev='/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/C/'
+for name,mine in(('m02a',A),('m02b',B)):
+    fr=sorted(r['sha'] for r in csv.DictReader(open(ev+name+'-frame.csv')))
+    print(name,'investigator frame',len(fr),'mine',len(mine),'common',len(set(fr)&set(mine)),'only inv',len(set(fr)-set(mine)),'only mine',len(set(mine)-set(fr)))
+    smp=random.Random(20261128).sample(fr,30)
+    tr=[r['sha'] for r in csv.DictReader(open(ev+'m02-trace-sample.csv')) if r['frame']==name]
+    print(name,'seeded sample of investigator frame equals traced sample:',sorted(s[:12] for s in smp)==sorted(tr), len(tr))

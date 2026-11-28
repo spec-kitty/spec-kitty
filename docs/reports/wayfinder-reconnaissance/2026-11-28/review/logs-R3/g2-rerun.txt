@@ -1,0 +1,43 @@
+{
+"I1": null,
+"I2": null,
+"I3_intra": null,
+"I4": null,
+"I5": null,
+"facts": {
+"main_java_files": 1003,
+"edges": 8900,
+"internal_edges": 4070
+}
+}
+I1 main cycles [] main+test cycles [['pack-validation', 'packs']]
+I1 undocumented edges [('activations', 'charter-api'), ('packs', 'charter-api'), ('packs', 'missions'), ('packs', 'profiles'), ('packs', 'routing')]
+I1 slice cycles [['activations', 'missions', 'packs', 'profiles', 'routing']] ring cycles 0 pkg sccs 2 of 78
+I2 A 0 B 6
+I3 kernel 0 domain->outer 0 domain->fw 0
+I4 0
+I5 nonowner 18 {'activations.infra.storage': 10, 'packs.infra.archive': 5, 'packs.infra.fetch': 5, 'packs.infra.storage': 57}
+java exit=0
+status_event_log refmods 155 refmods_outside_owner 154 cand_owner 0 cand_outside 15 distinct_modules_outside 10 module_level_owner 1 module_level_outside 36
+activation_record refmods 14 refmods_outside_owner 13 cand_owner 1 cand_outside 0 distinct_modules_outside 0 module_level_owner 1 module_level_outside 2
+migration_ledger refmods 9 refmods_outside_owner 8 cand_owner 0 cand_outside 0 distinct_modules_outside 0 module_level_owner 1 module_level_outside 3
+pins refmods 11 refmods_outside_owner 8 cand_owner 1 cand_outside 0 distinct_modules_outside 0 module_level_owner 1 module_level_outside 2
+i5 exit=0
+5ed46f1506805e1ee3d6da27512adbc9ac4d92eb893eb0c2f680ae60e9791006  core_imports.csv
+charter_java_checks.json
+charter_java_edges.csv
+core_checks.json EQUAL as JSON
+core_i5.json EQUAL as JSON
+charter_java_checks.json EQUAL as JSON
+own 013: sites 57 subpackages 15 [('consolidation', 17), ('tasks', 13), ('orchestrator_api', 11)] [('specify_cli.cli.console', 26), ('specify_cli.cli.commands.review._issue_matrix', 7)]
+L2 sizes [85, 4, 2] largest includes specify_cli.cli True
+own 003d: [('specify_cli.missions._read_path_resolver', 46), ('runtime.next._internal_runtime.*', 35), ('kernel._safe_re', 15)]
+own 014: ALLOWED_CALLERS 5 outside status 5 ['append_annotations_atomic_verified', 'append_event_stream_atomic_verified', 'append_events_atomic_verified', 'append_primary_checkout_events_atomic_verified', 'append_raw_rows_atomic']
+tc excl rows 65 file-line-target 57 file-line 57 files 36 [('consolidation', 17), ('tasks', 16), ('orchestrator_api', 13)] [('specify_cli.cli.console', 27), ('specify_cli.cli.commands.review._issue_matrix', 10)]
+tc incl rows 70 file-line-target 61 file-line 61 files 38 [('tasks', 19), ('consolidation', 17), ('orchestrator_api', 13)] [('specify_cli.cli.console', 27), ('specify_cli.cli.commands.review._issue_matrix', 14)]
+{'0', '1'} {'relative', 'dynamic', 'from', 'import'}
+ALLOWED_CALLERS entries 9 outside status 7 ['specify_cli.coordination.status_service', 'specify_cli.decisions.emit', 'specify_cli.events.event_bridge', 'specify_cli.migration.backfill_runtime_state', 'specify_cli.migration.verdict_provenance_backfill', 'specify_cli.retrospective.events', 'specify_cli.retrospective.lifecycle_events', 'specify_cli.status.emit', 'specify_cli.status.lifecycle_events']
+ALLOWED_OUT_OF_STORE_WRITE_SITES 2 ['specify_cli.lanes.auto_rebase', 'specify_cli.migration.rebuild_state']
+EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES 2 ['specify_cli.consolidation.bookkeeping_projection', 'specify_cli.status.mission_write']
+KNOWN_DYNAMIC_EVENT_LOG_WRITE_SITES 3 ['specify_cli.status.migrate_lifecycle_envelope', 'specify_cli.status.event_log_merge', 'specify_cli.consolidation.phase_advance']
+writes-gate modules 7 outside status 4 shared with ALLOWED_CALLERS set()

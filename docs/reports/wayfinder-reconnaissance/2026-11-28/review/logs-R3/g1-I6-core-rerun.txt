@@ -1,0 +1,63 @@
+## A: git-archive copy
+
+hint: Build failures usually indicate a problem with the package or the build environment
+build_exit=2 build_seconds=1
+total 12
+drwxr-xr-x 2 root root 4096 Nov 28 14:10 .
+drwxr-xr-x 3 root root 4096 Nov 28 14:10 ..
+-rw-r--r-- 1 root root    1 Nov 28 14:10 .gitignore
+== step1b sibling-source references in build output dir listing of packs:
+README.md
+built-in.source.yaml
+internal.source.yaml
+== step2 install in fresh venv
+error: The wheel filename "*.whl" is invalid: Must have a version
+install_exit=2
+== step3 smoke (cwd=/, no source tree on path)
+/home/user/spec-kitty/docs/reports/wayfinder-reconnaissance/2026-11-28/evidence/G1/check-core-I6-build-install.txt: line 10: <scratch>/rv-R3/i6/wA/venv/bin/spec-kitty: No such file or directory
+version_exit=127
+Traceback (most recent call last):
+ModuleNotFoundError: No module named 'kernel'
+import_exit=1
+== step3b installed external contract packages do not require core:
+Traceback (most recent call last):
+StopIteration
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+importlib.metadata.PackageNotFoundError: No package metadata was found for spec-kitty-events
+== step3c any path into sibling checkouts recorded in the installed dist:
+0
+
+## B: own clone at head after sync_packs (co-spec-kitty)
+uv 0.11.32 (x86_64-unknown-linux-gnu)
+Python 3.13.18
+== step1 build wheel
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Building wheel...
+Successfully built <scratch>/rv-R3/i6/wB/dist/spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+build_exit=0 build_seconds=3
+total 10168
+drwxr-xr-x 2 root root     4096 Nov 28 14:10 .
+drwxr-xr-x 3 root root     4096 Nov 28 14:10 ..
+-rw-r--r-- 1 root root        1 Nov 28 14:10 .gitignore
+-rw-r--r-- 1 root root 10395981 Nov 28 14:10 spec_kitty_cli-4.0.0rc9-py3-none-any.whl
+== step1b sibling-source references in build output dir listing of packs:
+README.md
+built-in
+built-in.source.yaml
+internal
+internal.source.yaml
+== step2 install in fresh venv
+install_exit=0
+== step3 smoke (cwd=/, no source tree on path)
+spec-kitty-cli version 4.0.0rc9
+version_exit=0
+import ok <scratch>/rv-R3/i6/wB/venv/lib/python3.13/site-packages/specify_cli/__init__.py
+import_exit=0
+== step3b installed external contract packages do not require core:
+spec-kitty-events 11.3.0 []
+spec-kitty-tracker 0.5.2 []
+== step3c any path into sibling checkouts recorded in the installed dist:
+0

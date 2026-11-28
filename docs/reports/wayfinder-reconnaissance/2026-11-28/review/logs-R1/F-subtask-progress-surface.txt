@@ -1,0 +1,32 @@
+# subtask progress surface at core 5c4fc5a and orchestrator 8be32b1 (reviewer R1)
+                                                                                
+ Usage: spec-kitty agent tasks mark-status [OPTIONS] {task_ids}...              
+                                                                                
+ Record subtask status for one or more tasks.                                   
+                                                                                
+ Accepts multiple task IDs separated by spaces. Status is recorded in the       
+ mission event log. Use --wp when the same ID appears in more than one WP.      
+                                                                                
+def _inject_subtask_tracking(prompt_text: str, subtask_ids: list[str], mission: str) -> str:
+    """Prepend best-effort per-subtask mark-status guidance to the prompt.
+
+    A cooperative agent calls ``mark-status`` after each completed subtask so
+    dashboard progress updates during its WP-level run. The orchestrator does
+    not mark anything itself: unchecked tasks remain genuine host-gate evidence.
+    """
+    if not subtask_ids:
+        return prompt_text
+    lines = [
+        "## Agent Subtask Completion Protocol",
+        "",
+        "After completing **each** subtask, run this command immediately—do **not**",
+        "wait until all subtasks are done:",
+        "",
+    ]
+    for t_id in subtask_ids:
+        lines.append(
+            f"    spec-kitty agent tasks mark-status {shlex.quote(t_id)}"
+            f" --status done --mission {shlex.quote(mission)}"
+        )
+    lines += [
+        "",

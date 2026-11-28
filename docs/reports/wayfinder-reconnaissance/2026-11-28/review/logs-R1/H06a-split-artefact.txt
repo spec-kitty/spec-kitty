@@ -1,0 +1,20 @@
+Q1 split-count 3 recorded 3 items with unbalanced parentheses 0 | starts: spec-kitty/docs/adr/2.x/2026-03-27-1-pytestarch-architectura
+Q2 split-count 4 recorded 4 items with unbalanced parentheses 2 | starts: Same ADR body spec-kitty/docs/adr/2.x/2026-02-09-3-event-log
+Q3 split-count 2 recorded 2 items with unbalanced parentheses 0 | starts: spec-kitty/docs/adr/4.x/2026-11-06-6-committed-ledger-is-the
+Q4 split-count 5 recorded 5 items with unbalanced parentheses 4 | starts: spec-kitty-charter/docs/adr/0005-service-registers-and-distr
+Q5 split-count 2 recorded 2 items with unbalanced parentheses 0 | starts: spec-kitty-events/.kittify/charter/charter.md:72 (programme 
+Q6 split-count 3 recorded 3 items with unbalanced parentheses 2 | starts: spec-kitty-charter/docs/adr/0033-local-active-charter-is-sou
+Q7 split-count 5 recorded 5 items with unbalanced parentheses 4 | starts: spec-kitty/docs/plans/domains/doctrine-charter-domain-plan.m
+Q8 split-count 8 recorded 8 items with unbalanced parentheses 4 | starts: spec-kitty/docs/development/how-to/service-pins.md:35-38 (no
+Q9 split-count 1 recorded 0 items with unbalanced parentheses 0 | starts: No contradicting source found. spec-kitty/docs/guides/how-to
+Q10 split-count 1 recorded 0 items with unbalanced parentheses 0 | starts: No contradicting source found on identity or lookup. Wording
+Q11 split-count 4 recorded 4 items with unbalanced parentheses 0 | starts: Other local precedence rules: spec-kitty/docs/architecture/a
+Q12 split-count 3 recorded 3 items with unbalanced parentheses 0 | starts: spec-kitty/docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-
+Q13 split-count 1 recorded 0 items with unbalanced parentheses 0 | starts: No direct contradiction on wheel content. spec-kitty/docs/ad
+Q14 split-count 3 recorded 3 items with unbalanced parentheses 2 | starts: spec-kitty/docs/context/mission-types.md:21-23 (each type de
+Q15 split-count 2 recorded 2 items with unbalanced parentheses 0 | starts: spec-kitty/docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the
+Q16 split-count 2 recorded 0 items with unbalanced parentheses 0 | starts: No contradicting source found. Consumption modes differ: cor
+Q17 split-count 2 recorded 2 items with unbalanced parentheses 0 | starts: spec-kitty-charter/docs/context/user-journeys/08-resolve-a-s
+Q18 split-count 2 recorded 2 items with unbalanced parentheses 2 | starts: spec-kitty/.kittify/charter/charter.md:702-706 (Exception Ha
+Q19 split-count 1 recorded 0 items with unbalanced parentheses 0 | starts: No contradicting source found.
+Q20 split-count 4 recorded 4 items with unbalanced parentheses 0 | starts: spec-kitty/docs/adr/4.x/2026-10-19-1-activation-ledger-persi

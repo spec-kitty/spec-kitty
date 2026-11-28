@@ -1,0 +1,7 @@
+A1 files 22 manifest rows 21 sha mismatch [] listed-but-absent [] unlisted [] folder KB 463 >500KB [] ext {'.csv', '.txt'} findings 38 cols ok True
+A2 files 21 manifest rows 20 sha mismatch [] listed-but-absent [] unlisted [] folder KB 241 >500KB [] ext {'.csv', '.txt'} findings 20 cols ok True
+F files 30 manifest rows 29 sha mismatch [] listed-but-absent [] unlisted [] folder KB 149 >500KB [] ext {'.csv', '.json', '.txt'} findings 28 cols ok True
+CX files 15 manifest rows 14 sha mismatch [] listed-but-absent [] unlisted [] folder KB 166 >500KB [] ext {'.csv', '.txt'} findings 13 cols ok True
+C files 39 manifest rows 38 sha mismatch [] listed-but-absent [] unlisted [] folder KB 1274 >500KB [] ext {'.csv', '.txt'} findings 33 cols ok True
+C2 files 44 manifest rows 43 sha mismatch [] listed-but-absent [] unlisted [] folder KB 1343 >500KB [] ext {'.csv', '.json', '.txt'} findings 32 cols ok True
+H06a files 15 manifest rows 14 sha mismatch [] listed-but-absent [] unlisted [] folder KB 334 >500KB [] ext {'.csv', '.json', '.txt'} findings 21 cols ok True
