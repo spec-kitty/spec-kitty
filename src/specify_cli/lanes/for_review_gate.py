@@ -222,18 +222,39 @@ def _evaluate_repo_root_lane_gate(
     """The claim-base variant of the gate, for a repo-root lane WP (WP02,
     contracts/single-branch-execution.md "Claim base and for_review").
 
-    A repo-root lane has no lane branch of its own to diff -- ``lane_branch``
-    here is the mission's target branch, reported for the decision's
-    surfacing only. If the claim-base ref is missing (a WP claimed before
-    this gate existed), this falls back to the ORDINARY refusal below rather
-    than passing vacuously (#5100 scope note: never trust an absent ref as
-    "nothing to check").
+    A repo-root lane has no lane branch of its own to diff: the gate diffs
+    ``<claim base>..HEAD`` in the checkout the WP resolves to. ``lane_branch``
+    is the branch reported on the decision: the mission's target branch for
+    the repository root checkout, or the Mission branch for the planning lane
+    of a default Mission that has not landed, whose WP is worked in the
+    Mission-branch checkout (#7860, FR-011); a Mission-branch checkout that
+    resolved with no branch name fails closed. If the claim-base ref is missing
+    (a WP claimed before this gate existed), this falls back to the ORDINARY
+    refusal below rather than passing vacuously (#5100 scope note: never
+    trust an absent ref as "nothing to check").
     """
     from specify_cli.lanes.claim_base import read_claim_base
-    from specify_cli.workspace.context import resolve_workspace_for_wp
+    from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, resolve_workspace_for_wp
 
     base_sha = read_claim_base(main_repo_root, mission_slug, wp_id)
-    write_checkout = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id).worktree_path
+    workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+    write_checkout = workspace.worktree_path
+    on_mission_branch = workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND
+    if on_mission_branch:
+        if not workspace.branch_name:
+            # Fail closed: never report the target as the Mission branch.
+            return GateDecision(
+                passed=False,
+                reason=(
+                    f"{wp_id} cannot move to for_review: the Mission branch checkout {write_checkout} "
+                    "resolved with no branch name, so its claim window cannot be judged. "
+                    f"Check the Mission's meta.json and the checkout, then retry, {_FORCE_HINT}"
+                ),
+                lane_id=lane_id,
+                lane_branch=None,
+                base_ref=base_sha,
+            )
+        lane_branch = workspace.branch_name
 
     if base_sha is not None and _has_qualifying_commit_since_claim_base(write_checkout, base_sha, mission_slug):
         return GateDecision(
@@ -242,11 +263,12 @@ def _evaluate_repo_root_lane_gate(
             lane_branch=lane_branch,
             base_ref=base_sha,
         )
+    where = f"the Mission branch checkout {write_checkout} (branch {lane_branch})" if on_mission_branch else "the repository root checkout"
     return GateDecision(
         passed=False,
         reason=(
             f"{wp_id} cannot move to for_review: no implementation commit since claim "
-            f"in the repository root checkout beyond {base_sha or '<no recorded claim base>'}. "
+            f"in {where} beyond {base_sha or '<no recorded claim base>'}. "
             "Commit the work first, or pass --force if there is genuinely nothing to "
             "commit."
         ),

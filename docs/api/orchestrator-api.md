@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.31.0`
+- `CONTRACT_VERSION`: `1.32.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -291,6 +291,20 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `implement --incorporate <sibling lane>`, resolve, `for_review`, an independent approval, re-run);
   text only, no new field. A call that could answer `success: true` now refuses, so a minor bump;
   no field or `error_code` is removed or renamed.
+- `1.32.0` — a planning-lane work package's workspace resolution (#7860) on `start-implementation`
+  and `resolve-workspace` (and the `start-review` / `transition` stamp path) never puts an
+  unregistered code in `error_code`. A refusal whose own code the contract does not register
+  (`PLANNING_CHECKOUT_MISSING`, and `WRITE_CHECKOUT_WRONG_BRANCH` / `WRITE_CHECKOUT_OCCUPIED` /
+  `WRITE_CHECKOUT_DIRTY`, which used to leak on `start-implementation`) is reported as
+  `LANE_ALLOCATION_FAILED` (`TRANSITION_REJECTED` on the stamp path) with that code in the new
+  optional `data.workspace_error_code`; a failure with no code (an unreadable `meta.json`, a work
+  package that cannot be resolved) is named in the new optional `data.error_type`.
+  `resolve-workspace` on a planning-lane work package now resolves its workspace and can fail
+  this way. For a default Mission's planning work package before it lands, `workspace_path` and
+  `lane_branch` name the Mission-branch checkout (the coordination worktree) and the Mission
+  branch, and the `execution_mode` stamp of a planning-lane work package is `direct_repo` on every
+  topology. Additive optional keys plus a changed `error_code` on previously-leaking refusals, so
+  a minor bump; no key is removed or renamed.
 
 ## Response Envelope
 
@@ -298,7 +312,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.31.0",
+  "contract_version": "1.32.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1009,6 +1023,11 @@ transitioning. Use it to resume a WP already past `start-implementation`
 interrupted run, where calling `start-implementation` would wrongly
 re-transition it). No `--policy` is required: the command mutates nothing.
 The composed path is not guaranteed to exist for a WP that was never started.
+For a planning-lane WP (contract >= 1.32.0) the workspace is resolved: a default
+Mission's planning WP resolves to the Mission-branch checkout and the Mission
+branch before the Mission lands, and a resolution failure is
+`LANE_ALLOCATION_FAILED` with `data.workspace_error_code` (for example
+`PLANNING_CHECKOUT_MISSING`) or `data.error_type`.
 
 ### Mark implementation ready for review
 
@@ -1116,7 +1135,7 @@ documented in the same change that registers it.
 - `UNSUPPORTED_STRATEGY`
 - `HISTORY_COMMIT_FAILED`
 - `DEPENDENCIES_NOT_SATISFIED`
-- `LANE_ALLOCATION_FAILED`
+- `LANE_ALLOCATION_FAILED` (`start-implementation`, `resolve-workspace`: since 1.32.0 a planning-lane workspace refusal whose own code is not registered carries it in `data.workspace_error_code`, e.g. `PLANNING_CHECKOUT_MISSING` or `WRITE_CHECKOUT_*`; a failure with no code is named in `data.error_type`)
 - `ANCESTRY_NOT_ESTABLISHED`
 - `STATUS_LOCK_HELD` (`start-implementation`: the single_branch write-checkout claim lock stayed held past its bound; retry)
 - `SAFE_COMMIT_BACKSTOP`
@@ -1208,7 +1227,7 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `IMPLEMENTATION_MISSING` | (1.21.0) An approved work package's evidence window holds no change to its `owned_files` (Mission files the CLI writes itself, such as `tasks/`, `lanes.json` or `acceptance-matrix.json`, never count). | Commit the work package's change to its owned files and have it reviewed and approved again, or record `spec-kitty accept` / `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"` (host commands only) when it owes none. |
 | `REVIEW_NOT_INDEPENDENT` | (1.21.0) The approver is not provably another identity than the implementer of record: the same tool with no model or profile recorded on both sides that differs, or an identity that is not recorded (a placeholder such as `user` included). | Have a reviewer with another identity review and approve it (`--agent <tool>:<model>:<profile>`). No attestation lifts it. |
 | `IMPLEMENTATION_UNREADABLE` | (1.21.0) The evidence window cannot be diffed, for example the lane branch or the recorded planning commit is gone. A lane branch that is truly absent is reported as absent, with its own cause. | Restore or fetch actual recorded lane history and the planning commit where they existed. Local refs, including sibling presence, do not prove the missing lane ever existed; never manufacture its window from target-branch work. No local lane refs is also consistent with target-branch execution, pruning or an incomplete fetch. The verified PR-merge route (`accept --mode pr --merge-commit <sha>`) stays available under its existing checks. Without that landing or a lane window to restore, escalate [#7120](https://github.com/spec-kitty/spec-kitty/issues/7120) instead of retrying that window. |
-| `EVIDENCE_WINDOW_UNCOMPUTABLE` | (1.21.0) `lanes.json` records no planning commit, or the work package is in no lane. | Re-run `spec-kitty agent mission finalize-tasks`, re-run. |
+| `EVIDENCE_WINDOW_UNCOMPUTABLE` | (1.21.0) `lanes.json` records no planning commit, or the work package is in no lane; or (#7860) for a planning work package of a default Mission that has not landed, the commit on the Mission branch that introduced its claim cannot be proven (no window-opening status event is recorded, or no single commit introduced it). | Re-run `spec-kitty agent mission finalize-tasks`, re-run, for the first two causes. For the planning-window cause, start a new evidence window with the restart steps the refusal prints (see `docs/migrations/planning-lane-write-branch.md`), then re-run. |
 | `OWNERSHIP_UNRESOLVED` | (1.23.0) The work package's `owned_files` cannot be read: its task file, or the whole `tasks/` directory, is missing or unreadable, so there is no declaration to judge the evidence against. An authored empty list is not this case. | Restore or commit the task file with its `owned_files`, or run from the checkout that owns the Mission, re-run. No attestation lifts it. |
 | `SINGLE_BRANCH_OWNERSHIP_UNRESOLVED` | (1.23.0, #7149) The `single_branch` alias of `OWNERSHIP_UNRESOLVED`. | As for `OWNERSHIP_UNRESOLVED`. |
 | `SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` | (#5939) The same three meanings on a `single_branch` Mission, which keeps emitting these aliases. | As for the neutral code. |

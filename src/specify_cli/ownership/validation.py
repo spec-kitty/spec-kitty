@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 __all__ = [
     "ValidationResult",
     "build_wp_manifests",
+    "globs_overlap",
     "validate_no_overlap",
     "validate_authoritative_surface",
     "validate_execution_mode_consistency",
@@ -92,7 +93,7 @@ class ValidationResult:
         return len(self.errors) == 0
 
 
-def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
+def globs_overlap(pattern_a: str, pattern_b: str) -> bool:
     """Return True if the two glob patterns can match a common path.
 
     Strategy: we test whether each pattern matches the other as a literal,
@@ -222,7 +223,7 @@ def validate_no_overlap(
 
         for glob_a in manifest_a.owned_files:
             for glob_b in manifest_b.owned_files:
-                if _globs_overlap(glob_a, glob_b):
+                if globs_overlap(glob_a, glob_b):
                     errors.append(
                         f"Overlap: {wp_a} ({glob_a!r}) and {wp_b} ({glob_b!r}) "
                         f"claim overlapping paths."

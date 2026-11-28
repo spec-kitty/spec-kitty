@@ -10,7 +10,7 @@ These helpers patch ``<name>`` in every family module whose namespace binds it,
 which reproduces the old interception set (a module that binds a name it never
 looks up is unaffected by the patch). It also patches the consumers outside the
 family that bind the same object by name (``phase_claim``, ``phase_gate``,
-``forecast``, ``claim_inputs``), so a family patch reaches them too. Tests that need
+``forecast``, ``claim_inputs``, ``planning_lane_walk``), so a family patch reaches them too. Tests that need
 only one family module patch that module directly.
 
 Scope notes:
@@ -43,6 +43,7 @@ from specify_cli.consolidation import (
     forecast,
     phase_claim,
     phase_gate,
+    planning_lane_walk,
     reconciliation,
     reconciliation_authorship,
     reconciliation_bound,
@@ -86,7 +87,12 @@ RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (
 # widen every family patch to modules no patch needs to reach. WP08/WP09
 # retargets: when a patched name becomes bound by one of these modules, add
 # that module here.
-RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast, claim_inputs)
+#
+# ``planning_lane_walk`` (#7860, review 8) holds the planning lane's walk, moved out of
+# ``reconciliation_authorship`` at its size limit; it binds the git probes and kernel helpers the
+# walk read there (``path_state_at``, ``changed_paths_of``, ``commits_on_ancestry_path``,
+# ``_is_bookkeeping``, ...), so a family patch of one still reaches the walk.
+RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast, claim_inputs, planning_lane_walk)
 
 
 def _is_patch_receiver(value: ast.expr) -> bool:

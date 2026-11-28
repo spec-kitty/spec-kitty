@@ -1,0 +1,149 @@
+{
+  "mission_slug": "planning-lane-write-branch-01M8A725",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Before a default lanes_with_coord Mission lands, implement (agent action implement, native implement, orchestrator-api start-implementation and resume) names the checkout holding the Mission branch (the coordination worktree, resolution kind mission_branch_checkout) as a planning work package's workspace; with no checkout holding that branch it refuses PLANNING_CHECKOUT_MISSING and never falls back to the repository root checkout.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_planning_evidence_window.py::test_planning_work_on_the_topic_branch_moves_into_review; tests/specify_cli/workspace/test_planning_workspace_7860.py::{test_a_default_missions_planning_wp_resolves_to_the_mission_branch_checkout,test_a_resumed_claim_resolves_to_and_prints_the_mission_branch_checkout,test_a_removed_coordination_worktree_refuses_and_never_falls_back_to_the_root,test_a_mission_branch_no_checkout_holds_refuses_from_the_planning_arm}; tests/coordination/test_planning_lane_target.py::{test_a_settled_default_mission_writes_in_the_coordination_worktree,test_a_default_mission_whose_branch_no_checkout_holds_refuses}; tests/orchestrator_api/test_planning_start_7860.py::{test_start_and_resume_name_the_mission_branch_checkout,test_the_start_implementation_envelope_names_the_mission_branch_checkout,test_a_mission_branch_no_checkout_holds_reports_planning_checkout_missing_in_data}",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:00:07.653604+00:00",
+      "notes": "Satisfied. Residual 8a (pinned by tests/integration/test_7860_planning_evidence_window.py::test_a_removed_coordination_worktree_fails_closed, PASSED; docs/migrations/planning-lane-write-branch.md:242-248): when the coordination worktree is removed, the Mission lookup refuses first (agent action implement: 'Error locating work package'; orchestrator-api: WP_NOT_FOUND/MISSION_NOT_FOUND), so the real CLI fails closed but does not print the PLANNING_CHECKOUT_MISSING remedy of contract C1 row 3; the resolver-level refusal exists and is tested. Known gap, not a fallback."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "implement's planning-work-package output (workspace banner, workspace contract line, next prompt, code-dependency deferral line) names the Mission branch, worded 'the Mission branch <b> (the coordination branch)', instead of 'the repository root checkout on the target branch'; other shapes keep today's text.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/specify_cli/workspace/test_planning_workspace_7860.py::{test_the_implement_banner_names_the_mission_branch_checkout,test_the_next_prompt_names_the_mission_branch_and_asks_for_the_commit,test_the_dependency_alert_names_the_mission_branch_checkout_and_no_rebase,test_the_dependency_alert_keeps_todays_lines_for_other_shapes,test_the_topology_names_the_mission_branch_for_the_planning_entry}; tests/integration/test_7860_planning_evidence_window.py::test_planning_work_on_the_topic_branch_moves_into_review (asserts the Mission branch is in implement output). Code: src/specify_cli/cli/commands/implement.py:316-335; src/specify_cli/cli/commands/agent/workflow.py:2036-2050; src/specify_cli/workspace/context.py:99",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:00:29.745732+00:00",
+      "notes": "Satisfied. C-003 checked: the workflow.py diff is the single deferral-message hunk at :2036 (git diff f1ecef5db..lane-e)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Before a default Mission lands, every caller of the implementation-evidence axis (move-task into review, accept / orchestrator-api accept-mission and consolidate-mission via mission_evidence_report, the consolidate claim via evaluate_evidence, --attest-no-implementation planning) judges its planning lane on one window ending at the Mission branch, so owned work committed there counts.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/consolidation/test_planning_evidence_callers_7860.py::test_every_caller_passes_the_real_wp_and_refuses_the_hollow_one_on_one_window; tests/consolidation/test_planning_evidence_window_7860.py::{test_owned_work_committed_on_the_mission_branch_after_the_claim_counts,test_each_planning_work_package_is_judged_on_its_own_window}; tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::{test_owned_work_on_the_mission_branch_passes_on_the_planning_window,test_real_git_owned_work_after_the_claim_moves_into_review}; tests/integration/test_7860_planning_evidence_window.py::test_planning_work_on_the_topic_branch_moves_into_review; tests/integration/test_7860_consolidate_planning_lane.py::test_planning_work_inside_the_mission_directory_lands (accept + consolidate real CLI)",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:00:35.962888+00:00",
+      "notes": "Satisfied. Residual per ADR docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md Amendment 2026-11-25 residuals: a Mission landed through a pull request with no local landing record keeps the Mission-branch window until the branch is pruned, then refuses IMPLEMENTATION_UNREADABLE (fails closed); the orchestrator-api callers are covered at the mission_evidence_report seam, not by a real orchestrator-api accept-mission run."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A planning work package with no owned change in its window is refused IMPLEMENTATION_MISSING; the refusal shows the window '..<Mission branch> (lane-planning)' and the recovery text says to commit on the Mission branch; a hollow work package never gets the target-only addendum.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_planning_evidence_window.py::{test_a_hollow_planning_work_package_is_still_refused,test_a_sibling_commit_is_not_the_work_packages_evidence}; tests/consolidation/test_planning_evidence_window_7860.py::{test_a_hollow_planning_work_package_is_refused_with_a_window_ending_at_the_mission_branch,test_the_recovery_text_names_the_mission_branch}; tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::test_a_hollow_planning_work_package_is_refused_naming_the_mission_branch; tests/consolidation/test_planning_evidence_callers_7860.py::{test_every_caller_passes_the_real_wp_and_refuses_the_hollow_one_on_one_window,test_a_sibling_commit_inside_the_window_is_not_evidence}",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:00:42.078350+00:00",
+      "notes": "Satisfied; paired with FR-003 on the same fixtures (SC-002)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The planning workspace, the claim base and the planning evidence window (start and end) all read one write-branch authority: mission_runtime.planning_write_ref (on default_mission_primary_ref and the landed signal) and coordination.planning_commit.planning_lane_target (on primary_partition_checkout); no second resolver of the default-Mission rule exists.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/consolidation/test_planning_write_ref_single_authority_7860.py::{test_every_planning_surface_follows_the_one_authority,test_without_the_patch_every_surface_reports_the_target,test_the_default_mission_rule_has_one_home,test_the_scan_catches_a_second_copy}; tests/coordination/test_planning_lane_target.py::test_the_target_follows_the_one_write_branch_reader; tests/specify_cli/workspace/test_planning_workspace_7860.py::test_the_planning_workspace_follows_the_one_planning_lane_target; tests/mission_runtime/test_planning_write_ref.py (all PASSED); C-001 ratchet tests/integration/test_7860_planning_evidence_window.py::_assert_review_range_holds via test_planning_work_on_the_topic_branch_moves_into_review",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:05.451067+00:00",
+      "notes": "Satisfied for the surfaces FR-005 names. By operator ruling A' (DM-01M8A72VBXGSG12B7X9PJX8G30, C-001) the review range is NOT folded onto planning_write_ref until #5604: review/wp_range.py keeps its own read of default_mission_primary_ref assuming 'not landed' (recorded drift risk, ADR 2026-11-06-3 Amendment 2026-11-25). Verified C-001: git diff f1ecef5db..lane-e is empty for src/specify_cli/review/wp_range.py, src/specify_cli/status/lane_head.py, src/specify_cli/status/wp_window_selector.py. Review range residual: it lists owned_files pathspecs only (docs/migrations/planning-lane-write-branch.md:262-265)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Explicit-topology Missions, landed default Missions, single_branch default Missions and every code lane keep today's workspace (repository root checkout / lane worktree) and evidence window (planning pin .. target / lane branch).",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_planning_evidence_window.py::test_explicit_topology_keeps_the_repository_root_checkout; tests/consolidation/test_planning_evidence_window_7860.py::{test_an_explicit_topology_keeps_the_target_window,test_a_landed_default_mission_keeps_the_target_window,test_a_code_lane_beside_the_planning_lane_keeps_its_lane_window}; tests/specify_cli/workspace/test_planning_workspace_7860.py::{test_an_explicit_topology_keeps_the_repository_root_result,test_a_landed_default_mission_keeps_the_repository_root_result,test_a_default_single_branch_repo_root_lane_is_unchanged,test_a_default_missions_code_lane_wp_is_unchanged}; tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::test_every_other_shape_keeps_the_target_window; tests/mission_runtime/test_planning_write_ref.py::test_a_landed_default_mission_writes_on_the_target; tests/orchestrator_api/test_planning_start_7860.py::test_an_explicit_topology_keeps_the_repository_root_checkout; #6715 ratchet: tests/integration/test_6715_*.py + tests/consolidation/test_wp_evidence*.py 108 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:06:53.383244+00:00",
+      "notes": "Satisfied. One intended behaviour change outside the ruled shape is documented: #7877 (move-task --to done before landing needs --done-override-reason for a pre-#7816 code_change WP placed in lane-planning; fails safe). A PR-landed Mission without a local landing record is not 'landed' for this rule (spec edge case, #6780 --merge-commit route unchanged)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "For an in-flight default Mission whose planning work was committed on the target only, IMPLEMENTATION_MISSING says the owned change was found on the target branch only, names those commit SHAs (and not an unrelated later target commit), and gives both remedies: cherry-pick onto the Mission branch, or --attest-no-implementation; a probe failure keeps the refusal.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_planning_evidence_window.py::test_target_only_planning_work_is_refused; tests/consolidation/test_planning_evidence_window_7860.py::{test_owned_work_found_only_on_the_target_is_named_with_both_remedies,test_an_owned_commit_already_on_the_mission_branch_is_not_target_only,test_the_probe_failure_keeps_the_refusal_and_says_why}; tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::{test_owned_work_on_the_target_only_is_named_with_both_remedies,test_a_probe_error_keeps_the_refusal}",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:11.477533+00:00",
+      "notes": "Satisfied. Guidance only, no migration and no second evidence rule (operator in-flight ruling DM-01M8A72XS74148VWC20FR52SH8, C-002)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Proposed amendments exist to ADR 2026-11-06-3 (the planning lane writes to the Mission branch until landing) and ADR 2026-10-04-5 (the planning evidence window runs on the Mission branch, claim-commit start, in-flight guidance, residuals).",
+      "proof_type": "manual_review",
+      "evidence": "lane-e aa3f4f9b38: docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md:13 (status line) and :244 '## Amendment 2026-11-25 (Proposed)'; docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md:11 (status line) and :433 '## Amendment 2026-11-25 (Proposed)' with residuals list through :450",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:17.611224+00:00",
+      "notes": "Satisfied; both marked Proposed per C-006 (operator accepts by merging)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "A changelog fragment and a docs/migrations/ note state the rule change and the in-flight remedy.",
+      "proof_type": "manual_review",
+      "evidence": "lane-e aa3f4f9b38: docs/changelog/unreleased/7860.fixed.md:1, 7860.upgrade-notes.md:1-2, 7860-planning-claim-base.fixed.md:1, 7860-orchestrator-workspace-codes.changed.md:1; docs/migrations/planning-lane-write-branch.md:23-178 (rule), :198-222 (in-flight recovery: cherry-pick or --attest-no-implementation), :240-265 (Known residuals); index docs/migrations/README.md:51. Doc gates PASSED: tests/docs/test_changelog_fragments_are_not_pages.py, tests/docs/test_changelog_style.py, tests/docs/test_dockitty_frontmatter_shape.py (166 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:23.691035+00:00",
+      "notes": "Satisfied."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "A default Mission's planning evidence window starts at the commit on the Mission branch that introduced the work package's window-opening (claim) status event, so Mission content authored before the claim (spec, plan, a planning-time research draft) never counts; an unresolvable start refuses EVIDENCE_WINDOW_UNCOMPUTABLE, an unreadable log or meta.json refuses IMPLEMENTATION_UNREADABLE.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_planning_evidence_window.py::test_pre_existing_owned_file_is_not_evidence; tests/consolidation/test_planning_evidence_window_7860.py::{test_an_owned_file_authored_before_the_claim_is_not_evidence,test_a_planning_work_package_with_no_opener_refuses,test_a_claim_event_not_committed_on_the_mission_branch_refuses,test_an_unreadable_event_log_refuses,test_an_unreadable_meta_json_refuses}; tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::{test_real_git_a_pre_claim_draft_is_not_evidence,test_an_unprovable_planning_window_refuses}; tests/consolidation/test_planning_evidence_callers_7860.py::test_an_unproven_window_start_is_worded_by_its_reason",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:45.978776+00:00",
+      "notes": "Satisfied. Window start chosen by operator ruling DM-01M8A7QWFC31BE8DS27KES9E6F (claim-event commit, same derivation as the review range Q10/Q12)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The claim base recorded at implement (agent action implement, native implement, orchestrator-api start-implementation) is the HEAD of the resolved Mission-branch checkout, and the move-into-review gate counts commits there, so the Mission's planning history ahead of the target does not satisfy it; explicit topologies keep the repository root HEAD.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/lanes/test_planning_claim_base_7860.py::{test_the_claim_base_is_the_mission_branch_checkouts_head,test_agent_action_implement_records_the_claim_base_and_the_gate_passes_owned_work,test_native_implement_records_the_mission_branch_checkouts_head,test_the_gate_refuses_a_hollow_planning_wp_despite_mission_history_ahead_of_the_target,test_the_gate_passes_one_owned_commit_in_the_mission_branch_checkout,test_an_explicit_topology_records_the_repository_root_head,test_the_gate_fails_closed_when_the_mission_branch_checkout_has_no_branch,test_a_sibling_commit_passes_the_coarse_gate}; tests/orchestrator_api/test_planning_start_7860.py::{test_start_and_resume_name_the_mission_branch_checkout,test_a_claim_base_that_cannot_be_recorded_is_an_envelope}",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:52.310014+00:00",
+      "notes": "Satisfied. As the spec states, the gate is coarse (a sibling's commit since the claim satisfies it, pinned by test_a_sibling_commit_passes_the_coarse_gate); the owned-file evidence check is the real check. An in-flight claim keeps its old clone-local base (plan IC-03 risk)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "consolidate of a default lanes_with_coord Mission lands planning work that sits only on the Mission branch, exit 0 with the reconciliation gate passing, both for owned files inside kitty-specs/<slug>/ and for the pre-#7816 shape whose owned files lie outside it; the planning lane is credited only for each approved work package's own owned_files inside its own claim window, fail closed otherwise.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/integration/test_7860_consolidate_planning_lane.py::{test_planning_work_inside_the_mission_directory_lands,test_pre_7816_planning_work_outside_the_mission_directory_lands} (SC-006, 2 of 2); tests/integration/test_7860_canceled_planning_wp.py::test_a_dropped_planning_work_package_is_named_and_its_printed_remedy_lands; tests/integration/test_7860_unrecorded_mission_base.py::test_a_mission_with_no_recorded_base_is_named_and_lands_once_the_base_is_recorded; tests/consolidation/test_planning_lane_authorship_7860.py (55 tests), test_planning_lane_notes_7860.py, test_planning_lane_pre_pin_7860.py (all PASSED)",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:02:20.981578+00:00",
+      "notes": "Satisfied, with operator-ruled narrowing: R1 (2026-11-27) the planning lane authors nothing while any planning WP is not approved/done, and no attestation lifts that; R2 (2026-11-27) each approved WP is credited only for its own owned_files inside its own claim window; the two-literal-segment rule (2026-11-26) makes a too-broad owned_files pattern author nothing. Open residuals (docs/migrations/planning-lane-write-branch.md:240-265, planning_lane_walk.py module docstring): (a) no approval-stamp bound on the planning lane; (b) owned_files read from the live working tree, not frozen on --resume; (c) a copy with unchanged source or a below-threshold rename reads as an added file credited to the commit; (d) a target change brought into the Mission branch to an owned file makes it un-attributable with no verified remedy (#7891). Also a Mission with no recorded mission_base_sha gets no planning credit until the base is recorded by hand (#7892). #7877: move-task --to done before landing asks --done-override-reason for a pre-#7816 code_change WP in lane-planning (fails safe)."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "A CLI status commit in the shared coordination worktree carries only status paths and leaves a planning agent's untracked, modified and staged edits uncommitted and intact; move-task never auto-commits deliverables in that shared checkout.",
+      "proof_type": "automated_test",
+      "evidence": "lane-e aa3f4f9b38, PASSED: tests/coordination/test_shared_coord_worktree_7860.py::test_a_status_commit_in_the_coordination_worktree_leaves_planning_edits_alone (real git, production door emit_status_transition_transactional); tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py::{test_the_shared_checkout_is_never_swept_into_a_deliverables_commit,test_the_auto_commit_note_names_the_mission_branch_checkout}",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:01:58.421802+00:00",
+      "notes": "Satisfied."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "The glossary (docs/context/orchestration.md, docs/context/topology.md) and the docstrings that said planning work resolves to the repository root checkout / lands on the target state the new rule.",
+      "proof_type": "manual_review",
+      "evidence": "lane-e aa3f4f9b38: docs/context/orchestration.md:178; docs/context/topology.md:77, :155; src/specify_cli/ownership/kind_normalisation.py:5; src/specify_cli/ownership/workspace_strategy.py:14, :37; src/specify_cli/workspace/context.py:16; CLAUDE.md:453 and AGENTS.md:453 (identical clause). Gates PASSED: tests/architectural/test_no_legacy_terminology.py, tests/architectural/test_workspace_resolution_doc.py, tests/architectural/test_dead_builtin_doc_paths.py (103 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-28T01:02:04.530660+00:00",
+      "notes": "Satisfied."
+    }
+  ],
+  "negative_invariants": []
+}

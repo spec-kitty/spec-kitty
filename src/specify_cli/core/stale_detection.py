@@ -28,7 +28,7 @@ from mission_runtime import OwnedCheckout
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
-from specify_cli.workspace.context import resolve_workspace_for_wp
+from specify_cli.workspace.context import is_shared_checkout_kind, resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
 LIVE_CLAIM_PROCESS_REASON = "live_claim_process"
@@ -80,8 +80,12 @@ class StaleCheckResult:
 
     @property
     def worktree_exists(self) -> bool:
-        """Deprecated flat compatibility field derived from the stale object."""
-        return self.workspace_kind != "repo_root" and self.workspace_exists
+        """Deprecated flat compatibility field derived from the stale object.
+
+        A shared checkout (the repository root checkout, or a default Mission's
+        Mission-branch checkout, #7860) is never a lane worktree.
+        """
+        return not is_shared_checkout_kind(self.workspace_kind) and self.workspace_exists
 
 
 def get_default_branch(repo_path: Path) -> str:

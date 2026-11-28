@@ -257,7 +257,7 @@ def _re_review_hint(merges: Sequence[UnreviewedMerge], mission_slug: str | None)
 
 
 def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> VerifyResult:
-    """Add the recovery to an un-attributable FAIL that declared no external dependency.
+    """Add the recoveries an un-attributable FAIL needs: the planning lane's note (#7860), then the FR-006 / #6771 recovery.
 
     #6771: a mission whose work-package branch brought a dependency branch's newer head in (with
     a real ``git merge --no-ff``, so the reviewed commits stand) sees every one of that branch's
@@ -266,23 +266,40 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
     when every un-attributable item is the own content of a merge the claim dropped as unreviewed
     (:func:`_dropped_merges_covering`), the hint names the re-review route instead; when only some
     items are, the ``--dependency-ref`` hint follows, scoped to the items no dropped merge explains
-    (operator ruling: it never reads as the route for the merge's content). A hint is
+    (operator ruling: it never reads as the route for the merge's content). That recovery is
     added ONLY when the claim declared nothing (a declared run is refused for a different,
     self-explaining reason) and only to the un-attributable axes — never to a refusal, and never to
-    a divergence this change does not own. It changes no verdict and leaves ``describe()`` alone.
+    a divergence this change does not own.
+
+    A planning lane that credits none of its Mission-branch work (``claim.planning_lane_notes``,
+    #7860 review 5) is named first, with its reason, work packages and remedy, declared ref or
+    not, but only when the FAIL is about that lane (review 6): an un-attributable path in its scope
+    or an un-attributable commit of its walk that changes one (:meth:`PlanningLaneNote.explains`).
+    A code lane's stray content never prints it. It changes no verdict and leaves ``describe()`` alone.
     """
-    if result.divergence is None or claim.external_dependency_refs:
+    if result.divergence is None:
         return result
     if not _has_unattributable(result.divergence):
         return result
-    merges = _dropped_merges_covering(result.divergence, claim)
+    divergence = result.divergence
+    paths = (*(path for path, _blob in divergence.unattributable_blobs), *divergence.unattributable_deletions)
+    commits = tuple(sha for sha, _patch_id in divergence.unattributable_content if sha)
+    hints = [note.text for note in claim.planning_lane_notes if note.explains(paths, commits)]
+    if not claim.external_dependency_refs:
+        hints.append(_recovery_hint(divergence, claim))
+    return replace(result, attribution_hint=" ".join(hints)) if hints else result
+
+
+def _recovery_hint(divergence: Divergence, claim: ApprovedWpCommitSet) -> str:
+    """The FR-006 re-review route for the dropped merges that explain *divergence*, else the #6771 ``--dependency-ref`` hint."""
+    merges = _dropped_merges_covering(divergence, claim)
     if not merges:
-        return replace(result, attribution_hint=_DEPENDENCY_REF_HINT)
+        return _DEPENDENCY_REF_HINT
     hint = _re_review_hint(merges, claim.mission_slug)
-    remaining = _uncovered_count(result.divergence, merges)
+    remaining = _uncovered_count(divergence, merges)
     if remaining:
         hint = f"{hint} For the remaining content ({remaining} item(s) no dropped merge explains): {_DEPENDENCY_REF_HINT}"
-    return replace(result, attribution_hint=hint)
+    return hint
 
 
 #: #5318/#5296 (FR-009): printed BEFORE the single rollback authority runs, so it

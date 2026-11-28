@@ -304,10 +304,15 @@ def _lane_tip_commits(repo_root: Path, coord_base_ref: str, branch: str) -> list
     return commits
 
 
+def _is_approved_wp(wp: str, work_packages: Mapping[str, Mapping[str, object]]) -> bool:
+    """True when *wp* is in an approved membership lane (``approved`` / ``done``): the claim's one approval predicate."""
+    return str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES
+
+
 def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> bool:
     """True when at least one of *lane*'s WPs is in an approved membership lane."""
     wp_ids = getattr(lane, "wp_ids", ())
-    return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
+    return any(_is_approved_wp(wp, work_packages) for wp in wp_ids)
 
 
 def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
@@ -349,6 +354,7 @@ __all__ = [
     "_LaneWalk",
     "_closed_world_anchors",
     "_dependency_lane_ids",
+    "_is_approved_wp",
     "_is_bookkeeping",
     "_is_nested_alias_coordination_file",
     "_lane_branch_for",

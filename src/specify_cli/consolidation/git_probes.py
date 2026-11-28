@@ -597,6 +597,24 @@ def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
     return list(cached_object_read(repo_root, (base, tip), _probe_key("range"), read))
 
 
+def commits_on_ancestry_path(repo_root: Path, base: str, tip: str, *, no_merges: bool = False) -> list[str]:
+    """Return the SHAs of ``base..tip`` that descend from *base* (``git rev-list --ancestry-path base..tip``).
+
+    ``base..tip`` (:func:`commits_in_range`) also holds every commit a merge brought in beside
+    *base*, which *base* cannot reach but which never came after it. The ancestry path keeps only
+    the commits made on top of *base* (#7860 review 5: a planning work package's window starts at
+    its claim commit). *no_merges* also drops every merge commit (``--no-merges``, #7860 review 6:
+    a merge that resolved a conflict can carry a change made before *base*). An empty result is a
+    genuinely empty path; a git error raises :class:`GitProbeError` (fail closed), as
+    :func:`commits_in_range` does.
+    """
+    args = ["git", "rev-list", "--ancestry-path", *(["--no-merges"] if no_merges else []), f"{base}..{tip}"]
+    ret, out, err = run_command(args, capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        raise GitProbeError(f"{' '.join(args)} failed (exit {ret}): {(err or '').strip()}")
+    return [line for line in out.splitlines() if line.strip()]
+
+
 def patch_id_of(repo_root: Path, sha: str) -> str:
     """Return the stable patch-id of *sha* — the identity of the CHANGE, not the commit.
 
@@ -929,6 +947,35 @@ def first_parent_changed_paths(repo_root: Path, sha: str) -> list[str]:
         raise GitProbeError(f"git diff --name-only {sha}^1 {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
+@dataclass(frozen=True)
+class LineageChange:
+    """One path *sha* changed against its first parent, with the path its content came from (#7860, review 8).
+
+    ``source`` is the path a rename or copy took the content from (``None`` for any other
+    change); ``renamed`` is True for a rename, whose source the same commit removed.
+    """
+
+    path: str
+    source: str | None = None
+    renamed: bool = False
+
+
+def first_parent_lineage_changes(repo_root: Path, sha: str) -> list[LineageChange]:
+    """The paths *sha* changed against its FIRST parent, with renames and copies detected (#7860, review 8).
+
+    ``kernel.git.changed_entries(<sha>^1, <sha>, copies=True)`` (``git diff -C --name-status``,
+    which detects renames as well): a renamed or copied path names the path its content came from,
+    so a caller can carry what it knows of that source across the move. A rename lists only its new
+    path; the source it removed is :attr:`LineageChange.source`. Raises :class:`GitProbeError` on
+    any git error (a root commit has no ``^1``), never ``[]``.
+    """
+    try:
+        entries = changed_entries(repo_root, f"{sha}^1", sha, copies=True)
+    except GitCommandError as exc:
+        raise GitProbeError(f"git diff -C --name-status {sha}^1 {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    return [LineageChange(str(entry.path), str(entry.orig_path) if entry.orig_path is not None else None, entry.status.startswith("R")) for entry in entries]
+
+
 def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, frozenset[str]]:
     """``git merge-tree --write-tree`` of *ours* + *theirs* (``kernel.git.merge_tree``): the written tree and the conflicted paths.
 
@@ -1249,6 +1296,7 @@ __all__ = [
     "is_ancestor_strict",
     "resolve_commit",
     "commits_in_range",
+    "commits_on_ancestry_path",
     "merge_own_changed_paths",
     "paths_changed_against_parents",
     "patch_id_of",
@@ -1265,4 +1313,6 @@ __all__ = [
     "MergeFoldCache",
     "n_way_merge_blob",
     "first_parent_changed_paths",
+    "LineageChange",
+    "first_parent_lineage_changes",
 ]

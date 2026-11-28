@@ -230,6 +230,14 @@ def test_changed_entries_with_renames(tmp_path: Path) -> None:
     assert entry.orig_path == P("p -> q")
 
 
+def test_changed_entries_with_copies(tmp_path: Path) -> None:
+    """``copies`` detects copies as well as renames (``-C``); a copy entry names its source."""
+    with _stub(b"C090\x00src.py\x00copy.py\x00") as run:
+        (entry,) = listing.changed_entries(tmp_path, "A", "B", copies=True)
+    assert _argv(run) == ("-c", "diff.relative=false", "diff", "--name-status", "-z", "-C", "A", "B", "--")
+    assert (entry.status, entry.orig_path, entry.path) == ("C090", P("src.py"), P("copy.py"))
+
+
 def test_commit_paths(tmp_path: Path) -> None:
     with _stub(b"x\x00") as run:
         assert listing.commit_paths(tmp_path, "abc") == (P("x"),)

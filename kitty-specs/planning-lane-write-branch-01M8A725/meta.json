@@ -1,0 +1,47 @@
+{
+  "accept_commit": "b30c89635b3b1972b3c37377476fdd3e92018e7c",
+  "acceptance_history": [
+    {
+      "accept_commit": "b30c89635b3b1972b3c37377476fdd3e92018e7c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-28T01:08:22.329657+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "ce07c816ce7ca88f114555415257e4930dad48fc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-28T01:08:22.329657+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "ce07c816ce7ca88f114555415257e4930dad48fc",
+  "coordination_branch": "kitty/mission-planning-lane-write-branch-01M8A725",
+  "create_return_branch": "fix/7860-planning-evidence-window",
+  "created_at": "2026-11-25T20:41:25.966794+00:00",
+  "flattened": false,
+  "friendly_name": "Planning lane writes to the Mission branch before landing",
+  "mid8": "01M8A725",
+  "mission_base_sha": "f1ecef5db98350be4516c576bcc1f7b422a25ebe",
+  "mission_branch": "kitty/mission-planning-lane-write-branch-01M8A725",
+  "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
+  "mission_number": 267,
+  "mission_slug": "planning-lane-write-branch-01M8A725",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today a Mission created without an explicit topology writes its planning artifacts to its topic branch, but implement sends planning work packages to the target branch and the move into review looks for their work there. Work in the wrong place is refused or reviewed from the wrong branch, so operators force moves by hand (#7860). One rule removes that friction without weakening the evidence check.",
+  "purpose_tldr": "Planning work packages of a default Mission are written, reviewed and evidenced on one branch: the Mission branch until it lands.",
+  "slug": "planning-lane-write-branch-01M8A725",
+  "status_phase": "1",
+  "target_branch": "fix/7860-planning-evidence-window",
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 5,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 5
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-25T21:28:52.650461+00:00"
+}

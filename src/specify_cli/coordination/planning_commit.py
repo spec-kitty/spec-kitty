@@ -255,6 +255,47 @@ def planning_checkout_root(repo_root: Path, artifact_source_dir: Path, mission_s
     return holder
 
 
+@dataclass(frozen=True)
+class PlanningLaneTarget:
+    """The planning lane's write branch and the checkout that holds it (#7860)."""
+
+    branch: str
+    checkout: Path
+    on_mission_branch: bool
+
+
+def planning_lane_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget:
+    """The planning lane's write branch and the checkout holding it: one answer for every surface (#7860).
+
+    The branch is :func:`mission_runtime.planning_write_ref` (the one write-branch rule). A
+    default Mission that has not landed writes in the checkout holding its Mission branch
+    (:func:`primary_partition_checkout`: the coordination worktree once settled, or the
+    repository root checkout while it still holds the branch). Every other Mission keeps the
+    repository root checkout. Owned checkouts are resolved by their own arm in
+    ``workspace.context`` and never reach this function.
+
+    Raises:
+        mission_runtime.PlanningCheckoutMissing: the Mission branch is the write branch but no checkout holds it.
+        mission_runtime.PlanningWriteRefUnavailable: ``meta.json`` (or a git read) is unreadable.
+    """
+    import mission_runtime
+
+    from specify_cli.core.git_ops import get_current_branch
+    from specify_cli.core.paths import get_main_repo_root
+
+    ref = mission_runtime.planning_write_ref(repo_root, mission_slug, target_branch)
+    main_root = get_main_repo_root(repo_root)
+    if not ref.on_mission_branch:
+        return PlanningLaneTarget(branch=ref.branch, checkout=main_root, on_mission_branch=False)
+    holder = primary_partition_checkout(repo_root, mission_slug)
+    if holder is not None:
+        return PlanningLaneTarget(branch=ref.branch, checkout=holder, on_mission_branch=True)
+    if get_current_branch(main_root) == ref.branch:
+        return PlanningLaneTarget(branch=ref.branch, checkout=main_root, on_mission_branch=True)
+    coordinated = routes_through_coordination(resolve_topology(repo_root, mission_slug))
+    raise mission_runtime.PlanningCheckoutMissing(mission_slug, ref.branch, coordinated=coordinated)
+
+
 def planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
     """Return the primary-checkout mission dir for planning-artifact discovery."""
     repo_root_resolved = repo_root.resolve()

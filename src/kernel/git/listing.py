@@ -426,8 +426,15 @@ def tree_entries(
     return parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-z", ref], pathspecs, env=env, timeout=timeout))
 
 
-def _diff_args(flag: str, revs: Sequence[str], *, cached: bool, renames: bool, diff_filter: str | None) -> list[str]:
-    args = [*_REPO_RELATIVE_DIFF, "diff", flag, "-z", "-M" if renames else "--no-renames"]
+def _rename_flag(*, renames: bool, copies: bool) -> str:
+    """``-C`` (copies and renames), ``-M`` (renames) or ``--no-renames``."""
+    if copies:
+        return "-C"
+    return "-M" if renames else "--no-renames"
+
+
+def _diff_args(flag: str, revs: Sequence[str], *, cached: bool, renames: bool, diff_filter: str | None, copies: bool = False) -> list[str]:
+    args = [*_REPO_RELATIVE_DIFF, "diff", flag, "-z", _rename_flag(renames=renames, copies=copies)]
     if cached:
         args.append("--cached")
     if diff_filter is not None:
@@ -460,14 +467,19 @@ def changed_entries(
     *revs: str,
     cached: bool = False,
     renames: bool = False,
+    copies: bool = False,
     diff_filter: str | None = None,
     pathspecs: Sequence[str] = (),
     glob: bool = False,
     env: Env = None,
     timeout: float | None = None,
 ) -> tuple[NameStatusEntry, ...]:
-    """Like :func:`changed_paths`, with each path's status (and source path when *renames*)."""
-    args = _diff_args("--name-status", revs, cached=cached, renames=renames, diff_filter=diff_filter)
+    """Like :func:`changed_paths`, with each path's status (and source path when *renames* or *copies*).
+
+    *copies* (``-C``) detects copies as well as renames: a ``C<score>`` entry names the copied
+    path and its source, which this commit also modified (git's default copy detection).
+    """
+    args = _diff_args("--name-status", revs, cached=cached, renames=renames, diff_filter=diff_filter, copies=copies)
     return parse_name_status_z(_git(cwd, args, pathspecs, glob=glob, env=env, timeout=timeout))
 
 
