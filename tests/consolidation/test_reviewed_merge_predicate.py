@@ -481,8 +481,9 @@ def test_replace_keeps_the_unreviewed_merges(tmp_path: Path) -> None:
 #: and the fields added after it, :data:`_LATER_FIELDS`).
 _PRE_WP_FIELD_COUNT = 33
 
-#: Fields added to the claim after this work package, outside this ratchet: #7860's advisory
-#: ``planning_lane_notes`` (declared before ``unreviewed_merges``, which stays last).
+#: This work package's field and the fields appended after it, outside this ratchet: #7860's
+#: advisory ``planning_lane_notes`` (declared after ``unreviewed_merges``, so every earlier
+#: positional index is unchanged).
 _LATER_FIELDS = frozenset({"unreviewed_merges", "planning_lane_notes"})
 
 
@@ -492,6 +493,22 @@ def test_positional_construction_with_the_pre_wp_arity_still_works() -> None:
     defaults = ApprovedWpCommitSet()
     claim = ApprovedWpCommitSet(*(getattr(defaults, name) for name in names))
     assert claim == defaults
+
+
+def test_positional_construction_up_to_unreviewed_merges_still_fills_unreviewed_merges() -> None:
+    """A claim built positionally through ``unreviewed_merges`` (this work package's arity) keeps it.
+
+    Later fields (#7860's ``planning_lane_notes``) are appended after it, never declared before it.
+    """
+    names = [f.name for f in dataclasses.fields(ApprovedWpCommitSet)]
+    assert names[_PRE_WP_FIELD_COUNT] == "unreviewed_merges"
+    defaults = ApprovedWpCommitSet()
+    from specify_cli.consolidation.reconciliation_claim_types import UnreviewedMerge
+
+    merge = UnreviewedMerge(sha="a" * 40, lane_id="lane-a", wp_ids=("WP01",), own_paths=("src/x.py",), own_blobs=())
+    claim = ApprovedWpCommitSet(*(getattr(defaults, name) for name in names[:_PRE_WP_FIELD_COUNT]), (merge,))
+    assert claim.unreviewed_merges == (merge,)
+    assert claim.planning_lane_notes == ()
 
 
 # --- T013: byte-identity ratchet on the existing claim fields ----------------------------------
