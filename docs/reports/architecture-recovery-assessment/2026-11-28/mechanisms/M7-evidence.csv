@@ -1,0 +1,36 @@
+claim,reference,tag
+"consolidation package is 63 files and 36,414 lines (find -name '*.py' excluding __pycache__, wc -l)",spec-kitty:src/specify_cli/consolidation/,executed
+"acceptance 9 files 6,108 lines; review 24 files 9,326 lines (same command)",spec-kitty:src/specify_cli/acceptance/ ; spec-kitty:src/specify_cli/review/,executed
+"consolidate.py 1,729 lines with 22 distinct long flags; accept.py 1,927 lines with 16 (grep -o of quoted --flags)",spec-kitty:src/specify_cli/cli/commands/consolidate.py ; accept.py,executed
+"tests/consolidation is 228 files and 81,376 lines with 18 strict xfail markers",spec-kitty:tests/consolidation/,executed
+"five governing ADRs total 44,075 words and 41 amendment or follow-up headings (wc -w; grep -c)",spec-kitty:docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md ; docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md ; docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md ; docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md ; docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md,executed
+"CLAUDE.md consolidation section is 6,058 words, uses 'residual' 11 times, cites 44 distinct issue numbers (awk section extract)",spec-kitty:CLAUDE.md (section Consolidation & Preflight Patterns),executed
+"about 60 refusal codes among 80 upper-case string tokens in consolidation/ and consolidate.py; 218 across the mechanism's directories (grep -oE of quoted upper-case tokens)",spec-kitty:src/specify_cli/consolidation/,executed
+"README promises review, accept, merge with an audit trail and a spec->...->review->accept->merge loop",spec-kitty:README.md:10 ; README.md:35,read
+"user guide: consolidate lands on the local target only; publish through a topic branch and a pull request",spec-kitty:docs/guides/how-to/missions/merge-mission.md:21,read
+"accept is documented as a readiness nudge; consolidation performs its own gates",spec-kitty:docs/guides/how-to/missions/accept-and-merge.md:29,read
+"consolidate has a --push flag that publishes to origin",spec-kitty:src/specify_cli/cli/commands/consolidate.py:1157,read
+"default strategy is squash; lane to mission always uses merge commits; three strategies",spec-kitty:src/specify_cli/consolidation/config.py:7 ; config.py:18,read
+"the locked run executes 15 phases with a single rollback door around the mutation span",spec-kitty:src/specify_cli/consolidation/executor.py:766,read
+"verify() documents 11 ordered steps over claim integrity and canceled, presence, canceled-dependency, squash blob and reachability/closed-world axes",spec-kitty:src/specify_cli/consolidation/reconciliation_verifier.py:413,read
+"squash destroys lane-tip SHAs and patch-ids so a blob-attribution axis runs instead",spec-kitty:src/specify_cli/consolidation/reconciliation_verifier.py:477,read
+"ConsolidationState has 37 fields; ApprovedWpCommitSet has 34 (awk field count)",spec-kitty:src/specify_cli/consolidation/state.py:203 ; reconciliation_claim_types.py,executed
+"claim inputs have three sources LIVE, LIVE_THEN_SAVED, SAVED",spec-kitty:src/specify_cli/consolidation/claim_inputs.py:12,read
+"46 of 63 consolidation files mention the coordination surface (grep -il coord)",spec-kitty:src/specify_cli/consolidation/,executed
+"landing advances refs with update-ref from detached worktrees, which bypasses checked-out-branch protection and leaves checkouts behind their own HEAD",spec-kitty:src/specify_cli/git/ref_advance.py:3,read
+"reviewer identity is a tool:model:profile string compared segment-wise",spec-kitty:src/specify_cli/status/models.py:411,read
+"no threat model stated in the consolidation ADRs (grep -i threat|adversar|malicious|forge gave no relevant hit)",spec-kitty:docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md,executed
+"orchestrator path merges lanes with no claim, no gate and no rollback, and re-adds checks as _refuse_* functions",spec-kitty:src/specify_cli/orchestrator_api/consolidation.py:586 ; :783 ; :478-583,read
+"orchestrator contract version is 1.31.0",spec-kitty:src/specify_cli/orchestrator_api/envelope.py:244,read
+"four bookkeeping-path classifiers exist",spec-kitty:src/specify_cli/consolidation/reconciliation_kernel.py:43 ; consolidation/reconciliation_verifier.py:1005 ; lanes/lane_tip.py:436 ; lanes/for_review_gate.py:176,executed
+"owned-file evidence is evaluated from move-task, accept, the claim and the orchestrator mirror",spec-kitty:src/specify_cli/cli/commands/agent/tasks_move_task.py:1227 ; cli/commands/accept.py:54 ; consolidation/reconciliation_claim.py:60 ; orchestrator_api/consolidation.py:646,read
+"run_origin_gate has three callers",spec-kitty:src/specify_cli/cli/commands/accept.py:1188 ; consolidation/origin_gate.py:81 ; orchestrator_api/consolidation.py:156,executed
+"reconciliation.py is a facade holding no logic over reconciliation_*.py modules",spec-kitty:src/specify_cli/consolidation/reconciliation.py:52,read
+"remaining second restore paths (repair_coord_strand, resume recovery raw reset) are named by the project itself",spec-kitty:CLAUDE.md (paragraph 'Refusals and failures roll back through one authority'),read
+"module sizes: rollback 1,380; state 1,041; run_state 572; bookkeeping_projection 1,636; phase_teardown 1,336; wp_attribution 1,077; line_attribution 386; reconciliation_canceled 817; approved_bound 991; reconciliation_bound 643; merge_attribute_guard 441; forecast 841",spec-kitty:src/specify_cli/consolidation/,executed
+"for_review gate counts commits on the lane branch beyond its base",spec-kitty:src/specify_cli/lanes/for_review_gate.py:1,read
+"pre-review gate is a scoped regression test run with a baseline diff, a separate concern from landing proof",spec-kitty:src/specify_cli/review/pre_review_gate.py:1,read
+"external consumers of consolidate-mission: orchestrator host client and conformance fixtures; MCP tools",spec-kitty-orchestrator:src/spec_kitty_orchestrator/host/client.py ; spec-kitty-orchestrator:tests/conformance/test_contract.py ; spec-kitty-mcp:src/tools.zig,executed
+"a tree-equality check already exists inside the mission-to-target phase",spec-kitty:src/specify_cli/consolidation/phase_advance.py:687,read
+"about four fifths of consolidation/ exists because of lanes, squash, the coordination branch and multi-phase resume",derived from the module sizes above,inferred
+"deletion estimates for alternatives A, B and C",derived from the module sizes above,inferred
